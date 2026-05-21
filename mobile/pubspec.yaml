@@ -41,6 +41,12 @@ dependencies:
   # WebView (Phase 1 printer UI)
   webview_flutter: ^4.7.0
 
+  # Open external apps (Tailscale)
+  url_launcher: ^6.3.0
+
+  # UUID generation for printer IDs
+  uuid: ^4.4.0
+
   # Utilities
   intl: ^0.19.0
   shared_preferences: ^2.2.0

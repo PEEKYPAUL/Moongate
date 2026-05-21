@@ -6,20 +6,20 @@ import 'features/auth/pairing_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/printer/printer_screen.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/splash/splash_screen.dart';
 import 'providers/settings_provider.dart';
 import 'services/printer_registry.dart';
 
 final _router = GoRouter(
-  initialLocation: '/',
+  initialLocation: '/splash',
   routes: [
+    GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
     GoRoute(
       path: '/',
-      redirect: (_, __) => PrinterRegistry.instance.printers.isEmpty
-          ? '/pair'
-          : '/dashboard',
+      redirect: (_, __) => '/dashboard',
     ),
-    GoRoute(path: '/pair', builder: (_, __) => const PairingScreen()),
     GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
+    GoRoute(path: '/pair', builder: (_, __) => const PairingScreen()),
     GoRoute(
       path: '/printer/:id',
       builder: (_, state) {
