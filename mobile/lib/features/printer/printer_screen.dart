@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/vpn_service.dart';
-import '../../services/moonraker_service.dart';
 
 /// Phase 1: WebView pointing at the local Mainsail/Fluidd instance.
 /// Phase 2 (planned): replace with native Flutter widgets consuming

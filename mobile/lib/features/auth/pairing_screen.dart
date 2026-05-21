@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../services/auth_service.dart';
-import '../../services/vpn_service.dart';
 
 class PairingScreen extends StatefulWidget {
   const PairingScreen({super.key});

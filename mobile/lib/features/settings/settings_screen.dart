@@ -65,16 +65,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: Text(
                 'How long before you need to re-pair the app with your printer.'),
           ),
-          ..._ttlOptions.asMap().entries.map((e) {
-            final days = e.value;
-            final label = _ttlLabels[e.key];
-            return RadioListTile<int>(
-              title: Text(label),
-              value: days,
-              groupValue: _ttlDays,
-              onChanged: (v) => _saveTtl(v!),
-            );
-          }),
+          RadioGroup<int>(
+            groupValue: _ttlDays,
+            onChanged: (v) { if (v != null) _saveTtl(v); },
+            child: Column(
+              children: _ttlOptions.asMap().entries.map((e) {
+                return RadioListTile<int>(
+                  title: Text(_ttlLabels[e.key]),
+                  value: e.value,
+                );
+              }).toList(),
+            ),
+          ),
           const Divider(),
           SwitchListTile(
             title: const Text('Disconnect VPN when app is minimised'),

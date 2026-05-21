@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'features/auth/pairing_screen.dart';
 import 'features/printer/printer_screen.dart';
 import 'features/settings/settings_screen.dart';
-import 'services/auth_service.dart';
 
 final _router = GoRouter(
   initialLocation: '/pair',
