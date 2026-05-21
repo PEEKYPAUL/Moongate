@@ -1,0 +1,40 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Get dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      - name: Build debug APK
+        working-directory: mobile
+        run: flutter build apk --debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: moongate-debug
+          path: mobile/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7
