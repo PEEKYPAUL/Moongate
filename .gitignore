@@ -1,0 +1,57 @@
+# Flutter / Dart
+mobile/.dart_tool/
+mobile/.packages
+mobile/.pub-cache/
+mobile/.pub/
+mobile/build/
+mobile/*.iml
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/key.properties
+mobile/android/app/google-services.json
+mobile/ios/.symlinks/
+mobile/ios/Flutter/flutter_export_environment.sh
+mobile/ios/Flutter/Generated.xcconfig
+mobile/ios/Pods/
+mobile/ios/Runner.xcworkspace/xcuserdata/
+*.g.dart
+
+# Android signing — NEVER commit keystores
+*.jks
+*.keystore
+
+# iOS signing — NEVER commit provisioning profiles or certs
+*.mobileprovision
+*.p12
+*.cer
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+*.egg
+
+# Secrets & tokens — NEVER commit these
+*.env
+.env.*
+secrets.json
+tokens.json
+moongate_keys/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log

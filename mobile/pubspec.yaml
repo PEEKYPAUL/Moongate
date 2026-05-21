@@ -1,0 +1,61 @@
+name: moongate
+description: Secure remote interface for Klipper 3D printers with integrated VPN.
+version: 0.1.0+1
+publish_to: none
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.19.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Networking
+  web_socket_channel: ^2.4.0
+  http: ^1.2.0
+  dio: ^5.4.0
+
+  # Secure storage (token persistence)
+  flutter_secure_storage: ^9.0.0
+
+  # QR code scanning
+  mobile_scanner: ^5.0.0
+
+  # QR code rendering (for display)
+  qr_flutter: ^4.1.0
+
+  # State management
+  flutter_riverpod: ^2.5.0
+  riverpod_annotation: ^2.3.0
+
+  # Navigation
+  go_router: ^13.0.0
+
+  # Local notifications (minimal — VPN status only)
+  flutter_local_notifications: ^17.0.0
+
+  # Biometric auth (optional lock screen)
+  local_auth: ^2.2.0
+
+  # WebView (Phase 1 printer UI)
+  webview_flutter: ^4.7.0
+
+  # Utilities
+  intl: ^0.19.0
+  shared_preferences: ^2.2.0
+  package_info_plus: ^8.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  build_runner: ^2.4.0
+  riverpod_generator: ^2.3.0
+  json_serializable: ^6.7.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/

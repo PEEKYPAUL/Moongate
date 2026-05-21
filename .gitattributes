@@ -1,0 +1,26 @@
+# Normalize line endings
+* text=auto
+
+# Shell scripts must stay LF on all platforms
+*.sh text eol=lf
+
+# Python
+*.py text eol=lf
+
+# Dart / Flutter
+*.dart text eol=lf
+pubspec.yaml text eol=lf
+
+# Kotlin / Java
+*.kt text eol=lf
+*.java text eol=lf
+
+# Swift
+*.swift text eol=lf
+
+# Binaries
+*.png binary
+*.jpg binary
+*.ico binary
+*.ttf binary
+*.otf binary
