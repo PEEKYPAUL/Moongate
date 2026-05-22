@@ -3,24 +3,40 @@ import 'dart:convert';
 class PrinterConfig {
   final String id;
   final String name;
-  final String host; // tailscale IP:port, e.g. "100.64.0.2:7125"
+
+  /// Local network address, e.g. "192.168.1.50:80".
+  /// Used when the phone is on the same WiFi as the printer.
+  final String host;
+
   final String token;
+
+  /// Cloudflare Tunnel URL, e.g. "https://xxxx.trycloudflare.com".
+  /// Used for remote access from any network — null until the tunnel
+  /// is set up on the Pi (cloudflared service running).
+  final String? remoteHost;
 
   const PrinterConfig({
     required this.id,
     required this.name,
     required this.host,
     required this.token,
+    this.remoteHost,
   });
 
-  PrinterConfig copyWith({String? name}) =>
-      PrinterConfig(id: id, name: name ?? this.name, host: host, token: token);
+  PrinterConfig copyWith({String? name, String? remoteHost}) => PrinterConfig(
+        id: id,
+        name: name ?? this.name,
+        host: host,
+        token: token,
+        remoteHost: remoteHost ?? this.remoteHost,
+      );
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
         'host': host,
         'token': token,
+        if (remoteHost != null) 'remoteHost': remoteHost,
       };
 
   factory PrinterConfig.fromJson(Map<String, dynamic> j) => PrinterConfig(
@@ -28,6 +44,7 @@ class PrinterConfig {
         name: j['name'] as String,
         host: j['host'] as String,
         token: j['token'] as String,
+        remoteHost: j['remoteHost'] as String?,
       );
 
   static List<PrinterConfig> listFromJson(String raw) {

@@ -24,7 +24,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _load() {
-    setState(() => _printers = PrinterRegistry.instance.printers);
+    final list = PrinterRegistry.instance.printers;
+    if (mounted) setState(() => _printers = list);
   }
 
   Future<void> _removePrinter(PrinterConfig printer) async {
@@ -51,42 +52,41 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // fontScale is now applied globally via MaterialApp.builder in app.dart.
+    // We still watch it here only to pass to _fontScaleLabel() in the drawer.
     final fontScale = ref.watch(fontScaleProvider);
 
-    return MediaQuery(
-      data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(fontScale)),
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Moongate'),
-          actions: [
-            Builder(
-              builder: (ctx) => IconButton(
-                icon: const Icon(Icons.menu),
-                tooltip: 'Menu',
-                onPressed: () => Scaffold.of(ctx).openEndDrawer(),
-              ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Moongate'),
+        actions: [
+          Builder(
+            builder: (ctx) => IconButton(
+              icon: const Icon(Icons.menu),
+              tooltip: 'Menu',
+              onPressed: () => Scaffold.of(ctx).openEndDrawer(),
             ),
-          ],
-        ),
-        endDrawer: _buildDrawer(context),
-        body: _printers.isEmpty
-            ? _EmptyState(onAddPrinter: () => context.push('/pair'))
-            : _PrinterGrid(
-                printers: _printers,
-                onTap: (p) => context.push('/printer/${p.id}'),
-                onRemove: _removePrinter,
-              ),
-        floatingActionButton: _printers.isEmpty
-            ? null
-            : FloatingActionButton(
-                onPressed: () async {
-                  await context.push('/pair');
-                  _load();
-                },
-                tooltip: 'Add printer',
-                child: const Icon(Icons.add),
-              ),
+          ),
+        ],
       ),
+      endDrawer: _buildDrawer(context),
+      body: _printers.isEmpty
+          ? _EmptyState(onAddPrinter: () => context.push('/pair').then((_) => _load()))
+          : _PrinterGrid(
+              printers: _printers,
+              onTap: (p) => context.push('/printer/${p.id}'),
+              onRemove: _removePrinter,
+            ),
+      floatingActionButton: _printers.isEmpty
+          ? null
+          : FloatingActionButton(
+              onPressed: () async {
+                await context.push('/pair');
+                _load();
+              },
+              tooltip: 'Add printer',
+              child: const Icon(Icons.add),
+            ),
     );
   }
 
@@ -277,7 +277,9 @@ class _PrinterGrid extends StatelessWidget {
           crossAxisCount: crossAxis,
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
-          childAspectRatio: 0.8,
+          // 0.68 gives ~47% more height than width, leaving room for the
+          // progress bar + control buttons that appear while printing.
+          childAspectRatio: 0.75,
         ),
         itemCount: printers.length,
         itemBuilder: (_, i) => PrinterTile(

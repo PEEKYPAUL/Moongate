@@ -10,6 +10,7 @@ class PrinterStatusService {
   final PrinterConfig config;
   final _controller = StreamController<PrinterStatus>.broadcast();
   Timer? _timer;
+  bool _disposed = false;
 
   PrinterStatusService(this.config);
 
@@ -21,54 +22,67 @@ class PrinterStatusService {
   }
 
   void dispose() {
+    _disposed = true;
     _timer?.cancel();
     _controller.close();
   }
 
   Future<void> _poll() async {
-    try {
-      final uri = Uri.parse(
-        'http://${config.host}/printer/objects/query'
-        '?print_stats&heater_bed&extruder',
-      );
-      final response = await http.get(
-        uri,
-        headers: {'Authorization': 'Bearer ${config.token}'},
-      ).timeout(const Duration(seconds: 5));
+    if (_disposed) return;
+    // Try local first, fall back to remote (Cloudflare tunnel) if unreachable.
+    // config.host is a full URL: "http://192.168.x.x:80"
+    // config.remoteHost is an HTTPS URL: "https://xxxx.trycloudflare.com"
+    final candidates = [
+      config.host,
+      if (config.remoteHost != null) config.remoteHost!,
+    ];
 
-      if (response.statusCode != 200) {
-        _controller.add(PrinterStatus.offline);
-        return;
+    for (final baseUrl in candidates) {
+      try {
+        // Use the Moongate proxy endpoint — it validates our JWT and fetches
+        // from Moonraker on localhost, so it works both locally and via tunnel.
+        // Token is passed as a query param because WebRequest has no get_header.
+        final uri = Uri.parse(
+          '$baseUrl/server/moongate/status?mg_token=${Uri.encodeComponent(config.token)}',
+        );
+        final response = await http.get(uri)
+            .timeout(const Duration(seconds: 5));
+
+        if (response.statusCode != 200) continue;
+
+        final body   = jsonDecode(response.body) as Map<String, dynamic>;
+        final result = body['result'] as Map<String, dynamic>;
+        final status = result['status'] as Map<String, dynamic>;
+
+        final printStats = status['print_stats'] as Map<String, dynamic>? ?? {};
+        final extruder   = status['extruder']    as Map<String, dynamic>? ?? {};
+        final heaterBed  = status['heater_bed']  as Map<String, dynamic>? ?? {};
+
+        final state    = (printStats['state'] as String?) ?? 'offline';
+        final progress = (printStats['print_duration'] != null &&
+                printStats['total_duration'] != null &&
+                (printStats['total_duration'] as num) > 0)
+            ? ((printStats['print_duration'] as num) /
+                    (printStats['total_duration'] as num))
+                .clamp(0.0, 1.0)
+            : 0.0;
+
+        if (_disposed) return;
+        _controller.add(PrinterStatus(
+          state:        state,
+          progress:     progress.toDouble(),
+          hotendTemp:   (extruder['temperature'] as num?)?.toDouble() ?? 0,
+          hotendTarget: (extruder['target']      as num?)?.toDouble() ?? 0,
+          bedTemp:      (heaterBed['temperature'] as num?)?.toDouble() ?? 0,
+          bedTarget:    (heaterBed['target']      as num?)?.toDouble() ?? 0,
+          filename:     printStats['filename'] as String?,
+        ));
+        return; // success — stop trying candidates
+      } catch (_) {
+        // This candidate failed; try the next one.
       }
-
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      final result = body['result'] as Map<String, dynamic>;
-      final status = result['status'] as Map<String, dynamic>;
-
-      final printStats = status['print_stats'] as Map<String, dynamic>? ?? {};
-      final extruder = status['extruder'] as Map<String, dynamic>? ?? {};
-      final heaterBed = status['heater_bed'] as Map<String, dynamic>? ?? {};
-
-      final state = (printStats['state'] as String?) ?? 'offline';
-      final progress = (printStats['print_duration'] != null &&
-              printStats['total_duration'] != null &&
-              (printStats['total_duration'] as num) > 0)
-          ? ((printStats['print_duration'] as num) /
-                  (printStats['total_duration'] as num))
-              .clamp(0.0, 1.0)
-          : 0.0;
-
-      _controller.add(PrinterStatus(
-        state: state,
-        progress: progress.toDouble(),
-        hotendTemp: (extruder['temperature'] as num?)?.toDouble() ?? 0,
-        hotendTarget: (extruder['target'] as num?)?.toDouble() ?? 0,
-        bedTemp: (heaterBed['temperature'] as num?)?.toDouble() ?? 0,
-        bedTarget: (heaterBed['target'] as num?)?.toDouble() ?? 0,
-        filename: printStats['filename'] as String?,
-      ));
-    } catch (_) {
-      _controller.add(PrinterStatus.offline);
     }
+
+    if (!_disposed) _controller.add(PrinterStatus.offline);
   }
 }

@@ -41,15 +41,20 @@ class MoongateApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final fontScale = ref.watch(fontScaleProvider);
 
-    return MediaQuery(
-      data: MediaQueryData(textScaler: TextScaler.linear(fontScale)),
-      child: MaterialApp.router(
-        title: 'Moongate',
-        themeMode: themeMode,
-        theme: _buildTheme(Brightness.light),
-        darkTheme: _buildTheme(Brightness.dark),
-        routerConfig: _router,
-        debugShowCheckedModeBanner: false,
+    return MaterialApp.router(
+      title: 'Moongate',
+      themeMode: themeMode,
+      theme: _buildTheme(Brightness.light),
+      darkTheme: _buildTheme(Brightness.dark),
+      routerConfig: _router,
+      debugShowCheckedModeBanner: false,
+      // Apply font scaling via builder so we inherit the real system MediaQuery
+      // (status-bar height, nav-bar height, etc.) rather than discarding it.
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: TextScaler.linear(fontScale),
+        ),
+        child: child!,
       ),
     );
   }

@@ -1,44 +1,109 @@
 # Moongate
 
-> One app. Your 3D printer. Anywhere.
+> One app. Your Klipper printer. Anywhere.
 
-Moongate is a free, open-source mobile app for Android and iOS that gives you a **secure, remote interface to your Klipper 3D printer** — with no cloud dependency, no extra apps, and no subscription.
-
-It replaces the two-app workflow of **Mobileraker + Tailscale** with a single integrated application.
+Moongate is a free, open-source Android app that gives you a **full remote control interface for your Klipper 3D printer** — live webcam, print controls, temperatures, and the complete Mainsail UI — over your local network and automatically over the internet when you're away from home. No Tailscale. No VPN setup. No subscriptions.
 
 ---
 
-## Features
+## Download
+
+**[⬇ Download latest APK](https://github.com/PEEKYPAUL/moongate/releases/latest)**
+
+> Android only for now. Enable **Install from unknown sources** for your browser or file manager before installing.
+
+---
+
+## What it does
 
 | Feature | Detail |
 |---|---|
-| **Integrated VPN** | WireGuard tunnel starts when you open the app and is fully torn down when you close it. No background drain, no persistent notification beyond the OS VPN icon. |
-| **Mainsail/Fluidd interface** | Full printer control — temperature, movement, macros, webcam, print status — identical to what you see in a browser. |
-| **Secure pairing** | Run a single Klipper macro to generate a time-limited handshake code (alphanumeric + QR). No port forwarding, no static IPs. |
-| **Configurable token expiry** | Choose how often you need to re-pair: 1 day, 7 days, 30 days, or never. |
-| **No cloud** | All traffic goes directly over your Tailscale/WireGuard mesh. Nothing leaves your network except through the VPN tunnel you control. |
+| **Dashboard** | See all your printers at a glance — live webcam thumbnails refreshing every second, print progress, temperatures, and status |
+| **Print controls** | Pause, resume, and stop prints directly from the dashboard tile. Stop requires a second press to confirm |
+| **Firmware restart** | When a printer is idle or in error state, the stop button becomes a one-tap firmware restart |
+| **Full Mainsail UI** | Tap any tile to open the complete Mainsail/Fluidd interface in an embedded browser |
+| **Auto local/remote** | Connects over your home WiFi first; if unreachable, automatically falls back to the Cloudflare tunnel within 3 seconds |
+| **Secure pairing** | One Klipper console command generates a time-limited QR + code. No port forwarding, no static IP |
 
 ---
 
 ## How it works
 
 ```
-┌─────────────────────┐        WireGuard tunnel        ┌──────────────────────────┐
-│   Moongate App      │◄──────────────────────────────►│  Raspberry Pi (Klipper)  │
-│  (Android / iOS)    │        (Tailscale mesh)         │  Moonraker + Moongate    │
-│                     │                                 │        Plugin            │
-│  • VPN lifecycle    │   Moonraker WebSocket/REST      │                          │
-│  • Printer UI       │◄──────────────────────────────►│  Port 7125 (local only)  │
-│  • Pairing flow     │                                 │                          │
-└─────────────────────┘                                 └──────────────────────────┘
+┌─────────────────────┐   local WiFi (fast)    ┌──────────────────────┐
+│   Moongate App      │◄──────────────────────►│  Klipper Pi          │
+│   (Android)         │                         │  Moonraker           │
+│                     │   Cloudflare tunnel     │  + Moongate plugin   │
+│                     │◄──────────────────────►│                      │
+└─────────────────────┘   (auto, when away)     └──────────────────────┘
 ```
 
-### Pairing flow
+The Moongate plugin runs inside Moonraker on your Pi. It handles pairing, token auth, status polling, and print control — proxying commands to Klipper on your behalf. A Cloudflare Quick Tunnel is started automatically on the Pi so you can reach it from anywhere without opening ports on your router.
 
-1. In Klipper/KlipperScreen, run the `MOONGATE_PAIR` macro
-2. A short code (e.g. `GATE-A3F2-9K1B`) and QR code appear in the console
-3. Enter the code in the Moongate app — it exchanges it for a session token
-4. The app connects over the WireGuard tunnel automatically
+---
+
+## Setup
+
+### Step 1 — Install the plugin on your Raspberry Pi
+
+SSH into your Pi and run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/PEEKYPAUL/moongate/main/klipper-plugin/install.sh | bash
+```
+
+This will:
+- Install the Moongate Moonraker plugin
+- Deploy the QR pairing page to Mainsail
+- Install `cloudflared` and start the remote-access tunnel as a systemd service
+- Restart Moonraker
+
+At the end you'll see output like:
+
+```
+  Pairing page : http://192.168.1.x/moongate-pair.html
+  Remote access: https://xxxx-xxxx.trycloudflare.com ✓
+
+  Next step: run MOONGATE_PAIR in Klipper console,
+  open the pairing page above on your PC, and scan with the app.
+```
+
+> **Requirements:** Raspberry Pi running Klipper + Moonraker + Mainsail (standard Kiauh/MainsailOS setup). Tested on aarch64 (Pi 4/5) and armv7l (Pi 3).
+
+---
+
+### Step 2 — Install the app
+
+[Download the APK](https://github.com/PEEKYPAUL/moongate/releases/latest) and install it on your Android phone.
+
+On first launch the app will ask you to add a printer.
+
+---
+
+### Step 3 — Pair
+
+1. In Klipper/Mainsail, run the macro `MOONGATE_PAIR` in the console
+2. Open `http://<your-pi-ip>/moongate-pair.html` on your PC — a QR code will appear
+3. In the Moongate app, tap **+** → **Scan QR** and point your camera at the QR code
+4. Done — your printer appears in the dashboard
+
+**No PC handy?** You can also type the code shown in the Klipper console (`GATE-XXXX-XXXX`) directly into the app.
+
+---
+
+## Pairing the remote (Cloudflare) URL
+
+The QR code from `moongate-pair.html` automatically includes both your local IP and the Cloudflare tunnel URL. When you scan it, the app stores both — it uses local when you're home and the tunnel when you're away.
+
+If you installed before the remote URL was available, re-run `MOONGATE_PAIR` and re-scan to pick it up.
+
+---
+
+## Screenshots
+
+| Dashboard | Printer controls | Full Mainsail UI |
+|---|---|---|
+| Live webcam tiles, progress, temps | Pause / Resume / Stop with confirm | Embedded WebView, auto local/remote |
 
 ---
 
@@ -46,59 +111,60 @@ It replaces the two-app workflow of **Mobileraker + Tailscale** with a single in
 
 ```
 moongate/
-├── mobile/             # Flutter app (Android + iOS)
-├── klipper-plugin/     # Moonraker plugin for the Raspberry Pi
-└── docs/               # Architecture, setup guide, security notes
+├── mobile/             # Flutter app (Android)
+│   ├── lib/
+│   │   ├── features/   # UI screens (dashboard, printer, pairing, settings)
+│   │   ├── models/     # Data models (PrinterConfig, etc.)
+│   │   └── services/   # Status polling, print control, auth, registry
+│   └── android/        # Android platform code
+└── klipper-plugin/
+    ├── moongate_standalone.py   # Moonraker plugin
+    ├── install.sh               # One-line installer for the Pi
+    └── moongate-pair.html       # QR pairing page (deployed to Mainsail)
 ```
 
 ---
 
-## Getting started
+## Building from source
 
-### 1 — Install the Moonraker plugin on your Raspberry Pi
+Requirements: Flutter 3.19+ (stable channel), Android SDK, JDK 17.
 
 ```bash
-cd ~
 git clone https://github.com/PEEKYPAUL/moongate.git
-cd moongate/klipper-plugin
-bash install.sh
+cd moongate/mobile
+flutter pub get
+flutter build apk --release
+# APK: build/app/outputs/flutter-apk/app-release.apk
 ```
 
-### 2 — Install the Moongate app
-
-> APK (Android sideload) and TestFlight (iOS) links will appear here once the first build is published.
-
-### 3 — Pair
-
-Run `MOONGATE_PAIR` in your Klipper console. Scan the QR or type the code into the app. Done.
-
 ---
 
-## Development setup
+## Troubleshooting
 
-See [docs/setup-guide.md](docs/setup-guide.md) for full Flutter SDK install instructions and how to build from source.
+**Printer shows Offline**
+- Check that Moonraker is running: `sudo systemctl status moonraker`
+- Confirm the plugin loaded: look for `[moongate]` in Moonraker logs (`~/printer_data/logs/moonraker.log`)
+
+**Remote tunnel not connecting**
+- Check the tunnel service: `sudo systemctl status moongate-tunnel`
+- View the tunnel log: `cat /run/moongate-tunnel.log`
+- The tunnel URL changes each restart — re-scan the QR to update the app
+
+**Webcam not showing**
+- The app fetches snapshots from `/webcam/?action=snapshot` on your Pi
+- Make sure your webcam is configured in Mainsail and that URL works in a browser
+
+**App says "Could not reach printer"**
+- The app tries local first, then remote; if both fail it shows an error
+- Check your phone's WiFi when on home network
+- Check the tunnel status when remote
 
 ---
-
-## Roadmap
-
-- [x] Project scaffold & architecture
-- [ ] Moonraker plugin — pairing endpoint & token management
-- [ ] Flutter app — VPN lifecycle (Android)
-- [ ] Flutter app — VPN lifecycle (iOS)
-- [ ] Flutter app — pairing UI
-- [ ] Flutter app — Moonraker WebSocket integration
-- [ ] Flutter app — printer control UI (Phase 1: WebView)
-- [ ] Flutter app — printer control UI (Phase 2: native widgets)
-- [ ] GitHub Actions CI
-- [ ] First Android APK release
-
----
-
-## Contributing
-
-PRs welcome. Please open an issue first for anything larger than a bug fix.
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE)
+
+---
+
+*Created by [Paul Sharman](https://github.com/PEEKYPAUL)*

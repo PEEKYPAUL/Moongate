@@ -58,7 +58,7 @@ class _SplashScreenState extends State<SplashScreen>
                     borderRadius: BorderRadius.circular(28),
                     boxShadow: [
                       BoxShadow(
-                        color: cs.primary.withOpacity(0.3),
+                        color: cs.primary.withValues(alpha:0.3),
                         blurRadius: 24,
                         offset: const Offset(0, 8),
                       ),
@@ -79,7 +79,7 @@ class _SplashScreenState extends State<SplashScreen>
                 Text(
                   'Klipper remote control',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: cs.onSurface.withOpacity(0.45),
+                        color: cs.onSurface.withValues(alpha:0.45),
                         letterSpacing: 1,
                       ),
                 ),

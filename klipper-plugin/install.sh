@@ -1,167 +1,126 @@
 #!/usr/bin/env bash
-# Moongate plugin installer for Moonraker on Raspberry Pi
+# ─────────────────────────────────────────────────────────────────────────────
+# Moongate installer
+# Run on your Klipper Pi:
+#   curl -fsSL https://raw.githubusercontent.com/PEEKYPAUL/moongate/main/klipper-plugin/install.sh | bash
+# ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MOONRAKER_HOME="${MOONRAKER_HOME:-$HOME/moonraker}"
-EXTRAS_DIR="$MOONRAKER_HOME/moonraker/components"
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
+info()    { echo -e "${BLUE}[moongate]${NC} $*"; }
+success() { echo -e "${GREEN}[moongate]${NC} $*"; }
+warn()    { echo -e "${YELLOW}[moongate]${NC} $*"; }
+die()     { echo -e "${RED}[moongate] ERROR:${NC} $*" >&2; exit 1; }
+
+# ── Detect environment ────────────────────────────────────────────────────────
+MOONRAKER_DIR="${MOONRAKER_DIR:-$HOME/moonraker}"
+MAINSAIL_DIR="${MAINSAIL_DIR:-$HOME/mainsail}"
 PRINTER_DATA="${PRINTER_DATA:-$HOME/printer_data}"
 MOONRAKER_CONF="$PRINTER_DATA/config/moonraker.conf"
-PRINTER_CFG="$PRINTER_DATA/config/printer.cfg"
-WG_DIR="/etc/wireguard"
-WG_IFACE="wg0"
-WG_PORT=51820
-VPN_SUBNET="10.13.13"          # phone peers get 10.13.13.2, .3, …
-SERVER_VPN_IP="10.13.13.1"
+COMPONENTS_DIR="$MOONRAKER_DIR/moonraker/components"
 
-echo "==> Moongate plugin installer"
-echo "    Moonraker home : $MOONRAKER_HOME"
-echo "    Extras dir     : $EXTRAS_DIR"
-echo "    moonraker.conf : $MOONRAKER_CONF"
+[[ -d "$MOONRAKER_DIR" ]]  || die "Moonraker not found at $MOONRAKER_DIR. Set MOONRAKER_DIR= if installed elsewhere."
+[[ -f "$MOONRAKER_CONF" ]] || die "moonraker.conf not found at $MOONRAKER_CONF."
 
-# ── 1. Copy plugin ────────────────────────────────────────────────────────────
-if [ ! -d "$EXTRAS_DIR" ]; then
-    echo "ERROR: Moonraker components dir not found at $EXTRAS_DIR"
-    echo "       Set MOONRAKER_HOME if Moonraker is installed elsewhere."
-    exit 1
-fi
+ARCH=$(uname -m)
+case "$ARCH" in
+    aarch64|arm64) CF_ARCH="arm64" ;;
+    armv7l|armhf)  CF_ARCH="arm"   ;;
+    x86_64)        CF_ARCH="amd64" ;;
+    *) die "Unsupported architecture: $ARCH" ;;
+esac
 
-echo "==> Copying plugin to $EXTRAS_DIR/moongate/"
-cp -r "$SCRIPT_DIR/moongate" "$EXTRAS_DIR/"
-echo "    Done."
+info "Architecture: $ARCH → cloudflared: $CF_ARCH"
 
-# ── 2. Install WireGuard ──────────────────────────────────────────────────────
-echo "==> Installing WireGuard..."
-sudo apt-get update -qq
-sudo apt-get install -y wireguard iptables
+# ── 1. Install Moongate Klipper plugin ───────────────────────────────────────
+info "Installing Moongate plugin..."
 
-# ── 3. Generate server WireGuard keys (only if not already present) ───────────
-if [ ! -f "$WG_DIR/server_private.key" ]; then
-    echo "==> Generating WireGuard server keys..."
-    sudo mkdir -p "$WG_DIR"
-    sudo chmod 700 "$WG_DIR"
-    wg genkey | sudo tee "$WG_DIR/server_private.key" | \
-        wg pubkey | sudo tee "$WG_DIR/server_public.key"
-    sudo chmod 600 "$WG_DIR/server_private.key"
-    echo "    Keys generated."
+PLUGIN_URL="https://raw.githubusercontent.com/PEEKYPAUL/moongate/main/klipper-plugin/moongate_standalone.py"
+curl -fsSL "$PLUGIN_URL" -o "$COMPONENTS_DIR/moongate.py"
+success "Plugin installed at $COMPONENTS_DIR/moongate.py"
+
+if grep -q '^\[moongate\]' "$MOONRAKER_CONF"; then
+    info "[moongate] already in moonraker.conf"
 else
-    echo "==> WireGuard server keys already present — skipping key generation."
+    printf '\n[moongate]\n# Moongate pairing + remote access plugin\n' >> "$MOONRAKER_CONF"
+    success "[moongate] added to moonraker.conf"
 fi
 
-SERVER_PRIVATE_KEY=$(sudo cat "$WG_DIR/server_private.key")
-SERVER_PUBLIC_KEY=$(sudo cat "$WG_DIR/server_public.key")
-
-# Detect the default outbound network interface
-DEFAULT_IFACE=$(ip route | awk '/^default/ {print $5; exit}')
-
-# ── 4. Create wg0.conf (only if missing) ─────────────────────────────────────
-if [ ! -f "$WG_DIR/$WG_IFACE.conf" ]; then
-    echo "==> Creating $WG_DIR/$WG_IFACE.conf..."
-    sudo bash -c "cat > $WG_DIR/$WG_IFACE.conf" <<EOF
-[Interface]
-PrivateKey = $SERVER_PRIVATE_KEY
-Address    = $SERVER_VPN_IP/24
-ListenPort = $WG_PORT
-
-# NAT so phones can reach Moonraker via the VPN
-PostUp   = iptables -A FORWARD -i %i -j ACCEPT; \\
-           iptables -t nat -A POSTROUTING -o $DEFAULT_IFACE -j MASQUERADE
-PostDown = iptables -D FORWARD -i %i -j ACCEPT; \\
-           iptables -t nat -D POSTROUTING -o $DEFAULT_IFACE -j MASQUERADE
-
-# Peers are appended here by the Moongate plugin at pairing time
-EOF
-    sudo chmod 600 "$WG_DIR/$WG_IFACE.conf"
-    echo "    Done."
+# ── 2. Deploy QR pairing page to Mainsail ────────────────────────────────────
+if [[ -d "$MAINSAIL_DIR" ]]; then
+    HTML_URL="https://raw.githubusercontent.com/PEEKYPAUL/moongate/main/klipper-plugin/moongate-pair.html"
+    curl -fsSL "$HTML_URL" -o "$MAINSAIL_DIR/moongate-pair.html"
+    success "QR page deployed to $MAINSAIL_DIR/moongate-pair.html"
 else
-    echo "==> $WG_DIR/$WG_IFACE.conf already exists — skipping."
+    warn "Mainsail not found at $MAINSAIL_DIR — skipping QR page"
 fi
 
-# ── 5. Enable IP forwarding ───────────────────────────────────────────────────
-if ! grep -q "net.ipv4.ip_forward=1" /etc/sysctl.conf; then
-    echo "==> Enabling IP forwarding..."
-    echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
-    sudo sysctl -p
-fi
+# ── 3. Install cloudflared ────────────────────────────────────────────────────
+info "Installing cloudflared..."
 
-# ── 6. Start + enable WireGuard ──────────────────────────────────────────────
-echo "==> Starting WireGuard ($WG_IFACE)..."
-sudo systemctl enable wg-quick@$WG_IFACE
-sudo wg-quick up $WG_IFACE 2>/dev/null || sudo systemctl restart wg-quick@$WG_IFACE
-echo "    WireGuard running on port $WG_PORT."
+CF_DEB="cloudflared-linux-${CF_ARCH}.deb"
+CF_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/$CF_DEB"
+TMP_DEB="/tmp/$CF_DEB"
 
-# ── 7. Save public key for plugin to read ────────────────────────────────────
-sudo cp "$WG_DIR/server_public.key" "$WG_DIR/server_public.key"
+curl -fsSL "$CF_URL" -o "$TMP_DEB"
+sudo dpkg -i "$TMP_DEB"
+rm -f "$TMP_DEB"
+success "cloudflared installed"
 
-# ── 8. moonraker.conf ────────────────────────────────────────────────────────
-if [ -f "$MOONRAKER_CONF" ]; then
-    if grep -q "\[moongate\]" "$MOONRAKER_CONF"; then
-        echo "==> [moongate] already in moonraker.conf — skipping."
-    else
-        echo "==> Adding [moongate] to moonraker.conf"
-        cat >> "$MOONRAKER_CONF" <<EOF
+# ── 4. Create moongate-tunnel systemd service ─────────────────────────────────
+info "Creating moongate-tunnel systemd service..."
 
-[moongate]
-# Moongate secure pairing + WireGuard VPN plugin
-# wireguard_endpoint: the IP:port phones will connect to externally.
-# Set to your router's public IP or DDNS hostname:51820.
-# Leave blank to use local LAN IP (good for home-network-only use).
-# wireguard_endpoint =
-EOF
-        echo "    Done."
-    fi
-else
-    echo "WARN: moonraker.conf not found at $MOONRAKER_CONF"
-fi
+sudo tee /etc/systemd/system/moongate-tunnel.service > /dev/null << UNIT
+[Unit]
+Description=Moongate Cloudflare Tunnel
+After=network-online.target
+Wants=network-online.target
 
-# ── 9. MOONGATE_PAIR macro ───────────────────────────────────────────────────
-if [ -f "$PRINTER_CFG" ]; then
-    if grep -q "MOONGATE_PAIR" "$PRINTER_CFG"; then
-        echo "==> MOONGATE_PAIR macro already in printer.cfg — skipping."
-    else
-        echo "==> Adding MOONGATE_PAIR macro to printer.cfg"
-        cat >> "$PRINTER_CFG" <<'EOF'
+[Service]
+Type=simple
+User=$USER
+ExecStart=/usr/bin/cloudflared tunnel --url http://localhost:80 --no-autoupdate --logfile /run/moongate-tunnel.log
+Restart=on-failure
+RestartSec=10
 
-[gcode_macro MOONGATE_PAIR]
-description: Generate a Moongate pairing code
-gcode:
-    {action_call_remote_method("moongate_generate_pair_code")}
-EOF
-        echo "    Done."
-    fi
-else
-    echo "WARN: printer.cfg not found at $PRINTER_CFG"
-fi
+[Install]
+WantedBy=multi-user.target
+UNIT
 
-# ── 10. Restart Klipper + Moonraker ─────────────────────────────────────────
-echo "==> Restarting Klipper (picks up new MOONGATE_PAIR macro)..."
-if systemctl is-active --quiet klipper; then
-    sudo systemctl restart klipper
-    echo "    Klipper restarted."
-else
-    echo "    Klipper service not found — restart it manually."
-fi
+sudo systemctl daemon-reload
+sudo systemctl enable moongate-tunnel
+sudo systemctl restart moongate-tunnel
+success "moongate-tunnel service started"
 
-echo "==> Restarting Moonraker (loads moongate plugin)..."
-if systemctl is-active --quiet moonraker; then
-    sudo systemctl restart moonraker
-    echo "    Moonraker restarted."
-else
-    echo "    Moonraker not active — start it manually."
-fi
+# ── 5. Restart Moonraker ──────────────────────────────────────────────────────
+info "Restarting Moonraker..."
+sudo systemctl restart moonraker
+sleep 3
+systemctl is-active moonraker > /dev/null \
+    && success "Moonraker running" \
+    || warn "Check Moonraker: sudo systemctl status moonraker"
 
-# ── Summary ───────────────────────────────────────────────────────────────────
-LOCAL_IP=$(hostname -I | awk '{print $1}')
+# ── 6. Show tunnel URL ────────────────────────────────────────────────────────
 echo ""
-echo "╔══════════════════════════════════════════════════════════╗"
-echo "║  Moongate installed successfully!                        ║"
-echo "╠══════════════════════════════════════════════════════════╣"
-echo "║  WireGuard server public key:                            ║"
-echo "║  $SERVER_PUBLIC_KEY"
-echo "╠══════════════════════════════════════════════════════════╣"
-echo "║  For remote access, forward UDP port $WG_PORT on your   ║"
-echo "║  router to this Pi ($LOCAL_IP) then set               ║"
-echo "║  wireguard_endpoint in moonraker.conf.                   ║"
-echo "║                                                          ║"
-echo "║  Run  MOONGATE_PAIR  in Klipper console to pair a phone. ║"
-echo "╚══════════════════════════════════════════════════════════╝"
+info "Waiting for Cloudflare tunnel (~20s)..."
+sleep 20
+
+LOCAL_IP=$(hostname -I | awk '{print $1}')
+TUNNEL_URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' /run/moongate-tunnel.log 2>/dev/null || true)
+
+echo ""
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}  Moongate installed!${NC}"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo -e "  Pairing page : ${BLUE}http://$LOCAL_IP/moongate-pair.html${NC}"
+if [[ -n "$TUNNEL_URL" ]]; then
+    echo -e "  Remote access: ${GREEN}$TUNNEL_URL${NC} ✓"
+else
+    echo -e "  Remote access: ${YELLOW}tunnel starting — check in 30s:${NC}"
+    echo -e "    grep -o 'https://.*trycloudflare.com' /run/moongate-tunnel.log"
+fi
+echo ""
+echo -e "  Next step: run ${YELLOW}MOONGATE_PAIR${NC} in Klipper console,"
+echo -e "  open the pairing page above on your PC, and scan with the app."
+echo ""

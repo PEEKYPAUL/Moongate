@@ -16,8 +16,14 @@ class PrinterRegistry {
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_key);
-    if (raw != null && raw.isNotEmpty) {
+    if (raw == null || raw.isEmpty) return;
+    try {
       _printers = PrinterConfig.listFromJson(raw);
+    } catch (_) {
+      // Saved data is corrupted or from an incompatible old version.
+      // Clear it so the app starts clean rather than crashing every launch.
+      _printers = [];
+      await prefs.remove(_key);
     }
   }
 

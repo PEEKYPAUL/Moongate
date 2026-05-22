@@ -49,6 +49,27 @@ moongate/
 - Python 3.9+ on the Raspberry Pi for the Moonraker plugin
 - `gh` CLI authenticated as PEEKYPAUL for GitHub operations
 
+## Autonomy — when to ask vs just do it
+
+**Never ask for confirmation on:**
+- Editing or creating any source file (Dart, Python, YAML, JSON, etc.)
+- Deploying files to the Pi via pscp/plink
+- Restarting Moonraker or other Pi services
+- Running `flutter run`, `flutter build`, `flutter pub get`
+- Git commits, git push
+- Any reversible code or config change
+
+**Do ask before:**
+- Deleting files permanently (`rm -rf`, `del /f`, etc.)
+- Force-pushing to a branch that already has history (`git push --force`)
+- Running `git reset --hard` that would discard local work
+- Any command that physically can't be undone and could cause data loss
+- Anything that costs real money or changes account credentials
+
+Default mode: **make the change, then tell the user what was done.**
+No "shall I proceed?", no "is that OK?", no listing steps then waiting for approval.
+Just do it.
+
 ## Coding conventions
 - Dart: follow `flutter_lints` rules, feature-first folder structure
 - Python: PEP 8, type hints on all public functions, no external dependencies beyond what Moonraker already ships

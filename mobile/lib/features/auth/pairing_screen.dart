@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../models/printer_config.dart';
 import '../../services/auth_service.dart';
+import '../../services/network_discovery_service.dart';
 import '../../services/printer_registry.dart';
-import '../../services/tailscale_service.dart';
 
 class PairingScreen extends StatefulWidget {
   const PairingScreen({super.key});
@@ -17,40 +17,56 @@ class PairingScreen extends StatefulWidget {
 }
 
 class _PairingScreenState extends State<PairingScreen> {
-  final _codeController = TextEditingController();
+  // Two 4-digit code boxes
+  final _code1Controller = TextEditingController();
+  final _code2Controller = TextEditingController();
+  final _code1Focus      = FocusNode();
+  final _code2Focus      = FocusNode();
+
   final _hostController = TextEditingController();
   final _nameController = TextEditingController();
+
   bool _scanning = false;
-  bool _loading = false;
+  bool _loading  = false;
   String? _error;
 
   @override
   void dispose() {
-    _codeController.dispose();
+    _code1Controller.dispose();
+    _code2Controller.dispose();
+    _code1Focus.dispose();
+    _code2Focus.dispose();
     _hostController.dispose();
     _nameController.dispose();
     super.dispose();
   }
 
+  /// Full code string assembled from both boxes: GATE-1234-5678
+  String get _fullCode =>
+      'GATE-${_code1Controller.text.trim()}-${_code2Controller.text.trim()}';
+
   Future<void> _pair() async {
-    final code = _codeController.text.trim();
     final host = _hostController.text.trim();
     final name = _nameController.text.trim().isEmpty
         ? 'My Printer'
         : _nameController.text.trim();
+    final part1 = _code1Controller.text.trim();
+    final part2 = _code2Controller.text.trim();
 
-    if (code.isEmpty || host.isEmpty) {
-      setState(() => _error = 'Enter the printer IP:port and pairing code.');
+    if (host.isEmpty) {
+      setState(() => _error = 'Enter or scan your printer address first.');
       return;
     }
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (part1.length != 4 || part2.length != 4) {
+      setState(() => _error = 'Enter all 8 digits of the pairing code.');
+      return;
+    }
+
+    setState(() { _loading = true; _error = null; });
 
     final result = await AuthService.instance.exchangeCode(
-      host: host,
-      code: code,
+      host:       host,
+      code:       _fullCode,
       deviceName: name,
     );
 
@@ -58,37 +74,116 @@ class _PairingScreenState extends State<PairingScreen> {
 
     if (result.success) {
       final printer = PrinterConfig(
-        id: const Uuid().v4(),
-        name: name,
-        host: host,
+        id:    const Uuid().v4(),
+        name:  name,
+        host:  AuthService.instance.host!,
         token: AuthService.instance.token!,
       );
       await PrinterRegistry.instance.add(printer);
       context.go('/dashboard');
     } else {
       setState(() {
-        _error = result.error ?? 'Pairing failed.';
+        _error   = result.error ?? 'Pairing failed.';
         _loading = false;
       });
     }
   }
 
-  Future<void> _showTailscalePicker() async {
+  /// Handles any scanned QR value.
+  ///
+  /// Two formats are supported:
+  ///
+  ///   1. moongate://pair?host=192.168.1.x:80&token=JWT
+  ///      Pre-issued token — no network request needed. Works even when the
+  ///      phone can't reach the Pi directly (WiFi AP isolation etc.).
+  ///
+  ///   2. GATE-XXXX-XXXX (or a URL containing that pattern)
+  ///      Manual code — fills the digit boxes so the user taps Connect.
+  void _applyScannedCode(String raw) {
+    // ── Format 1: direct JWT token in QR ─────────────────────────────────────
+    // moongate://pair?local=IP:80&remote=https://x.trycloudflare.com&token=JWT
+    final uri = Uri.tryParse(raw);
+    if (uri != null && uri.scheme == 'moongate') {
+      final local  = uri.queryParameters['local'];
+      final remote = uri.queryParameters['remote'];
+      final token  = uri.queryParameters['token'];
+      if (local != null && token != null) {
+        setState(() => _scanning = false);
+        _pairWithDirectToken(local: local, remote: remote, token: token);
+        return;
+      }
+    }
+
+    // ── Format 2: GATE-XXXX-XXXX code ────────────────────────────────────────
+    final match = RegExp(r'GATE-(\d{4})-(\d{4})').firstMatch(raw.toUpperCase());
+    if (match != null) {
+      _code1Controller.text = match.group(1)!;
+      _code2Controller.text = match.group(2)!;
+      setState(() => _scanning = false);
+    }
+  }
+
+  /// Called when the QR contained a pre-issued JWT token.
+  /// Stores token + both host addresses directly — no HTTP request needed,
+  /// so works even when the phone can't reach the Pi directly.
+  Future<void> _pairWithDirectToken({
+    required String local,
+    String? remote,
+    required String token,
+  }) async {
+    final name = _nameController.text.trim().isEmpty
+        ? 'My Printer'
+        : _nameController.text.trim();
+
+    setState(() { _loading = true; _error = null; });
+
+    try {
+      // Persist the local host + token (remote URL stored separately in config).
+      await AuthService.instance.persistDirect(host: local, token: token);
+
+      if (!mounted) return;
+
+      final printer = PrinterConfig(
+        id:         const Uuid().v4(),
+        name:       name,
+        host:       AuthService.instance.host!,   // normalised local URL
+        token:      AuthService.instance.token!,
+        remoteHost: remote,                        // Cloudflare HTTPS URL or null
+      );
+      await PrinterRegistry.instance.add(printer);
+
+      if (!mounted) return;
+      // Pop back to dashboard — this resolves the `await context.push('/pair')`
+      // in DashboardScreen, which then calls _load() and picks up the new printer.
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/dashboard');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error   = 'Pairing failed: $e';
+      });
+    }
+  }
+
+  Future<void> _showNetworkPicker() async {
     final selected = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => const _TailscalePickerSheet(),
+      builder: (_) => const _NetworkPickerSheet(),
     );
-    if (selected != null) {
-      _hostController.text = selected;
-    }
+    if (selected != null) _hostController.text = selected;
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Printer'),
@@ -105,24 +200,23 @@ class _PairingScreenState extends State<PairingScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Run MOONGATE_PAIR in your Klipper console, then enter the code or scan the QR.',
-              style: TextStyle(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withOpacity(0.6)),
+              'Run MOONGATE_PAIR in your Klipper console to get a code.',
+              style: TextStyle(color: cs.onSurface.withValues(alpha:0.6)),
             ),
             const SizedBox(height: 24),
+
+            // ── Printer name ───────────────────────────────────────────────
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(
                 labelText: 'Printer name',
-                hintText: 'e.g. Ender 3 Pro',
+                hintText: 'e.g. Voron 2.4',
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 14),
-            // ── Tailscale IP picker ────────────────────────────────
+
+            // ── Printer address + find button ──────────────────────────────
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -130,8 +224,8 @@ class _PairingScreenState extends State<PairingScreen> {
                   child: TextField(
                     controller: _hostController,
                     decoration: const InputDecoration(
-                      labelText: 'Printer Tailscale IP:port',
-                      hintText: '100.x.x.x:7125',
+                      labelText: 'Printer address',
+                      hintText: '192.168.1.x',
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.url,
@@ -139,33 +233,132 @@ class _PairingScreenState extends State<PairingScreen> {
                 ),
                 const SizedBox(width: 8),
                 Tooltip(
-                  message: 'Pick from Tailscale',
+                  message: 'Find on local network',
                   child: FilledButton.tonal(
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 16),
                     ),
-                    onPressed: _showTailscalePicker,
-                    child: const Icon(Icons.wifi_tethering),
+                    onPressed: _showNetworkPicker,
+                    child: const Icon(Icons.wifi_find),
                   ),
                 ),
               ],
             ),
-            // ──────────────────────────────────────────────────────
-            const SizedBox(height: 14),
+            const SizedBox(height: 20),
+
+            // ── Pairing code ───────────────────────────────────────────────
+            Text(
+              'Pairing code',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: cs.onSurface.withValues(alpha:0.7),
+                  ),
+            ),
+            const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _codeController,
-                    decoration: const InputDecoration(
-                      labelText: 'Pairing code',
-                      hintText: 'GATE-XXXX-XXXX',
-                      border: OutlineInputBorder(),
+                // "GATE-" prefix label
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHighest,
+                    borderRadius: const BorderRadius.horizontal(
+                        left: Radius.circular(8)),
+                    border: Border.all(color: cs.outline),
+                  ),
+                  child: Text(
+                    'GATE-',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1,
+                      color: cs.primary,
                     ),
-                    textCapitalization: TextCapitalization.characters,
                   ),
                 ),
+
+                // First 4 digits
+                Expanded(
+                  child: TextField(
+                    controller:   _code1Controller,
+                    focusNode:    _code1Focus,
+                    maxLength:    4,
+                    keyboardType: TextInputType.number,
+                    textAlign:    TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 22, fontWeight: FontWeight.w700,
+                        letterSpacing: 4),
+                    decoration: InputDecoration(
+                      counterText: '',
+                      hintText: '0000',
+                      hintStyle: TextStyle(
+                          color: cs.onSurface.withValues(alpha:0.25),
+                          letterSpacing: 4),
+                      border: const OutlineInputBorder(borderRadius: BorderRadius.zero),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.zero,
+                        borderSide: BorderSide(color: cs.outline),
+                      ),
+                    ),
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: (v) {
+                      if (v.length == 4) {
+                        _code2Focus.requestFocus();
+                      }
+                    },
+                  ),
+                ),
+
+                // Separator dash
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 6, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHighest,
+                    border: Border.symmetric(
+                        horizontal: BorderSide(color: cs.outline)),
+                  ),
+                  child: Text(
+                    '-',
+                    style: TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.w700,
+                        color: cs.onSurface.withValues(alpha:0.5)),
+                  ),
+                ),
+
+                // Second 4 digits
+                Expanded(
+                  child: TextField(
+                    controller:   _code2Controller,
+                    focusNode:    _code2Focus,
+                    maxLength:    4,
+                    keyboardType: TextInputType.number,
+                    textAlign:    TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 22, fontWeight: FontWeight.w700,
+                        letterSpacing: 4),
+                    decoration: InputDecoration(
+                      counterText: '',
+                      hintText: '0000',
+                      hintStyle: TextStyle(
+                          color: cs.onSurface.withValues(alpha:0.25),
+                          letterSpacing: 4),
+                      border: OutlineInputBorder(
+                          borderRadius: const BorderRadius.horizontal(
+                              right: Radius.circular(8))),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: const BorderRadius.horizontal(
+                            right: Radius.circular(8)),
+                        borderSide: BorderSide(color: cs.outline),
+                      ),
+                    ),
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onSubmitted: (_) => _pair(),
+                  ),
+                ),
+
+                // QR scanner toggle
                 const SizedBox(width: 8),
                 IconButton.filled(
                   icon: const Icon(Icons.qr_code_scanner),
@@ -174,6 +367,8 @@ class _PairingScreenState extends State<PairingScreen> {
                 ),
               ],
             ),
+
+            // ── QR camera preview ──────────────────────────────────────────
             if (_scanning) ...[
               const SizedBox(height: 16),
               SizedBox(
@@ -182,30 +377,68 @@ class _PairingScreenState extends State<PairingScreen> {
                   borderRadius: BorderRadius.circular(12),
                   child: MobileScanner(
                     onDetect: (capture) {
+                      if (capture.barcodes.isEmpty) return;
                       final raw = capture.barcodes.first.rawValue ?? '';
-                      final match = RegExp(r'code=(GATE-[A-Z0-9]+-[A-Z0-9]+)')
-                          .firstMatch(raw);
-                      if (match != null) {
-                        _codeController.text = match.group(1)!;
-                        setState(() => _scanning = false);
-                      }
+                      if (raw.isEmpty) return;
+                      _applyScannedCode(raw);
+                    },
+                    errorBuilder: (context, error, child) {
+                      final isDenied = error.errorCode ==
+                          MobileScannerErrorCode.permissionDenied;
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black87,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              isDenied ? Icons.camera_alt : Icons.error_outline,
+                              color: Colors.orange,
+                              size: 40,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              isDenied
+                                  ? 'Camera access denied'
+                                  : 'Camera unavailable',
+                              style: const TextStyle(
+                                  color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 6),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 16),
+                              child: Text(
+                                'Go to Settings › Apps › Moongate\n'
+                                '› Permissions › Camera → Allow',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    color: Colors.white70, fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
                     },
                   ),
                 ),
               ),
             ],
+
+            // ── Error ──────────────────────────────────────────────────────
             if (_error != null) ...[
               const SizedBox(height: 12),
               Text(_error!,
                   style: const TextStyle(color: Colors.redAccent)),
             ],
             const SizedBox(height: 24),
+
             FilledButton(
               onPressed: _loading ? null : _pair,
               child: _loading
                   ? const SizedBox(
-                      height: 20,
-                      width: 20,
+                      height: 20, width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Text('Connect'),
@@ -217,26 +450,28 @@ class _PairingScreenState extends State<PairingScreen> {
   }
 }
 
-// ── Tailscale device picker bottom sheet ──────────────────────────────────────
+// ── Local network printer picker ──────────────────────────────────────────────
 
-class _TailscalePickerSheet extends StatefulWidget {
-  const _TailscalePickerSheet();
+class _NetworkPickerSheet extends StatefulWidget {
+  const _NetworkPickerSheet();
 
   @override
-  State<_TailscalePickerSheet> createState() => _TailscalePickerSheetState();
+  State<_NetworkPickerSheet> createState() => _NetworkPickerSheetState();
 }
 
-class _TailscalePickerSheetState extends State<_TailscalePickerSheet> {
+class _NetworkPickerSheetState extends State<_NetworkPickerSheet> {
   final _manualController = TextEditingController();
+  final _discovery        = NetworkDiscoveryService.instance;
+
   bool _scanning = false;
-  bool _tailscaleConnected = false;
-  final List<TailscaleDevice> _found = [];
-  String? _scanStatus;
+  String? _myIp;
+  String? _status;
+  final List<DiscoveredPrinter> _found = [];
 
   @override
   void initState() {
     super.initState();
-    _checkTailscale();
+    _init();
   }
 
   @override
@@ -245,49 +480,33 @@ class _TailscalePickerSheetState extends State<_TailscalePickerSheet> {
     super.dispose();
   }
 
-  Future<void> _checkTailscale() async {
-    final connected = await TailscaleService.instance.checkConnected();
-    if (mounted) setState(() => _tailscaleConnected = connected);
-  }
-
-  Future<void> _openTailscale() async {
-    // Try the Tailscale URL scheme first; fall back to Play Store
-    final uri = Uri.parse('tailscale://');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
-      await launchUrl(
-        Uri.parse(
-            'https://play.google.com/store/apps/details?id=com.tailscale.ipn'),
-        mode: LaunchMode.externalApplication,
-      );
-    }
-    // Re-check connection after returning from Tailscale
-    await Future.delayed(const Duration(milliseconds: 800));
-    await _checkTailscale();
+  Future<void> _init() async {
+    final ip = await _discovery.myLocalIp();
+    if (mounted) setState(() => _myIp = ip);
   }
 
   Future<void> _startScan() async {
-    if (!_tailscaleConnected) {
-      setState(() => _scanStatus = 'Connect to Tailscale first.');
+    if (_myIp == null) {
+      setState(() => _status =
+          'No Wi-Fi detected. Connect to your home network first.');
       return;
     }
     setState(() {
       _scanning = true;
       _found.clear();
-      _scanStatus = 'Scanning your Tailscale network for Klipper printers…';
+      _status = 'Scanning ${_myIp!.split('.').take(3).join('.')}.0/24…';
     });
 
-    await for (final device in TailscaleService.instance.scanForPrinters()) {
+    await for (final printer in _discovery.scanForPrinters()) {
       if (!mounted) break;
-      setState(() => _found.add(device));
+      setState(() => _found.add(printer));
     }
 
     if (mounted) {
       setState(() {
         _scanning = false;
-        _scanStatus = _found.isEmpty
-            ? 'No printers found. Make sure Klipper is running and try again.'
+        _status   = _found.isEmpty
+            ? 'No printers found. Make sure Klipper is running.'
             : null;
       });
     }
@@ -297,107 +516,80 @@ class _TailscalePickerSheetState extends State<_TailscalePickerSheet> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: DraggableScrollableSheet(
-        initialChildSize: 0.65,
-        minChildSize: 0.4,
-        maxChildSize: 0.92,
+        initialChildSize: 0.6,
+        minChildSize:     0.4,
+        maxChildSize:     0.92,
         expand: false,
         builder: (_, controller) => ListView(
           controller: controller,
           padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
           children: [
-            // Handle
             Center(
               child: Container(
-                width: 40,
-                height: 4,
+                width: 40, height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: cs.onSurface.withOpacity(0.2),
+                  color: cs.onSurface.withValues(alpha:0.2),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
-            Text('Pick a Tailscale device',
+            Text('Find your printer',
                 style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 6),
+            if (_myIp != null)
+              Text(
+                'Your phone is on ${_myIp!.split('.').take(3).join('.')}.x',
+                style: TextStyle(
+                    color: cs.onSurface.withValues(alpha:0.55), fontSize: 13),
+              ),
             const SizedBox(height: 20),
 
-            // Step 1 — connect Tailscale
-            _SectionLabel(label: '1  Connect to Tailscale'),
-            const SizedBox(height: 8),
-            ListTile(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: cs.outlineVariant),
-              ),
-              leading: Icon(
-                _tailscaleConnected
-                    ? Icons.check_circle
-                    : Icons.vpn_lock_outlined,
-                color: _tailscaleConnected ? Colors.green : cs.primary,
-              ),
-              title: Text(_tailscaleConnected
-                  ? 'Tailscale connected'
-                  : 'Open Tailscale App'),
-              subtitle: Text(_tailscaleConnected
-                  ? 'Your device is on the Tailscale network'
-                  : 'Sign in and connect, then come back here'),
-              trailing: _tailscaleConnected
-                  ? null
-                  : const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: _tailscaleConnected ? null : _openTailscale,
-            ),
-            const SizedBox(height: 20),
-
-            // Step 2 — scan
-            _SectionLabel(label: '2  Find your printer'),
-            const SizedBox(height: 8),
             FilledButton.icon(
               icon: _scanning
                   ? const SizedBox(
-                      width: 18,
-                      height: 18,
+                      width: 18, height: 18,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
+                          strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.search),
               label: Text(_scanning ? 'Scanning…' : 'Scan for Klipper printers'),
-              onPressed: (_scanning || !_tailscaleConnected) ? null : _startScan,
+              onPressed: _scanning ? null : _startScan,
             ),
-            if (_scanStatus != null) ...[
+
+            if (_status != null) ...[
               const SizedBox(height: 8),
-              Text(_scanStatus!,
+              Text(_status!,
                   style: TextStyle(
-                      color: cs.onSurface.withOpacity(0.6), fontSize: 13)),
+                      color: cs.onSurface.withValues(alpha:0.6), fontSize: 13)),
             ],
+
             if (_found.isNotEmpty) ...[
               const SizedBox(height: 12),
-              ..._found.map(
-                (d) => Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading:
-                        const Icon(Icons.print_outlined, color: Colors.green),
-                    title: Text(d.host),
-                    subtitle: const Text('Moonraker responding on port 7125'),
-                    trailing: TextButton(
-                      onPressed: () => Navigator.pop(context, d.host),
-                      child: const Text('Select'),
+              ..._found.map((p) => Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      leading: const Icon(Icons.print_outlined,
+                          color: Colors.green),
+                      title: Text(p.ip),
+                      subtitle: const Text('Moonraker on :7125'),
+                      trailing: TextButton(
+                        onPressed: () => Navigator.pop(context, p.host),
+                        child: const Text('Select'),
+                      ),
                     ),
-                  ),
-                ),
-              ),
+                  )),
             ],
 
             const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 12),
 
-            // Manual entry
-            _SectionLabel(label: 'Or enter IP manually'),
+            Text('Or enter address manually',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: cs.primary, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -405,7 +597,7 @@ class _TailscalePickerSheetState extends State<_TailscalePickerSheet> {
                   child: TextField(
                     controller: _manualController,
                     decoration: const InputDecoration(
-                      hintText: '100.x.x.x:7125',
+                      hintText: '192.168.1.x',
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
@@ -427,18 +619,4 @@ class _TailscalePickerSheetState extends State<_TailscalePickerSheet> {
       ),
     );
   }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String label;
-  const _SectionLabel({required this.label});
-
-  @override
-  Widget build(BuildContext context) => Text(
-        label,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.w600,
-            ),
-      );
 }

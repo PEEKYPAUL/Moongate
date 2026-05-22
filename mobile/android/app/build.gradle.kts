@@ -9,6 +9,13 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
+    // NDK 28 requires CMake 3.28+. Pin to 3.30.5 (installed via sdkmanager).
+    externalNativeBuild {
+        cmake {
+            version = "3.30.5"
+        }
+    }
+
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
@@ -47,6 +54,8 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-    // WireGuard-Go tunnel — replaces Tailscale for Phase 2 VPN
-    implementation("com.wireguard.android:tunnel:1.0.20231018")
+    // Note: com.wireguard.android:tunnel is not on any public Maven repo —
+    // it is an internal module in the wireguard-android project and must be
+    // compiled from Go source. WireGuard support is implemented via a stub
+    // VPN service for now; native WireGuard-Go will be bundled in Phase 2.
 }
