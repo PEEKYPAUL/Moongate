@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
 import '../../models/printer_config.dart';
 import '../../services/print_control_service.dart';
@@ -108,6 +107,13 @@ class _PrinterTileState extends State<PrinterTile> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    // Colours used for the connection indicator throughout the tile.
+    final connColor = switch (_status.connection) {
+      PrinterConnection.local   => Colors.green,
+      PrinterConnection.remote  => Colors.orange,
+      PrinterConnection.offline => Colors.transparent,
+    };
+
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -115,6 +121,9 @@ class _PrinterTileState extends State<PrinterTile> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // ── Connection accent bar (clipped to card corners at top) ────
+            Container(height: 3, color: connColor),
+
             // ── Webcam ───────────────────────────────────────────────────
             Expanded(
               child: Stack(
@@ -122,6 +131,8 @@ class _PrinterTileState extends State<PrinterTile> {
                 children: [
                   _WebcamSnapshot(
                     printer: widget.printer,
+                    connection: _status.connection,
+                    webcamSnapshotPath: _status.webcamSnapshotPath,
                     tunnelUrlUpdates: _statusService.tunnelUrlUpdates,
                   ),
                   Positioned(
@@ -153,10 +164,37 @@ class _PrinterTileState extends State<PrinterTile> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    widget.printer.name,
-                    style: theme.textTheme.titleSmall,
-                    overflow: TextOverflow.ellipsis,
+                  // Printer name + connection label on the same row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          widget.printer.name,
+                          style: theme.textTheme.titleSmall,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (_status.connection != PrinterConnection.offline) ...[
+                        const SizedBox(width: 4),
+                        Icon(
+                          _status.connection == PrinterConnection.local
+                              ? Icons.wifi_rounded
+                              : Icons.cloud_outlined,
+                          size: 11,
+                          color: connColor,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          _status.connection == PrinterConnection.local
+                              ? 'Local'
+                              : 'Tunnel',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: connColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Row(
@@ -363,21 +401,25 @@ class _Btn extends StatelessWidget {
 
 // ── Webcam snapshot ───────────────────────────────────────────────────────────
 //
-// Network strategy:
-//   • Always tries the local IP first (fast, zero latency at home).
-//   • After _kLocalErrorThreshold consecutive failures switches to the
-//     Cloudflare tunnel URL (remote / away from home).
-//   • On app-resume (foreground from background) resets to local — this
-//     handles the "just got home" case without user interaction.
-//   • Subscribes to PrinterStatusService.tunnelUrlUpdates so a rotated
-//     Quick Tunnel URL is picked up immediately within the same session.
+// Network strategy delegated to PrinterStatusService:
+//   The parent passes `connection` (local / remote / offline) which was
+//   determined by the status service — it already tried local first, then
+//   the tunnel.  The webcam simply mirrors that decision so both the status
+//   indicator and the webcam image always use the same network path.
+//
+//   Subscribes to `tunnelUrlUpdates` so a rotated Quick Tunnel URL is used
+//   within the same session without requiring a re-pair.
 
 class _WebcamSnapshot extends StatefulWidget {
-  final PrinterConfig    printer;
-  final Stream<String>?  tunnelUrlUpdates;
+  final PrinterConfig       printer;
+  final PrinterConnection   connection;
+  final String?             webcamSnapshotPath;
+  final Stream<String>?     tunnelUrlUpdates;
 
   const _WebcamSnapshot({
     required this.printer,
+    required this.connection,
+    this.webcamSnapshotPath,
     this.tunnelUrlUpdates,
   });
 
@@ -385,22 +427,15 @@ class _WebcamSnapshot extends StatefulWidget {
   State<_WebcamSnapshot> createState() => _WebcamSnapshotState();
 }
 
-class _WebcamSnapshotState extends State<_WebcamSnapshot>
-    with WidgetsBindingObserver {
-  int     _tick         = 0;
-  bool    _useRemote    = false;
-  int     _localErrors  = 0;
-  String? _liveRemoteHost;          // kept up-to-date via tunnelUrlUpdates
+class _WebcamSnapshotState extends State<_WebcamSnapshot> {
+  int     _tick           = 0;
+  String? _liveRemoteHost; // kept fresh via tunnelUrlUpdates
   StreamSubscription<String>? _tunnelSub;
-
-  // Switch to remote after this many consecutive local failures.
-  static const _kLocalErrorThreshold = 3;
 
   @override
   void initState() {
     super.initState();
     _liveRemoteHost = widget.printer.remoteHost;
-    WidgetsBinding.instance.addObserver(this);
     _tunnelSub = widget.tunnelUrlUpdates?.listen((freshUrl) {
       if (mounted) setState(() => _liveRemoteHost = freshUrl);
     });
@@ -410,20 +445,7 @@ class _WebcamSnapshotState extends State<_WebcamSnapshot>
   @override
   void dispose() {
     _tunnelSub?.cancel();
-    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && mounted) {
-      // Network may have changed (user just got home / left home).
-      // Reset to local so the app picks up the faster local connection.
-      setState(() {
-        _useRemote   = false;
-        _localErrors = 0;
-      });
-    }
   }
 
   void _startTicker() {
@@ -436,18 +458,18 @@ class _WebcamSnapshotState extends State<_WebcamSnapshot>
   }
 
   String get _snapshotUrl {
-    final base = (_useRemote && _liveRemoteHost != null)
+    // Use whichever base the status service determined is reachable.
+    final base = (widget.connection == PrinterConnection.remote &&
+            _liveRemoteHost != null)
         ? _liveRemoteHost!
         : widget.printer.host;
-    return '$base/webcam/?action=snapshot&_t=$_tick';
-  }
 
-  void _onImageError() {
-    if (_useRemote || _liveRemoteHost == null) return; // already remote or no fallback
-    _localErrors++;
-    if (_localErrors >= _kLocalErrorThreshold) {
-      setState(() => _useRemote = true);
-    }
+    // Use the webcam path from Moonraker config; fall back to mjpeg-streamer default.
+    final path = widget.webcamSnapshotPath ?? '/webcam/?action=snapshot';
+
+    // Append cache-busting tick — respect whether path already has query params.
+    final sep = path.contains('?') ? '&' : '?';
+    return '$base$path${sep}_t=$_tick';
   }
 
   @override
@@ -456,20 +478,14 @@ class _WebcamSnapshotState extends State<_WebcamSnapshot>
       _snapshotUrl,
       fit: BoxFit.cover,
       gaplessPlayback: true,
-      // No loadingBuilder — it overrides gaplessPlayback and causes the
-      // one-second white flash.  Let gapless hold the previous frame silently.
-      errorBuilder: (_, __, ___) {
-        // Schedule after the frame to avoid calling setState during build.
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _onImageError();
-        });
-        return Container(
-          color: Colors.black54,
-          child: const Center(
-            child: Icon(Icons.videocam_off, color: Colors.white30, size: 40),
-          ),
-        );
-      },
+      // No loadingBuilder — it overrides gaplessPlayback and causes a
+      // one-second white flash.  Gapless holds the last frame silently.
+      errorBuilder: (_, __, ___) => Container(
+        color: Colors.black54,
+        child: const Center(
+          child: Icon(Icons.videocam_off, color: Colors.white30, size: 40),
+        ),
+      ),
     );
   }
 }

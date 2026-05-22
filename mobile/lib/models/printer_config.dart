@@ -56,6 +56,9 @@ class PrinterConfig {
       jsonEncode(printers.map((p) => p.toJson()).toList());
 }
 
+/// Whether the last successful status poll used the local IP or the tunnel.
+enum PrinterConnection { local, remote, offline }
+
 class PrinterStatus {
   final String state; // 'printing' | 'paused' | 'standby' | 'error' | 'offline'
   final double progress; // 0.0 – 1.0
@@ -65,6 +68,14 @@ class PrinterStatus {
   final double bedTarget;
   final String? filename;
 
+  /// Which network path was used to reach the printer.
+  final PrinterConnection connection;
+
+  /// Webcam snapshot path as reported by Moonraker (e.g. "/webcam/?action=snapshot"
+  /// for mjpeg-streamer, "/webcam/snapshot" for Crowsnest/uStreamer).
+  /// Null until first successful poll; fall back to the mjpeg-streamer default.
+  final String? webcamSnapshotPath;
+
   const PrinterStatus({
     required this.state,
     required this.progress,
@@ -73,6 +84,8 @@ class PrinterStatus {
     required this.bedTemp,
     required this.bedTarget,
     this.filename,
+    this.connection = PrinterConnection.offline,
+    this.webcamSnapshotPath,
   });
 
   bool get isPrinting => state == 'printing' || state == 'paused';
@@ -85,5 +98,6 @@ class PrinterStatus {
     hotendTarget: 0,
     bedTemp: 0,
     bedTarget: 0,
+    connection: PrinterConnection.offline,
   );
 }

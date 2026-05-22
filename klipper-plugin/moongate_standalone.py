@@ -639,6 +639,40 @@ class MoongatePlugin:
 
         return response
 
+    @staticmethod
+    async def _get_webcam_snapshot_path(client: Any) -> str:
+        """
+        Ask Moonraker for its webcam configuration and return the snapshot path
+        that the app should use.  Normalises away localhost/127.0.0.1 prefixes
+        so the returned value is always a plain path like:
+          /webcam/?action=snapshot   (mjpeg-streamer default)
+          /webcam/snapshot           (Crowsnest / uStreamer)
+        Falls back to the mjpeg-streamer default if the API is unavailable.
+        """
+        import re as _re
+        from tornado.httpclient import HTTPRequest
+        _default = "/webcam/?action=snapshot"
+        try:
+            req = HTTPRequest(
+                "http://127.0.0.1:7125/server/webcams/list",
+                method="GET", request_timeout=2.0,
+            )
+            resp = await client.fetch(req, raise_error=False)
+            if resp.code != 200:
+                return _default
+            data    = __import__("json").loads(resp.body)
+            webcams = data.get("result", {}).get("webcams", [])
+            if not webcams:
+                return _default
+            snap = (webcams[0].get("snapshot_url") or "").strip()
+            if not snap:
+                return _default
+            # Strip any localhost/127.0.0.1 prefix so only the path survives.
+            snap = _re.sub(r'^https?://(localhost|127\.0\.0\.1)(:\d+)?', '', snap)
+            return snap or _default
+        except Exception:
+            return _default
+
     async def _handle_status(self, webrequest: Any) -> dict:
         """
         Authenticated proxy for Moonraker printer status.
@@ -674,6 +708,12 @@ class MoongatePlugin:
         # Inject the Pi's current tunnel URL so the app can detect staleness
         # and update its stored remoteHost without the user re-scanning the QR.
         result["tunnel_url"] = _get_tunnel_url()
+
+        # Inject the webcam snapshot path as Moonraker has it configured.
+        # This lets the app use the correct path regardless of whether the Pi
+        # is running mjpeg-streamer (/webcam/?action=snapshot) or
+        # Crowsnest/uStreamer (/webcam/snapshot), or any custom setup.
+        result["webcam_snapshot_path"] = await _get_webcam_snapshot_path(client)
 
         return result
 

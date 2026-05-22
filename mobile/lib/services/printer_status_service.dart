@@ -77,28 +77,36 @@ class PrinterStatusService {
 
         if (_disposed) return;
 
-        // If the Pi reports a tunnel URL that differs from what we have stored,
-        // push it immediately so the webcam widget can switch to the fresh URL
-        // within this session, and persist it so future launches are correct.
+        // Detect tunnel URL rotation and push the fresh URL immediately.
         final liveTunnelUrl = result['tunnel_url'] as String?;
         if (liveTunnelUrl != null &&
             liveTunnelUrl.isNotEmpty &&
             liveTunnelUrl != config.remoteHost) {
           _tunnelUrlController.add(liveTunnelUrl);
-          // Fire-and-forget: persist so next launch uses the correct URL.
           PrinterRegistry.instance
               .updateRemoteHost(config.id, liveTunnelUrl)
               .ignore();
         }
 
+        // Webcam path as configured in Moonraker (injected by Pi plugin).
+        // Falls back to the mjpeg-streamer default if the Pi plugin is older.
+        final webcamPath = result['webcam_snapshot_path'] as String?;
+
+        // Record which network path succeeded so the UI can show the indicator.
+        final connection = (baseUrl == config.host)
+            ? PrinterConnection.local
+            : PrinterConnection.remote;
+
         _controller.add(PrinterStatus(
-          state:        state,
-          progress:     progress.toDouble(),
-          hotendTemp:   (extruder['temperature'] as num?)?.toDouble() ?? 0,
-          hotendTarget: (extruder['target']      as num?)?.toDouble() ?? 0,
-          bedTemp:      (heaterBed['temperature'] as num?)?.toDouble() ?? 0,
-          bedTarget:    (heaterBed['target']      as num?)?.toDouble() ?? 0,
-          filename:     printStats['filename'] as String?,
+          state:              state,
+          progress:           progress.toDouble(),
+          hotendTemp:         (extruder['temperature'] as num?)?.toDouble() ?? 0,
+          hotendTarget:       (extruder['target']      as num?)?.toDouble() ?? 0,
+          bedTemp:            (heaterBed['temperature'] as num?)?.toDouble() ?? 0,
+          bedTarget:          (heaterBed['target']      as num?)?.toDouble() ?? 0,
+          filename:           printStats['filename'] as String?,
+          connection:         connection,
+          webcamSnapshotPath: webcamPath,
         ));
         return; // success — stop trying candidates
       } catch (_) {
