@@ -345,8 +345,8 @@ class _PairingScreenState extends State<PairingScreen> {
                       hintStyle: TextStyle(
                           color: cs.onSurface.withValues(alpha:0.25),
                           letterSpacing: 4),
-                      border: OutlineInputBorder(
-                          borderRadius: const BorderRadius.horizontal(
+                      border: const OutlineInputBorder(
+                          borderRadius: BorderRadius.horizontal(
                               right: Radius.circular(8))),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: const BorderRadius.horizontal(

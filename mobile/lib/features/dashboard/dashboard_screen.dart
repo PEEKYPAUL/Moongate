@@ -146,22 +146,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               onChanged: (v) {
                 if (v != null) ref.read(themeModeProvider.notifier).set(v);
               },
-              child: Column(
+              child: const Column(
                 children: [
                   RadioListTile(
                     value: ThemeMode.system,
-                    title: const Text('System default'),
-                    secondary: const Icon(Icons.brightness_auto),
+                    title: Text('System default'),
+                    secondary: Icon(Icons.brightness_auto),
                   ),
                   RadioListTile(
                     value: ThemeMode.dark,
-                    title: const Text('Dark'),
-                    secondary: const Icon(Icons.dark_mode),
+                    title: Text('Dark'),
+                    secondary: Icon(Icons.dark_mode),
                   ),
                   RadioListTile(
                     value: ThemeMode.light,
-                    title: const Text('Light'),
-                    secondary: const Icon(Icons.light_mode),
+                    title: Text('Light'),
+                    secondary: Icon(Icons.light_mode),
                   ),
                 ],
               ),
@@ -298,7 +298,7 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.print_disabled,
+          const Icon(Icons.print_disabled,
               size: 72, color: Colors.white24),
           const SizedBox(height: 16),
           Text('No printers added yet',
