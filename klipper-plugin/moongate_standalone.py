@@ -61,6 +61,100 @@ def _get_local_ip() -> str:
         return "localhost"
 
 
+def _get_tunnel_subdomain(tunnel_url: Optional[str]) -> Optional[str]:
+    """Extract just the subdomain from a trycloudflare.com URL.
+    e.g. 'https://racing-partly-mouse-surprised.trycloudflare.com' → 'racing-partly-mouse-surprised'
+    """
+    if not tunnel_url:
+        return None
+    import re
+    m = re.search(r'https?://([a-z0-9-]+)\.trycloudflare\.com', tunnel_url)
+    return m.group(1) if m else None
+
+
+_PAIR_PAGE_HTML = """\
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moongate Pairing</title>
+<style>
+  body {{ font-family: system-ui, sans-serif; max-width: 420px; margin: 40px auto;
+          padding: 20px; text-align: center; background: #111827; color: #e5e7eb; }}
+  h1   {{ color: #60a5fa; margin-bottom: 4px; }}
+  p    {{ color: #9ca3af; margin-top: 0; }}
+  #qr  {{ margin: 24px auto; display: inline-block; background: #fff;
+          padding: 12px; border-radius: 12px; }}
+  .btn {{ display: inline-block; background: #3b82f6; color: #fff;
+          padding: 14px 28px; border-radius: 8px; text-decoration: none;
+          font-size: 16px; margin: 10px 0; font-weight: 600; }}
+  .btn:hover {{ background: #2563eb; }}
+  small {{ color: #6b7280; font-size: 13px; }}
+  #status {{ color: #f87171; }}
+</style>
+</head>
+<body>
+<h1>&#127769; Moongate</h1>
+<p>Scan with the Moongate app to pair your printer.</p>
+<div id="qr"><span id="status">Loading&hellip;</span></div>
+<div id="actions" style="display:none">
+  <br>
+  <a id="open-app" class="btn" href="#">Open in Moongate App</a>
+  <br>
+  <small>Code expires in 10&thinsp;min &mdash; re-run MOONGATE_PAIR to refresh.</small>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
+        integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4NsQdahc7q5S8FD3Aen6A=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+(async function load() {{
+  try {{
+    const r = await fetch('/server/moongate/qr');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d   = await r.json();
+    const url = (d.result || d).qr_url;
+    if (!url) throw new Error('No active pairing session');
+    document.getElementById('status').textContent = '';
+    new QRCode(document.getElementById('qr'), {{
+      text: url, width: 240, height: 240,
+      colorDark: '#000000', colorLight: '#ffffff',
+    }});
+    document.getElementById('open-app').href = url;
+    document.getElementById('actions').style.display = '';
+  }} catch(e) {{
+    document.getElementById('status').textContent =
+      'Error: ' + e.message + '. Run MOONGATE_PAIR in Klipper console first.';
+  }}
+}})();
+</script>
+</body>
+</html>
+"""
+
+# Directories to try when writing the static pair page.
+# Listed most-specific first; first writable path wins.
+_WEBROOT_CANDIDATES = [
+    Path("/home/pi/printer_data/www"),
+    Path("/home/pi/mainsail"),
+    Path("/home/pi/fluidd"),
+    Path("/var/www/html"),
+]
+
+
+def _write_pair_page() -> Optional[Path]:
+    """Write moongate-pair.html to the first writable web-root we find."""
+    for directory in _WEBROOT_CANDIDATES:
+        if directory.is_dir():
+            target = directory / "moongate-pair.html"
+            try:
+                target.write_text(_PAIR_PAGE_HTML)
+                return target
+            except OSError:
+                continue
+    return None
+
+
 def _get_tunnel_url() -> Optional[str]:
     """
     Return the active Cloudflare quick-tunnel URL, or None if cloudflared
@@ -486,6 +580,19 @@ class MoongatePlugin:
         self.server.register_endpoint(
             "/server/moongate/revoke", ["POST"], self._handle_revoke
         )
+        self.server.register_endpoint(
+            "/server/moongate/pair-page", ["GET"], self._handle_pair_page
+        )
+
+        # Write the static HTML pairing page to the web root so it can be
+        # opened in a browser (locally or via tunnel) and shows a scannable QR.
+        pair_page_path = _write_pair_page()
+        if pair_page_path:
+            logger.info("Moongate pair page written to %s", pair_page_path)
+        else:
+            logger.warning(
+                "Moongate could not write pair page — no writable web-root found"
+            )
 
         # Called by the MOONGATE_PAIR G-code macro via Klipper → Moonraker RPC
         self.server.register_remote_method(
@@ -520,28 +627,52 @@ class MoongatePlugin:
         self._last_qr_url      = f"moongate://pair?{qr_params}"
         self._last_qr_token_id = tid
 
-        qr_page_url = f"http://{local_ip}/moongate-pair.html"
+        local_pair_page  = f"http://{local_ip}/moongate-pair.html"
+        subdomain        = _get_tunnel_subdomain(tunnel_url)
+        tunnel_pair_page = (
+            f"{tunnel_url}/moongate-pair.html" if tunnel_url else None
+        )
 
         logger.info("MOONGATE PAIR CODE GENERATED: %s", display_code)
-        logger.info("MOONGATE QR PAGE: %s", qr_page_url)
+        logger.info("MOONGATE LOCAL PAIR PAGE: %s", local_pair_page)
         if tunnel_url:
-            logger.info("MOONGATE TUNNEL: %s", tunnel_url)
+            logger.info("MOONGATE TUNNEL PAIR PAGE: %s", tunnel_pair_page)
+            logger.info("MOONGATE TUNNEL SUBDOMAIN: %s", subdomain)
         else:
             logger.info("MOONGATE TUNNEL: not running (remote access unavailable)")
 
         # Let the RPC handshake complete before pushing G-code back
         await asyncio.sleep(0.3)
 
-        remote_line = (
-            f"M118 Remote access: {tunnel_url}\n" if tunnel_url
-            else "M118 Remote access: not set up (run install.sh to enable)\n"
-        )
-        script = (
-            f"M118 *** MOONGATE CODE: {display_code} ***\n"
-            f"M118 Scan QR: open {qr_page_url} on your PC, then scan with the app.\n"
-            f"{remote_line}"
-            f"M118 Code expires in 10 minutes."
-        )
+        # Build the console message — keep it readable in Mainsail's narrow
+        # console panel; each M118 line appears on its own row.
+        lines = [
+            f"M118 ==========================================",
+            f"M118 MOONGATE CODE: {display_code}",
+            f"M118 ==========================================",
+        ]
+
+        if tunnel_url and subdomain:
+            # Remote user: give them the tunnel pair page URL + the subdomain
+            # shortcut for typing into the app tunnel URL field.
+            lines += [
+                f"M118 Scan QR: open this link on your phone:",
+                f"M118   {tunnel_pair_page}",
+                f"M118 -- or enter in the app tunnel field --",
+                f"M118   Subdomain: {subdomain}",
+                f"M118   (app fills the rest automatically)",
+            ]
+        else:
+            # Local-only: give the LAN pair page URL
+            lines += [
+                f"M118 Scan QR: open on your PC, scan with app:",
+                f"M118   {local_pair_page}",
+                f"M118 Remote access not set up (run install.sh).",
+            ]
+
+        lines.append("M118 Code expires in 10 minutes.")
+        script = "\n".join(lines)
+
         try:
             klippy_apis: Any = self.server.lookup_component("klippy_apis")
             await klippy_apis.run_gcode(script)
@@ -550,11 +681,13 @@ class MoongatePlugin:
             logger.error("run_gcode failed (%s) — code is: %s", exc, display_code)
 
         # Also push via WebSocket so Mainsail shows it
+        ws_msg = f"// MOONGATE CODE: {display_code}"
+        if tunnel_pair_page:
+            ws_msg += f" — tap to pair: {tunnel_pair_page}"
+        elif local_pair_page:
+            ws_msg += f" — QR page: {local_pair_page}"
         try:
-            self.server.send_event(
-                "server:gcode_response",
-                f"// MOONGATE CODE: {display_code} — QR: {qr_page_url}",
-            )
+            self.server.send_event("server:gcode_response", ws_msg)
         except Exception:
             pass
 
@@ -795,6 +928,23 @@ class MoongatePlugin:
                 f"Moonraker returned HTTP {resp.code} for action '{action}'", 502
             )
         return {"action": action, "ok": True}
+
+    async def _handle_pair_page(self, webrequest: Any) -> dict:
+        """
+        Returns metadata needed to build the pairing UI.
+        The actual HTML page (moongate-pair.html) is written to the nginx
+        web-root at startup — this endpoint is only a JSON fallback used by
+        that page to fetch the current QR URL.
+        """
+        tunnel_url = _get_tunnel_url()
+        subdomain  = _get_tunnel_subdomain(tunnel_url)
+        return {
+            "qr_url":    self._last_qr_url,
+            "tunnel_url": tunnel_url,
+            "subdomain":  subdomain,
+            "local_ip":   _get_local_ip(),
+            "ready":      self._last_qr_url is not None,
+        }
 
     async def _handle_list_tokens(self, webrequest: Any) -> dict:
         self._authenticate(webrequest)

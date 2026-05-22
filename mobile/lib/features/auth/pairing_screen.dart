@@ -48,9 +48,28 @@ class _PairingScreenState extends State<PairingScreen> {
   String get _fullCode =>
       'GATE-${_code1Controller.text.trim()}-${_code2Controller.text.trim()}';
 
+  /// Normalises whatever the user typed into a full HTTPS URL.
+  ///
+  /// Handles all three common forms:
+  ///   "racing-partly-mouse-surprised"             → https://racing-partly-mouse-surprised.trycloudflare.com
+  ///   "racing-partly-mouse-surprised.trycloudflare.com" → https://racing-partly-mouse-surprised.trycloudflare.com
+  ///   "https://racing-partly-mouse-surprised.trycloudflare.com" → unchanged
+  String _normalizeTunnelUrl(String raw) {
+    if (raw.isEmpty) return raw;
+    // If there's no dot in the input it must be just the subdomain part
+    if (!raw.contains('.')) {
+      raw = '$raw.trycloudflare.com';
+    }
+    // Ensure the scheme is present
+    if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
+      raw = 'https://$raw';
+    }
+    return raw;
+  }
+
   Future<void> _pair() async {
     final localRaw  = _localController.text.trim();
-    final tunnelRaw = _tunnelController.text.trim();
+    final tunnelRaw = _normalizeTunnelUrl(_tunnelController.text.trim());
     final name      = _nameController.text.trim().isEmpty
         ? 'My Printer' : _nameController.text.trim();
     final part1 = _code1Controller.text.trim();
@@ -301,9 +320,10 @@ class _PairingScreenState extends State<PairingScreen> {
               controller: _tunnelController,
               decoration: const InputDecoration(
                 labelText: 'Tunnel URL (remote access)',
-                hintText: 'https://xxxx.trycloudflare.com',
+                hintText: 'words-words-words  or  https://…trycloudflare.com',
                 border: OutlineInputBorder(),
-                helperText: 'Optional — enables access outside your home network',
+                helperText:
+                    'Paste the full URL or just the subdomain (e.g. racing-partly-mouse)',
               ),
               keyboardType: TextInputType.url,
             ),
@@ -324,9 +344,10 @@ class _PairingScreenState extends State<PairingScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Adding from a different network? Enter the tunnel URL '
-                      'and leave local IP blank — the code exchange goes via '
-                      'the tunnel. You can add the local IP later.',
+                      'Adding remotely? Leave the local IP blank and paste '
+                      'the tunnel URL (or just the subdomain part shown in '
+                      'the Klipper console). The code exchange goes via the '
+                      'tunnel — no local Wi-Fi needed.',
                       style: TextStyle(
                         fontSize: 12,
                         color: cs.onPrimaryContainer,
