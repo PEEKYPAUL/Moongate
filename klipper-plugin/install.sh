@@ -18,6 +18,7 @@ MAINSAIL_DIR="${MAINSAIL_DIR:-$HOME/mainsail}"
 PRINTER_DATA="${PRINTER_DATA:-$HOME/printer_data}"
 MOONRAKER_CONF="$PRINTER_DATA/config/moonraker.conf"
 COMPONENTS_DIR="$MOONRAKER_DIR/moonraker/components"
+KLIPPER_CFG_DIR="$PRINTER_DATA/config"
 
 [[ -d "$MOONRAKER_DIR" ]]  || die "Moonraker not found at $MOONRAKER_DIR. Set MOONRAKER_DIR= if installed elsewhere."
 [[ -f "$MOONRAKER_CONF" ]] || die "moonraker.conf not found at $MOONRAKER_CONF."
@@ -32,7 +33,7 @@ esac
 
 info "Architecture: $ARCH → cloudflared: $CF_ARCH"
 
-# ── 1. Install Moongate Klipper plugin ───────────────────────────────────────
+# ── 1. Install Moongate Moonraker plugin ──────────────────────────────────────
 info "Installing Moongate plugin..."
 
 PLUGIN_URL="https://raw.githubusercontent.com/PEEKYPAUL/moongate/master/klipper-plugin/moongate_standalone.py"
@@ -46,7 +47,41 @@ else
     success "[moongate] added to moonraker.conf"
 fi
 
-# ── 2. Deploy QR pairing page to Mainsail ────────────────────────────────────
+# ── 2. Add MOONGATE_PAIR macro to Klipper config ──────────────────────────────
+info "Adding MOONGATE_PAIR macro to Klipper config..."
+
+MOONGATE_CFG="$KLIPPER_CFG_DIR/moongate.cfg"
+
+# Always overwrite so re-running the installer updates the macro.
+cat > "$MOONGATE_CFG" << 'MACROEOF'
+# ── Moongate ──────────────────────────────────────────────────────────────────
+# Managed by the Moongate installer — do not edit manually.
+# Re-run install.sh to update.
+
+[gcode_macro MOONGATE_PAIR]
+description: Generate a Moongate pairing code for the mobile app
+gcode:
+    {action_call_remote_method("moongate_generate_pair_code")}
+MACROEOF
+
+success "Macro written to $MOONGATE_CFG"
+
+# Add [include moongate.cfg] to printer.cfg if it isn't already there.
+PRINTER_CFG="$KLIPPER_CFG_DIR/printer.cfg"
+if [[ -f "$PRINTER_CFG" ]]; then
+    if grep -q '\[include moongate\.cfg\]' "$PRINTER_CFG"; then
+        info "[include moongate.cfg] already in printer.cfg"
+    else
+        printf '\n[include moongate.cfg]\n' >> "$PRINTER_CFG"
+        success "[include moongate.cfg] added to printer.cfg"
+    fi
+else
+    warn "printer.cfg not found at $PRINTER_CFG"
+    warn "Add the following line to your printer.cfg manually:"
+    warn "  [include moongate.cfg]"
+fi
+
+# ── 3. Deploy QR pairing page to Mainsail ────────────────────────────────────
 if [[ -d "$MAINSAIL_DIR" ]]; then
     HTML_URL="https://raw.githubusercontent.com/PEEKYPAUL/moongate/master/klipper-plugin/moongate-pair.html"
     curl -fsSL "$HTML_URL" -o "$MAINSAIL_DIR/moongate-pair.html"
@@ -55,7 +90,7 @@ else
     warn "Mainsail not found at $MAINSAIL_DIR — skipping QR page"
 fi
 
-# ── 3. Install cloudflared ────────────────────────────────────────────────────
+# ── 4. Install cloudflared ────────────────────────────────────────────────────
 info "Installing cloudflared..."
 
 CF_DEB="cloudflared-linux-${CF_ARCH}.deb"
@@ -67,7 +102,7 @@ sudo dpkg -i "$TMP_DEB"
 rm -f "$TMP_DEB"
 success "cloudflared installed"
 
-# ── 4. Create moongate-tunnel systemd service ─────────────────────────────────
+# ── 5. Create moongate-tunnel systemd service ─────────────────────────────────
 info "Creating moongate-tunnel systemd service..."
 
 sudo tee /etc/systemd/system/moongate-tunnel.service > /dev/null << UNIT
@@ -92,7 +127,7 @@ sudo systemctl enable moongate-tunnel
 sudo systemctl restart moongate-tunnel
 success "moongate-tunnel service started"
 
-# ── 5. Restart Moonraker ──────────────────────────────────────────────────────
+# ── 6. Restart Moonraker then Klipper ────────────────────────────────────────
 info "Restarting Moonraker..."
 sudo systemctl restart moonraker
 sleep 3
@@ -100,7 +135,28 @@ systemctl is-active moonraker > /dev/null \
     && success "Moonraker running" \
     || warn "Check Moonraker: sudo systemctl status moonraker"
 
-# ── 6. Show tunnel URL ────────────────────────────────────────────────────────
+info "Restarting Klipper to load MOONGATE_PAIR macro..."
+# Try common Klipper service names.
+KLIPPER_SVC=""
+for svc in klipper klipper-1; do
+    if systemctl is-active --quiet "$svc" 2>/dev/null || \
+       systemctl is-enabled --quiet "$svc" 2>/dev/null; then
+        KLIPPER_SVC="$svc"
+        break
+    fi
+done
+
+if [[ -n "$KLIPPER_SVC" ]]; then
+    sudo systemctl restart "$KLIPPER_SVC"
+    sleep 2
+    systemctl is-active "$KLIPPER_SVC" > /dev/null \
+        && success "Klipper restarted — MOONGATE_PAIR macro is ready" \
+        || warn "Check Klipper: sudo systemctl status $KLIPPER_SVC"
+else
+    warn "Klipper service not found — do a Firmware Restart in Mainsail to load the macro"
+fi
+
+# ── 7. Show tunnel URL ────────────────────────────────────────────────────────
 echo ""
 info "Waiting for Cloudflare tunnel (~20s)..."
 sleep 20
