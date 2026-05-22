@@ -109,7 +109,7 @@ class _PairingScreenState extends State<PairingScreen> {
       );
       await PrinterRegistry.instance.add(printer);
       if (!mounted) return;
-      if (context.canPop()) context.pop(); else context.go('/dashboard');
+      if (context.canPop()) { context.pop(); } else { context.go('/dashboard'); }
     } else {
       setState(() {
         _error   = result?.error ?? 'Could not reach printer on local or tunnel.';
@@ -198,7 +198,7 @@ class _PairingScreenState extends State<PairingScreen> {
       );
       await PrinterRegistry.instance.add(printer);
       if (!mounted) return;
-      if (context.canPop()) context.pop(); else context.go('/dashboard');
+      if (context.canPop()) { context.pop(); } else { context.go('/dashboard'); }
     } catch (e) {
       if (!mounted) return;
       setState(() { _loading = false; _error = 'Pairing failed: $e'; });
