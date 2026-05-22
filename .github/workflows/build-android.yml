@@ -38,17 +38,21 @@ jobs:
         # so every CI APK is signed with the same consistent key.
         # Without this, each Ubuntu runner generates a fresh debug keystore,
         # meaning every APK download would conflict with the previous install.
-        if: secrets.RELEASE_KEYSTORE != ''
         env:
           RELEASE_KEYSTORE: ${{ secrets.RELEASE_KEYSTORE }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
-          echo "$RELEASE_KEYSTORE" | base64 --decode > mobile/android/app/moongate-release.jks
-          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=moongate-release.jks\n' \
-            "$RELEASE_STORE_PASSWORD" "$RELEASE_KEY_PASSWORD" "$RELEASE_KEY_ALIAS" \
-            > mobile/android/key.properties
+          if [ -n "$RELEASE_KEYSTORE" ]; then
+            echo "$RELEASE_KEYSTORE" | base64 --decode > mobile/android/app/moongate-release.jks
+            printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=moongate-release.jks\n' \
+              "$RELEASE_STORE_PASSWORD" "$RELEASE_KEY_PASSWORD" "$RELEASE_KEY_ALIAS" \
+              > mobile/android/key.properties
+            echo "Release signing configured."
+          else
+            echo "RELEASE_KEYSTORE secret not set — falling back to debug signing."
+          fi
 
       - name: Build release APK
         working-directory: mobile
