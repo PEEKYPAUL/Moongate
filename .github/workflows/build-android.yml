@@ -58,18 +58,33 @@ jobs:
         working-directory: mobile
         run: flutter build apk --release
 
-      - name: Copy APK to APK folder
+      - name: Copy APK and generate version manifest
         run: |
           mkdir -p APK
           cp mobile/build/app/outputs/flutter-apk/app-release.apk APK/Moongate-latest.apk
 
-      - name: Commit and push updated APK
+          # Parse version and build number from pubspec.yaml
+          # e.g. "version: 0.1.3+3" → VERSION=0.1.3  BUILD=3
+          VERSION=$(grep '^version:' mobile/pubspec.yaml | sed 's/version:[[:space:]]*//' | cut -d'+' -f1)
+          BUILD=$(grep '^version:' mobile/pubspec.yaml | sed 's/version:[[:space:]]*//' | cut -d'+' -f2)
+
+          cat > APK/latest_version.json <<EOF
+          {
+            "version": "$VERSION",
+            "build_number": $BUILD,
+            "apk_url": "https://github.com/PEEKYPAUL/moongate/raw/master/APK/Moongate-latest.apk",
+            "published_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+          echo "Version manifest: $(cat APK/latest_version.json)"
+
+      - name: Commit and push APK + version manifest
         # Only commit on direct pushes to master (not PRs — they can't push back)
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add APK/Moongate-latest.apk
+          git add APK/Moongate-latest.apk APK/latest_version.json
           if git diff --staged --quiet; then
             echo "APK unchanged, nothing to commit"
           else

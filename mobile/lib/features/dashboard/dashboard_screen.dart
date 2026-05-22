@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/printer_config.dart';
 import '../../providers/settings_provider.dart';
+import '../../providers/update_provider.dart';
 import '../../providers/version_provider.dart';
 import '../../services/printer_registry.dart';
+import '../../services/update_service.dart';
 import 'printer_tile.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -18,6 +21,7 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   List<PrinterConfig> _printers = [];
+  bool _updateDismissed = false;
 
   @override
   void initState() {
@@ -54,6 +58,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Check for update — runs once per session, silently ignored on failure.
+    final updateAsync = ref.watch(updateProvider);
+    final update = _updateDismissed ? null : updateAsync.valueOrNull;
+
+    final body = _printers.isEmpty
+        ? _EmptyState(onAddPrinter: () => context.push('/pair').then((_) => _load()))
+        : _PrinterGrid(
+            printers: _printers,
+            onTap: (p) => context.push('/printer/${p.id}'),
+            onRemove: _removePrinter,
+          );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Moongate'),
@@ -68,13 +84,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ],
       ),
       endDrawer: _buildDrawer(context),
-      body: _printers.isEmpty
-          ? _EmptyState(onAddPrinter: () => context.push('/pair').then((_) => _load()))
-          : _PrinterGrid(
-              printers: _printers,
-              onTap: (p) => context.push('/printer/${p.id}'),
-              onRemove: _removePrinter,
-            ),
+      body: update != null
+          ? Column(
+              children: [
+                _UpdateBanner(
+                  update: update,
+                  onDismiss: () => setState(() => _updateDismissed = true),
+                ),
+                Expanded(child: body),
+              ],
+            )
+          : body,
       floatingActionButton: _printers.isEmpty
           ? null
           : FloatingActionButton(
@@ -363,6 +383,61 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return 'XXL';
   }
 }
+
+// ── Update banner ─────────────────────────────────────────────────────────────
+
+class _UpdateBanner extends StatelessWidget {
+  final UpdateInfo update;
+  final VoidCallback onDismiss;
+
+  const _UpdateBanner({required this.update, required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: cs.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Icon(Icons.system_update_alt_rounded,
+                color: cs.onPrimaryContainer, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Update available — v${update.version}',
+                style: TextStyle(
+                  color: cs.onPrimaryContainer,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: onDismiss,
+              style: TextButton.styleFrom(foregroundColor: cs.onPrimaryContainer),
+              child: const Text('Later'),
+            ),
+            const SizedBox(width: 4),
+            FilledButton(
+              onPressed: () => launchUrl(
+                Uri.parse(update.apkUrl),
+                mode: LaunchMode.externalApplication,
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: cs.primary,
+                foregroundColor: cs.onPrimary,
+              ),
+              child: const Text('Update'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Printer grid ──────────────────────────────────────────────────────────────
 
 class _PrinterGrid extends StatelessWidget {
   final List<PrinterConfig> printers;
