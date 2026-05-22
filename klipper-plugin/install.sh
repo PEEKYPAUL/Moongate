@@ -72,8 +72,10 @@ if [[ -f "$PRINTER_CFG" ]]; then
     if grep -q '\[include moongate\.cfg\]' "$PRINTER_CFG"; then
         info "[include moongate.cfg] already in printer.cfg"
     else
-        printf '\n[include moongate.cfg]\n' >> "$PRINTER_CFG"
-        success "[include moongate.cfg] added to printer.cfg"
+        # Insert at the top so Klipper loads the macro before anything else.
+        { printf '[include moongate.cfg]\n\n'; cat "$PRINTER_CFG"; } > "${PRINTER_CFG}.tmp" \
+            && mv "${PRINTER_CFG}.tmp" "$PRINTER_CFG"
+        success "[include moongate.cfg] added to top of printer.cfg"
     fi
 else
     warn "printer.cfg not found at $PRINTER_CFG"
