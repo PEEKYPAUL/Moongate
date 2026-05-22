@@ -1,14 +1,15 @@
 # Moongate — Claude Code Project Guide
 
 ## What this project is
-Moongate is a single mobile app (Flutter, Android + iOS) that combines:
-- An embedded Tailscale/WireGuard VPN (connect on open, disconnect on close, no persistent notification beyond the OS VPN status bar icon)
-- A Mainsail/Fluidd-equivalent interface for controlling a Klipper 3D printer over Moonraker's WebSocket API
-- A secure pairing/handshake system with user-controlled token expiry
 
-It replaces the two-app workflow of Mobileraker + Tailscale with a single integrated app.
+Moongate is a free, open-source Android app for remotely controlling a Klipper 3D printer over local WiFi or Cloudflare Quick Tunnel. No VPN, no Tailscale, no subscriptions.
+
+It has two parts:
+- **Moongate App** — Flutter/Android app (dashboard with webcam tiles, print controls, full Mainsail WebView)
+- **Moongate Plugin** — Python Moonraker component that runs on the Pi (handles pairing, JWT auth, status/control proxy, Cloudflare tunnel management)
 
 ## Repository layout
+
 ```
 moongate/
 ├── mobile/                  # Flutter app (Dart)
@@ -16,47 +17,54 @@ moongate/
 │   │   ├── main.dart
 │   │   ├── app.dart
 │   │   ├── features/
-│   │   │   ├── auth/        # Pairing handshake, token storage
-│   │   │   ├── printer/     # Moonraker WebSocket, printer UI
-│   │   │   ├── vpn/         # WireGuard/Tailscale platform channels
-│   │   │   └── settings/    # App config, token expiry
-│   │   ├── services/        # Moonraker, VPN, auth singletons
-│   │   ├── models/          # Dart data classes
-│   │   └── widgets/         # Shared UI components
+│   │   │   ├── auth/        # Pairing flow, QR scanner, code entry
+│   │   │   ├── dashboard/   # Dashboard screen, PrinterTile widget
+│   │   │   ├── printer/     # Printer screen (Mainsail WebView)
+│   │   │   └── settings/    # App settings
+│   │   ├── services/
+│   │   │   ├── printer_status_service.dart   # Per-tile status polling
+│   │   │   ├── print_control_service.dart    # pause/resume/cancel/firmware_restart
+│   │   │   ├── printer_registry.dart         # Persistent printer list
+│   │   │   └── moonraker_service.dart        # WebSocket client
+│   │   └── models/
+│   │       └── printer_config.dart           # PrinterConfig, PrinterStatus, PrinterConnection
 │   └── pubspec.yaml
-├── klipper-plugin/          # Moonraker plugin (Python 3)
-│   ├── moongate/
-│   │   ├── __init__.py
-│   │   ├── moongate_plugin.py   # Moonraker component, REST endpoints
-│   │   └── auth_manager.py      # Token generation, expiry, validation
-│   └── install.sh
+├── klipper-plugin/
+│   ├── moongate_standalone.py   # Single-file Moonraker plugin (what install.sh deploys)
+│   ├── moongate-pair.html       # QR pairing page (deployed to Mainsail web root)
+│   ├── install.sh               # One-line installer for the Pi
+│   └── moongate/                # Multi-file plugin variant (development)
+├── APK/                         # Pre-built APKs for direct download
 ├── docs/
 │   ├── architecture.md
 │   ├── setup-guide.md
 │   └── security.md
-└── .github/workflows/ci.yml
+└── .github/workflows/
+    ├── ci.yml             # flutter analyze + test on push to master
+    └── build-android.yml  # builds debug APK artifact on push to master
 ```
 
 ## Key architecture decisions
-- **VPN layer**: Android VpnService + WireGuard-Go via platform channel; iOS NetworkExtension + WireGuard-Go. App lifecycle hooks disconnect the tunnel when the app is backgrounded/closed.
-- **Printer UI**: Phase 1 = WebView pointing at local Mainsail/Fluidd. Phase 2 = native Flutter widgets consuming Moonraker WebSocket directly.
-- **Pairing flow**: Run `MOONGATE_PAIR` macro in Klipper → plugin generates a short-lived alphanumeric code + QR payload → printed to Moonraker console → user enters in app → app exchanges for a JWT with configurable TTL.
-- **Token expiry**: Stored in `~/.config/moongate/tokens.json` on the Pi. Configurable 1 day / 7 days / 30 days / never (user sets in app settings).
+
+- **Network strategy**: Local IP first (fast at home), automatic fallback to Cloudflare Quick Tunnel. Each printer tile is fully independent — probes its own IPs/tunnel separately.
+- **Status polling**: `PrinterStatusService` polls every 4 s. Tries Moongate plugin endpoint first; falls back to native Moonraker object-query API so tiles work even without the plugin.
+- **Print controls**: Same dual-endpoint strategy — Moongate control endpoint first, then native Moonraker (`/printer/print/pause` etc.).
+- **Tunnel URL rotation**: `cloudflared` generates a new URL on each restart. The plugin injects the current URL into every status response; the app detects changes and persists the fresh URL.
+- **Pairing**: `MOONGATE_PAIR` G-code macro → plugin generates `GATE-XXXX-XXXX` code + QR payload → shown in Klipper console and on `moongate-pair.html` → app scans and exchanges for a JWT.
+- **Connection indicator**: Green bar + "Local" = local WiFi. Orange bar + "Tunnel" = Cloudflare tunnel.
 
 ## Development prerequisites
-- Flutter SDK ≥ 3.19 (see docs/setup-guide.md for install instructions)
+
+- Flutter SDK ≥ 3.19 (stable channel)
 - Android Studio or VS Code with Flutter/Dart extensions
-- Python 3.9+ on the Raspberry Pi for the Moonraker plugin
 - `gh` CLI authenticated as PEEKYPAUL for GitHub operations
 
 ## Autonomy — when to ask vs just do it
 
 **Never ask for confirmation on:**
-- Editing or creating any source file (Dart, Python, YAML, JSON, etc.)
-- Deploying files to the Pi via pscp/plink
-- Restarting Moonraker or other Pi services
-- Running `flutter run`, `flutter build`, `flutter pub get`
-- Git commits, git push
+- Editing or creating any source file (Dart, Python, YAML, JSON, shell, HTML, etc.)
+- Running `flutter pub get`, `flutter analyze`, `flutter build`
+- Git commits and `git push`
 - Any reversible code or config change
 
 **Do ask before:**
@@ -64,17 +72,17 @@ moongate/
 - Force-pushing to a branch that already has history (`git push --force`)
 - Running `git reset --hard` that would discard local work
 - Any command that physically can't be undone and could cause data loss
-- Anything that costs real money or changes account credentials
 
 Default mode: **make the change, then tell the user what was done.**
-No "shall I proceed?", no "is that OK?", no listing steps then waiting for approval.
-Just do it.
 
 ## Coding conventions
-- Dart: follow `flutter_lints` rules, feature-first folder structure
-- Python: PEP 8, type hints on all public functions, no external dependencies beyond what Moonraker already ships
-- Commit often and push; CI runs `flutter analyze` and `flutter test` on every push
+
+- Dart: follow `flutter_lints` rules, feature-first folder structure, `withValues(alpha:)` not `withOpacity()`
+- Python: PEP 8, type hints on public functions, no external dependencies beyond what Moonraker ships
+- Commit often and push; CI runs `flutter analyze` + `flutter test` on every push to `master`
 
 ## GitHub
-Repo: https://github.com/PEEKYPAUL/moongate
-Push all changes to main unless working on a feature branch. Keep the remote in sync.
+
+Repo: https://github.com/PEEKYPAUL/moongate  
+Branch: `master` (not `main`)  
+Push all changes to `master` unless working on a feature branch. Keep the remote in sync.

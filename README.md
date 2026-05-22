@@ -75,7 +75,7 @@ At the end you'll see output like:
 
 ### Step 2 — Install the app
 
-[Download the APK](https://github.com/PEEKYPAUL/moongate/releases/latest) and install it on your Android phone.
+[Download the APK](https://github.com/PEEKYPAUL/moongate/tree/master/APK) and install it on your Android phone.
 
 On first launch the app will ask you to add a printer.
 

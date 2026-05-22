@@ -4,36 +4,38 @@
 
 | Threat | Mitigation |
 |---|---|
-| Attacker connects to printer over the internet | All traffic requires an active WireGuard tunnel; Moonraker never exposed publicly |
-| Stolen phone with Moongate installed | Token expiry (configurable); manual token revocation via Pi config; app can require biometric unlock |
+| Attacker connects to printer from the internet | All API requests require a valid JWT (`mg_token`); unauthenticated requests return 401 |
+| Stolen phone with Moongate installed | JWT expiry (default 30 days); tokens are revocable server-side by deleting `~/.config/moongate/tokens.json` on the Pi |
 | Replay attack with captured pairing code | Codes are single-use and expire after 10 minutes |
-| MITM on local network between app and Moonraker | Traffic travels over WireGuard (encrypted + authenticated at transport layer) |
-| Brute-force the pairing code | Rate-limited to 5 attempts per code; lockout after failure |
-| Stolen session token | Tokens are stored in encrypted storage on the phone (flutter_secure_storage); revocable server-side |
-| Malicious app update | Distribution via GitHub Releases with signed APKs; checksums published |
+| MITM on local network | Local traffic is HTTP (same as Mainsail normally is); tunnel traffic uses HTTPS via Cloudflare |
+| Brute-force the pairing code | 8-char random alphanumeric code (~47 bits entropy); codes expire after 10 min |
+| Stolen JWT | Tokens are stored in shared preferences on the phone; revocable server-side |
+| Cloudflare tunnel URL leaked | URL alone is not enough — every request also requires the JWT; without a valid token the plugin returns 401 |
 
 ## Token design
 
-- Tokens are signed JWTs (HS256) with the secret key stored only on the Pi
-- Payload: `{sub: device_id, iat, exp, jti (unique ID for revocation)}`
-- The plugin validates `exp`, `jti` (not revoked), and signature on every request
-- Token rotation: the app requests a new token when < 20% of TTL remains
+- Tokens are signed JWTs (HS256) with the secret key stored only on the Pi at `~/.config/moongate/`
+- Payload: `{sub: device_id, iat, exp, jti}` — `jti` allows per-token revocation
+- The plugin validates signature, `exp`, and `jti` on every request
+- Token is sent as a query parameter (`?mg_token=...`) — Moonraker's `WebRequest` API does not expose request headers
 
 ## Pairing code design
 
-- Format: `GATE-XXXX-XXXX` (8 random uppercase alphanumeric chars, ~47 bits of entropy)
+- Format: `GATE-XXXX-XXXX` (8 random uppercase alphanumeric characters, ~47 bits of entropy)
 - TTL: 10 minutes from generation
-- Single use: code is invalidated immediately after a successful exchange
-- Rate limit: 5 failed attempts locks the code; a new `MOONGATE_PAIR` run is required
+- Single use: invalidated immediately after a successful exchange
+- Codes are stored in memory only; a Pi restart clears all pending codes
 
-## WireGuard / Tailscale
+## Cloudflare Quick Tunnel
 
-- The app uses Tailscale's Wireguard-based mesh — all traffic is end-to-end encrypted
-- The coordination server (Tailscale SaaS or self-hosted headscale) only brokers key exchange; it never sees your traffic
-- Auth keys have a configurable expiry; ephemeral keys are supported (node removed from tailnet when offline)
+- `cloudflared` opens an outbound tunnel to Cloudflare's edge — no inbound ports are opened on your router
+- The tunnel URL (`https://xxxx.trycloudflare.com`) changes on each `cloudflared` restart; the app auto-updates the stored URL on the next status poll
+- All traffic through the tunnel is TLS-encrypted between the phone and Cloudflare, and between Cloudflare and the Pi
+- The `mg_token` JWT is still required on every request through the tunnel — the tunnel URL alone grants nothing
 
 ## What Moongate does NOT do
 
-- No cloud relay of printer data
+- No cloud relay or storage of printer data
 - No analytics or telemetry
-- No account required beyond a Tailscale/headscale account for VPN mesh
+- No account required
+- No inbound ports opened on your router

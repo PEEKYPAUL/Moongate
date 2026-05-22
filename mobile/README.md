@@ -1,17 +1,40 @@
-# moongate
+# Moongate — Flutter App
 
-A new Flutter project.
+Android app for remotely controlling a Klipper 3D printer over local WiFi or Cloudflare tunnel.
 
-## Getting Started
+## Building
 
-This project is a starting point for a Flutter application.
+```bash
+flutter pub get
+flutter build apk --release
+# Output: build/app/outputs/flutter-apk/app-release.apk
+```
 
-A few resources to get you started if this is your first Flutter project:
+## Running in development
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```bash
+flutter pub get
+flutter run   # connects to a USB-attached Android device
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Structure
+
+```
+lib/
+├── main.dart
+├── app.dart
+├── features/
+│   ├── auth/        # Pairing flow — QR scanner, manual code entry
+│   ├── dashboard/   # Dashboard screen and PrinterTile widget
+│   ├── printer/     # Full Mainsail WebView (per-printer screen)
+│   └── settings/    # App settings
+├── models/
+│   └── printer_config.dart   # PrinterConfig, PrinterStatus, PrinterConnection
+└── services/
+    ├── printer_status_service.dart   # Per-tile status polling (local-first, tunnel fallback)
+    ├── print_control_service.dart    # pause / resume / cancel / firmware_restart
+    ├── printer_registry.dart         # Persistent list of paired printers
+    └── moonraker_service.dart        # WebSocket client
+```
+
+See the root [README](../README.md) and [docs/](../docs/) for full setup instructions.
