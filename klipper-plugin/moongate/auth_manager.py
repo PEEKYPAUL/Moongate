@@ -174,7 +174,6 @@ class AuthManager:
     # ------------------------------------------------------------------
 
     def _sign_token(self, token_id: str, expires_at: Optional[float]) -> str:
-        import base64
         header = _b64(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
         payload = _b64(json.dumps({
             "sub": token_id,

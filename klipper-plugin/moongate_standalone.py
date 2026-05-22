@@ -713,7 +713,7 @@ class MoongatePlugin:
         # This lets the app use the correct path regardless of whether the Pi
         # is running mjpeg-streamer (/webcam/?action=snapshot) or
         # Crowsnest/uStreamer (/webcam/snapshot), or any custom setup.
-        result["webcam_snapshot_path"] = await _get_webcam_snapshot_path(client)
+        result["webcam_snapshot_path"] = await self._get_webcam_snapshot_path(client)
 
         return result
 
@@ -729,7 +729,6 @@ class MoongatePlugin:
           emergency_stop — immediately halt all motion (Klipper shutdown state)
         """
         self._authenticate(webrequest)
-        import json as _json
         from tornado.httpclient import AsyncHTTPClient, HTTPRequest
 
         args   = webrequest.get_args()
