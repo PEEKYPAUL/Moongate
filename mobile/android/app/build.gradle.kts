@@ -9,13 +9,6 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
-    // NDK 28 requires CMake 3.28+. Pin to 3.30.5 (installed via sdkmanager).
-    externalNativeBuild {
-        cmake {
-            version = "3.30.5"
-        }
-    }
-
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
