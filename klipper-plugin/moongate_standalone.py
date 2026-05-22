@@ -647,27 +647,27 @@ class MoongatePlugin:
         # Build the console message — keep it readable in Mainsail's narrow
         # console panel; each M118 line appears on its own row.
         lines = [
-            f"M118 ==========================================",
+            "M118 ==========================================",
             f"M118 MOONGATE CODE: {display_code}",
-            f"M118 ==========================================",
+            "M118 ==========================================",
         ]
 
         if tunnel_url and subdomain:
             # Remote user: give them the tunnel pair page URL + the subdomain
             # shortcut for typing into the app tunnel URL field.
             lines += [
-                f"M118 Scan QR: open this link on your phone:",
+                "M118 Scan QR: open this link on your phone:",
                 f"M118   {tunnel_pair_page}",
-                f"M118 -- or enter in the app tunnel field --",
+                "M118 -- or enter in the app tunnel field --",
                 f"M118   Subdomain: {subdomain}",
-                f"M118   (app fills the rest automatically)",
+                "M118   (app fills the rest automatically)",
             ]
         else:
             # Local-only: give the LAN pair page URL
             lines += [
-                f"M118 Scan QR: open on your PC, scan with app:",
+                "M118 Scan QR: open on your PC, scan with app:",
                 f"M118   {local_pair_page}",
-                f"M118 Remote access not set up (run install.sh).",
+                "M118 Remote access not set up (run install.sh).",
             ]
 
         lines.append("M118 Code expires in 10 minutes.")

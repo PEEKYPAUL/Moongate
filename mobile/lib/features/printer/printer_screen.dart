@@ -81,7 +81,7 @@ class _PrinterScreenState extends State<PrinterScreen>
         // Sub-resource errors are ignored — Mainsail loads webcam URLs that
         // point at localhost and will always 404/fail on the phone.
         onHttpError: (HttpResponseError error) {
-          if (!error.request.isForMainFrame) return;
+          if (error.request?.isForMainFrame != true) return;
           final code = error.response?.statusCode ?? 0;
           if (code >= 400 && mounted) {
             _fallbackTimer?.cancel();
@@ -97,7 +97,7 @@ class _PrinterScreenState extends State<PrinterScreen>
         // mode (or have no tunnel fallback). While still on local, a network
         // error is normal — the fallback timer handles the switch to tunnel.
         onWebResourceError: (WebResourceError error) {
-          if (!error.isForMainFrame) return;
+          if (error.isForMainFrame != true) return;
           final noFallback = widget.printer.remoteHost == null;
           if ((_usingRemote || noFallback) && mounted) {
             _fallbackTimer?.cancel();
