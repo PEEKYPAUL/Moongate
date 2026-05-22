@@ -170,6 +170,17 @@ class _PairingScreenState extends State<PairingScreen> {
     }
   }
 
+  /// Disposes and recreates the MobileScanner widget so it re-requests the
+  /// camera after the user has granted permission in the system dialog.
+  /// We must let a full frame render between the two setState calls so Flutter
+  /// actually removes the old widget before inserting the new one.
+  void _restartScanner() {
+    setState(() => _scanning = false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _scanning = true);
+    });
+  }
+
   Future<void> _showNetworkPicker() async {
     final selected = await showModalBottomSheet<String>(
       context: context,
@@ -386,39 +397,61 @@ class _PairingScreenState extends State<PairingScreen> {
                     errorBuilder: (context, error, child) {
                       final isDenied = error.errorCode ==
                           MobileScannerErrorCode.permissionDenied;
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black87,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              isDenied ? Icons.camera_alt : Icons.error_outline,
-                              color: Colors.orange,
-                              size: 40,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              isDenied
-                                  ? 'Camera access denied'
-                                  : 'Camera unavailable',
-                              style: const TextStyle(
-                                  color: Colors.white, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 6),
-                            const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 16),
-                              child: Text(
-                                'Go to Settings › Apps › Moongate\n'
-                                '› Permissions › Camera → Allow',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                    color: Colors.white70, fontSize: 12),
+                      // Tapping anywhere on the error view retries camera init.
+                      // This handles the common case where the user grants
+                      // permission in the system dialog but the scanner already
+                      // fired its error callback and needs to be recreated.
+                      return GestureDetector(
+                        onTap: _restartScanner,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black87,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                isDenied ? Icons.camera_alt : Icons.error_outline,
+                                color: Colors.orange,
+                                size: 40,
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 12),
+                              Text(
+                                isDenied
+                                    ? 'Camera permission needed'
+                                    : 'Camera unavailable',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 6),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16),
+                                child: Text(
+                                  isDenied
+                                      ? 'If you just granted permission,\ntap here to retry.'
+                                      : 'Tap to retry.',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      color: Colors.white70, fontSize: 12),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              OutlinedButton.icon(
+                                onPressed: _restartScanner,
+                                icon: const Icon(Icons.refresh,
+                                    color: Colors.white70),
+                                label: const Text('Tap to retry',
+                                    style: TextStyle(color: Colors.white70)),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(
+                                      color: Colors.white30),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },
