@@ -49,8 +49,14 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add APK/Moongate-latest.apk
-          git diff --staged --quiet && echo "APK unchanged, nothing to commit" || \
-            git commit -m "Update Moongate-latest.apk [skip ci]" && git push
+          if git diff --staged --quiet; then
+            echo "APK unchanged, nothing to commit"
+          else
+            git commit -m "Update Moongate-latest.apk [skip ci]"
+            # Pull and rebase in case another concurrent CI run pushed first
+            git pull --rebase origin master
+            git push
+          fi
 
       - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@v4
