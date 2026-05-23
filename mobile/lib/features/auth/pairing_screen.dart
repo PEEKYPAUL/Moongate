@@ -288,17 +288,6 @@ class _PairingScreenState extends State<PairingScreen>
     }
   }
 
-  /// Disposes and recreates the MobileScanner widget so it re-requests the
-  /// camera after the user has granted permission in the system dialog.
-  /// We must let a full frame render between the two setState calls so Flutter
-  /// actually removes the old widget before inserting the new one.
-  void _restartScanner() {
-    setState(() => _scanning = false);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() => _scanning = true);
-    });
-  }
-
   Future<void> _showNetworkPicker() async {
     final selected = await showModalBottomSheet<String>(
       context: context,
