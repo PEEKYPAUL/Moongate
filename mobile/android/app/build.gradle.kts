@@ -1,5 +1,18 @@
 import java.util.Properties
 
+// ─── Force CameraX 1.4.0 across all submodules ──────────────────────────────
+// mobile_scanner 5.x ships CameraX 1.3.3, which has a Samsung-specific
+// NullPointerException in Camera2CameraImpl.attachUseCases() — calling
+// .getClass() on a transiently-null object during lifecycle binding.
+// CameraX 1.4.0 fixes this.  The 1.3.x → 1.4.x API is fully compatible.
+configurations.all {
+    resolutionStrategy {
+        force("androidx.camera:camera-core:1.4.0")
+        force("androidx.camera:camera-camera2:1.4.0")
+        force("androidx.camera:camera-lifecycle:1.4.0")
+    }
+}
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
