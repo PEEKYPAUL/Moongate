@@ -907,7 +907,8 @@ class MoongatePlugin:
             import json as _j
             objects = _j.loads(resp.body).get("result", {}).get("objects", [])
             for obj in objects:
-                if ("temperature_sensor" in obj or "heater_generic" in obj) \
+                if ("temperature_sensor" in obj or "heater_generic" in obj
+                        or "temperature_fan" in obj) \
                         and "chamber" in obj.lower():
                     logger.info("Moongate: chamber sensor detected: '%s'", obj)
                     return obj

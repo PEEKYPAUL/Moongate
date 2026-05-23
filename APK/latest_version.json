@@ -1,5 +1,5 @@
 ﻿{
     "date":  "2026-05-23",
-    "version":  "0.2.8",
-    "notes":  "Dynamic chamber sensor discovery — finds [temperature_sensor CHAMBER/chamber/etc] automatically"
+    "version":  "0.2.9",
+    "notes":  "Fix: always start local-first on launch (tunnel no longer persisted); expand chamber discovery to include temperature_fan type"
 }

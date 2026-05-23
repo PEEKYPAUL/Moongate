@@ -48,7 +48,10 @@ class PrinterStatusService {
   /// was found) so we don't call /printer/objects/list on every poll.
   bool _chamberDiscovered = false;
 
-  PrinterStatusService(this.config) : _preferRemote = config.preferRemote;
+  // Always start local-first — preferRemote is a session-only optimisation.
+  // Persisting it caused both printers to show "Tunnel" on every app launch
+  // even when on the same LAN as the printer.
+  PrinterStatusService(this.config) : _preferRemote = false;
 
   Stream<PrinterStatus> get stream => _controller.stream;
 
@@ -166,8 +169,12 @@ class PrinterStatusService {
             ((body['result']?['objects']) as List<dynamic>?) ?? [];
         for (final obj in objects) {
           final key = obj.toString();
+          // Match temperature_sensor, heater_generic, OR temperature_fan
+          // (Micron+ and other enclosures often use temperature_fan for the
+          // chamber fan which also exposes a temperature reading).
           if ((key.startsWith('temperature_sensor ') ||
-               key.startsWith('heater_generic ')) &&
+               key.startsWith('heater_generic ') ||
+               key.startsWith('temperature_fan ')) &&
               key.toLowerCase().contains('chamber')) {
             _chamberKey = key; // e.g. "temperature_sensor CHAMBER"
             break;
@@ -183,15 +190,15 @@ class PrinterStatusService {
     }
   }
 
-  /// Called after every successful poll.  Updates the connection preference
-  /// immediately (for the next poll) and persists it (for the next app launch).
+  /// Called after every successful poll.  Updates the in-session connection
+  /// preference so the next poll in this session tries the right host first.
+  /// NOT persisted — on app launch we always start local-first so a printer
+  /// that was on a remote network last session doesn't keep trying tunnel
+  /// first when you're back home on the same LAN.
   void _onSuccess(String baseUrl) {
     final isRemote = baseUrl != config.host;
     if (isRemote == _preferRemote) return; // no change
     _preferRemote = isRemote;
-    PrinterRegistry.instance
-        .updatePreferRemote(config.id, preferRemote: isRemote)
-        .ignore();
   }
 
   // ── Moongate plugin endpoint ───────────────────────────────────────────────
@@ -291,7 +298,9 @@ class PrinterStatusService {
          status['temperature_sensor chamber_temp'] ??
          status['temperature_sensor CHAMBER_TEMP'] ??
          status['heater_generic chamber'] ??
-         status['heater_generic CHAMBER']) as Map<String, dynamic>?;
+         status['heater_generic CHAMBER'] ??
+         status['temperature_fan chamber'] ??
+         status['temperature_fan CHAMBER']) as Map<String, dynamic>?;
 
     // display_status.progress is the real slicer %; only available from the
     // Moongate endpoint (which includes the full Moonraker status object).
