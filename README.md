@@ -8,9 +8,9 @@ Moongate is a free, open-source Android app that gives you a **full remote contr
 
 ## Download
 
-**[⬇ Download latest APK](https://github.com/PEEKYPAUL/moongate/tree/master/APK)**
+**[⬇ Download latest APK](https://github.com/PEEKYPAUL/moongate/raw/master/APK/Moongate-latest.apk)**
 
-> Android only for now. Open the `APK` folder, click the `.apk` file, then click **View raw** to download.  
+> Android only for now. Tap the link above to download directly.  
 > Enable **Install from unknown sources** for your browser or file manager before installing.
 
 ---
@@ -54,28 +54,30 @@ curl -fsSL https://raw.githubusercontent.com/PEEKYPAUL/moongate/master/klipper-p
 ```
 
 This will:
-- Install the Moongate Moonraker plugin
+- Clone the Moongate repo to `~/moongate` and symlink the plugin into Moonraker
+- Register Moongate with Moonraker's update manager (visible in Mainsail → Software Updates)
 - Deploy the QR pairing page to Mainsail
 - Install `cloudflared` and start the remote-access tunnel as a systemd service
-- Restart Moonraker
+- Restart Moonraker and Klipper
 
 At the end you'll see output like:
 
 ```
-  Pairing page : http://192.168.1.x/moongate-pair.html
-  Remote access: https://xxxx-xxxx.trycloudflare.com ✓
-
-  Next step: run MOONGATE_PAIR in Klipper console,
-  open the pairing page above on your PC, and scan with the app.
+  Updates   : Mainsail → Software Updates → Moongate
+  Pairing   : http://192.168.1.x/moongate-pair.html
+  Tunnel    : https://racing-partly-mouse.trycloudflare.com ✓
+  Subdomain : racing-partly-mouse  (paste into app tunnel field)
 ```
 
 > **Requirements:** Raspberry Pi running Klipper + Moonraker + Mainsail (standard Kiauh/MainsailOS setup). Tested on aarch64 (Pi 4/5) and armv7l (Pi 3).
+
+> **Keeping it updated:** After the initial install, future updates appear automatically in **Mainsail → Software Updates → Moongate** — no SSH needed.
 
 ---
 
 ### Step 2 — Install the app
 
-[Download the APK](https://github.com/PEEKYPAUL/moongate/tree/master/APK) and install it on your Android phone.
+[Download the APK](https://github.com/PEEKYPAUL/moongate/raw/master/APK/Moongate-latest.apk) and install it on your Android phone.
 
 On first launch the app will ask you to add a printer.
 
@@ -121,6 +123,8 @@ moongate/
 └── klipper-plugin/
     ├── moongate_standalone.py   # Moonraker plugin
     ├── install.sh               # One-line installer for the Pi
+    ├── update.sh                # Post-pull hook called by Moonraker update manager
+    ├── uninstall.sh             # Complete uninstaller
     └── moongate-pair.html       # QR pairing page (deployed to Mainsail)
 ```
 
@@ -149,7 +153,7 @@ flutter build apk --release
 **Remote tunnel not connecting**
 - Check the tunnel service: `sudo systemctl status moongate-tunnel`
 - View the tunnel log: `cat /run/moongate-tunnel.log`
-- The tunnel URL changes each restart — re-scan the QR to update the app
+- The tunnel URL changes on each Pi restart — the app fetches the latest URL automatically via the status endpoint, so no re-pairing is needed
 
 **Webcam not showing**
 - The app fetches snapshots from `/webcam/?action=snapshot` on your Pi
@@ -159,6 +163,29 @@ flutter build apk --release
 - The app tries local first, then remote; if both fail it shows an error
 - Check your phone's WiFi when on home network
 - Check the tunnel status when remote
+
+---
+
+## Uninstalling
+
+To completely remove Moongate from your Pi, SSH in and run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/PEEKYPAUL/moongate/master/klipper-plugin/uninstall.sh | bash
+```
+
+This removes:
+- The `moongate-tunnel` systemd service
+- The Moongate Moonraker plugin
+- The `~/moongate` repository clone
+- `~/.config/moongate` (tokens and secret key)
+- The `[moongate]` and `[update_manager moongate]` entries from `moonraker.conf`
+- The `MOONGATE_PAIR` macro from your Klipper config
+- The `moongate-pair.html` page from Mainsail
+
+`cloudflared` itself is left in place as it may be used by other services. To remove it too: `sudo apt remove cloudflared`
+
+Don't forget to uninstall the Moongate app from your phone as well.
 
 ---
 
