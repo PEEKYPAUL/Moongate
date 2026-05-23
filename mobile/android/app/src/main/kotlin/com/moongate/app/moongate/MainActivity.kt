@@ -2,12 +2,12 @@ package com.moongate.app.moongate
 
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import com.moongate.app.VpnPlugin
 
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     companion object {
         private const val NETWORK_CHANNEL = "com.moongate.app/network"
     }
