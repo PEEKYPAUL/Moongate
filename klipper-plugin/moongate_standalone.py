@@ -148,7 +148,10 @@ def _write_pair_page() -> Optional[Path]:
         if directory.is_dir():
             target = directory / "moongate-pair.html"
             try:
-                target.write_text(_PAIR_PAGE_HTML)
+                # _PAIR_PAGE_HTML uses {{ / }} to escape braces in a Python
+                # format-string context. We write the file directly (no .format()
+                # call) so we must collapse them to single braces first.
+                target.write_text(_PAIR_PAGE_HTML.replace('{{', '{').replace('}}', '}'))
                 return target
             except OSError:
                 continue
