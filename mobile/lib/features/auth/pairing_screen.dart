@@ -29,12 +29,35 @@ class _PairingScreenState extends State<PairingScreen> {
   final _tunnelController = TextEditingController();
   final _nameController   = TextEditingController();
 
+  // ── Scanner state ──────────────────────────────────────────────────────────
+  //
+  // We use an explicit MobileScannerController with autoStart=false so we
+  // control exactly when the camera opens.  The key insight:
+  //
+  //  1. CameraX requires the widget to be fully mounted and its lifecycle
+  //     owner (the FlutterFragmentActivity) to be registered BEFORE
+  //     ProcessCameraProvider.bindToLifecycle() is called.  Starting the
+  //     camera in addPostFrameCallback (one frame after mount) guarantees
+  //     this binding is in place.
+  //
+  //  2. On a fresh permission grant, Android's camera service takes ~700 ms
+  //     to propagate the new permission to the camera HAL.  Calling
+  //     camera.open() immediately after the dialog closes races this update
+  //     and can produce a genericError even though permission is "granted".
+  //
+  //  3. We do NOT add our own WidgetsBindingObserver — MobileScanner's
+  //     internal observer already calls stop()/start() on pause/resume.
+  //     A second observer caused them to fight, producing genericError.
+  //     The controller is re-created fresh each open instead.
+
+  MobileScannerController? _scannerController;
   bool _scanning = false;
   bool _loading  = false;
   String? _error;
 
   @override
   void dispose() {
+    _scannerController?.dispose();
     _code1Controller.dispose();
     _code2Controller.dispose();
     _code1Focus.dispose();
@@ -45,44 +68,58 @@ class _PairingScreenState extends State<PairingScreen> {
     super.dispose();
   }
 
-  // ── Scanner lifecycle ───────────────────────────────────────────────────────
-  //
-  // We do NOT use an explicit MobileScannerController or WidgetsBindingObserver.
-  // MobileScanner v5 manages its own camera lifecycle internally — it starts
-  // when the widget is mounted and stops when it is removed from the tree.
-  // Having a second observer calling stop()/start() alongside the widget's own
-  // observer caused them to fight each other, resulting in genericError.
-  //
-  // Camera start/stop is therefore controlled purely by adding/removing the
-  // MobileScanner widget via the _scanning flag.
-
-  /// Request camera permission, then show the scanner.
+  /// Request camera permission, then open the scanner.
   Future<void> _openScanner() async {
-    // Always check permission before mounting the MobileScanner widget.
-    // This avoids the race where the camera hardware open and the OS permission
-    // dialog are triggered simultaneously, causing a genericError.
+    // Check status BEFORE requesting so we can detect a first-ever grant.
+    final before = await Permission.camera.status;
     final status = await Permission.camera.request();
     if (!mounted) return;
 
-    if (status.isPermanentlyDenied) {
-      _showPermissionDeniedDialog();
-      return;
-    }
-    if (!status.isGranted) return; // denied but not permanently — tap again
+    if (status.isPermanentlyDenied) { _showPermissionDeniedDialog(); return; }
+    if (!status.isGranted) return;
 
+    // On the very first permission grant the camera HAL may not yet have
+    // registered the new permission — opening immediately races it and
+    // produces a genericError.  700 ms covers virtually all devices.
+    if (before != PermissionStatus.granted) {
+      await Future.delayed(const Duration(milliseconds: 700));
+      if (!mounted) return;
+    }
+
+    // Fresh controller each open — autoStart=false so we control the moment
+    // the camera session is created.
+    _scannerController?.dispose();
+    _scannerController = MobileScannerController(autoStart: false);
     setState(() => _scanning = true);
+
+    // Start the camera AFTER the widget has been laid out in the tree.
+    // By the time addPostFrameCallback fires the fragment lifecycle owner
+    // is registered with CameraX and bindToLifecycle() succeeds.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _scannerController != null) {
+        _scannerController!.start();
+      }
+    });
   }
 
-  /// Hide the scanner widget — MobileScanner releases the camera automatically
-  /// when it is removed from the widget tree.
-  void _closeScanner() => setState(() => _scanning = false);
-
-  /// Hide then re-show the scanner so it reinitialises with a fresh camera session.
-  void _restartScanner() {
+  /// Stop and release the camera, remove the scanner from the tree.
+  void _closeScanner() {
+    _scannerController?.stop();
+    _scannerController?.dispose();
+    _scannerController = null;
     setState(() => _scanning = false);
-    // One post-frame gap lets the widget fully unmount (camera released) before
-    // we ask for it again.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  }
+
+  /// Release the camera and reopen after a short pause so Camera2 has time
+  /// to finish releasing the hardware before a new session is created.
+  void _restartScanner() {
+    _scannerController?.stop();
+    _scannerController?.dispose();
+    _scannerController = null;
+    setState(() => _scanning = false);
+    // Camera2 releases hardware asynchronously — 600 ms is enough on
+    // virtually all devices before we can safely re-open.
+    Future.delayed(const Duration(milliseconds: 600), () {
       if (mounted) _openScanner();
     });
   }
@@ -548,19 +585,22 @@ class _PairingScreenState extends State<PairingScreen> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: MobileScanner(
+                    controller: _scannerController!,
                     onDetect: (capture) {
                       if (capture.barcodes.isEmpty) return;
                       final raw = capture.barcodes.first.rawValue ?? '';
                       if (raw.isEmpty) return;
-                      _closeScanner(); // release camera before processing
+                      _closeScanner();
                       _applyScannedCode(raw);
                     },
                     errorBuilder: (context, error, child) {
-                      // Permission is now handled before opening the camera,
-                      // so errors here are genuine hardware/driver issues.
-                      // We still handle permissionDenied as a safety net.
                       final isDenied = error.errorCode ==
                           MobileScannerErrorCode.permissionDenied;
+                      // Show the exact error code and any native exception
+                      // details so we can diagnose device-specific failures.
+                      final diagText =
+                          '${error.errorCode}'
+                          '${error.errorDetails != null ? "\n${error.errorDetails}" : ""}';
                       return Container(
                         decoration: BoxDecoration(
                           color: Colors.black87,
@@ -574,7 +614,7 @@ class _PairingScreenState extends State<PairingScreen> {
                               color: Colors.orange,
                               size: 40,
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 8),
                             Text(
                               isDenied
                                   ? 'Camera permission needed'
@@ -583,24 +623,38 @@ class _PairingScreenState extends State<PairingScreen> {
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold),
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 6),
+                            // Diagnostic: shows actual error code + native details
                             Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 20),
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: SelectableText(
+                                diagText,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    color: Colors.orange,
+                                    fontSize: 10,
+                                    fontFamily: 'monospace'),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
                               child: Text(
                                 isDenied
-                                    ? 'Go to Settings and enable Camera permission for Moongate.'
-                                    : 'The camera could not be opened.\nTap Retry or restart the app.',
+                                    ? 'Go to Settings and enable Camera '
+                                      'permission for Moongate.'
+                                    : 'Note the error code above — long-press '
+                                      'to copy it, then tap Retry.',
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
                                     color: Colors.white70, fontSize: 12),
                               ),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                if (isDenied)
+                                if (isDenied) ...[
                                   OutlinedButton.icon(
                                     onPressed: () {
                                       _closeScanner();
@@ -611,9 +665,11 @@ class _PairingScreenState extends State<PairingScreen> {
                                     label: const Text('Settings',
                                         style: TextStyle(color: Colors.white70)),
                                     style: OutlinedButton.styleFrom(
-                                        side: const BorderSide(color: Colors.white30)),
+                                        side: const BorderSide(
+                                            color: Colors.white30)),
                                   ),
-                                if (isDenied) const SizedBox(width: 8),
+                                  const SizedBox(width: 8),
+                                ],
                                 OutlinedButton.icon(
                                   onPressed: _restartScanner,
                                   icon: const Icon(Icons.refresh,
@@ -621,7 +677,8 @@ class _PairingScreenState extends State<PairingScreen> {
                                   label: const Text('Retry',
                                       style: TextStyle(color: Colors.white70)),
                                   style: OutlinedButton.styleFrom(
-                                      side: const BorderSide(color: Colors.white30)),
+                                      side: const BorderSide(
+                                          color: Colors.white30)),
                                 ),
                               ],
                             ),
