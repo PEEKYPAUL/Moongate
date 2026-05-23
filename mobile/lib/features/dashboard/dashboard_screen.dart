@@ -62,11 +62,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final updateAsync = ref.watch(updateProvider);
     final update = _updateDismissed ? null : updateAsync.valueOrNull;
 
+    final gridColumns = ref.watch(gridColumnsProvider);
+
     final body = _printers.isEmpty
         ? _EmptyState(onAddPrinter: () => context.push('/pair').then((_) => _load()))
         : _PrinterGrid(
             printers: _printers,
-            onTap: (p) => context.push('/printer/${p.id}'),
+            columns:  gridColumns,
+            onTap:    (p) => context.push('/printer/${p.id}'),
             onRemove: _removePrinter,
           );
 
@@ -109,20 +112,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildDrawer(BuildContext context) {
-    final fontScale = ref.watch(fontScaleProvider);
-    final themeMode = ref.watch(themeModeProvider);
+    final fontScale     = ref.watch(fontScaleProvider);
+    final themeMode     = ref.watch(themeModeProvider);
+    final gridColumns   = ref.watch(gridColumnsProvider);
+    final allowRotation = ref.watch(allowRotationProvider);
 
     return Drawer(
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Header
+            // ── Header ───────────────────────────────────────────────────────
             Container(
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
               child: Row(
                 children: [
-                  Icon(Icons.print, color: Theme.of(context).colorScheme.primary, size: 28),
+                  Icon(Icons.print,
+                      color: Theme.of(context).colorScheme.primary, size: 28),
                   const SizedBox(width: 12),
                   Text('Moongate',
                       style: Theme.of(context).textTheme.titleLarge),
@@ -131,120 +137,187 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
             const Divider(),
 
-            // Add printer
-            ListTile(
-              leading: const Icon(Icons.add_circle_outline),
-              title: const Text('Add printer'),
-              onTap: () async {
-                Navigator.pop(context);
-                await context.push('/pair');
-                _load();
-              },
-            ),
+            // ── Scrollable body (safe in landscape / small screens) ──────────
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
 
-            // Remove printer (only if there's something to remove)
-            if (_printers.isNotEmpty)
-              ListTile(
-                leading: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
-                title: const Text('Remove printer',
-                    style: TextStyle(color: Colors.redAccent)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showRemoveSheet(context);
-                },
-              ),
-
-            const Divider(),
-
-            // Export config (backup before reinstall)
-            if (_printers.isNotEmpty)
-              ListTile(
-                leading: const Icon(Icons.upload_outlined),
-                title: const Text('Export config'),
-                subtitle: const Text('Copy to clipboard before reinstalling'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _exportConfig();
-                },
-              ),
-
-            // Import config (restore after reinstall)
-            ListTile(
-              leading: const Icon(Icons.download_outlined),
-              title: const Text('Import config'),
-              subtitle: const Text('Restore from exported text'),
-              onTap: () {
-                Navigator.pop(context);
-                _importConfig();
-              },
-            ),
-
-            const Divider(),
-
-            // Theme
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Text('Theme',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: Colors.white54)),
-            ),
-            RadioGroup<ThemeMode>(
-              groupValue: themeMode,
-              onChanged: (v) {
-                if (v != null) ref.read(themeModeProvider.notifier).set(v);
-              },
-              child: const Column(
-                children: [
-                  RadioListTile(
-                    value: ThemeMode.system,
-                    title: Text('System default'),
-                    secondary: Icon(Icons.brightness_auto),
-                  ),
-                  RadioListTile(
-                    value: ThemeMode.dark,
-                    title: Text('Dark'),
-                    secondary: Icon(Icons.dark_mode),
-                  ),
-                  RadioListTile(
-                    value: ThemeMode.light,
-                    title: Text('Light'),
-                    secondary: Icon(Icons.light_mode),
-                  ),
-                ],
-              ),
-            ),
-
-            const Divider(),
-
-            // Font size
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Text('Font size',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: Colors.white54)),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Row(
-                children: [
-                  const Icon(Icons.text_fields, size: 16),
-                  Expanded(
-                    child: Slider(
-                      value: fontScale,
-                      min: 0.8,
-                      max: 1.4,
-                      divisions: 6,
-                      label: _fontScaleLabel(fontScale),
-                      onChanged: (v) =>
-                          ref.read(fontScaleProvider.notifier).set(v),
+                    // Printer management
+                    ListTile(
+                      leading: const Icon(Icons.add_circle_outline),
+                      title: const Text('Add printer'),
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await context.push('/pair');
+                        _load();
+                      },
                     ),
-                  ),
-                  const Icon(Icons.text_fields, size: 22),
-                ],
+                    if (_printers.isNotEmpty)
+                      ListTile(
+                        leading: const Icon(Icons.remove_circle_outline,
+                            color: Colors.redAccent),
+                        title: const Text('Remove printer',
+                            style: TextStyle(color: Colors.redAccent)),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showRemoveSheet(context);
+                        },
+                      ),
+
+                    const Divider(),
+
+                    // Import / Export
+                    if (_printers.isNotEmpty)
+                      ListTile(
+                        leading: const Icon(Icons.upload_outlined),
+                        title: const Text('Export config'),
+                        subtitle:
+                            const Text('Copy to clipboard before reinstalling'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _exportConfig();
+                        },
+                      ),
+                    ListTile(
+                      leading: const Icon(Icons.download_outlined),
+                      title: const Text('Import config'),
+                      subtitle: const Text('Restore from exported text'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _importConfig();
+                      },
+                    ),
+
+                    const Divider(),
+
+                    // Theme
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: Text('Theme',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelMedium
+                              ?.copyWith(color: Colors.white54)),
+                    ),
+                    RadioGroup<ThemeMode>(
+                      groupValue: themeMode,
+                      onChanged: (v) {
+                        if (v != null) {
+                          ref.read(themeModeProvider.notifier).set(v);
+                        }
+                      },
+                      child: const Column(
+                        children: [
+                          RadioListTile(
+                            value: ThemeMode.system,
+                            title: Text('System default'),
+                            secondary: Icon(Icons.brightness_auto),
+                          ),
+                          RadioListTile(
+                            value: ThemeMode.dark,
+                            title: Text('Dark'),
+                            secondary: Icon(Icons.dark_mode),
+                          ),
+                          RadioListTile(
+                            value: ThemeMode.light,
+                            title: Text('Light'),
+                            secondary: Icon(Icons.light_mode),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const Divider(),
+
+                    // Font size
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: Text('Font size',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelMedium
+                              ?.copyWith(color: Colors.white54)),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.text_fields, size: 16),
+                          Expanded(
+                            child: Slider(
+                              value: fontScale,
+                              min: 0.8,
+                              max: 1.4,
+                              divisions: 6,
+                              label: _fontScaleLabel(fontScale),
+                              onChanged: (v) =>
+                                  ref.read(fontScaleProvider.notifier).set(v),
+                            ),
+                          ),
+                          const Icon(Icons.text_fields, size: 22),
+                        ],
+                      ),
+                    ),
+
+                    const Divider(),
+
+                    // ── Dashboard layout ──────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                      child: Text('Dashboard layout',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelMedium
+                              ?.copyWith(color: Colors.white54)),
+                    ),
+                    // Column count picker
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 4),
+                      child: SegmentedButton<int>(
+                        style: SegmentedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        segments: const [
+                          ButtonSegment(
+                            value: 1,
+                            icon: Icon(Icons.view_stream, size: 16),
+                            label: Text('1 col'),
+                          ),
+                          ButtonSegment(
+                            value: 2,
+                            icon: Icon(Icons.view_column, size: 16),
+                            label: Text('2 col'),
+                          ),
+                          ButtonSegment(
+                            value: 3,
+                            icon: Icon(Icons.view_module, size: 16),
+                            label: Text('3 col'),
+                          ),
+                        ],
+                        selected: {gridColumns},
+                        onSelectionChanged: (s) =>
+                            ref.read(gridColumnsProvider.notifier).set(s.first),
+                      ),
+                    ),
+                    // Rotation toggle
+                    SwitchListTile(
+                      dense: true,
+                      secondary: const Icon(Icons.screen_rotation_outlined),
+                      title: const Text('Rotate with device'),
+                      subtitle: const Text('Unlocks landscape orientation'),
+                      value: allowRotation,
+                      onChanged: (v) =>
+                          ref.read(allowRotationProvider.notifier).set(v),
+                    ),
+                  ],
+                ),
               ),
             ),
 
-            const Spacer(),
+            // ── Bottom bar — always visible ───────────────────────────────────
             const Divider(),
             ListTile(
               leading: const Icon(Icons.settings_outlined),
@@ -254,19 +327,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 context.push('/settings');
               },
             ),
-
-            // Version info
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
               child: ref.watch(appVersionProvider).when(
                 data: (v) => Text(
                   'Moongate v$v',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.4),
                   ),
                 ),
                 loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
+                error:   (_, __) => const SizedBox.shrink(),
               ),
             ),
           ],
@@ -446,25 +520,46 @@ class _PrinterGrid extends StatelessWidget {
   final void Function(PrinterConfig) onTap;
   final void Function(PrinterConfig) onRemove;
 
+  /// Portrait column count chosen by the user (1, 2, or 3).
+  /// When the device rotates to landscape, one extra column is added
+  /// automatically so the extra horizontal space is used well.
+  final int columns;
+
   const _PrinterGrid({
     required this.printers,
     required this.onTap,
     required this.onRemove,
+    required this.columns,
   });
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
-      final crossAxis = constraints.maxWidth > 600 ? 3 : 2;
+      final isLandscape = constraints.maxWidth > constraints.maxHeight;
+
+      // In landscape, bump by 1 so the extra width is used comfortably.
+      // Capped at 4 to keep tiles readable even on small phone screens.
+      final effectiveCols = isLandscape
+          ? (columns + 1).clamp(2, 4)
+          : columns;
+
+      // Aspect ratio (width / height) per column count.
+      // Wider tiles (fewer columns) can be shorter; narrow tiles need more
+      // height to keep the webcam + controls comfortable.
+      final aspectRatio = switch (effectiveCols) {
+        1 => 1.4,   // single full-width tile: landscape feel
+        2 => 0.75,  // default two-column layout
+        3 => 0.65,  // three columns — a bit taller relative to width
+        _ => 0.55,  // four columns in landscape from a 3-col portrait pref
+      };
+
       return GridView.builder(
         padding: const EdgeInsets.all(12),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: crossAxis,
+          crossAxisCount: effectiveCols,
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
-          // 0.68 gives ~47% more height than width, leaving room for the
-          // progress bar + control buttons that appear while printing.
-          childAspectRatio: 0.75,
+          childAspectRatio: aspectRatio,
         ),
         itemCount: printers.length,
         itemBuilder: (_, i) => PrinterTile(

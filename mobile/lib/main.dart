@@ -14,6 +14,8 @@ void main() async {
   final container = ProviderContainer();
   await container.read(themeModeProvider.notifier).load();
   await container.read(fontScaleProvider.notifier).load();
+  await container.read(gridColumnsProvider.notifier).load();
+  await container.read(allowRotationProvider.notifier).load();
 
   runApp(UncontrolledProviderScope(container: container, child: const MoongateApp()));
 }
