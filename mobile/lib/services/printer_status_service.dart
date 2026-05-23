@@ -30,6 +30,7 @@ class PrinterStatusService {
   final PrinterConfig config;
   final _controller          = StreamController<PrinterStatus>.broadcast();
   final _tunnelUrlController = StreamController<String>.broadcast();
+  final _probeController     = StreamController<String>.broadcast();
   Timer? _timer;
   bool _disposed = false;
   bool _polling  = false; // guard: skip tick if previous poll still running
@@ -60,6 +61,14 @@ class PrinterStatusService {
   /// immediately start using the fresh URL within the same session.
   Stream<String> get tunnelUrlUpdates => _tunnelUrlController.stream;
 
+  /// Emits which connection candidate is currently being probed:
+  ///   'local'   — trying the local IP
+  ///   'tunnel'  — trying the Cloudflare tunnel
+  ///   'offline' — all candidates exhausted
+  /// Used by the tile to show "Loading Local…" / "Loading Tunnel…" / "Offline"
+  /// in the webcam area instead of a static offline state.
+  Stream<String> get probePhase => _probeController.stream;
+
   void start({Duration interval = const Duration(seconds: 4)}) {
     _poll();
     _timer = Timer.periodic(interval, (_) => _poll());
@@ -70,6 +79,7 @@ class PrinterStatusService {
     _timer?.cancel();
     _controller.close();
     _tunnelUrlController.close();
+    _probeController.close();
   }
 
   Future<void> _poll() async {
@@ -104,12 +114,17 @@ class PrinterStatusService {
         : [local, if (remote != null) remote]; // local-first default
 
     for (final baseUrl in candidates) {
+      final isRemote = remote != null && baseUrl == remote;
+
+      // Tell the tile which candidate we're about to probe so it can show
+      // "Loading Local…" or "Loading Tunnel…" with a spinner.
+      if (!_disposed) _probeController.add(isRemote ? 'tunnel' : 'local');
+
       // Use a longer timeout for remote/tunnel connections: Cloudflare Quick
       // Tunnels can take 1-3 s to warm up after being idle, and general WAN
       // latency is higher than LAN.  A 2-second timeout fires before the
       // tunnel has a chance to respond, making the printer look "Offline"
       // even when the tunnel is working fine.
-      final isRemote = remote != null && baseUrl == remote;
       final timeout  = isRemote
           ? const Duration(seconds: 8)  // tunnel: allow for cold-start latency
           : const Duration(seconds: 3); // local LAN: fast or not reachable
@@ -141,7 +156,10 @@ class PrinterStatusService {
     }
 
     // All candidates failed — printer is unreachable.
-    if (!_disposed) _controller.add(PrinterStatus.offline);
+    if (!_disposed) {
+      _probeController.add('offline');
+      _controller.add(PrinterStatus.offline);
+    }
   }
 
   // ── Chamber sensor discovery ───────────────────────────────────────────────

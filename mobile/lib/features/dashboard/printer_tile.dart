@@ -25,6 +25,12 @@ class _PrinterTileState extends State<PrinterTile> {
   bool _stopConfirmPending = false;
   Timer? _stopConfirmTimer;
 
+  /// Tracks which connection candidate the service is currently probing.
+  /// Defaults to 'local' so the very first frame shows "Loading Local…"
+  /// without needing to wait for the stream event.
+  String _probePhase = 'local'; // 'local' | 'tunnel' | 'offline'
+  StreamSubscription<String>? _probeSub;
+
   @override
   void initState() {
     super.initState();
@@ -46,6 +52,10 @@ class _PrinterTileState extends State<PrinterTile> {
     );
     _statusService = PrinterStatusService(widget.printer);
     _controlService = PrintControlService(widget.printer);
+    // Subscribe to probe phase BEFORE start() so we catch the very first emit.
+    _probeSub = _statusService.probePhase.listen((phase) {
+      if (mounted) setState(() => _probePhase = phase);
+    });
     _statusService.stream.listen((s) {
       if (!mounted) return;
       final wasActive = _status.state == 'printing' || _status.state == 'paused';
@@ -65,6 +75,7 @@ class _PrinterTileState extends State<PrinterTile> {
   void dispose() {
     _statusService.dispose();
     _stopConfirmTimer?.cancel();
+    _probeSub?.cancel();
     super.dispose();
   }
 
@@ -155,11 +166,24 @@ class _PrinterTileState extends State<PrinterTile> {
                     webcamRotation: _status.webcamRotation,
                     tunnelUrlUpdates: _statusService.tunnelUrlUpdates,
                   ),
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: _StatusBadge(status: _status),
-                  ),
+                  // ── Connection probe overlay ───────────────────────────────
+                  // Covers the webcam area while searching for the printer and
+                  // when it is unreachable — shows "Loading Local…",
+                  // "Loading Tunnel…", or "Offline" with a spinner or icon so
+                  // the app never looks stalled.
+                  if (_status.state == 'connecting' ||
+                      _status.connection == PrinterConnection.offline)
+                    _ConnectionProbe(phase: _probePhase),
+                  // ── Status badge ───────────────────────────────────────────
+                  // Only shown when connected — the probe overlay provides the
+                  // status context while offline/connecting.
+                  if (_status.connection != PrinterConnection.offline &&
+                      _status.state != 'connecting')
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: _StatusBadge(status: _status),
+                    ),
                 ],
               ),
             ),
@@ -554,6 +578,73 @@ class _WebcamSnapshotState extends State<_WebcamSnapshot> {
     }
 
     return image;
+  }
+}
+
+// ── Connection probe overlay ──────────────────────────────────────────────────
+//
+// Shown in the webcam area while the app is trying to reach the printer, and
+// while it is unreachable.  Replaces the static "Offline" camera icon with
+// meaningful progress feedback:
+//
+//   phase == 'local'   →  spinner + "Loading Local…"
+//   phase == 'tunnel'  →  spinner + "Loading Tunnel…"
+//   phase == 'offline' →  wifi-off icon + "Offline"
+//
+// Automatically disappears as soon as any connection candidate succeeds.
+
+class _ConnectionProbe extends StatelessWidget {
+  final String phase;
+  const _ConnectionProbe({required this.phase});
+
+  @override
+  Widget build(BuildContext context) {
+    final isOffline = phase == 'offline';
+
+    final label = switch (phase) {
+      'tunnel'  => 'Loading Tunnel…',
+      'offline' => 'Offline',
+      _         => 'Loading Local…',   // 'local' or any unknown value
+    };
+    final sub = switch (phase) {
+      'tunnel'  => 'Connecting via Cloudflare',
+      'offline' => 'Retrying shortly…',
+      _         => 'Checking local network',
+    };
+
+    return Container(
+      color: Colors.black87,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (isOffline)
+            const Icon(Icons.wifi_off, size: 32, color: Colors.white30)
+          else
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: Colors.white54,
+              ),
+            ),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            sub,
+            style: const TextStyle(color: Colors.white38, fontSize: 10),
+          ),
+        ],
+      ),
+    );
   }
 }
 
