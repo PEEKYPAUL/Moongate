@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -32,7 +34,7 @@ class _PairingScreenState extends State<PairingScreen> {
   // ── Scanner state ──────────────────────────────────────────────────────────
   //
   // We use an explicit MobileScannerController with autoStart=false so we
-  // control exactly when the camera opens.  The key insight:
+  // control exactly when the camera opens.  Key design decisions:
   //
   //  1. CameraX requires the widget to be fully mounted and its lifecycle
   //     owner (the FlutterFragmentActivity) to be registered BEFORE
@@ -45,18 +47,26 @@ class _PairingScreenState extends State<PairingScreen> {
   //     camera.open() immediately after the dialog closes races this update
   //     and can produce a genericError even though permission is "granted".
   //
-  //  3. We do NOT add our own WidgetsBindingObserver — MobileScanner's
-  //     internal observer already calls stop()/start() on pause/resume.
-  //     A second observer caused them to fight, producing genericError.
-  //     The controller is re-created fresh each open instead.
+  //  3. We do NOT pass onDetect to the MobileScanner widget.  When onDetect
+  //     is provided, _MobileScannerState adds a WidgetsBindingObserver in
+  //     initState() but NEVER removes it when widget.controller != null
+  //     (a bug in mobile_scanner 5.x).  Each open/close would accumulate
+  //     one leaked observer permanently, eventually interfering with camera
+  //     lifecycle management.  Instead, we subscribe to controller.barcodes
+  //     directly — no observer is added, no leak.
+  //
+  //  4. The controller is re-created fresh each open so there is no stale
+  //     CameraX lifecycle state from a previous session.
 
   MobileScannerController? _scannerController;
+  StreamSubscription<BarcodeCapture>? _barcodeSub;
   bool _scanning = false;
   bool _loading  = false;
   String? _error;
 
   @override
   void dispose() {
+    _barcodeSub?.cancel();
     _scannerController?.dispose();
     _code1Controller.dispose();
     _code2Controller.dispose();
@@ -92,8 +102,25 @@ class _PairingScreenState extends State<PairingScreen> {
 
     // Fresh controller each open — autoStart=false so we control the moment
     // the camera session is created.
+    _barcodeSub?.cancel();
+    _barcodeSub = null;
     _scannerController?.dispose();
     _scannerController = MobileScannerController(autoStart: false);
+
+    // Subscribe to barcodes directly rather than via onDetect on the widget.
+    // Passing onDetect to MobileScanner causes _MobileScannerState.initState
+    // to add a WidgetsBindingObserver that is never removed when a custom
+    // controller is provided (bug in mobile_scanner 5.x) — each open/close
+    // leaks one observer permanently.  Subscribing here avoids that entirely.
+    _barcodeSub = _scannerController!.barcodes.listen((capture) {
+      if (!mounted) return;
+      if (capture.barcodes.isEmpty) return;
+      final raw = capture.barcodes.first.rawValue ?? '';
+      if (raw.isEmpty) return;
+      _closeScanner();
+      _applyScannedCode(raw);
+    });
+
     setState(() => _scanning = true);
 
     // Start the camera AFTER the widget has been laid out in the tree.
@@ -108,6 +135,8 @@ class _PairingScreenState extends State<PairingScreen> {
 
   /// Stop and release the camera, remove the scanner from the tree.
   void _closeScanner() {
+    _barcodeSub?.cancel();
+    _barcodeSub = null;
     _scannerController?.stop();
     _scannerController?.dispose();
     _scannerController = null;
@@ -117,6 +146,8 @@ class _PairingScreenState extends State<PairingScreen> {
   /// Release the camera and reopen after a short pause so Camera2 has time
   /// to finish releasing the hardware before a new session is created.
   void _restartScanner() {
+    _barcodeSub?.cancel();
+    _barcodeSub = null;
     _scannerController?.stop();
     _scannerController?.dispose();
     _scannerController = null;
@@ -590,13 +621,9 @@ class _PairingScreenState extends State<PairingScreen> {
                   borderRadius: BorderRadius.circular(12),
                   child: MobileScanner(
                     controller: _scannerController!,
-                    onDetect: (capture) {
-                      if (capture.barcodes.isEmpty) return;
-                      final raw = capture.barcodes.first.rawValue ?? '';
-                      if (raw.isEmpty) return;
-                      _closeScanner();
-                      _applyScannedCode(raw);
-                    },
+                    // onDetect intentionally omitted — we subscribe to
+                    // controller.barcodes directly to avoid the observer
+                    // leak in mobile_scanner 5.x (see _openScanner).
                     errorBuilder: (context, error, child) {
                       final isDenied = error.errorCode ==
                           MobileScannerErrorCode.permissionDenied;

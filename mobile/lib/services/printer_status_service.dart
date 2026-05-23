@@ -328,10 +328,11 @@ class PrinterStatusService {
         : '';
     final queries = [
       if (chamberParam.isNotEmpty)
-        'print_stats&extruder&heater_bed$chamberParam', // with chamber sensor
-      'print_stats&extruder&heater_bed', // most Mainsail setups (no chamber)
-      'print_stats&extruder',            // no heated bed
-      'print_stats',                     // absolute minimum
+        'print_stats&extruder&heater_bed&display_status&virtual_sdcard$chamberParam',
+      'print_stats&extruder&heater_bed&display_status&virtual_sdcard',
+      'print_stats&extruder&display_status&virtual_sdcard',
+      'print_stats&display_status&virtual_sdcard',
+      'print_stats',
     ];
 
     for (final q in queries) {
@@ -390,9 +391,14 @@ class PrinterStatusService {
          status['temperature_fan chamber'] ??
          status['temperature_fan CHAMBER']) as Map<String, dynamic>?;
 
-    // display_status.progress is the real slicer %; only available from the
-    // Moongate endpoint (which includes the full Moonraker status object).
-    final displayStatus = status['display_status'] as Map<String, dynamic>? ?? {};
+    // display_status.progress is the real slicer % (set by M73 from the slicer,
+    // or calculated by Klipper from virtual_sdcard position if no M73 is sent).
+    // This is the same value Mainsail/Fluidd show.
+    //
+    // Now available from both the Moongate endpoint AND the native endpoint
+    // (display_status is a built-in Klipper module, always present).
+    final displayStatus  = status['display_status']  as Map<String, dynamic>? ?? {};
+    final virtualSdcard  = status['virtual_sdcard']  as Map<String, dynamic>? ?? {};
 
     // When Klipper is still initialising, print_stats is present in the
     // Moonraker response but its 'state' field is null/absent.  Return
@@ -400,16 +406,25 @@ class PrinterStatusService {
     // "Offline" — the connection is working, Klipper just isn't ready yet.
     final state = (printStats['state'] as String?) ?? 'startup';
 
+    // Progress logic mirrors Mainsail/Fluidd:
+    //   1. display_status.progress  — set by M73 from the slicer (preferred).
+    //      Klipper initialises this to 0.0 and only updates it when the slicer
+    //      sends M73 commands.  Treat 0.0 as "not yet set" and fall through,
+    //      otherwise a printer whose slicer never emits M73 shows 0% forever.
+    //   2. virtual_sdcard.progress  — file-read position (0→1).
+    //      Reads slightly ahead of the toolhead due to look-ahead buffering,
+    //      but is always non-zero once printing has started and matches what
+    //      Mainsail shows when no M73 is present.
+    final double displayProg =
+        (displayStatus['progress'] as num?)?.toDouble() ?? 0.0;
+    final double sdcardProg =
+        (virtualSdcard['progress'] as num?)?.toDouble() ?? 0.0;
+
     final double progress;
-    if (displayStatus['progress'] != null) {
-      progress = (displayStatus['progress'] as num).toDouble().clamp(0.0, 1.0);
-    } else if (printStats['print_duration'] != null &&
-        printStats['total_duration'] != null &&
-        (printStats['total_duration'] as num) > 0) {
-      progress = ((printStats['print_duration'] as num) /
-              (printStats['total_duration'] as num))
-          .clamp(0.0, 1.0)
-          .toDouble();
+    if (displayProg > 0.0) {
+      progress = displayProg.clamp(0.0, 1.0);
+    } else if (sdcardProg > 0.0) {
+      progress = sdcardProg.clamp(0.0, 1.0);
     } else {
       progress = 0.0;
     }
