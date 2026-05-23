@@ -34,8 +34,9 @@ class _PairingScreenState extends State<PairingScreen>
   // when the app goes to background so the camera is properly released.
   MobileScannerController? _scannerController;
 
-  bool _scanning = false;
-  bool _loading  = false;
+  bool _scanning        = false;
+  bool _scannerOpening  = false; // guard against overlapping open calls
+  bool _loading         = false;
   String? _error;
 
   @override
@@ -71,22 +72,40 @@ class _PairingScreenState extends State<PairingScreen>
       case AppLifecycleState.inactive:
         _scannerController?.stop();
       case AppLifecycleState.resumed:
-        // Give the OS a frame to release the camera before we re-open it.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && _scanning) _scannerController?.start();
-        });
+        // Re-open with a fresh controller rather than restarting the old one.
+        // Calling start() on a stopped controller can fail on some Android OEMs;
+        // a fresh controller + 600 ms delay is more reliable.
+        _restartScanner();
       default:
         break;
     }
   }
 
   /// Open the QR scanner with a fresh controller.
-  void _openScanner() {
-    _scannerController?.dispose();
+  ///
+  /// If a previous controller exists it is disposed first and we wait 600 ms
+  /// for the Android Camera2 layer to fully release the hardware before
+  /// acquiring it again.  Skipping this delay is the most common cause of
+  /// "Camera unavailable" errors on Android.
+  Future<void> _openScanner() async {
+    if (_scannerOpening) return;
+    _scannerOpening = true;
+
+    if (_scannerController != null) {
+      _scannerController!.dispose();
+      _scannerController = null;
+      if (mounted) setState(() => _scanning = false);
+      // Android Camera2 is asynchronous — the hardware isn't released
+      // until the native session fully closes, which can take 400-800 ms.
+      await Future.delayed(const Duration(milliseconds: 700));
+    }
+
+    if (!mounted) { _scannerOpening = false; return; }
+
     _scannerController = MobileScannerController(
-      autoStart: true,
       detectionSpeed: DetectionSpeed.normal,
     );
+    _scannerOpening = false;
     setState(() => _scanning = true);
   }
 
@@ -94,18 +113,19 @@ class _PairingScreenState extends State<PairingScreen>
   void _closeScanner() {
     _scannerController?.dispose();
     _scannerController = null;
+    _scannerOpening = false;
     setState(() => _scanning = false);
   }
 
-  /// Restart after an error: dispose the broken controller, wait one frame,
-  /// then create a fresh one so the camera re-initialises cleanly.
-  void _restartScanner() {
+  /// Restart after an error: dispose the broken controller, wait for the
+  /// hardware to release, then open a fresh one.
+  Future<void> _restartScanner() async {
     _scannerController?.dispose();
     _scannerController = null;
-    setState(() => _scanning = false);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _openScanner();
-    });
+    _scannerOpening = false;
+    if (mounted) setState(() => _scanning = false);
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (mounted) _openScanner();
   }
 
   /// Full code string assembled from both boxes: GATE-1234-5678
@@ -552,61 +572,63 @@ class _PairingScreenState extends State<PairingScreen>
                     errorBuilder: (context, error, child) {
                       final isDenied = error.errorCode ==
                           MobileScannerErrorCode.permissionDenied;
-                      // Tapping anywhere on the error view retries camera init.
-                      // This handles the common case where the user grants
-                      // permission in the system dialog but the scanner already
-                      // fired its error callback and needs to be recreated.
-                      return GestureDetector(
-                        onTap: _restartScanner,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black87,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                isDenied ? Icons.camera_alt : Icons.error_outline,
-                                color: Colors.orange,
-                                size: 40,
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black87,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              isDenied ? Icons.no_photography : Icons.videocam_off,
+                              color: Colors.orange,
+                              size: 40,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              isDenied
+                                  ? 'Camera permission needed'
+                                  : 'Camera unavailable',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 4),
+                            // Show the actual error code — helps diagnose
+                            // generic errors vs permission issues.
+                            Text(
+                              error.errorCode.name,
+                              style: const TextStyle(
+                                  color: Colors.orange,
+                                  fontSize: 11),
+                            ),
+                            const SizedBox(height: 10),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20),
+                              child: Text(
                                 isDenied
-                                    ? 'Camera permission needed'
-                                    : 'Camera unavailable',
+                                    ? 'Go to Settings → Apps → Moongate → Permissions and enable Camera, then tap Retry.'
+                                    : 'The camera could not be opened.\nWait a moment and tap Retry.',
+                                textAlign: TextAlign.center,
                                 style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold),
+                                    color: Colors.white70, fontSize: 12),
                               ),
-                              const SizedBox(height: 6),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16),
-                                child: Text(
-                                  isDenied
-                                      ? 'If you just granted permission,\ntap here to retry.'
-                                      : 'Tap to retry.',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                      color: Colors.white70, fontSize: 12),
-                                ),
+                            ),
+                            const SizedBox(height: 14),
+                            OutlinedButton.icon(
+                              onPressed: _restartScanner,
+                              icon: const Icon(Icons.refresh,
+                                  color: Colors.white70),
+                              label: const Text('Retry',
+                                  style: TextStyle(color: Colors.white70)),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(
+                                    color: Colors.white30),
                               ),
-                              const SizedBox(height: 12),
-                              OutlinedButton.icon(
-                                onPressed: _restartScanner,
-                                icon: const Icon(Icons.refresh,
-                                    color: Colors.white70),
-                                label: const Text('Tap to retry',
-                                    style: TextStyle(color: Colors.white70)),
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(
-                                      color: Colors.white30),
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       );
                     },
