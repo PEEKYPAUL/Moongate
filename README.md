@@ -20,10 +20,10 @@ Moongate is a free, open-source Android app that gives you a **full remote contr
 ```
 ┌─────────────────────┐   local WiFi (fast)    ┌──────────────────────┐
 │   Moongate App      │◄──────────────────────►│  Klipper Pi          │
-│   (Android)         │                         │  Moonraker           │
-│                     │   Cloudflare tunnel     │  + Moongate plugin   │
+│   (Android)         │                        │  Moonraker           │
+│                     │   Cloudflare tunnel    │  + Moongate plugin   │
 │                     │◄──────────────────────►│                      │
-└─────────────────────┘   (auto, when away)     └──────────────────────┘
+└─────────────────────┘   (auto, when away)    └──────────────────────┘
 ```
 
 The Moongate plugin runs inside Moonraker on your Pi. It handles pairing, token auth, status polling, and print control — proxying commands to Klipper on your behalf. A Cloudflare Quick Tunnel is started automatically on the Pi so you can reach it from anywhere without opening ports on your router.
