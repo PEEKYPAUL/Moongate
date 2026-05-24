@@ -542,8 +542,19 @@ class _WebcamSnapshotState extends State<_WebcamSnapshot> {
   }
 
   void _startTicker() {
+    // 50 ms tick = 20 fps target for the snapshot refresh.
+    //
+    // Effective frame rate is bounded by whichever is slower:
+    //   • this timer
+    //   • the time the Pi takes to capture + encode + transmit one JPEG
+    //
+    // `Image.network` with `gaplessPlayback: true` keeps showing the last
+    // decoded frame until the new one is fully decoded, so the tile never
+    // flashes black between fetches even when the network leg is the slow
+    // step.  On a tunnel connection the snapshot latency typically caps the
+    // real rate well below 20 fps; on LAN it tracks the timer closely.
     Future.doWhile(() async {
-      await Future.delayed(const Duration(seconds: 1));
+      await Future.delayed(const Duration(milliseconds: 50));
       if (!mounted) return false;
       setState(() => _tick++);
       return true;
