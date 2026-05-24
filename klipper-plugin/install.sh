@@ -148,6 +148,16 @@ cat > "$MOONGATE_CFG" << 'MACROEOF'
 description: Generate a Moongate pairing code for the mobile app
 gcode:
     {action_call_remote_method("moongate_generate_pair_code")}
+
+[gcode_macro MOONGATE_LIST_TOKENS]
+description: Show every Moongate device token (active, expired, revoked) on the console
+gcode:
+    {action_call_remote_method("moongate_list_tokens")}
+
+[gcode_macro MOONGATE_REVOKE_ALL]
+description: Revoke every Moongate token — all paired apps must re-pair afterwards
+gcode:
+    {action_call_remote_method("moongate_revoke_all_tokens")}
 MACROEOF
 
 success "Macro written to $MOONGATE_CFG"

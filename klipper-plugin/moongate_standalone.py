@@ -235,6 +235,16 @@ class DeviceToken:
     expires_at:  Optional[float]
     last_seen:   float
     revoked:     bool = False
+    # Provisional tokens are issued by MOONGATE_PAIR with a short initial TTL
+    # (e.g. 10 min) on the device-token record, even though the JWT itself
+    # is signed for the full 30 days.  The first time a provisional token is
+    # actually used, [AuthManager.validate_token] "promotes" it — the TTL on
+    # this record extends to match the JWT's exp claim.  If the token is
+    # never used, the record expires inside the short window and the token
+    # becomes invalid even though the signed JWT would otherwise still
+    # validate.  This closes the "shared pair URL but nobody paired with it"
+    # leak window from 30 days to 10 minutes.
+    provisional: bool = False
 
     def is_valid(self) -> bool:
         if self.revoked:
@@ -298,26 +308,50 @@ class AuthManager:
         self,
         device_name: str = "Paired via QR",
         ttl_days: Optional[int] = None,
+        provisional: bool = False,
     ) -> tuple[str, str]:
         """
         Pre-issue a JWT without requiring a code exchange.
         Used for QR-based pairing where the phone may not have direct
         network access to the Pi (e.g. WiFi AP isolation).
+
+        When `provisional=True`, the device-token record gets a short initial
+        TTL (`provisional_ttl_seconds`, default 10 min).  The JWT itself is
+        still signed with the full TTL, so a successful first-use promotion
+        in [validate_token] doesn't require re-issuing the JWT — it just
+        extends the device-token record's `expires_at` to match.  If the
+        token is never used, the record expires inside the short window and
+        the token becomes invalid even though the JWT would otherwise still
+        validate.  This is the defence against a shared-pair-URL leak.
+
         Returns (jwt, token_id).
         """
         if ttl_days is None:
             ttl_days = self._config["default_ttl_days"]
-        token_id   = str(uuid.uuid4())
-        now        = time.time()
-        expires_at = (now + ttl_days * 86400) if ttl_days else None
+        token_id        = str(uuid.uuid4())
+        now             = time.time()
+        full_expires_at = (now + ttl_days * 86400) if ttl_days else None
+
+        if provisional:
+            short_ttl_sec   = self._config.get("provisional_ttl_seconds", 600)
+            record_expires  = now + short_ttl_sec
+        else:
+            record_expires  = full_expires_at
+
         token = DeviceToken(
             token_id=token_id, device_name=device_name,
-            issued_at=now, expires_at=expires_at, last_seen=now,
+            issued_at=now, expires_at=record_expires, last_seen=now,
+            provisional=provisional,
         )
         self._tokens[token_id] = token
         self._save_tokens()
-        jwt = self._sign_token(token_id, expires_at)
-        logger.info("Direct (QR) token issued for '%s' (id=%s)", device_name, token_id)
+        # JWT signed with the FULL TTL so promotion doesn't need a re-issue
+        jwt = self._sign_token(token_id, full_expires_at)
+        logger.info(
+            "Direct (QR) token issued for '%s' (id=%s%s)",
+            device_name, token_id,
+            ", provisional 10-min TTL" if provisional else "",
+        )
         return jwt, token_id
 
     def exchange_code(
@@ -365,6 +399,21 @@ class AuthManager:
         token = self._tokens.get(token_id)
         if token is None or not token.is_valid():
             return None
+
+        # Provisional → active.  First successful validate extends the device-
+        # token record's expires_at from the short provisional TTL to the
+        # full default TTL (matching what the JWT was already signed for).
+        if token.provisional:
+            default_ttl = self._config["default_ttl_days"]
+            token.expires_at = (
+                time.time() + default_ttl * 86400 if default_ttl else None
+            )
+            token.provisional = False
+            logger.info(
+                "Promoted provisional token to full TTL: id=%s name='%s'",
+                token_id, token.device_name,
+            )
+
         token.last_seen = time.time()
         self._save_tokens()
         return token_id
@@ -377,6 +426,22 @@ class AuthManager:
         self._save_tokens()
         logger.info("Token revoked: %s", token_id)
         return True
+
+    def revoke_all_tokens(self) -> int:
+        """Revoke every active token.  Returns the count of newly-revoked
+        tokens (already-revoked tokens aren't double-counted).  Called by
+        the MOONGATE_REVOKE_ALL Klipper macro for incident response — e.g.
+        when the user has shared the tunnel URL with someone and wants to
+        invalidate everyone in one shot."""
+        count = 0
+        for token in self._tokens.values():
+            if not token.revoked:
+                token.revoked = True
+                count += 1
+        if count > 0:
+            self._save_tokens()
+        logger.info("Revoke-all: %d active tokens revoked", count)
+        return count
 
     def list_tokens(self) -> list[dict]:
         return [{**asdict(t), "valid": t.is_valid()} for t in self._tokens.values()]
@@ -646,6 +711,17 @@ class MoongatePlugin:
             "moongate_generate_pair_code",
             self._klipper_generate_pair_code,
         )
+        # Operator-only macros for token management — surfaced as
+        # MOONGATE_LIST_TOKENS / MOONGATE_REVOKE_ALL in the Klipper console
+        # by the matching `[gcode_macro …]` blocks in moongate.cfg
+        self.server.register_remote_method(
+            "moongate_list_tokens",
+            self._klipper_list_tokens,
+        )
+        self.server.register_remote_method(
+            "moongate_revoke_all_tokens",
+            self._klipper_revoke_all_tokens,
+        )
 
         logger.info(
             "Moongate plugin loaded (WireGuard: %s)",
@@ -663,9 +739,20 @@ class MoongatePlugin:
         # Pre-issue a JWT for QR-based pairing.
         # The QR embeds the token directly so no phone→Pi network request is
         # needed during pairing — works even with WiFi AP isolation.
+        #
+        # `provisional=True` means the device-token record has a short initial
+        # TTL (10 min by default) even though the JWT itself is signed for
+        # the full 30 days.  If the QR is scanned and the app makes its first
+        # status call within that window, [AuthManager.validate_token]
+        # promotes the record to the full TTL.  If the QR URL was just
+        # *shared* but never paired with, the record expires inside 10 min
+        # and the token becomes invalid even though the JWT signature would
+        # still verify — closing the leaked-URL exposure window.
         local_ip        = _get_local_ip()
         tunnel_url      = _get_tunnel_url()   # None if cloudflared not running
-        direct_jwt, tid = self.auth.issue_direct_token(device_name="Paired via QR")
+        direct_jwt, tid = self.auth.issue_direct_token(
+            device_name="Paired via QR", provisional=True,
+        )
 
         # Build the QR URL — always includes local, adds remote if tunnel is up.
         # The configured HTTP port (default 80) ends up in both the embedded
@@ -702,13 +789,17 @@ class MoongatePlugin:
             "M118 ==========================================",
             f"M118 MOONGATE CODE: {display_code}",
             "M118 ==========================================",
+            "M118 ⚠ DO NOT SHARE the URL/code below.",
+            "M118 Anyone with it can control this printer",
+            "M118 via Mainsail without needing a token.",
+            "M118 ==========================================",
         ]
 
         if tunnel_url and subdomain:
             # Remote user: give them the tunnel pair page URL + the subdomain
             # shortcut for typing into the app tunnel URL field.
             lines += [
-                "M118 Scan QR: open this link on your phone:",
+                "M118 Scan QR: open this link on YOUR phone:",
                 f"M118   {tunnel_pair_page}",
                 "M118 -- or enter in the app tunnel field --",
                 f"M118   Subdomain: {subdomain}",
@@ -717,12 +808,16 @@ class MoongatePlugin:
         else:
             # Local-only: give the LAN pair page URL
             lines += [
-                "M118 Scan QR: open on your PC, scan with app:",
+                "M118 Scan QR: open on YOUR PC, scan with app:",
                 f"M118   {local_pair_page}",
                 "M118 Remote access not set up (run install.sh).",
             ]
 
-        lines.append("M118 Code expires in 10 minutes.")
+        lines += [
+            "M118 ==========================================",
+            "M118 Code expires in 10 minutes.",
+            "M118 If shared by accident: MOONGATE_REVOKE_ALL",
+        ]
         script = "\n".join(lines)
 
         try:
@@ -742,6 +837,76 @@ class MoongatePlugin:
             self.server.send_event("server:gcode_response", ws_msg)
         except Exception:
             pass
+
+    async def _klipper_list_tokens(self) -> None:
+        """Called from the Klipper console via MOONGATE_LIST_TOKENS.  Dumps
+        each issued token (revoked + active) to the Mainsail console as
+        M118 lines so the operator can audit who has access without needing
+        to SSH in and read tokens.json."""
+        import asyncio
+        tokens = self.auth.list_tokens()
+        await asyncio.sleep(0.3)
+
+        if not tokens:
+            lines = [
+                "M118 ============================================",
+                "M118 No Moongate tokens issued yet.",
+                "M118 ============================================",
+            ]
+        else:
+            # Sort newest first so the most-likely-suspect (e.g. one just
+            # leaked) shows at the top
+            tokens.sort(key=lambda t: t.get("issued_at", 0), reverse=True)
+            lines = [
+                "M118 ============================================",
+                f"M118 Moongate tokens ({len(tokens)} total):",
+                "M118 --------------------------------------------",
+            ]
+            for t in tokens:
+                issued = time.strftime(
+                    "%Y-%m-%d %H:%M",
+                    time.localtime(t.get("issued_at", 0)),
+                )
+                state = []
+                if t.get("revoked"):       state.append("REVOKED")
+                elif not t.get("valid"):   state.append("EXPIRED")
+                else:                      state.append("active")
+                if t.get("provisional"):   state.append("provisional")
+                lines.append(
+                    f"M118 [{','.join(state)}] {t.get('device_name', '?')} "
+                    f"({issued}) id={t.get('token_id', '?')[:8]}…"
+                )
+            lines.append("M118 ============================================")
+            lines.append("M118 To revoke all: MOONGATE_REVOKE_ALL")
+        script = "\n".join(lines)
+        try:
+            klippy_apis: Any = self.server.lookup_component("klippy_apis")
+            await klippy_apis.run_gcode(script)
+        except Exception as exc:
+            logger.error("MOONGATE_LIST_TOKENS run_gcode failed: %s", exc)
+
+    async def _klipper_revoke_all_tokens(self) -> None:
+        """Called from the Klipper console via MOONGATE_REVOKE_ALL.  Revokes
+        every active token in one shot — every paired Moongate device will
+        need to re-pair.  Intended for incident response: pair URL leaked,
+        QR shown on stream by accident, lost phone, etc."""
+        import asyncio
+        count = self.auth.revoke_all_tokens()
+        await asyncio.sleep(0.3)
+
+        lines = [
+            "M118 ============================================",
+            f"M118 Moongate: {count} active token(s) revoked.",
+            "M118 Every paired device must re-pair to access.",
+            "M118 Run MOONGATE_PAIR for each device to re-add.",
+            "M118 ============================================",
+        ]
+        script = "\n".join(lines)
+        try:
+            klippy_apis: Any = self.server.lookup_component("klippy_apis")
+            await klippy_apis.run_gcode(script)
+        except Exception as exc:
+            logger.error("MOONGATE_REVOKE_ALL run_gcode failed: %s", exc)
 
     # ── Route handlers ────────────────────────────────────────────────────────
     # Moonraker WebRequest: use webrequest.get_args() for body/query params.
