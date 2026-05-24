@@ -31,9 +31,21 @@ class UpdateService {
       final info          = await PackageInfo.fromPlatform();
       final installedBuild = int.tryParse(info.buildNumber) ?? 0;
 
-      final response = await http
-          .get(Uri.parse(_versionJsonUrl))
-          .timeout(const Duration(seconds: 8));
+      // Cache-buster: GitHub's raw CDN caches files for ~5 min by default.
+      // Without this, an unlucky timing window — user opens the app right
+      // before CI publishes a new manifest — leaves them on a stale "no
+      // update" result for several minutes.  Appending a per-request timestamp
+      // forces a cold hit.
+      final url = Uri.parse(
+          '$_versionJsonUrl?cb=${DateTime.now().millisecondsSinceEpoch}');
+
+      final response = await http.get(
+        url,
+        // Belt-and-braces: also ask any HTTP cache (proxy, OS) not to use a
+        // cached body.  The cache-buster above already handles CDN; this is
+        // for clients that ignore query strings when caching.
+        headers: const {'Cache-Control': 'no-cache', 'Pragma': 'no-cache'},
+      ).timeout(const Duration(seconds: 8));
 
       if (response.statusCode != 200) return null;
 

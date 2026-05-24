@@ -75,9 +75,9 @@ At the end you'll see output like:
 
 ### Step 2 — Install the app
 
-**Current version: v0.2.26**
+**Current version: v0.2.27**
 
-**[⬇ Download Moongate-v0.2.26.apk](https://github.com/PEEKYPAUL/Moongate/raw/master/APK/Moongate-v0.2.26.apk)** and install it on your Android phone.
+**[⬇ Download Moongate-v0.2.27.apk](https://github.com/PEEKYPAUL/Moongate/raw/master/APK/Moongate-v0.2.27.apk)** and install it on your Android phone.
 
 > Android only for now. Tap the link above to download directly to your phone.
 > Enable **Install from unknown sources** for your browser or file manager before installing.
@@ -249,7 +249,7 @@ If you want to verify any of the above:
 ```
 moongate/
 ├── APK/                    # Pre-built release APKs + version manifest
-│   ├── Moongate-v0.2.26.apk
+│   ├── Moongate-v0.2.27.apk
 │   ├── Moongate-latest.apk
 │   └── latest_version.json
 ├── docs/
@@ -321,6 +321,7 @@ For a tour of the codebase — Riverpod providers, the service layer, data flows
 
 | Version | Changes |
 |---|---|
+| **v0.2.27** | More reliable in-app update banner: (1) cache-buster on the `latest_version.json` fetch so GitHub's raw CDN can't serve a stale "no update" body, (2) re-run the update check every time the app comes back to the foreground so a user who had the app open before CI published a new release sees the banner appear without needing to force-close. Previously the FutureProvider's autoDispose cache could mask a freshly-published release for the entire session |
 | **v0.2.26** | Auto-recover from "stuck on tunnel": once a printer's status service flipped to tunnel-first (e.g. one transient local-poll failure at startup), it would stay there for the rest of the session even after the user returned home and was sitting on the printer's LAN. The dashboard would keep saying "Tunnel" until the app was killed and reopened. Now every 20 seconds, if the phone's subnet matches the printer's, the service retries local-first for one cycle. If local succeeds it switches back; if not, the backoff prevents repeated 3 s timeouts |
 | **v0.2.25** | Dashboard webcam refresh rate now mirrors the **Target FPS** you set in Crowsnest / Mainsail's webcam config. The plugin reads `target_fps` from `/server/webcams/list` and the tile derives its snapshot poll interval as `1000 / fps` ms — set Crowsnest to 15 fps, the tile ticks at 15 fps; set 30 fps, the tile ticks at 30 fps. Clamped server- and client-side to [1, 60]. Defaults to 15 fps when not configured (matches stock Crowsnest / mjpg-streamer). Persisted in `PrinterConfig` so the very first frame after cold-launch already uses the right cadence |
 | **v0.2.24** | Dashboard webcam tiles bumped to 20 fps (now superseded by v0.2.25's server-driven rate) |

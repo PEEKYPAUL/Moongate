@@ -10,6 +10,7 @@ import 'features/settings/settings_screen.dart';
 import 'features/splash/splash_screen.dart';
 import 'providers/custom_theme_provider.dart';
 import 'providers/settings_provider.dart';
+import 'providers/update_provider.dart';
 import 'services/printer_registry.dart';
 
 final _router = GoRouter(
@@ -72,6 +73,11 @@ class _MoongateAppState extends ConsumerState<MoongateApp>
     // screen could try a now-unreachable local IP.
     if (state == AppLifecycleState.resumed) {
       PrinterRegistry.instance.refreshNetworkLocality();
+      // Re-run the in-app update check too.  Without this the FutureProvider
+      // would keep its first-launch cached result for the entire session, so
+      // a user who had the app open before CI published a new release would
+      // never see the banner appear even after the new version went live.
+      ref.invalidate(updateProvider);
     }
   }
 
