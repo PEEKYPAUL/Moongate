@@ -85,9 +85,10 @@ jobs:
           echo "Versioned APK: ${VERSIONED_NAME}"
           echo "Version manifest: $(cat APK/latest_version.json)"
 
-      - name: Commit and push APK + version manifest
+      - name: Commit APK + manifest, prune old APKs, push
         # Only commit on direct pushes to master (not PRs — they can't push back)
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        id: commit
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -116,22 +117,78 @@ jobs:
 
           if [ "$LOCAL_BUILD" -lt "$REMOTE_BUILD" ]; then
             echo "Remote already has a newer build ($REMOTE_BUILD > $LOCAL_BUILD) — skipping push."
+            echo "published=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           # Restore our freshly built outputs
-          VERSION=$(grep '^version:' mobile/pubspec.yaml | sed 's/version:[[:space:]]*//' | cut -d'+' -f1)
-          VERSIONED_NAME="Moongate-v${VERSION}.apk"
           cp /tmp/Moongate-latest.apk APK/Moongate-latest.apk
           cp "/tmp/${VERSIONED_NAME}" "APK/${VERSIONED_NAME}" 2>/dev/null || true
           cp /tmp/latest_version.json APK/latest_version.json
 
-          git add APK/Moongate-latest.apk "APK/${VERSIONED_NAME}" APK/latest_version.json
+          # Prune the APK folder to the 3 most-recent versioned APKs.
+          # `sort -V` is semver-aware (so v0.2.10 sorts after v0.2.9, not before).
+          # `head -n -3` outputs all-but-the-last-3 → those are the old ones.
+          # Moongate-latest.apk is excluded from the glob and never deleted.
+          (
+            cd APK
+            ls Moongate-v*.apk 2>/dev/null | sort -V | head -n -3 | xargs -r rm -f
+          )
+
+          git add -A APK/
           if git diff --staged --quiet; then
             echo "APK unchanged after sync, nothing to commit"
+            echo "published=false" >> "$GITHUB_OUTPUT"
           else
             git commit -m "Release Moongate-v${VERSION} [skip ci]"
             git push origin master
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create / update GitHub Release
+        # Mirrors what landed in APK/ into a proper GitHub Release so the repo's
+        # right-sidebar "Releases" widget shows the current version.  Idempotent:
+        # re-running on the same version replaces the asset instead of erroring.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' && steps.commit.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.commit.outputs.version }}"
+          TAG="v${VERSION}"
+          ASSET="APK/Moongate-v${VERSION}.apk"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — replacing asset"
+            gh release upload "$TAG" "$ASSET" --clobber
+          else
+            echo "Creating Release $TAG"
+            gh release create "$TAG" "$ASSET" \
+              --title "Moongate v${VERSION}" \
+              --notes "See the [changelog](https://github.com/${GITHUB_REPOSITORY}/blob/master/README.md#changelog) for what's in this release.
+
+          **APK is signed with the project release key — installs cleanly over any previous CI build.**" \
+              --latest
+          fi
+
+      - name: Prune old Releases (keep last 3)
+        # Drops every Release past the 3 most-recent (by createdAt).  `--cleanup-tag`
+        # also removes the underlying git tag so it doesn't linger.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' && steps.commit.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          OLD_TAGS=$(gh release list --limit 100 --json tagName,createdAt \
+            --jq 'sort_by(.createdAt) | reverse | .[3:] | .[].tagName')
+          if [ -z "$OLD_TAGS" ]; then
+            echo "Nothing to prune — 3 or fewer releases exist."
+          else
+            echo "$OLD_TAGS" | while read -r tag; do
+              if [ -n "$tag" ]; then
+                echo "Deleting old release: $tag"
+                gh release delete "$tag" --yes --cleanup-tag
+              fi
+            done
           fi
 
       - name: Upload APK as workflow artifact
