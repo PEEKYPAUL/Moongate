@@ -61,6 +61,8 @@ The Moongate plugin runs inside Moonraker on your Pi. It handles pairing, token 
 ## Security
 
 > Short version: there is **no Moongate cloud**, no account, no central server. The only parties involved in any request are your phone, Cloudflare (for the tunnel), and your Pi.
+>
+> **The full audit-grade write-up is in [SECURITY.md](SECURITY.md)** — threat model, JWT internals, key management, the WireGuard Phase 2 story, how to audit, how to report a vulnerability. The summary below is the README-length recap.
 
 ### Authentication
 
@@ -280,6 +282,10 @@ flutter build apk --release
 # APK: build/app/outputs/flutter-apk/app-release.apk
 ```
 
+For the full developer workflow — connecting a phone, debug vs release builds, logcat patterns, release signing, CI behaviour, bumping a version — see **[DEVELOPMENT.md](DEVELOPMENT.md)**.
+
+For a tour of the codebase — Riverpod providers, the service layer, data flows, key design decisions — see **[ARCHITECTURE.md](ARCHITECTURE.md)**.
+
 ---
 
 ## Troubleshooting
@@ -335,6 +341,17 @@ flutter build apk --release
 | **v0.2.2** | Consistent release signing; fix update conflict on install; longer tunnel timeout (8 s); `startup` badge state |
 | **v0.2.1** | In-app update banner; version bump process established |
 | **v0.2.0** | Cloudflare Quick Tunnel remote access; auto local/remote fallback |
+
+---
+
+## Documentation
+
+| Document | What's in it |
+|---|---|
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Prerequisites, running, building, debugging, release signing, CI |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Code structure, state management, data-flow walkthroughs, design decisions |
+| [SECURITY.md](SECURITY.md) | Threat model, JWT internals, key management, audit references, vulnerability reporting |
+| [docs/setup-guide.md](docs/setup-guide.md) | End-user setup walkthrough (friendlier version of [Setup](#setup) above) |
 
 ---
 
