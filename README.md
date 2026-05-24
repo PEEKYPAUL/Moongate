@@ -379,8 +379,6 @@ For a tour of the codebase — Riverpod providers, the service layer, data flows
 
 If you'd like to use Moongate commercially, [open a GitHub issue](https://github.com/PEEKYPAUL/Moongate/issues/new) or contact [@PEEKYPAUL](https://github.com/PEEKYPAUL) directly to discuss terms.
 
-*Previous releases up to and including v0.2.27 were distributed under the MIT License; copies obtained under that licence remain MIT-licensed. From the next release onwards, all new code and binaries are under PolyForm Noncommercial 1.0.0.*
-
 ---
 
 *Created by [Paul Sharman](https://github.com/PEEKYPAUL)*
