@@ -67,9 +67,15 @@ info "Architecture: $ARCH → cloudflared: $CF_ARCH"
 info "Setting up Moongate repository at $MOONGATE_DIR..."
 
 if [[ -d "$MOONGATE_DIR/.git" ]]; then
-    info "Repo already cloned — pulling latest..."
-    git -C "$MOONGATE_DIR" pull --ff-only
-    success "Repository updated."
+    CURRENT_BRANCH="$(git -C "$MOONGATE_DIR" branch --show-current 2>/dev/null || echo unknown)"
+    if [[ "$CURRENT_BRANCH" == "master" ]]; then
+        info "Repo on master — pulling latest..."
+        git -C "$MOONGATE_DIR" pull --ff-only
+        success "Repository updated."
+    else
+        warn "Repo on branch '$CURRENT_BRANCH' (not master) — skipping git pull."
+        warn "Run 'git pull' manually if you intended to update."
+    fi
 else
     git clone --depth=1 "$MOONGATE_REPO" "$MOONGATE_DIR"
     success "Repository cloned to $MOONGATE_DIR"
