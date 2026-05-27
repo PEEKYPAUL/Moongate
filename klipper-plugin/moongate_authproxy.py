@@ -315,7 +315,24 @@ async def _proxy_websocket(
     # Auth is enforced on the upgrade request (already done by _authorize
     # before this is called). Subsequent frames inherit that trust until
     # close; standard pattern for token-auth'd WebSockets.
-    client_ws = web.WebSocketResponse(autoping=True, heartbeat=30.0)
+    #
+    # heartbeat=None on both legs is deliberate:
+    #   - Both Moonraker and Mainsail have their own WS keepalive logic.
+    #   - Adding our own heartbeat on top means three layers of pings
+    #     (theirs + ours-toward-them + ours-toward-the-other-side). Each
+    #     ping needs an auto-pong from the asyncio loop, which under
+    #     load (the proxy also handles 4 s status polling + asset
+    #     forwarding) was queueing behind data frames. Moonraker's
+    #     "Pong Time Elapsed: 6.03 s" log entries showed the pong RTT
+    #     drifting up to 6 s on a localhost socket — well past its own
+    #     timeout. Moonraker then closed the WS (code 1000), Mainsail
+    #     showed "Connection failed" and reconnected.
+    #   - With heartbeat disabled here, Moonraker's own pings flow
+    #     through aiohttp's autoping path (which IS still on, see below)
+    #     and we don't compete for the loop. Mainsail's status-update
+    #     traffic (sub-second cadence) keeps the connection from going
+    #     idle long enough for any intermediary to drop it.
+    client_ws = web.WebSocketResponse(autoping=True, heartbeat=None)
     await client_ws.prepare(request)
 
     target_url = backend_base + request.rel_url.path_qs
@@ -324,10 +341,27 @@ async def _proxy_websocket(
     elif target_url.startswith("https://"):
         target_url = "wss://" + target_url[len("https://"):]
 
+    # Forward identification headers (User-Agent etc.) to Moonraker so
+    # its log reflects the real client, not "Python/3.11 aiohttp/...".
+    # _forward_request_headers already drops hop-by-hop, Host,
+    # Authorization, X-Forwarded-For, and the mg_token cookie. We also
+    # drop Sec-WebSocket-* because aiohttp's ws_connect generates its
+    # own (different Sec-WebSocket-Key, etc.) and HTTP header keys are
+    # case-sensitive in dicts even though they're case-insensitive on
+    # the wire.
+    _WS_HEADERS_TO_DROP = {"sec-websocket-key", "sec-websocket-version",
+                           "sec-websocket-extensions",
+                           "sec-websocket-protocol"}
+    ws_headers = {
+        k: v for k, v in _forward_request_headers(request).items()
+        if k.lower() not in _WS_HEADERS_TO_DROP
+    }
+
     client: ClientSession = request.app["client"]
     try:
         async with client.ws_connect(
-            target_url, autoping=True, heartbeat=30.0,
+            target_url, autoping=True, heartbeat=None,
+            headers=ws_headers,
             timeout=ClientTimeout(total=None, connect=10),
         ) as backend_ws:
 
