@@ -653,40 +653,33 @@ class MoongatePlugin:
                 "M118 ============================================",
             ])
         else:
-            local_ip    = _get_local_ip()
-            tunnel_url  = _get_tunnel_url()
-            subdomain   = _get_tunnel_subdomain(tunnel_url)
-            port_sfx    = "" if self.http_port == 80 else f":{self.http_port}"
-            local_page  = f"http://{local_ip}{port_sfx}/moongate-pair.html"
-            tunnel_page = f"{tunnel_url}/moongate-pair.html" if tunnel_url else None
+            local_ip   = _get_local_ip()
+            port_sfx   = "" if self.http_port == 80 else f":{self.http_port}"
+            local_page = f"http://{local_ip}{port_sfx}/moongate-pair.html"
 
             logger.info("MOONGATE PAIR CODE: %s", pending.raw_token)
-            if tunnel_page:
-                logger.info("Pair page (tunnel): %s", tunnel_page)
-            logger.info("Pair page (local):  %s", local_page)
+            logger.info("Pair page (LAN):  %s", local_page)
 
+            # v0.4: the pair page is intentionally only reachable on LAN.
+            # The tunnel-side moongate-pair.html sits behind the EdDSA
+            # auth proxy and returns 401 to anyone without a valid token
+            # — which a new user pairing for the first time doesn't have
+            # yet. Initial pairing requires being on the same network as
+            # the printer; after pairing, the app uses the tunnel for
+            # remote access transparently and the user never sees the
+            # pair URL again.
+            ttl_min = int(self._config["enrollment_ttl_seconds"]) // 60
             lines = [
                 "M118 ==========================================",
                 f"M118 MOONGATE CODE: {pending.raw_token}",
                 "M118 ==========================================",
-                "M118 DO NOT SHARE the URL/code below.",
+                "M118 DO NOT SHARE the code above.",
                 "M118 If shared by accident: MOONGATE_RESET_OWNER",
                 "M118 ==========================================",
-            ]
-            if tunnel_page and subdomain:
-                lines += [
-                    "M118 Scan QR: open on YOUR phone:",
-                    f"M118   {tunnel_page}",
-                    f"M118 Subdomain: {subdomain}",
-                ]
-            else:
-                lines += [
-                    "M118 Scan QR: open on your PC, scan with app:",
-                    f"M118   {local_page}",
-                    "M118 (Tunnel not running — local-only)",
-                ]
-            ttl_min = int(self._config["enrollment_ttl_seconds"]) // 60
-            lines += [
+                "M118 Open this URL on a PC, tablet, or other phone:",
+                f"M118   {local_page}",
+                "M118 Then scan the QR with your phone's Moongate app",
+                "M118 (Add Printer > Scan QR).",
                 "M118 ==========================================",
                 f"M118 Code expires in {ttl_min} minutes.",
             ]
