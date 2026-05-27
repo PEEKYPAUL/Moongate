@@ -1,18 +1,70 @@
 # Troubleshooting
 
-The common failure modes and how to diagnose them, in roughly the order people hit them.
+The common failure modes and how to diagnose them, in roughly the order people hit them. v0.2.x-specific fixes that landed long ago are no longer listed here — see [CHANGELOG.md](CHANGELOG.md) for the bug-fix history.
 
-## Printer shows Offline
+## Tile shows "Connecting…" longer than ~10 seconds
 
-- Check that Moonraker is running:
+The app gives every printer up to one full poll cycle (4 s) before falling back to the tunnel, then up to another 8 s for the tunnel attempt. If a tile stays on "Connecting…" longer than ~15 s on a fresh launch:
+
+- Check Moonraker is running on the Pi:
   ```bash
   sudo systemctl status moonraker
   ```
-- Confirm the plugin loaded — look for `[moongate]` in Moonraker's logs:
+- Check the Moongate plugin loaded:
   ```bash
-  grep -i moongate ~/printer_data/logs/moonraker.log
+  grep -i moongate ~/printer_data/logs/moonraker.log | tail -20
   ```
-- Confirm `moonraker.conf` has the `[moongate]` block. The installer adds it automatically, but a manual edit could have removed it.
+- Check the auth proxy is running (v0.4+):
+  ```bash
+  sudo systemctl status moongate-authproxy
+  ```
+- Check the tunnel service:
+  ```bash
+  sudo systemctl status moongate-tunnel
+  ```
+
+All four (`moonraker`, `klipper`, `moongate-authproxy`, `moongate-tunnel`) need to be `active (running)` for the tile to flip from "Connecting…" to a live status.
+
+## Tile shows "Connected — Printer idle"
+
+This is **not** an error — it's the v0.4 way of saying "the Pi is reachable, but Klipper isn't producing usable status right now". Common causes:
+
+- The printer's power toggle inside Mainsail is off (Creality K3 and similar — Klipper isn't running until the printer-power switch is on).
+- Klipper crashed or is in an error state. Check `~/printer_data/logs/klippy.log` for the cause.
+- The Pi is rebooting and Klipper hasn't come back up yet.
+
+If the printer should be ready and the tile still shows "Connected — Printer idle":
+- Restart Klipper: `sudo systemctl restart klipper`
+- Restart Moonraker: `sudo systemctl restart moonraker`
+
+The tile will flip to live status within a couple of poll cycles after the underlying issue clears.
+
+## Tile shows "Offline — Printer unreachable"
+
+The app's reachability probe got no response from either the LAN URL or the tunnel URL. Either the Pi is fully unreachable (powered off, network cable out, WiFi router down) or every service on it is down. Verify with:
+
+```bash
+ping <pi-ip>
+curl -s -o /dev/null -w "%{http_code}\n" http://<pi-ip>/
+curl -s -o /dev/null -w "%{http_code}\n" https://<your-tunnel-url>/
+```
+
+- The first should respond.
+- The second should return `200` (or `301`/`302`) if nginx is up.
+- The third should return `401` if the auth proxy is running. ANY HTTP code (even 401, 502) proves the tunnel side is alive.
+
+If none of the three respond, the Pi is fully offline. If only the third fails, restart `moongate-tunnel` and `moongate-authproxy`.
+
+## Tile shows "Tunnel" badge when I'm on home WiFi
+
+In v0.4.0 the app retries LAN on every poll, so this should self-correct within one cycle (~4 s). If it doesn't:
+
+- Force-close the app and re-open. The LAN URL is rebuilt from the cached config + the current status reply.
+- Verify the Pi's LAN IP hasn't changed (DHCP lease expired and got a new address):
+  ```bash
+  ip -4 addr show | grep -A1 'state UP'
+  ```
+- If the IP changed: remove the printer in the app and re-pair on the new IP. The LAN URL persists across launches but isn't auto-discovered after a DHCP change.
 
 ## Remote tunnel not connecting
 
@@ -24,86 +76,46 @@ The common failure modes and how to diagnose them, in roughly the order people h
   ```bash
   cat /run/moongate-tunnel.log
   ```
-- The Cloudflare Quick Tunnel URL changes on **every** restart of `cloudflared`. The app fetches the latest URL automatically via the status endpoint on each poll, so you do **not** need to re-pair — the new URL is detected within a few seconds and persisted.
+- The Cloudflare Quick Tunnel URL changes on **every** restart of `cloudflared`. The app fetches the latest URL automatically — you do not need to re-pair when this happens.
+
+## Auth proxy returns 401 for me, not just attackers
+
+If your own app is getting 401s from the tunnel side (status tile is stuck offline, but LAN works):
+
+- Verify the access proxy is running and the plugin can sign valid tokens:
+  ```bash
+  sudo systemctl status moongate-authproxy
+  journalctl -u moongate-authproxy -n 50
+  ```
+- Check `~/.config/moongate/owner.json` exists and references your user. If it's missing or refers to a stale pair, run `MOONGATE_RESET_OWNER` in the Klipper console and re-pair.
+- A token mismatch can happen if the device signing key was regenerated (uninstall / re-install / manual `~/.config/moongate/` wipe). The app's cached token becomes invalid. Force-close and re-open the app — it'll refresh on next poll.
 
 ## Webcam not showing
 
-- The app fetches snapshots from whatever path Moonraker reports for the configured webcam — typically `/webcam/?action=snapshot` for mjpg-streamer setups.
-- Make sure your webcam is configured in Mainsail (or Fluidd) under Settings → Webcams, and that the URL works in a browser.
-- If you're behind a non-standard port, the v0.2.22 install option `--port N` (or `MOONGATE_PORT=N`) needs to match — the tunnel will only forward to the port `cloudflared` was started with.
+- The app uses the snapshot path Moonraker reports for your webcam — typically `/webcam/?action=snapshot` for mjpg-streamer setups.
+- Make sure your webcam is configured in Mainsail / Fluidd under Settings → Webcams, and the snapshot URL works in a browser on your LAN.
+- If you don't have a webcam, the tile falls back to the **Mainsail or Fluidd logo** (whichever you run). That's the expected v0.4 behaviour — it's not an error.
 
-## Dashboard tile shows the wrong printer when on a friend's network
+## QR scan won't work / camera fails
 
-**Fixed in v0.2.18.** The app now compares your phone's WiFi subnet against each printer's at cold launch and on every resume. If they don't match it skips the local probe entirely and goes straight to the tunnel — no 3-second timeout, no false-positive from an unrelated device on the stranger LAN.
+- Grant camera permission when prompted, or via **Settings → Apps → Moongate → Permissions → Camera**.
+- The QR scanner only works in **release** builds with the ProGuard rules in [`mobile/android/app/proguard-rules.pro`](mobile/android/app/proguard-rules.pro). Debug builds also work; R8 doesn't run in debug.
+- If the camera opens but fails to read the code: try the manual code path instead. Tap **+ → Enter Code** and type the `GATE-XXXX-XXXX` from the Klipper console.
 
-If you're on v0.2.18+ and still see this: the v0.2.26 "stuck on tunnel" auto-recovery should pick it back up within 20 s of you re-opening the dashboard. If not, force-close and reopen the app once.
+## Pairing fails / "already paired" error
 
-## Camera error when scanning the QR code
+If you previously paired this Pi but un-paired without going through `Dashboard → Remove printer`:
 
-- **Fixed in v0.2.19** (upgrade of `mobile_scanner` from 5.x to 7.x to dodge a Samsung One UI `analysis.resolutionInfo!!` NPE).
-- **Fixed again in v0.2.20** (added ProGuard rules for ML Kit so R8 stops stripping the bundled barcode scanner — without them the release build crashes with an obfuscated NPE that doesn't happen in debug).
-- If you're on v0.2.20+ and the camera still fails: grant camera permission when prompted, or go to **Settings → Apps → Moongate → Permissions** and enable Camera.
+- The cloud-side association may still exist. Run `MOONGATE_RESET_OWNER` on the Pi (Klipper console) to clear the local owner record, then `MOONGATE_PAIR` and re-scan.
+- v0.3.1+ should handle this automatically — `claim_printer` is idempotent for the same anonymous user, so re-pairing with the same app install just works.
 
-## Progress percentage on the tile doesn't match Mainsail
+## Tunnel URL leakage — what's actually exposed in v0.4?
 
-**Fixed in v0.2.16.** The app now uses `print_duration / estimated_time` from `/server/files/metadata` — the same formula Mainsail uses — instead of:
+**Nothing.** This was a real concern in v0.2.x where the tunnel terminated at nginx serving Mainsail without auth. In v0.4 the tunnel terminates at the auth proxy, which returns flat 401s for every request without a valid short-lived token. The URL alone is useless. Share it with anyone — they get 401s.
 
-- `display_status.progress` (which is `0` until the slicer emits `M73` gcode), or
-- `virtual_sdcard.progress` (which runs ahead of the actual toolhead position due to Klipper's look-ahead buffering)
+See [SECURITY.md → "What the tunnel actually exposes (v0.4)"](SECURITY.md#what-the-tunnel-actually-exposes-v04) for the empirical 35-vector attack-matrix verification.
 
-The slicer's estimated time is fetched once per file and cached.
-
-## In-app update banner not appearing
-
-**Fixed in v0.2.27.** Before that version, the update check was a `FutureProvider.autoDispose` that ran once per session and never re-checked. If a new release went live while you had the app open, you'd never see the banner without force-closing and re-launching.
-
-From v0.2.27 onward:
-
-- The update check re-runs on every app **resume** (foregrounding from background)
-- Each fetch appends a cache-buster to the manifest URL so GitHub's raw CDN can't serve a stale "no update" body
-
-If you're stuck on a pre-v0.2.27 release, the workaround is:
-
-1. Swipe up in the recents drawer to force-close the app
-2. Re-launch from the icon
-3. The fresh provider run will see the new manifest and show the banner
-
-Or just download the latest APK manually from the [APK folder](https://github.com/PEEKYPAUL/Moongate/tree/master/APK).
-
-## Tunnel URL leaks — what's actually exposed?
-
-This isn't a bug, but it comes up enough to mention here. The Cloudflare tunnel exposes everything bound to `localhost:80` on your Pi — that's Mainsail, the Moonraker API, and the webcam stream, alongside the JWT-protected Moongate endpoints. **If someone gets your tunnel URL they can drive your printer through Mainsail without a token**, bounded to the printer (no LAN pivot, no SSH).
-
-The full breakdown, including how to mitigate with Cloudflare Access or tightened Moonraker auth, lives in [SECURITY.md → "What does URL leakage actually expose?"](SECURITY.md#what-does-url-leakage-actually-expose).
-
-## I shared my tunnel URL with someone and they got into my printer
-
-This is a real incident if it happens to you. The Cloudflare tunnel exposes Mainsail at the root of the tunnel URL — anyone who can reach that URL, in a *browser*, can drive your printer. No app, no token, no QR code needed on their end. The pair page at `/moongate-pair.html` is also reachable, so even if they used the Moongate app instead they could scan the QR and pair their own device.
-
-**Recover from it (in this order):**
-
-1. **Run `MOONGATE_REVOKE_ALL` in your Klipper console.** Added in v0.2.29. This invalidates every issued device token, including theirs *and* yours — every paired Moongate device will need to re-pair. One command.
-
-2. **Restart the Cloudflare tunnel to get a new URL:**
-   ```bash
-   sudo systemctl restart moongate-tunnel
-   ```
-   Cloudflare assigns a fresh random subdomain. The old URL is dead immediately. Your own app picks up the new URL automatically on the next status poll — no re-pairing needed beyond step 1.
-
-3. **Re-pair your own devices** by running `MOONGATE_PAIR` once per device and scanning the new QR.
-
-**To check who currently has access:**
-
-```bash
-MOONGATE_LIST_TOKENS
-```
-
-Added in v0.2.29. Lists every issued token with `device_name`, issued date, and active/expired/revoked state on the Mainsail console. Use this to spot which entry belongs to whoever you shared with vs your own devices, then `revoke` selectively via the API if you don't want to nuke all of them.
-
-**To prevent it next time:**
-
-- v0.2.29 also shortens the **QR's pre-issued token TTL from 30 days to 10 minutes** initially. The token only "promotes" to 30 days once the app actually uses it. So if you share the pair URL but the recipient doesn't scan within 10 minutes, the embedded token auto-expires. Doesn't close the full hole (browser-direct access to Mainsail still works while the tunnel is up), but it kills the QR-pairing leak window dead.
-- For the *real* fix — closing browser-direct access to Mainsail — see [SECURITY.md → "What does URL leakage actually expose?"](SECURITY.md#what-does-url-leakage-actually-expose). The two practical options are Cloudflare Access (recommended; free; edge-level login) or removing `127.0.0.0/8` from Moonraker's `trusted_clients` with `force_logins: True`.
+If you're still running v0.2.x: upgrade. The known browser-direct-to-Mainsail hole was the explicit driver for v0.4.0.
 
 ## Need to capture a fresh log
 
@@ -120,10 +132,17 @@ adb logcat -s MOONGATE
 For plugin-side issues:
 
 ```bash
-# Live tail of Moonraker
+# Live tail of Moonraker (the moongate plugin logs here)
 journalctl -u moonraker -f
-# or
+
+# or directly:
 tail -f ~/printer_data/logs/moonraker.log
+```
+
+For auth-proxy issues (v0.4+):
+
+```bash
+journalctl -u moongate-authproxy -f
 ```
 
 For tunnel issues:
@@ -135,6 +154,6 @@ tail -f /run/moongate-tunnel.log
 
 ## Anything else
 
-- Read [CHANGELOG.md](CHANGELOG.md) for the bug-fix history — many issues that surfaced in earlier releases have known fixes
-- Read [SECURITY.md](SECURITY.md) for anything auth, transport, or tunnel-leak related
+- Read [CHANGELOG.md](CHANGELOG.md) for the version history — many issues from earlier releases have known fixes
+- Read [SECURITY.md](SECURITY.md) for auth / transport / threat-model questions
 - Open a [GitHub issue](https://github.com/PEEKYPAUL/Moongate/issues/new) with the relevant logcat / journalctl output if none of the above match

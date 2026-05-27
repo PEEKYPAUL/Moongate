@@ -1,0 +1,18 @@
+# Never commit secrets or local-only files under supabase/
+
+# User-saved key dumps
+key.txt
+*.key
+*.pem
+*.jwk
+
+# Env files (Supabase secrets live in the dashboard, not in env files)
+.env
+.env.*
+
+# Supabase CLI state
+.branches/
+.temp/
+
+# Local function build output (if we ever add bundling later)
+**/.deno/

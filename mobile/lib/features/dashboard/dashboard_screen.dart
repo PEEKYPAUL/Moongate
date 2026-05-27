@@ -8,7 +8,9 @@ import '../../models/printer_config.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/update_provider.dart';
 import '../../providers/version_provider.dart';
+import '../../services/printer_access_cache.dart';
 import '../../services/printer_registry.dart';
+import '../../services/supabase_service.dart';
 import '../../services/update_service.dart';
 import 'printer_tile.dart';
 
@@ -50,10 +52,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ],
       ),
     );
-    if (confirmed == true) {
-      await PrinterRegistry.instance.remove(printer.id);
-      _load();
+    if (confirmed != true) return;
+
+    // Release the Supabase row first so the same Pi can be re-paired
+    // without manual cleanup. Fail-open: if Supabase is unreachable we
+    // still clear local state and surface a hint so the user isn't trapped.
+    final released = await SupabaseService.instance.releasePrinter(printer.id);
+    await PrinterRegistry.instance.remove(printer.id);
+    PrinterAccessCache.instance.invalidate(printer.id);
+
+    if (!released && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Removed locally, but couldn’t reach Supabase. '
+            'Run MOONGATE_RESET_OWNER on the Pi if re-pairing fails.',
+          ),
+        ),
+      );
     }
+    _load();
   }
 
   @override
@@ -69,7 +87,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         : _PrinterGrid(
             printers: _printers,
             columns:  gridColumns,
-            onTap:    (p) => context.push('/printer/${p.id}'),
+            // Reload after the printer screen pops so any rename done in
+            // the app bar there propagates to the tile.
+            onTap:    (p) => context.push('/printer/${p.id}').then((_) => _load()),
             onRemove: _removePrinter,
           );
 
@@ -337,6 +357,41 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       onChanged: (v) =>
                           ref.read(allowRotationProvider.notifier).set(v),
                     ),
+
+                    const Divider(),
+
+                    // ── About ────────────────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: Text('About',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelMedium
+                              ?.copyWith(color: Colors.white54)),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.new_releases_outlined),
+                      title: const Text("What's new"),
+                      subtitle: const Text('Recent changes at a glance'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showChangelog(context);
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.coffee_outlined,
+                          color: Colors.amber),
+                      title: const Text('Buy me a coffee'),
+                      subtitle: const Text('Tip the dev via PayPal'),
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await launchUrl(
+                          Uri.parse(
+                              'https://www.paypal.com/donate/?hosted_button_id=WCWAZKQ7WKQB4'),
+                          mode: LaunchMode.externalApplication,
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -461,7 +516,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             (p) => ListTile(
               leading: const Icon(Icons.print, color: Colors.redAccent),
               title: Text(p.name),
-              subtitle: Text(p.host, style: const TextStyle(fontSize: 12)),
+              subtitle: Text(
+                'id ${p.id.substring(0, 8)}…',
+                style: const TextStyle(fontSize: 12),
+              ),
               trailing: const Icon(Icons.delete_outline, color: Colors.redAccent),
               onTap: () {
                 Navigator.pop(ctx);
@@ -483,7 +541,76 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (v <= 1.25) return 'XL';
     return 'XXL';
   }
+
+  void _showChangelog(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("What's new"),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 380, maxWidth: 360),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final entry in _changelog) ...[
+                  Text(
+                    entry.version,
+                    style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
+                          color: cs.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  for (final bullet in entry.bullets)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, top: 2),
+                      child: Text('• $bullet',
+                          style: Theme.of(ctx).textTheme.bodySmall),
+                    ),
+                  const SizedBox(height: 14),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
+class _ChangelogEntry {
+  final String version;
+  final List<String> bullets;
+  const _ChangelogEntry(this.version, this.bullets);
+}
+
+// Top-level brief — bumped on each release. Newest first.
+const _changelog = <_ChangelogEntry>[
+  _ChangelogEntry('v0.4.0', [
+    'Hardened remote access — the tunnel URL alone grants nothing',
+    'Mainsail reachable through the tunnel from anywhere',
+    "Added 'Buy me a coffee' and this 'What's new'",
+  ]),
+  _ChangelogEntry('v0.3.0', [
+    'Cloud-mediated pairing — no more URL sharing required',
+    'LAN-first routing for snappier home use',
+    'Cleaner remove / re-pair flow',
+  ]),
+  _ChangelogEntry('v0.2.29', [
+    'Initial public release',
+    'Pi-issued JWT auth, dual-path local + tunnel',
+    'Mainsail / Fluidd WebView per printer',
+  ]),
+];
 
 // ── Update banner ─────────────────────────────────────────────────────────────
 

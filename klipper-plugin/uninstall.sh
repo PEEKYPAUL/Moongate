@@ -27,12 +27,16 @@ echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 echo "This will remove:"
 echo "  • moongate-tunnel systemd service (cloudflared tunnel)"
+echo "  • moongate-authproxy systemd service (v0.4 auth proxy)"
 echo "  • Moongate Moonraker plugin"
 echo "  • ~/moongate repository clone"
-echo "  • ~/.config/moongate (tokens + secret key)"
+echo "  • ~/.config/moongate (tokens + secret key + v0.4 backup dir)"
 echo "  • [moongate] entries in moonraker.conf"
 echo "  • MOONGATE_PAIR macro from printer config"
 echo "  • moongate-pair.html from Mainsail"
+echo ""
+echo "And RESTORE (from ~/.config/moongate/v0.4-backup/ if present):"
+echo "  • moonraker.conf — back to pre-v0.4 (Moonraker bound to 0.0.0.0)"
 echo ""
 read -r -p "Continue? [y/N] " confirm
 if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
@@ -62,6 +66,50 @@ fi
 
 # Tunnel log
 sudo rm -f /run/moongate-tunnel.log /tmp/moongate-tunnel.log
+
+# ── 1b. Stop and remove the v0.4 auth proxy service ──────────────────────────
+info "Stopping moongate-authproxy service..."
+if systemctl is-active --quiet moongate-authproxy 2>/dev/null; then
+    sudo systemctl stop moongate-authproxy
+    success "moongate-authproxy stopped"
+else
+    warn "moongate-authproxy was not running"
+fi
+
+if systemctl is-enabled --quiet moongate-authproxy 2>/dev/null; then
+    sudo systemctl disable moongate-authproxy
+fi
+
+if [[ -f /etc/systemd/system/moongate-authproxy.service ]]; then
+    sudo rm -f /etc/systemd/system/moongate-authproxy.service
+    sudo systemctl daemon-reload
+    success "moongate-authproxy service removed"
+fi
+
+sudo rm -f /run/moongate-authproxy.log
+
+# ── 1c. Restore v0.4 backups BEFORE wiping ~/.config/moongate ────────────────
+# Order matters: the backup dir lives inside ~/.config/moongate which step 4
+# removes. Restore configs first, then nuke the config dir.
+V04_BACKUP_DIR="$HOME/.config/moongate/v0.4-backup"
+
+if [[ -d "$V04_BACKUP_DIR" ]]; then
+    info "Restoring v0.4 backups..."
+
+    # Moonraker config — restore from the pristine pre-v0.4 snapshot.
+    if [[ -f "$V04_BACKUP_DIR/moonraker.conf.orig" && -f "$MOONRAKER_CONF" ]]; then
+        cp "$V04_BACKUP_DIR/moonraker.conf.orig" "$MOONRAKER_CONF"
+        success "moonraker.conf restored"
+    fi
+
+    # nginx-*.orig backups may exist from an earlier draft of v0.4 that
+    # patched nginx too. We don't restore them (the corresponding install
+    # path was removed before ship), but we don't delete them either —
+    # if a user has them, the corresponding nginx vhost was already
+    # restored manually or never modified.
+else
+    info "No v0.4 backup dir found — skipping restore (Pi was never v0.4 or already cleaned)."
+fi
 
 # ── 2. Remove plugin from Moonraker components ────────────────────────────────
 info "Removing Moonraker plugin..."

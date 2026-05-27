@@ -1,9 +1,20 @@
+import 'dart:async';
+import 'dart:developer' as dev;
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/printer_config.dart';
-import 'network_discovery_service.dart';
+import 'supabase_service.dart';
 
-/// Persists the list of paired printers to SharedPreferences.
+/// In v0.3.0 the source of truth is the Supabase `printers` table. The
+/// registry is a local cache of that table for this user, populated on
+/// demand and persisted to SharedPreferences so the dashboard renders
+/// immediately on cold start.
+///
+/// Cross-tenant isolation is enforced by Row-Level Security at the
+/// database layer — `select my printers` policy filters every query to
+/// `owner_user_id = auth.uid()`. There is no way to see another user's
+/// printers from this code path.
 class PrinterRegistry {
   PrinterRegistry._();
   static final PrinterRegistry instance = PrinterRegistry._();
@@ -12,123 +23,124 @@ class PrinterRegistry {
 
   List<PrinterConfig> _printers = [];
 
-  /// In-session map of which connection path won most recently for each
-  /// printer.  Updated by [PrinterStatusService] after every successful poll,
-  /// read by [PrinterScreen] when deciding which URL to load in the WebView.
-  ///
-  /// NOT persisted: on every cold start every printer begins with no live
-  /// preference so the next session tries local first (same reason we don't
-  /// persist [PrinterConfig.preferRemote] — see comment in the status service).
-  final Map<String, bool> _livePreferRemote = {};
-
   List<PrinterConfig> get printers => List.unmodifiable(_printers);
 
-  /// Returns the last-known live decision for [printerId], or null if no
-  /// poll has succeeded yet this session.
-  bool? livePreferRemote(String printerId) => _livePreferRemote[printerId];
+  void _log(String msg) => dev.log(msg, name: 'MOONGATE/REGISTRY');
 
-  /// Called by [PrinterStatusService] each time a poll succeeds, so the
-  /// printer-screen WebView and any other consumer can avoid wasting a
-  /// 3-second timeout on a guaranteed-unreachable local IP.
-  void setLivePreferRemote(String printerId, bool preferRemote) {
-    _livePreferRemote[printerId] = preferRemote;
-  }
-
-  /// Pre-populate [_livePreferRemote] for every printer based on a cheap
-  /// subnet comparison between the phone's current LAN and each printer's
-  /// configured local IP.
-  ///
-  /// Why this exists:
-  ///   The status service already discovers the right network path by
-  ///   probing — but its first poll takes a 3 s local timeout before
-  ///   falling back to the tunnel.  If the user cold-launches the app on
-  ///   an unrelated network (e.g. visiting a friend) and taps a tile
-  ///   *immediately*, the WebView would try the printer's local IP first,
-  ///   either timing out or — worse — latching onto a 4xx/5xx from some
-  ///   other device on the stranger's LAN that happens to answer at the
-  ///   same IP.
-  ///
-  ///   By pre-checking subnets at app launch and on resume, the live
-  ///   preference is already correct before any tile is even tapped, so
-  ///   the WebView jumps straight to the tunnel with no flicker.
-  ///
-  /// Called from [main] on cold start and from the root app widget on
-  /// every [AppLifecycleState.resumed] (in case the phone changed
-  /// networks while the app was backgrounded).
-  Future<void> refreshNetworkLocality() async {
-    for (final printer in _printers) {
-      // Tunnel-only printers (no remote host) can't be improved by this
-      // check — there's nothing to fall back to.  Skip them.
-      if (printer.remoteHost == null) continue;
-
-      final sameSubnet = await NetworkDiscoveryService.instance
-          .isOnSameSubnetAs(printer.host);
-
-      // sameSubnet == false means the printer's LAN is unreachable from
-      // here, regardless of what the host string looks like — prefer the
-      // tunnel until a real poll says otherwise.  When subnets match, we
-      // do NOT eagerly set _livePreferRemote = false: the status service
-      // is still authoritative for actual reachability (think AP isolation,
-      // printer powered off, etc.).
-      if (!sameSubnet) {
-        _livePreferRemote[printer.id] = true;
-      }
-    }
-  }
+  // ── Local persistence ────────────────────────────────────────────────────
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
+    final raw   = prefs.getString(_key);
     if (raw == null || raw.isEmpty) return;
     try {
       _printers = PrinterConfig.listFromJson(raw);
-    } catch (_) {
-      // Saved data is corrupted or from an incompatible old version.
-      // Clear it so the app starts clean rather than crashing every launch.
+    } on FormatException catch (e) {
+      // Legacy v0.2.x payload — drop it. The user will re-pair via the
+      // new v=3 QR flow.
+      _log('Dropping legacy persisted printers (${e.message})');
+      _printers = [];
+      await prefs.remove(_key);
+    } catch (e) {
+      _log('Corrupted printers JSON, dropping: $e');
       _printers = [];
       await prefs.remove(_key);
     }
   }
 
-  Future<void> add(PrinterConfig printer) async {
-    _printers = [..._printers, printer];
-    await _save();
+  Future<void> _save() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_key, PrinterConfig.listToJson(_printers));
   }
 
+  /// Pulls the current user's printers from Supabase (RLS-scoped) and
+  /// merges them into the local cache. Local-only additions made during
+  /// the same session (e.g. just-claimed printers) are preserved.
+  ///
+  /// Called from the dashboard on launch and on pull-to-refresh.
+  Future<void> refreshFromSupabase() async {
+    if (!SupabaseService.instance.ready) {
+      _log('Supabase not ready, skipping refresh');
+      return;
+    }
+    try {
+      final rows = await SupabaseService.instance.listMyPrinters();
+      final newList = <PrinterConfig>[];
+      for (final r in rows) {
+        // Preserve cached webcam settings if we already know this printer.
+        final existing = _printers.where((p) => p.id == r.id).firstOrNull;
+        newList.add(existing != null
+            ? existing.copyWith(name: r.name)
+            : PrinterConfig(id: r.id, name: r.name));
+      }
+      _printers = newList;
+      await _save();
+      _log('Refreshed: ${_printers.length} printer(s) from Supabase');
+    } catch (e) {
+      _log('refreshFromSupabase failed: $e');
+    }
+  }
+
+  /// Add a printer locally after a successful claim. The Supabase row
+  /// already exists by the time this is called; this just caches it.
+  Future<void> addClaimed(PrinterConfig printer) async {
+    final exists = _printers.any((p) => p.id == printer.id);
+    if (!exists) {
+      _printers = [..._printers, printer];
+      await _save();
+    }
+  }
+
+  /// Legacy alias kept for import-config flow. Behaves like [addClaimed].
+  Future<void> add(PrinterConfig printer) => addClaimed(printer);
+
+  /// Remove the local cache entry. Note: this does NOT delete the row
+  /// from Supabase — for that, the user should run MOONGATE_RESET_OWNER
+  /// on the Pi (it'll be cleaned up by the 6-week inactivity sweep
+  /// thereafter, since no heartbeats can succeed once unpaired).
   Future<void> remove(String printerId) async {
     _printers = _printers.where((p) => p.id != printerId).toList();
     await _save();
   }
 
-  /// Silently update the Cloudflare tunnel URL for a printer.
-  /// Called automatically when the status poll returns a fresher URL
-  /// than the one stored (Quick Tunnels rotate when cloudflared restarts).
-  Future<void> updateRemoteHost(String printerId, String newRemoteHost) async {
+  /// Rename a printer locally. Note: the Supabase row's `name` field is
+  /// left unchanged — the local rename is cosmetic only. Re-pairing would
+  /// reset to whatever name was sent during the claim.
+  Future<void> renamePrinter(String printerId, String newName) async {
+    final trimmed = newName.trim();
+    if (trimmed.isEmpty) return;
     final idx = _printers.indexWhere((p) => p.id == printerId);
     if (idx == -1) return;
-    if (_printers[idx].remoteHost == newRemoteHost) return;
+    if (_printers[idx].name == trimmed) return;
     _printers = List.of(_printers)
-      ..[idx] = _printers[idx].copyWith(remoteHost: newRemoteHost);
+      ..[idx] = _printers[idx].copyWith(name: trimmed);
     await _save();
   }
 
-  /// Persist which connection path worked last for this printer.
-  /// Called by [PrinterStatusService] after each successful poll so the
-  /// next app launch tries the right path first without wasting time on
-  /// a guaranteed timeout (e.g. a remote-only printer's local IP).
-  Future<void> updatePreferRemote(String printerId, {required bool preferRemote}) async {
+  /// Update the cached LAN URL for a printer after a /status response
+  /// surfaces it. Pass null to clear (e.g. when LAN starts failing).
+  Future<void> updateLanUrl(String printerId, String? lanUrl) async {
     final idx = _printers.indexWhere((p) => p.id == printerId);
     if (idx == -1) return;
-    if (_printers[idx].preferRemote == preferRemote) return;
+    if (_printers[idx].lanUrl == lanUrl) return;
     _printers = List.of(_printers)
-      ..[idx] = _printers[idx].copyWith(preferRemote: preferRemote);
+      ..[idx] = _printers[idx].copyWith(lanUrl: lanUrl);
     await _save();
   }
 
-  /// Persist the webcam display-transform settings + target FPS for a printer.
-  /// Called by [PrinterStatusService] whenever the Moongate status endpoint
-  /// returns webcam info — so the cached values stay current and are applied
-  /// from the first frame on the next app launch (before any poll completes).
+  /// Persist the detected web UI type ('mainsail' | 'fluidd') so the tile
+  /// can render the right logo on a cold launch — including when the
+  /// printer is currently offline (power-off, Pi rebooting, etc.).
+  Future<void> updateUiType(String printerId, String uiType) async {
+    final idx = _printers.indexWhere((p) => p.id == printerId);
+    if (idx == -1) return;
+    if (_printers[idx].uiType == uiType) return;
+    _printers = List.of(_printers)
+      ..[idx] = _printers[idx].copyWith(uiType: uiType);
+    await _save();
+  }
+
+  /// Update webcam transform info from a successful Moongate /status poll.
   Future<void> updateWebcamInfo(
     String printerId, {
     required bool flipH,
@@ -143,7 +155,7 @@ class PrinterRegistry {
         p.webcamFlipV == flipV &&
         p.webcamRotation == rotation &&
         p.webcamTargetFps == targetFps) {
-      return; // nothing changed
+      return;
     }
     _printers = List.of(_printers)
       ..[idx] = p.copyWith(
@@ -154,8 +166,17 @@ class PrinterRegistry {
     await _save();
   }
 
-  Future<void> _save() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, PrinterConfig.listToJson(_printers));
-  }
+  // ── v0.2.x compat stubs (kept so the UI doesn't break) ──────────────────
+
+  /// Always returns true now — in v0.3.0 every printer is reached via the
+  /// Supabase-mediated tunnel.
+  bool? livePreferRemote(String printerId) => true;
+
+  /// No-op in v0.3.0 — kept so PrinterStatusService doesn't break.
+  void setLivePreferRemote(String printerId, bool preferRemote) {}
+
+  /// No-op in v0.3.0 — Pi reports its tunnel URL to Supabase, and the
+  /// app fetches the current one on every access call. There's nothing
+  /// to persist client-side.
+  Future<void> updateRemoteHost(String printerId, String newRemoteHost) async {}
 }

@@ -5,17 +5,23 @@ import 'app.dart';
 import 'providers/custom_theme_provider.dart';
 import 'providers/settings_provider.dart';
 import 'services/printer_registry.dart';
-import 'services/vpn_service.dart';
+import 'services/supabase_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await VpnService.instance.initialize();
+
+  // v0.3.0: every printer call is mediated by Supabase. Initialise the
+  // client and sign in anonymously BEFORE the first frame so the dashboard
+  // can immediately show "your" printers (RLS-scoped). The first launch on
+  // a fresh install makes one HTTP round-trip to /auth/v1/signup; the
+  // session is persisted to flutter_secure_storage so subsequent launches
+  // are instant.
+  await SupabaseService.instance.initialize();
+
+  // Load the local printer registry. In v0.3.0 this is a cache of the
+  // Supabase printers table that this user owns — we refresh from
+  // Supabase asynchronously in the dashboard.
   await PrinterRegistry.instance.load();
-  // Decide per printer whether the phone's current LAN can plausibly reach
-  // its local IP, BEFORE the dashboard is drawn.  Without this, cold-launching
-  // on an unrelated network and tapping a tile immediately would wedge the
-  // WebView on a doomed local URL until the 3 s fallback kicks in.
-  await PrinterRegistry.instance.refreshNetworkLocality();
 
   final container = ProviderContainer();
   await container.read(themeModeProvider.notifier).load();

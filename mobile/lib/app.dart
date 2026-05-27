@@ -66,17 +66,11 @@ class _MoongateAppState extends ConsumerState<MoongateApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Re-run the subnet locality check whenever the app comes back to the
-    // foreground.  The phone may have moved to a different WiFi network
-    // while we were backgrounded — without this refresh, the live
-    // preferences we computed at cold-start would be stale and the printer
-    // screen could try a now-unreachable local IP.
     if (state == AppLifecycleState.resumed) {
-      PrinterRegistry.instance.refreshNetworkLocality();
-      // Re-run the in-app update check too.  Without this the FutureProvider
-      // would keep its first-launch cached result for the entire session, so
-      // a user who had the app open before CI published a new release would
-      // never see the banner appear even after the new version went live.
+      // v0.3.0: no LAN-vs-tunnel reprobing needed (all calls go through
+      // the Supabase-mediated tunnel). Just re-run the update check so a
+      // banner appears if CI published a new release while we were
+      // backgrounded.
       ref.invalidate(updateProvider);
     }
   }

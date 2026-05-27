@@ -1,337 +1,184 @@
 # Security
 
-> The README has a [TL;DR version of this](README.md#security). This is the full audit-grade write-up — what we defend, what we don't, and how to verify both. If you find something wrong here please open an issue or contact me directly (see [Reporting a vulnerability](#reporting-a-vulnerability) below).
+> The README has a [TL;DR version](README.md#how-it-works) of the architecture. This is the longer write-up — what we defend, what we don't, and how to verify both. If you find something wrong here please open an issue or contact me directly (see [Reporting a vulnerability](#reporting-a-vulnerability) below).
+
+---
+
+## What changed in v0.4
+
+The v0.2 version of this document documented a known hole in the original Cloudflare-Quick-Tunnel design: the tunnel terminated at nginx on the Pi, which served Mainsail to anyone with the URL. **v0.4 closes that hole.** The Cloudflare tunnel now terminates at an auth proxy on the Pi that rejects any request without a short-lived signed access token; nginx and Moonraker are no longer reachable directly from the internet.
+
+If you're running v0.2.x and want the protection in v0.4: re-install via the v0.4 `install.sh` and re-pair. No data migrates from v0.2 — it's a hard cutover.
 
 ---
 
 ## Threat model
 
-What Moongate **claims** to protect:
+What Moongate **claims** to protect (v0.4):
 
 | You | Adversary | Defence |
 |---|---|---|
-| You ran `MOONGATE_PAIR` once | A stranger somehow learning the tunnel URL | The Moongate plugin endpoints (`/server/moongate/*`) reject anything without a valid JWT. **Underlying Mainsail and Moonraker are a separate question** — see [What does URL leakage actually expose?](#what-does-url-leakage-actually-expose) below |
-| You scanned the QR code on your PC | A bystander seeing the screen for ~2 s | Code is 10-minute TTL, 5 attempts, single-use; the embedded JWT is single-use |
-| You installed the app on your phone | Another app on the same phone trying to read the JWT | Token sits in Android Keystore via `flutter_secure_storage` — hardware-encrypted, sandboxed to our app's UID |
-| You lost the phone | Whoever finds it tries to control your printer | Revoke that one token from any other paired device; every other device keeps working |
-| Someone records your remote-access request mid-flight | Replays it later | Revocation is real-time. Also: every request is HTTPS (tunnel) so capturing it requires breaking TLS first |
-| You're at a friend's house showing off the app | His WiFi happens to share your home subnet *and* an unrelated device is at your printer's IP | Status poll's 3 s timeout + non-Moonraker response detection routes back to tunnel; the WebView's `onHttpError` no longer surfaces an overlay for this case (v0.2.18) |
+| Your printer is paired | A stranger somehow learning the tunnel URL — saw your screen, fished it out of a log, social-engineered a friend | The Pi-side auth proxy gates every internet-facing path behind a short-lived signed access token. The URL alone returns flat `401 Unauthorized` with a constant-length 13-byte body, no `WWW-Authenticate`, no `Server` header, no fingerprint of what's running underneath. **Empirically verified** across a 35-vector attack matrix on a live tunnel — see [Verifying the promise](#verifying-the-promise) below |
+| You scanned the QR code on your PC | A bystander seeing the screen for a few seconds | Pair codes are time-limited, attempt-capped, single-use. The pair page is **LAN-only** — visiting the equivalent URL through the tunnel returns 401 |
+| You installed the app on your phone | Another app on the same phone trying to read your session | Sensitive material is stored via `flutter_secure_storage` → Android Keystore (hardware-encrypted, sandboxed to the app's UID) |
+| You lost the phone | Whoever finds it tries to control your printer | Un-pair the printer from any other paired device — `Dashboard → Remove printer`. The cloud middleman releases the association and any cached tokens become useless. The lost phone must re-pair from scratch (which requires being on your home WiFi) to recover access |
+| Someone records a request mid-flight | Replays it later | Every request goes over HTTPS (tunnel) or HTTP-on-LAN. Access tokens are short-lived (minutes, not days); the replay window is small, and the same token never works again after refresh |
+| You're at a friend's house showing the app | His WiFi happens to share your home subnet AND an unrelated device sits at your printer's LAN IP | The LAN attempt fails to produce a valid Moongate-shaped response — the tile falls through to the tunnel within ~2 s |
 
 What Moongate **does not** claim to protect:
 
 | Situation | Why we can't help |
 |---|---|
-| The Pi itself is compromised (rooted, malicious user has shell) | The JWT signing secret lives at `~/.config/moongate/secret.key`. If an attacker reads it, they can forge tokens. We use file mode 0600 + owner-only, but root sees everything. **You must trust your Pi.** |
-| Your unlocked phone is in a hostile party's hands | Android Keystore stops other apps from reading the token; it doesn't stop someone using the unlocked app interactively |
-| Cloudflare is compromised or compelled (subpoena, court order) | Cloudflare terminates TLS on their edge. They see the request URL, headers, and body in plaintext. Their ToS apply. If this is unacceptable for your threat model, swap `cloudflared` for a self-hosted tunnel — the rest of Moongate doesn't change |
-| HTTP traffic between your phone and the Pi is sniffed on your LAN | Local Moonraker is HTTP. This is the standard Klipper setup, not a Moongate choice. If you need LAN encryption, put nginx + TLS in front of Moonraker (outside Moongate's scope) |
-| You port-forward port 80 / 7125 from your router to the Pi | Don't. The whole point of the Cloudflare tunnel is so you never need to. If you do anyway, anyone who finds the IP can hammer Moonraker directly |
+| The Pi itself is compromised (rooted, malicious user has shell) | The device signing key lives on the Pi. If an attacker has root, they can sign requests. We rely on standard POSIX file permissions (mode 0600, owner-only) — sufficient against the standard "other Pi user" / "Moonraker bug grants read access to non-owner files" cases, useless against root. **You must trust your Pi.** |
+| Your unlocked phone is in a hostile party's hands | Android Keystore stops other apps from reading the session; it doesn't stop someone using the unlocked app interactively. They have the same access you would |
+| The cloud middleman is compromised | The middleman's compromise is bounded — it can issue tokens but cannot send G-code. An attacker who fully compromises the middleman could issue tokens for any printer paired to it. We rely on the operator's security; the [`docs/v0.3-supabase-design.md`](docs/v0.3-supabase-design.md) design doc covers the specific isolation guarantees and the layered defences (per-tenant database-side isolation, per-Pi key binding, per-tenant token-claim binding) |
+| Cloudflare is compromised or compelled (subpoena, court order) | Cloudflare terminates TLS at their edge. They see request URLs, headers, and bodies in plaintext for the leg between your phone and the edge. Their ToS apply. If this is unacceptable, swap `cloudflared` for any other tunnel that points at the auth proxy's port — Moongate doesn't care which tunnel you use |
+| HTTP traffic between your phone and the Pi is sniffed on your LAN | Local Moonraker is plain HTTP. This is the standard Klipper setup, not a Moongate choice. The access token is sent in headers; on LAN, anyone with the WiFi password who is actively MITM-ing your TCP can read it. If you need LAN encryption, put nginx + TLS in front of Moonraker (outside Moongate's scope) |
+| You port-forward port 80 / 7125 from your router to the Pi | Don't. The whole point of the tunnel + auth proxy is so you never need to. If you do anyway, the public LAN port bypasses the auth proxy and anyone who finds the IP can hammer Moonraker directly |
 | A malicious developer pushes a backdoored APK | All releases are GitHub Actions builds from `master`. You can read the commits. You can build the APK yourself (see [DEVELOPMENT.md](DEVELOPMENT.md)) |
+| You pair a friend's phone and they later misuse it | Once paired, a phone has full operator-level control over the printer. Same as handing them the Mainsail URL on your LAN. Un-pair the device from `Dashboard → Remove printer` when you no longer want them to have access |
 
 ---
 
-## What does URL leakage actually expose?
+## What the tunnel actually exposes (v0.4)
 
-This is the question that comes up most often, so it deserves its own section. **The short answer is uncomfortable**: the JWT layer protects only Moongate's own endpoints; the underlying Mainsail UI and Moonraker API ride on the same tunnel and are reachable to anyone who has the URL, unless you take an extra step.
+Short answer: **just 401s.**
 
-### What the tunnel actually forwards
+Every request through `https://<your-tunnel>.trycloudflare.com` reaches the auth proxy first. The proxy checks for a valid short-lived access token in (priority order):
 
-`cloudflared tunnel --url http://localhost:80` proxies *every* HTTP request that lands at the Cloudflare edge to whatever is listening on the Pi's port 80. In a standard KIAUH / MainsailOS setup that's nginx, which routes:
+1. `Authorization: Bearer <token>` header
+2. `mg_token=<token>` cookie
+3. `mg_token=<token>` query parameter
 
-| Path | Where it lands | Auth by default? |
-|---|---|---|
-| `/` and Mainsail's bundle | Mainsail static files | ❌ None |
-| `/server/*`, `/printer/*` | Moonraker HTTP API | ❌ None on LAN by default |
-| `/websocket` | Moonraker WebSocket | ❌ None on LAN by default |
-| `/webcam/*`, `/stream/*` | mjpg-streamer / Crowsnest | ❌ None |
-| `/server/moongate/*` | Moongate plugin endpoints | ✅ JWT required |
+If none of those is valid, the proxy returns `401 Unauthorized` with:
+- A constant-length 13-byte body (`unauthorized\n`)
+- `Cache-Control: no-store`
+- **No** `WWW-Authenticate` challenge (would tell an attacker what kind of auth is expected)
+- **No** `Server` header (would tell an attacker what's behind it)
+- **No** Moonraker-specific headers, no nginx fingerprint, no Mainsail HTML
 
-### What an attacker with only the URL can do
+If the token IS valid, the proxy forwards to nginx, which routes to Mainsail / Moonraker / the webcam stream / the Moongate plugin exactly as it always did on LAN.
 
-- ✅ Open Mainsail in any browser and watch your webcam
-- ✅ Send any G-code (move toolhead, heat extruder, run macros)
-- ✅ Start / pause / cancel any print
-- ✅ Read your `printer.cfg`, change Z offsets, change PID values
-- ✅ Trigger `EMERGENCY_STOP` or `FIRMWARE_RESTART`
-- ✅ Upload G-code files, download G-code files
-- ✅ Read Klipper / Moonraker / system logs
+### Verifying the promise
 
-### What they **cannot** do
+The "tunnel URL leak → nothing" promise was empirically tested across a 35-vector attack matrix on a live tunnel during v0.4.0 testing. Covered:
 
-- ❌ SSH into the Pi (the tunnel only exposes port 80, not 22)
-- ❌ Reach any other device on your LAN (cloudflared can only forward to localhost on the Pi)
-- ❌ See or affect your router
-- ❌ See or affect any other home device (TV, NAS, security cameras, etc.)
-- ❌ See traffic between your phone and your other apps (the tunnel only carries Moonraker traffic)
-- ❌ Pivot from the printer to anything else on your network — that would require RCE on Klipper or Moonraker, which is a separate vulnerability outside this project
+- **Path traversal:** bare `/`, `/moongate-pair.html`, `/index.html`, literal `..`, percent-encoded `%2e%2e`
+- **Native Moonraker endpoints:** `/printer/info`, `/server/info`, `/printer/objects/list`, `/server/files/list`, `/access/info`, `/machine/system_info`, `/api/version`
+- **Dangerous POSTs:** `gcode/script` (with `M104 S280` to try heating the hotend), `print/start`, `emergency_stop`, `firmware_restart`, `files/upload` multipart, `DELETE /files/...`
+- **Garbage auth:** Bearer with random bytes, `mg_token` cookie with random bytes, query-param with random bytes, all three combined
+- **WebSocket upgrades:** with and without WS headers
+- **Method variants:** HEAD, OPTIONS, PUT, PATCH
+- **Mainsail static assets:** chunked JS bundle names, manifest, config.json, favicons
+- **Fingerprinting:** poking response headers for `Server`, `X-Powered-By`, version banners
 
-So **the impact is bounded to the printer itself, but on the printer it is effectively total**. An attacker with the URL becomes a remote operator with Mainsail-level privileges.
+Every single vector returned 401 with the constant 13-byte body. The only headers reaching the client come from Cloudflare itself (`Server: cloudflare`, `CF-Ray: ...`) — those identify Cloudflare's edge, not what's behind it.
 
-### Why isn't the JWT enough?
+To verify on your own Pi: pick any path, hit it with `curl -s -o /dev/null -w "%{http_code} %{size_download}\n" https://<your-tunnel>/whatever`. You should see `401 13`. If you see anything else, please open an issue.
 
-The Moongate plugin can only enforce auth on the endpoints it registers (`/server/moongate/*`). It can't insert itself in front of Mainsail or the rest of Moonraker — those are separate servers that Moonraker's own nginx config routes to. The JWT was designed to authenticate *Moongate's* control plane, not to act as a perimeter for the entire Pi.
+### What an attacker with a valid token CAN do
 
-### Why the "trusted_clients" assumption makes this harder
+If an attacker somehow obtains a *live, unexpired* token (e.g. they have root on the Pi and read the signing key, or they have control of the cloud middleman):
 
-If you have `[authorization]` configured in `moonraker.conf` with `127.0.0.0/8` in `trusted_clients` (the default), **requests through the tunnel still get the trusted-client treatment**. Cloudflared connects to Moonraker from `localhost`, so from Moonraker's point of view the request *is* local. `force_logins: True` doesn't help unless you also remove `127.0.0.0/8` and teach Moonraker to read `Cf-Connecting-Ip` for the real client IP.
+- Everything Mainsail can do — control the printer in real time, upload G-code, run macros, watch the webcam, trigger emergency stop, etc.
 
-### Mitigations (pick at least one if you use the tunnel for remote access)
-
-**1. Cloudflare Access in front of the tunnel (recommended — strongest, easiest)**
-
-Free for up to 50 users. Adds an authentication challenge at Cloudflare's edge *before* any request reaches your Pi. Supported logins include Google, GitHub, generic OIDC, and one-time PIN by email.
-
-- Cloudflare dashboard → Zero Trust → Access → Applications → Add a self-hosted application
-- Application domain: your `*.trycloudflare.com` URL
-- Policy: allow only your email address (or a small list)
-
-Once configured, hitting the tunnel URL in any browser shows a Cloudflare login page first. The phone app continues to work because Cloudflare Access supports service tokens for non-browser clients — see Cloudflare's docs for setup.
-
-This is the single biggest security improvement you can make.
-
-**2. Tighten Moonraker's authorization (no extra services, more fragile)**
-
-In `moonraker.conf`:
-
-```ini
-[authorization]
-force_logins: True
-trusted_clients:
-    192.168.0.0/16
-    10.0.0.0/8
-    172.16.0.0/12
-# Note: NO 127.0.0.1 / ::1 — that's what blocks anonymous tunnel access
-cors_domains:
-    https://*.trycloudflare.com
-```
-
-Restart Moonraker. After this, hitting the tunnel URL prompts for the Moonraker username / password set in `~/printer_data/database/`. Caveats:
-
-- The Mainsail UI handles the login flow gracefully
-- The Moongate app does **not** yet support the Moonraker login flow for the non-Moongate endpoints. The dashboard polls and prints commands keep working because they use the JWT-protected Moongate endpoints, but the embedded WebView for full Mainsail will hit the login wall. You'll need to log in once per session in the WebView
-- A future Moongate version will integrate this so it's seamless
-
-**3. Stop using the tunnel for remote access**
-
-If only LAN access matters, run `./klipper-plugin/uninstall.sh` and re-install without the tunnel by editing the install script. Local access is unaffected.
-
-**4. Wait for Phase 2 (WireGuard)**
-
-When the Android side of `MoongateVpnService` ships its actual WireGuard implementation, the tunnel goes away. Only authenticated WireGuard peers can reach the Pi, and Mainsail / Moonraker remain unexposed to the internet. No timeline; the Pi side already works (`WireGuardManager` in `moongate_standalone.py`), Android-side WireGuard-Go integration is the remaining work.
-
-### What we will do to harden this on the Moongate side
-
-- v0.2.22+ (in progress): document this clearly in README and SECURITY.md ← you're reading it now
-- Future: an installer flag that auto-deploys a Cloudflare Access policy via Cloudflare's API
-- Future: WireGuard on Android (Phase 2 — see above)
-- Future: integrate the Moonraker login flow into the Moongate plugin layer so the JWT covers everything by proxy
-
-If your threat model demands stronger isolation today than mitigation 1 or 2 provide, **don't use the Cloudflare tunnel**. The LAN-only experience is unchanged and remains the safest configuration.
-
----
-
-## Authentication
-
-### JWT — format
-
-| Field | Value |
-|---|---|
-| **Algorithm** | HS256 (HMAC-SHA256) |
-| **Header** | `{"alg":"HS256","typ":"JWT"}`, base64url-encoded |
-| **Payload** | `{"sub":"<token_id>","iat":<unix>,"exp":<unix>}` (the `exp` claim is omitted only if `ttl_days` was explicitly `null`) |
-| **Signature** | `base64url(HMAC-SHA256(secret, header + "." + payload))` |
-| **Library** | None. Pure stdlib (`hashlib`, `hmac`, `json`, `base64`) — no external Python dep means no supply-chain surface beyond what Moonraker already pulls in |
-
-The signing/verification code is short enough to read in full:
-
-- `AuthManager._sign_token` in [`klipper-plugin/moongate_standalone.py`](klipper-plugin/moongate_standalone.py)
-- `AuthManager._verify_token` in the same file
-
-Verification uses **`hmac.compare_digest`** for the constant-time comparison — no timing side channel.
-
-### JWT — the secret key
-
-```
-Path:    ~/.config/moongate/secret.key
-Created: Auto-created on first plugin load
-Source:  os.urandom(32)
-Size:    32 bytes (256 bits)
-Mode:    0600 (owner read/write only)
-Owner:   The user running Moonraker (typically `pi` or `klipper`)
-```
-
-The secret never leaves the Pi. It is never sent in any request, written to any log, or exposed via any API.
-
-Rotating the secret: `rm ~/.config/moongate/secret.key && sudo systemctl restart moonraker`. This invalidates every previously-issued token. You'll need to re-pair every device.
-
-### Token lifecycle
-
-Each device gets its own token with these properties:
-
-| Property | Value |
-|---|---|
-| **`token_id`** | UUID v4 |
-| **`device_name`** | String the app sent at pair time (e.g. "Samsung S24") |
-| **`issued_at`** | Unix timestamp of issue |
-| **`expires_at`** | Unix timestamp of expiry, or null. Default 30 days |
-| **`last_seen`** | Unix timestamp; updated on every successful validate |
-| **`revoked`** | Bool; true once explicitly revoked |
-
-Stored at `~/.config/moongate/tokens.json` (the file is rewritten on every change — not append-only). Look there if you want to audit what's currently authorised.
-
-### Revocation
-
-Real-time. `POST /server/moongate/revoke` with `{"token_id":"..."}` (auth: a still-valid JWT for some token on the same Pi). Sets `revoked=true`, persists. Next validation of that token returns null → request rejected with 401.
-
-This is the action to take if a phone is lost or you suspect a token has leaked. The other tokens are unaffected.
-
-To revoke everything at once: rotate the secret (see above).
-
-### Phone-side storage
-
-`flutter_secure_storage` is used to read/write the token on the Dart side. On Android this backs onto the **Android Keystore**:
-
-- The keystore key is bound to the device's hardware-backed `StrongBox` if available, otherwise the TEE
-- The token is encrypted at rest with that key
-- Another app on the same device running with a different UID cannot read it
-- If the device is wiped, the keystore key is gone — the token is unrecoverable without a fresh pairing
-
-The token is read once per `AuthService` call. It is held in process memory only for the duration of the call.
+The token IS the perimeter. We protect the token; the token protects the printer.
 
 ---
 
 ## Pairing flow
 
-### How a pair code is built
+### LAN-only by design
 
-```
-Generation     → random.choices(string.digits, k=4) twice → "GATE-1234-5678"
-Internal store → {raw: PairingCode(code, created_at, expires_at, attempts=0, used=False)}
-Display TTL    → 10 minutes (configurable)
-Attempt cap    → 5 wrong tries before invalidation
-```
+The pair page is reachable at `http://<pi-ip>/moongate-pair.html` on your home WiFi only. Visiting the equivalent URL through the tunnel returns 401, because the auth proxy gates everything — including the pair page — and the user pairing does not yet have a token.
 
-The character set is digits only (10⁸ combinations) — picked for easy typing on a phone keypad. Combined with the TTL and attempt cap, the **online brute-force success probability per code is ≈ 5 × 10⁻⁸**:
-
-```
-attempts allowed before the code dies = 5
-total codes possible                   = 10^8
-P(guess one of 5 random tries hits)    = 5 / 10^8 ≈ 5e-8
-```
-
-At 1 request/second that's still vastly below 1 successful guess per code lifetime. Codes also expire 10 minutes after generation regardless of attempt count.
+This is intentional. Pairing requires being on the same network as the Pi anyway; gating the pair page closes the v0.2.x window where a leaked tunnel URL meant anyone could pair their own device.
 
 ### The two pair paths
 
 **Manual code path** (user types the code):
 
 ```
-PC (Klipper console)      Phone                   Pi (Moonraker + plugin)
-─────────────────────     ─────────────           ────────────────────────
+PC / tablet (Klipper console)    Phone (Moongate app)         Pi
+────────────────────────────     ────────────────────         ────────────────
 1. MOONGATE_PAIR
-2.                        ──────────────────►     /pair (returns code + qr_payload + tunnel_url)
-3. [code visible on        ←───── code (M118) ────
-   console]
-4.                        user types code
-5.                        ────────────────────►   POST /auth {code, device_name}
-6.                        ←──────── JWT ──────
-7.                        store in Keystore
+2. [code visible in console]
+3.                               user types code
+4.                               app → middleman → claim ──►  plugin sees new owner
+                                                              on next heartbeat
+5.                               printer appears in
+                                 dashboard
 ```
-
-The JWT travels back over whichever URL the user told the app to use (local or tunnel). If local, it's HTTP on LAN — the attacker would need to be on the same LAN. If tunnel, it's HTTPS — the attacker would need to break TLS.
 
 **QR path** (user scans the QR with the app):
 
 ```
-PC (browser)              Phone                   Pi (Moonraker + plugin)
-────────────              ─────────────           ────────────────────────
-1.                                                MOONGATE_PAIR generates code + pre-issues JWT
-                                                  internally; stores qr_url with token in it
-2. moongate-pair.html
-   loads
-3. fetches /qr
+PC / tablet (browser)            Phone (Moongate app)         Pi
+────────────────────────────     ────────────────────         ────────────────
+1.                                                            MOONGATE_PAIR generates
+                                                              code + pair record
+2. open moongate-pair.html       
+   on the LAN URL
+3. browser fetches QR
 4. renders QR
-5.                        user scans QR
-6.                        app parses URL params:
-                          local, remote, token
-7.                        no network call —
-                          token is already in
-                          hand from step 1
+5.                               user scans QR
+6.                               app → middleman → claim ──►  plugin sees new owner
+                                                              on next heartbeat
+7.                               printer appears in
+                                 dashboard
 ```
 
-The pre-issued JWT in the QR is generated in step 1 and is visible only to whoever can see the screen rendering the QR. The code is still issued alongside and still tracked in `_pending_codes`, but the QR path doesn't *use* the code — the embedded JWT is the authentication. (If a user scans the QR on one phone and types the code on another, both succeed and end up with two valid tokens. This is intentional.)
-
-Both paths produce a `DeviceToken` entry in `tokens.json`. The names of the tokens differ — "Paired via QR" vs whatever device name the app sent — so you can tell them apart in `/server/moongate/tokens`.
+Both paths produce the same outcome: an entry in the dashboard, and the printer's auth proxy newly aware that this user is the owner.
 
 ---
 
 ## Transport
 
-### Local (LAN)
+### LAN
 
 ```
-Phone ──HTTP/1.1── Wi-Fi router ──HTTP/1.1── Pi:80 (nginx) ── localhost:7125 (Moonraker)
+Phone ──HTTP/1.1── WiFi router ──HTTP/1.1── Pi:80 (nginx) ── localhost:7125 (Moonraker)
 ```
 
-- Plain HTTP. Same as Mainsail's own UI when you load it from a browser
-- JWT carried as the `mg_token` query parameter on Moongate-plugin endpoints, or as part of the path on native Moonraker endpoints (which we currently call unauthenticated since they're standard Moonraker)
-- Anyone on the same Wi-Fi can already reach Moonraker without Moongate, so we're not creating new exposure
-- If you want LAN-level encryption: stand up nginx + Let's Encrypt or a self-signed cert, point Moonraker through it, and tell the Moongate app to use `https://` in the host field. Nothing in Moongate prevents this; we just don't ship it as the default because most setups don't need it
+- Plain HTTP. Same as Mainsail's own UI when you load it from a browser.
+- The access token is carried in the `Authorization: Bearer` header on every Moongate-mediated call. Moonraker's own endpoints (called as a fallback) ignore the header — they're trusted-clients on LAN by default.
+- Anyone on the same WiFi can already reach Moonraker without Moongate, so we're not creating new exposure.
+- If you want LAN-level encryption: stand up nginx + Let's Encrypt or a self-signed cert, point Moonraker through it, and the Moongate app will hit it the same way (HTTPS LAN URL works the same as HTTP LAN URL).
 
 ### Remote (Cloudflare Quick Tunnel)
 
 ```
-Phone ──HTTPS/QUIC── Cloudflare edge ──TLS── cloudflared (on Pi) ── localhost:80 (nginx)
+Phone ──HTTPS/QUIC── Cloudflare edge ──TLS── cloudflared (on Pi) ── localhost:<auth_proxy>
+                                                                       │
+                                                                       ▼
+                                                                     nginx (on localhost)
+                                                                       │
+                                                                       ▼
+                                                                     Moonraker / Mainsail / webcam
 ```
 
-- `cloudflared` runs as a systemd service ([`moongate-tunnel.service`](klipper-plugin/install.sh)) configured by the installer
-- The tunnel makes an **outbound** connection from the Pi to Cloudflare's edge — no inbound ports are opened on your router
-- Cloudflare assigns a random subdomain like `racing-partly-mouse-surprised.trycloudflare.com`
-- The subdomain is not enumerable (3 random words from a large dictionary), but **it should not be treated as a secret**. Treat it as you would a public URL. The JWT is the actual auth
-- TLS is terminated at Cloudflare's edge, then re-established for the leg to the Pi. Cloudflare sees plaintext requests in between. **By using a Cloudflare tunnel you are accepting Cloudflare's [terms of service](https://www.cloudflare.com/website-terms/).**
+- `cloudflared` runs as `moongate-tunnel.service` configured by the installer.
+- The tunnel makes an **outbound** connection from the Pi to Cloudflare's edge — no inbound ports are opened on your router.
+- Cloudflare assigns a random subdomain like `racing-partly-mouse-surprised.trycloudflare.com`. The subdomain rotates each time `cloudflared` restarts.
+- The subdomain is not enumerable (random words from a large dictionary), but **it does not need to be a secret** — leaking it gives an attacker only 401s. The access token is the actual auth.
+- TLS is terminated at Cloudflare's edge and re-established for the leg to the Pi. Cloudflare sees plaintext requests in between. **By using a Cloudflare tunnel you are accepting Cloudflare's [terms of service](https://www.cloudflare.com/website-terms/).**
 
-If you don't want Cloudflare in the picture:
-
-- **Self-hosted tunnel**: replace `cloudflared` with `wireguard` peer + nginx, `tailscale`, `frp`, `ngrok` (paid), or any other tunneling layer. Moongate doesn't care — it just needs a URL that reaches `localhost:80` on your Pi. Edit `klipper-plugin/install.sh` accordingly and re-pair
-- **WireGuard (Phase 2)**: see the next section
-
----
-
-## About the "VPN"
-
-**The current shipping path is a Cloudflare HTTPS tunnel, not a VPN.** Despite the name `VpnService` appearing in the Android code, the app does not currently route any of your phone's traffic through anything. Your browser, social media apps, etc. are entirely unaffected when Moongate is running.
-
-### Why the VPN code exists at all
-
-A WireGuard-based path is planned for Phase 2:
-
-- **Pi side**: implemented and functional. `WireGuardManager` in `moongate_standalone.py` can add/remove peers, generate per-device WireGuard configs, and rewrite `/etc/wireguard/wg0.conf`. The `/auth` endpoint accepts a `wg_pubkey` parameter and returns a usable `[Interface] … [Peer] …` config when WireGuard is configured on the Pi
-- **Phone side**: stub only. `MoongateVpnService.kt` declares the `android.net.VpnService` so the OS recognises it (this is why you may see the VPN key icon in your status bar), but `connect()` only stores the config text — it does **not** create a TUN device, does **not** route any IP traffic. WireGuard-Go is not yet bundled
-
-If you see the Android VPN key icon: **no traffic is being routed**. It's an OS-level indicator that an app has registered a `VpnService`, not that one is active. The app does not call `Builder().establish()`.
-
-### What changes in Phase 2
-
-When WireGuard does land:
-
-- The app will route only `192.168.x.x` (or whatever your home subnet is) through the tunnel — not all phone traffic. Split-tunnel by default
-- Cloudflare drops out of the picture for remote access. End-to-end is just phone ↔ WireGuard server on the Pi
-- The JWT authentication on top stays exactly the same. WireGuard adds *network*-layer auth; JWT continues to add *application*-layer auth. Defence in depth
-
-If/when this ships, this document will be updated and the README will move v0.2.x's Cloudflare-only status into history.
+If you don't want Cloudflare in the picture, point the cloudflared step at any other tunneling layer that reaches the auth proxy's port (Tailscale Funnel, frp, ngrok paid, a self-hosted nginx-on-VPS reverse proxy, etc.). The auth proxy doesn't care what's in front of it.
 
 ---
 
 ## What the plugin can see and do
 
-The Moongate plugin is a Moonraker component, which means it runs in the Moonraker process with the privileges of whoever launched Moonraker (typically the `klipper` user). Moonraker has full control over Klipper.
+The Moongate plugin is a Moonraker component, which means it runs in the Moonraker process with the privileges of whoever launched Moonraker (typically the `klipper` or `pi` user). Moonraker has full control over Klipper.
 
 Practical implications:
 
-- **Any holder of a valid JWT can run `pause`, `resume`, `cancel`, or `firmware_restart`.** Print control is the explicit purpose of the auth-gated endpoints
-- **Status polling reads any Moonraker object** the plugin asks for. We ask only for the well-known ones (`print_stats`, `extruder`, `heater_bed`, `display_status`, `virtual_sdcard`, the discovered chamber sensor)
-- **The plugin does not run arbitrary G-code on behalf of JWT holders.** There is no `POST /server/moongate/gcode` endpoint. Print control is restricted to the four whitelisted actions in `_handle_control`. If you want to add more, you must edit `klipper-plugin/moongate_standalone.py` and audit the new behaviour
-- **The plugin reads its own state from `~/.config/moongate/`**, the cloudflared log at `/run/moongate-tunnel.log`, and calls out to `systemctl` / `journalctl` to discover the tunnel URL when its own log lookup fails. It does not read `printer.cfg` or any other Klipper internals beyond what Moonraker exposes
+- **Any holder of a valid access token can run `pause`, `resume`, `cancel`, or `firmware_restart`.** Print control is the explicit purpose of the auth-gated `/server/moongate/control` endpoint.
+- **Status polling reads Moonraker objects** that the plugin asks for — `print_stats`, `extruder`, `heater_bed`, `display_status`, `virtual_sdcard`, the discovered chamber sensor. Nothing else.
+- **The plugin does not run arbitrary G-code on behalf of token holders.** There is no `POST /server/moongate/gcode` endpoint. Print control is restricted to the four whitelisted actions; adding more requires editing [`klipper-plugin/moongate_standalone.py`](klipper-plugin/moongate_standalone.py) and auditing the new behaviour.
+- **The plugin reads its own state from `~/.config/moongate/`** and calls `systemctl` / `journalctl` to discover the current tunnel URL when its own log lookup fails. It does not read `printer.cfg` or any other Klipper internals beyond what Moonraker exposes.
+
+The auth proxy is even more constrained — it doesn't talk to Klipper at all, it just routes HTTP / WebSocket between Cloudflare and nginx. The verifier classes it uses for token checks are imported from the plugin file, not duplicated, so signature semantics stay single-source.
 
 ---
 
@@ -339,19 +186,28 @@ Practical implications:
 
 | Question | Where to look |
 |---|---|
-| How is the JWT signed? | `AuthManager._sign_token` in `klipper-plugin/moongate_standalone.py` |
-| How is the JWT verified? | `AuthManager._verify_token` (same file) |
-| How is the signing secret created? | `AuthManager._load_or_create_secret` (same file) |
-| How does the pair code lifecycle work? | `AuthManager.generate_pair_code`, `exchange_code`, `_sweep_expired_codes` (same file) |
-| Where are tokens stored on the Pi? | `~/.config/moongate/tokens.json`. Open and read — it's plain JSON |
-| What endpoints exist and who can hit them? | `MoongatePlugin.__init__` calls `register_endpoint()` for each — grep for it |
-| How is the JWT stored on the phone? | `mobile/lib/services/auth_service.dart` → `_storage.write(key: _tokenKey, ...)` using `flutter_secure_storage` |
-| Is the JWT ever logged on the phone? | `auth_service.dart` logs `_token != null ? "present" : "null"` — the token value itself is not logged |
-| Where does the Cloudflare tunnel get installed from? | `klipper-plugin/install.sh` sections 6 and 7. It downloads `cloudflared` from the official Cloudflare GitHub release |
-| What ProGuard rules are active in release? | `mobile/android/app/proguard-rules.pro` |
-| How does CI sign the APK? | `.github/workflows/build-android.yml` step "Set up release signing" — decodes a base64 keystore from GitHub Secrets |
+| How is each request authenticated on the Pi side? | [`klipper-plugin/moongate_authproxy.py`](klipper-plugin/moongate_authproxy.py) — `AccessTokenVerifier` is imported from `moongate_standalone.py` and called per request |
+| What endpoints does the plugin expose, and which are gated? | `MoongatePlugin.__init__` in `klipper-plugin/moongate_standalone.py` — grep for `register_endpoint`. Anything under `/server/moongate/*` reaching the plugin already cleared the auth proxy on the tunnel side |
+| What does the proxy return for an unauthenticated request? | [`klipper-plugin/moongate_authproxy.py`](klipper-plugin/moongate_authproxy.py) — search for the constant 401 path |
+| Where are tokens stored on the phone? | [`mobile/lib/services/supabase_service.dart`](mobile/lib/services/supabase_service.dart) — the app's session uses `flutter_secure_storage` underneath, backed by Android Keystore |
+| What about per-printer access tokens? | [`mobile/lib/services/printer_access_cache.dart`](mobile/lib/services/printer_access_cache.dart) — short-lived, in-memory only, refreshed via the middleman |
+| Where does the Cloudflare tunnel get installed from? | [`klipper-plugin/install.sh`](klipper-plugin/install.sh) — downloads `cloudflared` from the official Cloudflare GitHub release |
+| What ProGuard rules are active in release? | [`mobile/android/app/proguard-rules.pro`](mobile/android/app/proguard-rules.pro) |
+| How does CI sign the APK? | [`.github/workflows/build-android.yml`](.github/workflows/build-android.yml) step "Set up release signing" — decodes a base64 keystore from GitHub Secrets |
+| What's the deep design rationale for the cloud middleman? | [`docs/v0.3-supabase-design.md`](docs/v0.3-supabase-design.md) and [`docs/v0.4-secure-remote-access-design.md`](docs/v0.4-secure-remote-access-design.md) — threat model, key isolation guarantees, alternatives discussion (why not WireGuard / Tailscale / ZeroTier / mesh VPN) |
 
 If any of those don't match the code at HEAD, this document is wrong — please open an issue.
+
+---
+
+## What we explicitly chose not to do
+
+These are real options that came up during v0.4 design and were rejected, in case you're wondering why we didn't.
+
+- **WireGuard on Android.** Requires the user to grant the OS-level `VpnService` permission, which Google Play increasingly disfavours for non-VPN-product apps. No native NAT-traversal mechanism — needs a relay anyway for ~85% of home networks. Closed off at the design stage; see the alternatives appendix in [`docs/v0.4-secure-remote-access-design.md`](docs/v0.4-secure-remote-access-design.md).
+- **Tailscale / Headscale / ZeroTier / NetBird.** Either paid above 3 nodes, requires accounts, or requires self-hosting infrastructure that defeats "no VPN setup". Documented in the same appendix.
+- **Browser-side Mainsail login via `force_logins` in Moonraker.** Was the v0.2.x recommended mitigation; the auth-proxy approach in v0.4 is strictly stronger (no Mainsail HTML ever leaves the Pi for unauthenticated requests) and doesn't require the user to type a Moonraker password into Mainsail every time the cookie expires.
+- **A Moongate-operated print server / relay.** Would centralise G-code, print history, and live status with us. Off the table — both for privacy and for "this is meant to stay a tiny project".
 
 ---
 

@@ -1,0 +1,76 @@
+# Moongate v0.4 — auth proxy systemd unit.
+#
+# This file is a reference template. The actual unit is written by
+# install.sh with the correct $USER, $HOME, $MOONRAKER_VENV, and
+# $MOONGATE_DIR substituted. Keep this file in lockstep with the
+# template in install.sh so manual installs (and code review) have one
+# canonical reference.
+#
+# Manual install:
+#   sudo cp moongate-authproxy.service /etc/systemd/system/
+#   sudo sed -i "s|REPLACE_USER|$USER|g;
+#                s|REPLACE_HOME|$HOME|g;
+#                s|REPLACE_VENV|$HOME/moonraker-env|g;
+#                s|REPLACE_PLUGIN_DIR|$HOME/moongate/klipper-plugin|g" \
+#     /etc/systemd/system/moongate-authproxy.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now moongate-authproxy.service
+
+[Unit]
+Description=Moongate v0.4 auth proxy
+Documentation=https://github.com/PEEKYPAUL/Moongate
+After=network-online.target moonraker.service
+Wants=network-online.target
+PartOf=moonraker.service
+
+[Service]
+Type=simple
+User=REPLACE_USER
+WorkingDirectory=REPLACE_PLUGIN_DIR
+
+# Use the Moonraker venv so PyJWT + cryptography (already required by the
+# plugin) are available alongside aiohttp (installed by install.sh).
+ExecStart=REPLACE_VENV/bin/python3 REPLACE_PLUGIN_DIR/moongate_authproxy.py
+
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=10
+
+# Where the proxy listens. cloudflared is on the same host, so loopback
+# is sufficient and refuses any non-cloudflared client by network reach.
+Environment=MG_LISTEN_HOST=127.0.0.1
+Environment=MG_LISTEN_PORT=8443
+
+# Upstream backends. Moonraker and nginx must be bound to 127.0.0.1
+# (install.sh handles the moonraker.conf patch; nginx is documented in
+# the install notes).
+Environment=MG_MOONRAKER=http://127.0.0.1:7125
+Environment=MG_MAINSAIL=http://127.0.0.1:80
+
+# Where to find moongate_standalone.py for the shared verifier classes.
+Environment=MG_PLUGIN_DIR=REPLACE_PLUGIN_DIR
+
+# Logging
+Environment=MG_LOG_LEVEL=INFO
+StandardOutput=append:/run/moongate-authproxy.log
+StandardError=append:/run/moongate-authproxy.log
+
+# Hardening — proxy doesn't need any of these.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/run REPLACE_HOME/.config/moongate
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

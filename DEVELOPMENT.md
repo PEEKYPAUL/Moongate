@@ -116,10 +116,10 @@ mobile/lib/
 ├── app.dart                    # MoongateApp + GoRouter + theme builders
 ├── features/
 │   ├── auth/pairing_screen.dart        # /pair — QR scanner + manual code entry
-│   ├── dashboard/dashboard_screen.dart # /dashboard — grid + drawer
+│   ├── dashboard/dashboard_screen.dart # /dashboard — grid + drawer (incl. About section)
 │   ├── dashboard/printer_tile.dart     # One card on the dashboard
-│   ├── printer/printer_screen.dart     # /printer/:id — WebView
-│   ├── settings/settings_screen.dart   # /settings — sign out
+│   ├── printer/printer_screen.dart     # /printer/:id — WebView with cookie/Bearer auth
+│   ├── settings/settings_screen.dart   # /settings
 │   ├── settings/custom_theme_screen.dart # /theme/custom — colour editor
 │   └── splash/splash_screen.dart
 ├── models/
@@ -130,47 +130,59 @@ mobile/lib/
 │   ├── update_provider.dart            # GitHub release check
 │   └── version_provider.dart           # PackageInfo
 └── services/                           # No UI; all I/O lives here
-    ├── auth_service.dart               # Pair-code exchange, JWT secure storage
-    ├── printer_registry.dart           # Persistent printer list + session live state
-    ├── printer_status_service.dart     # Per-tile 4 s poll loop (Moongate + native)
+    ├── supabase_service.dart           # Cloud middleman — anonymous sign-in, claim/release printer, list-my-printers
+    ├── printer_access_cache.dart       # In-memory cache of {tunnel_url, access_token} per printer
+    ├── printer_registry.dart           # Persistent printer list + LAN URL / webcam / UI-type updaters
+    ├── printer_status_service.dart     # Per-tile 4 s poll loop, LAN-first with reachability probe
     ├── print_control_service.dart      # pause/resume/cancel/firmware_restart
-    ├── network_discovery_service.dart  # Subnet check, LAN scan
-    ├── moonraker_service.dart          # WebSocket client (not yet used in UI)
     ├── update_service.dart             # /APK/latest_version.json poll
-    └── vpn_service.dart                # Stub — see SECURITY.md
+    ├── auth_service.dart               # Vestigial v0.2.x JWT path — kept for now, not on the v0.3+ data flow
+    ├── network_discovery_service.dart  # Vestigial v0.2.x subnet check — no longer wired into the v0.3+ status flow
+    ├── moonraker_service.dart          # WebSocket client — not yet wired into the UI
+    └── vpn_service.dart                # Vestigial WireGuard stub — no longer on any active code path
 ```
+
+The four `Vestigial` entries are kept while we wait to confirm nothing external imports them — they're dead in v0.4 but harmless to leave until a cleanup pass. New code shouldn't reference them.
 
 For a guided tour of how these pieces fit together, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
-## Running the Klipper plugin
+## Running the Pi-side services
 
-For mobile-only work you don't need a Pi — `flutter run` against any printer that already has the plugin installed is enough.
+For mobile-only work you don't need a Pi — `flutter run` against any printer that already has v0.4 installed is enough.
 
-If you're modifying the plugin itself:
+If you're modifying the Pi side, there are now two parts to be aware of:
+
+| File | What it is | How to reload after changes |
+|---|---|---|
+| `klipper-plugin/moongate_standalone.py` | The Moonraker plugin (pairing, status aggregation, control, heartbeat) | `sudo systemctl restart moonraker` |
+| `klipper-plugin/moongate_authproxy.py` | The auth proxy that gates every tunnel-side request | `sudo systemctl restart moongate-authproxy` |
+
+Both ship from the same repo and are deployed by `install.sh`:
 
 ```bash
 # On your Pi
 git clone https://github.com/PEEKYPAUL/Moongate.git
 cd Moongate/klipper-plugin
-./install.sh                          # one-line install (does everything: symlink + cloudflared + restart)
-
-# After plugin changes, restart Moonraker to pick them up:
-sudo systemctl restart moonraker
+./install.sh
 ```
 
-The plugin is single-file ([`moongate_standalone.py`](klipper-plugin/moongate_standalone.py)), so iteration is fast:
+Iteration loop:
 
 ```bash
-# Edit the plugin
-nano klipper-plugin/moongate_standalone.py
-# Push changes
+# Edit on your dev machine
+nano klipper-plugin/moongate_standalone.py        # or moongate_authproxy.py
 git push
+
 # On the Pi
-cd ~/moongate && git pull && sudo systemctl restart moonraker
-# Tail the log to see plugin logs
+cd ~/moongate && git pull
+sudo systemctl restart moonraker                  # if you touched the plugin
+sudo systemctl restart moongate-authproxy         # if you touched the proxy
+
+# Tail the relevant log
 journalctl -u moonraker -f | grep -i moongate
+journalctl -u moongate-authproxy -f
 ```
 
 To uninstall completely:
@@ -178,6 +190,8 @@ To uninstall completely:
 ```bash
 ./klipper-plugin/uninstall.sh
 ```
+
+The uninstaller restores the original `moonraker.conf` from the backup it took during install, removes both systemd units, and wipes `~/.config/moongate/`.
 
 ---
 
@@ -216,6 +230,14 @@ tail -f ~/printer_data/logs/moonraker.log
 ```
 
 The plugin logs under the `moonraker.moongate` logger — its messages are prefixed with `moongate` in the log.
+
+### Auth-proxy logs (v0.4+)
+
+```bash
+journalctl -u moongate-authproxy -f
+```
+
+The proxy logs every request at INFO with the verdict (forwarded / 401), the path, and the cause when 401. Useful for distinguishing "the token is bad" from "the path doesn't match anything".
 
 ### Tunnel-side: cloudflared logs
 
@@ -264,14 +286,18 @@ So **the only thing you commit by hand is code + screenshots + docs**. APKs land
 1. Edit `mobile/pubspec.yaml`:
 
    ```yaml
-   version: 0.2.X+Y     # X = semver patch, Y = monotonic build number
+   version: 0.4.X+Y     # X = semver patch, Y = monotonic build number
    ```
 
-2. (Optional) Add a row to the changelog table in [README.md](README.md)
+2. Add a row to the changelog table in [CHANGELOG.md](CHANGELOG.md) (newest first). User-facing language only — see the existing entries for the tone.
 
-3. Commit and push. CI does the rest — versioned APK + `latest_version.json` update + commit-back happens automatically.
+3. Update the in-app changelog dialog if you want this version to surface there. The data lives as `_changelog` near the bottom of [`mobile/lib/features/dashboard/dashboard_screen.dart`](mobile/lib/features/dashboard/dashboard_screen.dart).
+
+4. Commit and push to `master`. CI does the rest — versioned APK + `latest_version.json` update + commit-back happens automatically.
 
 In-app, users running an older version will see the update banner appear within ~30 s of the next launch.
+
+> Feature branches (anything other than `master`) **do not** trigger CI APK builds. That's intentional — unreleased work doesn't get pulled into the in-app updater.
 
 ---
 

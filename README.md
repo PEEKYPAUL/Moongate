@@ -18,15 +18,31 @@ Moongate is a free, open-source Android app that gives you a **full remote contr
 ## How it works
 
 ```
-┌─────────────────────┐   local WiFi (fast)    ┌──────────────────────┐
-│   Moongate App      │◄──────────────────────►│  Klipper Pi          │
-│   (Android)         │                        │  Moonraker           │
-│                     │   Cloudflare tunnel    │  + Moongate plugin   │
-│                     │◄──────────────────────►│                      │
-└─────────────────────┘   (auto, when away)    └──────────────────────┘
+                        ┌──────────────────────┐
+                        │   Cloud middleman    │   anonymous sign-in;
+                        │   (identity & lookup)│   tells the app where
+                        └──────────┬───────────┘   your printer is right now
+                                   │ short-lived
+                                   │ access token
+                                   ▼
+   ┌─────────────────┐                  ┌──────────────────────────────┐
+   │  Moongate App   │◄──── LAN ───────►│  Raspberry Pi                │
+   │   (Android)     │      (home)      │   • Klipper + Moonraker      │
+   │                 │◄── Cloudflare ──►│   • Moongate plugin          │
+   │                 │   tunnel (away)  │   • Auth proxy — gates every │
+   └─────────────────┘                  │     internet-facing request  │
+                                        └──────────────────────────────┘
 ```
 
-The Moongate plugin runs inside Moonraker on your Pi. It handles pairing, token auth, status polling, and print control — proxying commands to Klipper on your behalf. A Cloudflare Quick Tunnel is started automatically on the Pi so you can reach it from anywhere without opening ports on your router.
+Three layers:
+
+1. **Your Raspberry Pi** runs Klipper, Moonraker, the Moongate plugin, and an auth proxy. The proxy sits in front of everything reachable from the internet — any request without a valid, short-lived token gets a flat `401 Unauthorized` with no fingerprint that hints at what's running underneath.
+
+2. **A small cloud middleman** handles anonymous sign-in (no email, no password, nothing to manage) and tells the app where to find your printer right now — the Cloudflare tunnel URL rotates each time the Pi reboots, and the middleman keeps track of the current one. The app fetches a fresh signed access token from the middleman before each request.
+
+3. **The Moongate app** tries your home WiFi first (fast, no internet round-trip), then automatically falls back to the Cloudflare tunnel when you're away. Either path is gated by the same token; either way, your printer commands hit the same plugin on the same Pi.
+
+**The headline:** leaking the tunnel URL alone gives an attacker nothing — every path through the URL returns 401 without revealing what's there.
 
 ---
 
@@ -63,10 +79,9 @@ This will:
 At the end you'll see output like:
 
 ```
-  Updates   : Mainsail → Software Updates → Moongate
-  Pairing   : http://192.168.1.x/moongate-pair.html
-  Tunnel    : https://racing-partly-mouse.trycloudflare.com ✓
-  Subdomain : racing-partly-mouse  (paste into app tunnel field)
+  Updates  : Mainsail → Software Updates → Moongate
+  Pairing  : http://192.168.1.x/moongate-pair.html
+  Tunnel   : active (URL is rotated each Pi reboot — the app discovers it automatically)
 ```
 
 > **Requirements:** Raspberry Pi running Klipper + Moonraker + Mainsail or Fluidd (standard KIAUH / MainsailOS / FluiddPI setup). Tested on aarch64 (Pi 4/5) and armv7l (Pi 3).
@@ -77,7 +92,7 @@ At the end you'll see output like:
 
 ### Step 2 — Install the app
 
-**Current version: v0.2.29**
+**Latest public release: v0.2.29.** The next release — **v0.4.0** — is what this README describes; it's in final testing on the `v0.4-secure-remote` branch and will land here when it merges to master.
 
 **[⬇ Download Moongate-v0.2.29.apk](https://github.com/PEEKYPAUL/Moongate/raw/master/APK/Moongate-v0.2.29.apk)** and install it on your Android phone.
 
@@ -93,13 +108,13 @@ On first launch the app will ask you to add a printer.
 ### Step 3 — Pair
 
 1. In Klipper/Mainsail, run the macro `MOONGATE_PAIR` in the console
-2. Open `http://<your-pi-ip>/moongate-pair.html` on your PC — a QR code will appear
+2. From a **device on the same WiFi as your Pi** (PC, tablet, another phone), open `http://<your-pi-ip>/moongate-pair.html` — a QR code will appear
 3. In the Moongate app, tap **+** → **Scan QR** and point your camera at the QR code
 4. Done — your printer appears in the dashboard
 
-**No PC handy?** You can also type the code shown in the Klipper console (`GATE-XXXX-XXXX`) directly into the app.
+**No second device handy?** You can also type the code shown in the Klipper console (`GATE-XXXX-XXXX`) directly into the app.
 
-> The QR code automatically includes both your local IP and the Cloudflare tunnel URL. The app stores both — it uses local when you're home and the tunnel when you're away. If you installed before the remote URL was available, re-run `MOONGATE_PAIR` and re-scan to pick it up.
+> Pairing is LAN-only by design — your phone and the device showing the QR both need to be on the same WiFi as the Pi. The QR carries only the info needed to set up the cloud association; from that point on, the app finds your printer over LAN or tunnel automatically, no URL to remember and nothing for you to share.
 
 ---
 
@@ -112,11 +127,12 @@ curl -fsSL https://raw.githubusercontent.com/PEEKYPAUL/moongate/master/klipper-p
 ```
 
 This removes:
-- The `moongate-tunnel` systemd service
-- The Moongate Moonraker plugin
+- The `moongate-tunnel` and `moongate-authproxy` systemd services
+- The Moongate Moonraker plugin and auth proxy
 - The `~/moongate` repository clone
-- `~/.config/moongate` (tokens and secret key)
+- `~/.config/moongate` (local state — owner record, device key)
 - The `[moongate]` and `[update_manager moongate]` entries from `moonraker.conf`
+- The Moonraker `host:` override the v0.4 installer applied (restored from its pre-install backup)
 - The `MOONGATE_PAIR` macro from your Klipper config
 - The `moongate-pair.html` page from Mainsail
 
@@ -149,7 +165,7 @@ The drawer scrolls — two captures to show everything.
 | Top of menu | Bottom of menu |
 |---|---|
 | <img src="docs/screenshots/drawer.png" alt="Drawer — top"/> | <img src="docs/screenshots/drawer-bottom.png" alt="Drawer — bottom"/> |
-| Printer management, config import/export, theme selector (incl. the new **Custom** option which jumps straight into the colour editor) | Font scale slider, 1/2/3-column dashboard layout, landscape rotation toggle, Settings shortcut, current version |
+| Printer management, config import/export, theme selector (incl. the **Custom** option which jumps straight into the colour editor) | Font scale slider, 1/2/3-column dashboard layout, landscape rotation toggle, **About** section (What's new dialog + Buy me a coffee), Settings shortcut, current version |
 
 ---
 
@@ -160,9 +176,9 @@ The drawer scrolls — two captures to show everything.
 | **Dashboard** | See all your printers at a glance — live webcam thumbnails refreshing every second, print progress (matched to Mainsail's slicer-time calculation), temperatures, chamber sensor, and status |
 | **Print controls** | Pause, resume, and stop prints directly from the dashboard tile. Stop requires a second press to confirm. Idle / errored printers get a one-tap firmware-restart button |
 | **Full Mainsail / Fluidd UI** | Tap any tile to open the complete web UI in an embedded browser. Auto-detects whichever you run |
-| **Auto local / remote** | Connects over your home WiFi first; if unreachable, automatically falls back to the Cloudflare tunnel within 3 seconds. Remembers which path works per session |
-| **Network-aware** | At cold launch and on every resume, the app checks the phone's subnet against each printer's. On a different network it skips the local probe entirely — no 3-second timeout, no chance of latching onto an unrelated device on a stranger LAN |
-| **Secure pairing** | One Klipper console command generates a time-limited QR + code. JWT-based auth, no port forwarding, no static IP |
+| **Auto local / remote** | Tries your home WiFi first on every poll; falls back to the Cloudflare tunnel within ~2 seconds if LAN is unreachable. Walking back into WiFi range flips the tile back to "Local" on the next poll cycle — no manual switch, no stale state |
+| **Hardened remote access** | The auth proxy on the Pi gates every internet-facing request behind a short-lived signed token issued by the cloud middleman. Sharing the tunnel URL accomplishes nothing — the URL alone returns flat 401s with no Mainsail/Moonraker fingerprint |
+| **Secure pairing** | One Klipper console command generates a time-limited QR + code. LAN-only pairing flow — your phone and the device showing the QR both sit on your home WiFi. No port forwarding, no static IP, no DNS to manage |
 | **Auto-discovery** | Chamber temperature sensors are auto-detected regardless of how they're named in `printer.cfg` (`[temperature_sensor chamber]`, `[heater_generic CHAMBER]`, `[temperature_fan Chamber_Temp]`, etc.) |
 | **In-app updates** | The app checks for new versions on launch and offers a one-tap download when one is available |
 | **Customisable** | System / Light / Dark / **Custom** themes (the Custom mode lets you pick HEX values for accent, page background, cards, text and error from a colour editor with a 24-swatch palette), 1–3 column dashboard grid, font scale slider, optional landscape rotation |
@@ -189,11 +205,13 @@ moongate/
 │   │   └── services/       # Status polling, print control, auth, registry, network discovery
 │   └── android/            # Android platform code (CameraX, WireGuard stub, ProGuard)
 └── klipper-plugin/
-    ├── moongate_standalone.py   # Moonraker plugin
-    ├── install.sh               # One-line installer for the Pi
-    ├── update.sh                # Post-pull hook called by Moonraker update manager
-    ├── uninstall.sh             # Complete uninstaller (Step 4)
-    └── moongate-pair.html       # QR pairing page (deployed to Mainsail)
+    ├── moongate_standalone.py     # Moonraker plugin (pairing, status, control)
+    ├── moongate_authproxy.py      # v0.4 auth proxy — gates every tunnel-facing request
+    ├── moongate-authproxy.service # systemd unit template for the auth proxy
+    ├── install.sh                 # One-line installer for the Pi
+    ├── update.sh                  # Post-pull hook called by Moonraker update manager
+    ├── uninstall.sh               # Complete uninstaller (Step 4)
+    └── moongate-pair.html         # QR pairing page (deployed to Mainsail)
 ```
 
 ---
@@ -222,8 +240,8 @@ For a tour of the codebase — Riverpod providers, the service layer, data flows
 |---|---|
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Prerequisites, running, building, debugging, release signing, CI |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Code structure, state management, data-flow walkthroughs, design decisions |
-| [SECURITY.md](SECURITY.md) | Threat model, JWT internals, key management, URL-leakage exposure, audit references, vulnerability reporting |
-| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common failure modes — Offline tiles, tunnel issues, camera errors, progress mismatch, in-app update banner not appearing — with diagnostics for each |
+| [SECURITY.md](SECURITY.md) | Threat model, what the tunnel exposes (and doesn't), the empirical 35-vector verification of the v0.4 "URL alone gives nothing" promise, audit references, vulnerability reporting |
+| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common failure modes — "Connected — Printer idle", offline tiles, tunnel issues, pairing failures, auth-proxy diagnostics — with shell commands for each |
 | [CHANGELOG.md](CHANGELOG.md) | Every release from v0.2.0 onwards with one-line summaries of what changed and why |
 | [docs/setup-guide.md](docs/setup-guide.md) | End-user setup walkthrough (friendlier version of [Setup](#setup) above) |
 

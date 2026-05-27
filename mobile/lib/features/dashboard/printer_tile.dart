@@ -26,19 +26,10 @@ class _PrinterTileState extends State<PrinterTile> {
   bool _stopConfirmPending = false;
   Timer? _stopConfirmTimer;
 
-  /// Tracks which connection candidate the service is currently probing.
-  /// Defaults to 'local' so the very first frame shows "Loading Local…"
-  /// without needing to wait for the stream event.
-  String _probePhase = 'local'; // 'local' | 'tunnel' | 'offline'
-  StreamSubscription<String>? _probeSub;
-
-  /// Once the first full probe cycle reaches 'offline', this flips to true
-  /// and subsequent retries show a static "Offline" state — no more cycling
-  /// through "Loading Local…" / "Loading Tunnel…" on every retry.
-  bool _probedOnce = false;
-
-  /// Web UI type detected by the service — 'mainsail', 'fluidd', or null.
-  /// Used to show the right logo when the webcam image fails to load.
+  /// Web UI type — 'mainsail', 'fluidd', or null. Seeded from the persisted
+  /// config (so a cold launch shows the logo immediately even if the
+  /// printer is currently offline) and updated whenever the status service
+  /// detects it for the first time on a fresh printer.
   String? _uiType;
 
   @override
@@ -63,16 +54,9 @@ class _PrinterTileState extends State<PrinterTile> {
     );
     _statusService = PrinterStatusService(widget.printer);
     _controlService = PrintControlService(widget.printer);
-    // Subscribe to probe phase BEFORE start() so we catch the very first emit.
-    _probeSub = _statusService.probePhase.listen((phase) {
-      if (!mounted) return;
-      setState(() {
-        _probePhase = phase;
-        // Lock in "Offline" display after the first full probe cycle so
-        // subsequent retries are silent — no more cycling through labels.
-        if (phase == 'offline') _probedOnce = true;
-      });
-    });
+    // Seed from persisted config so a cold launch can render the right
+    // logo immediately — without waiting for the first detection round-trip.
+    _uiType = widget.printer.uiType;
     _statusService.stream.listen((s) {
       if (!mounted) return;
       final wasActive = _status.state == 'printing' || _status.state == 'paused';
@@ -97,7 +81,6 @@ class _PrinterTileState extends State<PrinterTile> {
   void dispose() {
     _statusService.dispose();
     _stopConfirmTimer?.cancel();
-    _probeSub?.cancel();
     super.dispose();
   }
 
@@ -153,6 +136,16 @@ class _PrinterTileState extends State<PrinterTile> {
     }
   }
 
+  /// Maps the current status to an overlay state, or null when the tile
+  /// has a real reading to show.
+  String? _overlayState(PrinterStatus s) {
+    if (s.state == 'connecting')   return 'connecting';
+    if (s.state == 'starting_up')  return 'starting_up';
+    if (s.state == 'waiting')      return 'waiting';
+    if (s.connection == PrinterConnection.offline) return 'offline';
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -187,20 +180,16 @@ class _PrinterTileState extends State<PrinterTile> {
                     webcamFlipV:     _status.webcamFlipV,
                     webcamRotation:  _status.webcamRotation,
                     webcamTargetFps: _status.webcamTargetFps,
-                    tunnelUrlUpdates: _statusService.tunnelUrlUpdates,
                     uiType: _uiType,
                   ),
-                  // ── Connection probe overlay ───────────────────────────────
-                  // First attempt: cycles through "Loading Local…" →
-                  // "Loading Tunnel…" → "Offline" so the user knows what's
-                  // happening.  After that first cycle (_probedOnce = true),
-                  // retries are silent — the overlay stays on "Offline" and
-                  // the polling continues in the background.
-                  if (_status.state == 'connecting' ||
-                      _status.connection == PrinterConnection.offline)
-                    _ConnectionProbe(
-                      phase: _probedOnce ? 'offline' : _probePhase,
-                    ),
+                  // Overlay shown while we don't yet have a usable
+                  // status (first poll in flight, Pi waiting for its first
+                  // heartbeat, or settled offline). When the UI type is
+                  // known we fall through to the logo + a small status
+                  // hint instead of a generic spinner — so a powered-off
+                  // K3 still looks like the K3, not a blank loading tile.
+                  if (_overlayState(_status) case final overlay?)
+                    _ConnectionProbe(state: overlay, uiType: _uiType),
                   // ── Status badge ───────────────────────────────────────────
                   // Only shown when connected — the probe overlay provides the
                   // status context while offline/connecting.
@@ -216,10 +205,15 @@ class _PrinterTileState extends State<PrinterTile> {
             ),
 
             // ── Progress + buttons in ONE row ────────────────────────────
-            // Hide action row while we haven't connected yet ('connecting')
-            // or Klipper is still starting ('startup') — no actions available.
+            // Hide action row when there's nothing to act on: offline,
+            // Pi reachable but Klipper not responding ('waiting'), first
+            // poll still in flight, Pi not heartbeating yet, or Klipper
+            // itself still booting. TODO(v0.5+): show a "wake printer"
+            // button in this row when state == 'waiting'.
             if (_status.state != 'offline' &&
                 _status.state != 'connecting' &&
+                _status.state != 'starting_up' &&
+                _status.state != 'waiting' &&
                 _status.state != 'startup')
               GestureDetector(
                 onTap: () {}, // absorb — don't navigate when tapping controls
@@ -487,14 +481,9 @@ class _Btn extends StatelessWidget {
 
 // ── Webcam snapshot ───────────────────────────────────────────────────────────
 //
-// Network strategy delegated to PrinterStatusService:
-//   The parent passes `connection` (local / remote / offline) which was
-//   determined by the status service — it already tried local first, then
-//   the tunnel.  The webcam simply mirrors that decision so both the status
-//   indicator and the webcam image always use the same network path.
-//
-//   Subscribes to `tunnelUrlUpdates` so a rotated Quick Tunnel URL is used
-//   within the same session without requiring a re-pair.
+// Network strategy delegated to PrinterStatusService — `connection` mirrors
+// the path the service is currently using so the webcam image lines up with
+// the connection indicator on the tile.
 
 class _WebcamSnapshot extends StatefulWidget {
   final PrinterConfig     printer;
@@ -505,7 +494,6 @@ class _WebcamSnapshot extends StatefulWidget {
   final int               webcamRotation; // 0 | 90 | 180 | 270
   /// Crowsnest / Mainsail Target FPS — drives the snapshot-poll cadence.
   final int               webcamTargetFps;
-  final Stream<String>?   tunnelUrlUpdates;
   /// 'mainsail' | 'fluidd' | null — shown as logo when webcam unavailable.
   final String?           uiType;
 
@@ -517,7 +505,6 @@ class _WebcamSnapshot extends StatefulWidget {
     this.webcamFlipV     = false,
     this.webcamRotation  = 0,
     this.webcamTargetFps = 15,
-    this.tunnelUrlUpdates,
     this.uiType,
   });
 
@@ -526,24 +513,12 @@ class _WebcamSnapshot extends StatefulWidget {
 }
 
 class _WebcamSnapshotState extends State<_WebcamSnapshot> {
-  int     _tick           = 0;
-  String? _liveRemoteHost; // kept fresh via tunnelUrlUpdates
-  StreamSubscription<String>? _tunnelSub;
+  int _tick = 0;
 
   @override
   void initState() {
     super.initState();
-    _liveRemoteHost = widget.printer.remoteHost;
-    _tunnelSub = widget.tunnelUrlUpdates?.listen((freshUrl) {
-      if (mounted) setState(() => _liveRemoteHost = freshUrl);
-    });
     _startTicker();
-  }
-
-  @override
-  void dispose() {
-    _tunnelSub?.cancel();
-    super.dispose();
   }
 
   void _startTicker() {
@@ -574,17 +549,14 @@ class _WebcamSnapshotState extends State<_WebcamSnapshot> {
   }
 
   String get _snapshotUrl {
-    // Use whichever base the status service determined is reachable.
-    final base = (widget.connection == PrinterConnection.remote &&
-            _liveRemoteHost != null)
-        ? _liveRemoteHost!
-        : widget.printer.host;
-
-    // Use the webcam path from Moonraker config; fall back to mjpeg-streamer default.
+    // v0.3+ compat: `widget.printer.host` is a stub that returns ''. This
+    // means the resulting URL is malformed and Image.network falls through
+    // to errorBuilder, which renders the _WebcamPlaceholder (logo or
+    // generic icon). Pre-existing latent issue — wiring a real webcam URL
+    // through Supabase /printer-access is its own piece of work.
+    final base = widget.printer.host;
     final path = widget.webcamSnapshotPath ?? '/webcam/?action=snapshot';
-
-    // Append cache-busting tick — respect whether path already has query params.
-    final sep = path.contains('?') ? '&' : '?';
+    final sep  = path.contains('?') ? '&' : '?';
     return '$base$path${sep}_t=$_tick';
   }
 
@@ -669,67 +641,114 @@ class _WebcamPlaceholder extends StatelessWidget {
 
 // ── Connection probe overlay ──────────────────────────────────────────────────
 //
-// Shown in the webcam area while the app is trying to reach the printer, and
-// while it is unreachable.  Replaces the static "Offline" camera icon with
-// meaningful progress feedback:
+// Shown in the webcam area when the tile has nothing live to render —
+// first poll in flight, Pi not heartbeating yet, or settled offline.
 //
-//   phase == 'local'   →  spinner + "Loading Local…"
-//   phase == 'tunnel'  →  spinner + "Loading Tunnel…"
-//   phase == 'offline' →  wifi-off icon + "Offline"
-//
-// Automatically disappears as soon as any connection candidate succeeds.
+// When the web UI type is known (persisted on the printer config after the
+// first successful poll), the overlay renders that logo as the background
+// so a powered-off K3 still looks like the K3, instead of a blank spinner
+// tile. When the UI type is unknown we fall back to a generic spinner /
+// wifi-off icon.
 
 class _ConnectionProbe extends StatelessWidget {
-  final String phase;
-  const _ConnectionProbe({required this.phase});
+  /// 'connecting'  — first poll in flight
+  /// 'starting_up' — Pi hasn't heartbeated to Supabase yet
+  /// 'waiting'     — Pi reachable but its printer-side stack isn't
+  ///                 (K3 printer power off, Klipper not running, etc.)
+  /// 'offline'     — settled, nothing answers on any path
+  final String  state;
+  final String? uiType; // 'mainsail' | 'fluidd' | null
+
+  const _ConnectionProbe({required this.state, this.uiType});
 
   @override
   Widget build(BuildContext context) {
-    final isOffline = phase == 'offline';
+    final hasLogo = uiType == 'mainsail' || uiType == 'fluidd';
 
-    final label = switch (phase) {
-      'tunnel'  => 'Loading Tunnel…',
-      'offline' => 'Offline',
-      _         => 'Loading Local…',   // 'local' or any unknown value
+    final label = switch (state) {
+      'offline'     => 'Offline',
+      'starting_up' => 'Starting up…',
+      'waiting'     => 'Connected',
+      _             => 'Connecting…',
     };
-    final sub = switch (phase) {
-      'tunnel'  => 'Connecting via Cloudflare',
-      'offline' => 'Retrying shortly…',
-      _         => 'Checking local network',
+    final sub = switch (state) {
+      'offline'     => 'Printer unreachable',
+      'starting_up' => 'Waiting for first heartbeat',
+      'waiting'     => 'Printer idle',
+      _             => 'Reaching printer',
     };
 
-    return Container(
-      color: Colors.black87,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (isOffline)
-            const Icon(Icons.wifi_off, size: 32, color: Colors.white30)
-          else
-            const SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                color: Colors.white54,
+    // Top accent: spinner for "in flight" states, wifi-off when offline,
+    // nothing for 'waiting' (the logo + Connected label carries it).
+    // When the logo is showing we always skip the accent — the logo is
+    // the visual focus.
+    Widget? accent;
+    if (!hasLogo) {
+      if (state == 'offline') {
+        accent = const Icon(Icons.wifi_off, size: 32, color: Colors.white30);
+      } else if (state == 'connecting' || state == 'starting_up') {
+        accent = const SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            color: Colors.white54,
+          ),
+        );
+      }
+    }
+
+    // With a logo, dim less so the logo reads through.
+    final backdrop = hasLogo ? Colors.black54 : Colors.black87;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Container(color: backdrop),
+        if (hasLogo)
+          Center(
+            child: Opacity(
+              opacity: 0.4,
+              child: SvgPicture.asset(
+                uiType == 'mainsail'
+                    ? 'assets/icons/mainsail_logo.svg'
+                    : 'assets/icons/fluidd_logo.svg',
+                width: 130,
+                fit: BoxFit.contain,
               ),
             ),
-          const SizedBox(height: 10),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+          ),
+        // Status text — at the bottom when a logo is showing, centered
+        // when it isn't.
+        Align(
+          alignment: hasLogo ? Alignment.bottomCenter : Alignment.center,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: hasLogo ? 10 : 0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (accent != null) ...[
+                  accent,
+                  const SizedBox(height: 10),
+                ],
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  sub,
+                  style: const TextStyle(color: Colors.white38, fontSize: 10),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            sub,
-            style: const TextStyle(color: Colors.white38, fontSize: 10),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

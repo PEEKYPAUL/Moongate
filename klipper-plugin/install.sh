@@ -25,6 +25,10 @@ die()     { echo -e "${RED}[moongate] ERROR:${NC} $*" >&2; exit 1; }
 # The cloudflared tunnel will forward to this port and the plugin will embed
 # it in the QR URL and the pair-page link.
 MOONGATE_PORT="${MOONGATE_PORT:-80}"
+
+# Loopback port the v0.4 auth proxy binds to. cloudflared targets this
+# instead of Moonraker directly. Override with MG_AUTHPROXY_PORT=NNNN.
+MG_AUTHPROXY_PORT="${MG_AUTHPROXY_PORT:-8443}"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --port)      [[ -n "${2-}" ]] || die "--port needs a value"; MOONGATE_PORT="$2"; shift 2;;
@@ -67,9 +71,15 @@ info "Architecture: $ARCH → cloudflared: $CF_ARCH"
 info "Setting up Moongate repository at $MOONGATE_DIR..."
 
 if [[ -d "$MOONGATE_DIR/.git" ]]; then
-    info "Repo already cloned — pulling latest..."
-    git -C "$MOONGATE_DIR" pull --ff-only
-    success "Repository updated."
+    CURRENT_BRANCH="$(git -C "$MOONGATE_DIR" branch --show-current 2>/dev/null || echo unknown)"
+    if [[ "$CURRENT_BRANCH" == "master" ]]; then
+        info "Repo on master — pulling latest..."
+        git -C "$MOONGATE_DIR" pull --ff-only
+        success "Repository updated."
+    else
+        warn "Repo on branch '$CURRENT_BRANCH' (not master) — skipping git pull."
+        warn "Run 'git pull' manually if you intended to update."
+    fi
 else
     git clone --depth=1 "$MOONGATE_REPO" "$MOONGATE_DIR"
     success "Repository cloned to $MOONGATE_DIR"
@@ -84,6 +94,126 @@ PLUGIN_SRC="$MOONGATE_DIR/klipper-plugin/moongate_standalone.py"
 info "Linking plugin into Moonraker components..."
 ln -sf "$PLUGIN_SRC" "$COMPONENTS_DIR/moongate.py"
 success "Plugin linked: $COMPONENTS_DIR/moongate.py → $PLUGIN_SRC"
+
+# ── 2b. Install Python dependencies into Moonraker's venv ────────────────────
+# v0.3 plugin needs PyJWT[crypto] (EdDSA verification) and cryptography
+# (Ed25519 keypair generation + heartbeat signing). Both are pure-Python or
+# have prebuilt wheels for the architectures we care about (arm64, armv7, x86_64).
+info "Installing Python dependencies into Moonraker's venv..."
+
+MOONRAKER_VENV=""
+for candidate in \
+    "$HOME/moonraker-env" \
+    "$MOONRAKER_DIR/venv" \
+    "$MOONRAKER_DIR/../moonraker-env"; do
+    if [[ -f "$candidate/bin/pip" ]]; then
+        MOONRAKER_VENV="$candidate"
+        break
+    fi
+done
+
+if [[ -n "$MOONRAKER_VENV" ]]; then
+    "$MOONRAKER_VENV/bin/pip" install --upgrade --quiet \
+        "PyJWT[crypto]>=2.8" \
+        "cryptography>=41" \
+        "aiohttp>=3.9" \
+        || die "Failed to install Python deps into $MOONRAKER_VENV"
+    success "Python deps installed in $MOONRAKER_VENV"
+else
+    warn "Could not find Moonraker venv. Install manually:"
+    warn "  ~/moonraker-env/bin/pip install 'PyJWT[crypto]>=2.8' 'cryptography>=41' 'aiohttp>=3.9'"
+fi
+
+# ── 2c. Wipe v0.2.x state if migrating ───────────────────────────────────────
+# v0.2.x stored tokens.json / secret.key / peers.json in ~/.config/moongate/.
+# v0.3 uses device_ed25519 / owner.json / jwks.json — none of the old files
+# are valid for the new model. Move them aside so re-running install.sh on
+# a v0.2.x box gets a clean v0.3 install.
+LEGACY_DIR="$HOME/.config/moongate/legacy-v0.2.x"
+if [[ -f "$HOME/.config/moongate/tokens.json" || -f "$HOME/.config/moongate/secret.key" ]]; then
+    info "Migrating v0.2.x state out of the way..."
+    mkdir -p "$LEGACY_DIR"
+    for f in tokens.json secret.key peers.json; do
+        [[ -f "$HOME/.config/moongate/$f" ]] && mv "$HOME/.config/moongate/$f" "$LEGACY_DIR/" 2>/dev/null || true
+    done
+    success "v0.2.x state moved to $LEGACY_DIR (safe to delete after v0.3 verified)"
+fi
+
+# ── 2d. v0.4 backup directory ────────────────────────────────────────────────
+# Originals of every system config we patch (moonraker.conf, nginx vhosts,
+# moongate-tunnel.service) land here. uninstall.sh restores from these on
+# downgrade. Each file is backed up exactly once — re-running install.sh
+# doesn't overwrite an existing backup with an already-patched copy.
+V04_BACKUP_DIR="$HOME/.config/moongate/v0.4-backup"
+mkdir -p "$V04_BACKUP_DIR"
+chmod 700 "$V04_BACKUP_DIR"
+
+backup_once() {
+    # $1 = source path, $2 = backup filename (relative to V04_BACKUP_DIR)
+    local src="$1"
+    local dst="$V04_BACKUP_DIR/$2"
+    if [[ -f "$src" && ! -f "$dst" ]]; then
+        cp "$src" "$dst"
+        chmod 600 "$dst"
+    fi
+}
+
+# ── 2e. Bind Moonraker to 127.0.0.1 (v0.4 auth proxy fronts everything) ──────
+# In v0.4 the cloudflared tunnel terminates at moongate-authproxy (port 8443).
+# Moonraker becomes loopback-only so it cannot be reached via the tunnel
+# without passing the EdDSA gate. LAN access via the Pi's local IP is
+# unchanged because moonraker's `trusted_clients` still allows the LAN
+# subnet.
+info "Binding Moonraker to 127.0.0.1 (v0.4 hardening)..."
+backup_once "$MOONRAKER_CONF" "moonraker.conf.orig"
+
+python3 - "$MOONRAKER_CONF" << 'PYEOF'
+import re, sys
+path = sys.argv[1]
+with open(path) as f:
+    content = f.read()
+
+# Find or create the [server] section.
+server_match = re.search(r'(?m)^\[server\]\s*$', content)
+if not server_match:
+    # No [server] block at all — append one with our settings.
+    content = content.rstrip() + "\n\n[server]\nhost: 127.0.0.1\nport: 7125\n"
+else:
+    # Locate the end of the [server] block (next [section] or EOF).
+    start = server_match.end()
+    next_section = re.search(r'(?m)^\[', content[start:])
+    end = start + next_section.start() if next_section else len(content)
+    section = content[start:end]
+
+    if re.search(r'(?m)^\s*host\s*[:=]', section):
+        # host: already set — force to 127.0.0.1.
+        new_section = re.sub(
+            r'(?m)^(\s*host\s*[:=]\s*).*$',
+            r'\g<1>127.0.0.1',
+            section,
+            count=1,
+        )
+    else:
+        # No host: line in [server] — inject one right after the header.
+        new_section = "\nhost: 127.0.0.1" + section
+
+    content = content[:start] + new_section + content[end:]
+
+with open(path, 'w') as f:
+    f.write(content)
+print("moonraker.conf: [server] host=127.0.0.1")
+PYEOF
+success "Moonraker bound to 127.0.0.1"
+
+# NOTE: We intentionally do NOT patch nginx vhosts in v0.4.0. The original
+# v0.4 design considered binding nginx to 127.0.0.1 (defense in depth), but
+# that would break the LAN-first path that v0.3 introduced — Mainsail loaded
+# from http://<pi-lan-ip>/ would 404 because nothing would be listening on
+# the LAN interface. The actual security guarantee comes from retargeting
+# cloudflared (step 7 below) to the auth proxy: the tunnel no longer reaches
+# nginx, only the EdDSA gate. nginx stays reachable on LAN exactly as today.
+# If a user explicitly port-forwards :80, they have made nginx public on
+# their own initiative — same risk profile as v0.3 in that scenario.
 
 if grep -q '^\[moongate\]' "$MOONRAKER_CONF"; then
     info "[moongate] already in moonraker.conf"
@@ -145,19 +275,14 @@ cat > "$MOONGATE_CFG" << 'MACROEOF'
 # Updates are handled automatically via Moonraker's update manager.
 
 [gcode_macro MOONGATE_PAIR]
-description: Generate a Moongate pairing code for the mobile app
+description: Start a Moongate pairing session and show a QR for the mobile app
 gcode:
     {action_call_remote_method("moongate_generate_pair_code")}
 
-[gcode_macro MOONGATE_LIST_TOKENS]
-description: Show every Moongate device token (active, expired, revoked) on the console
+[gcode_macro MOONGATE_RESET_OWNER]
+description: Wipe local Moongate owner binding so the printer can be re-paired
 gcode:
-    {action_call_remote_method("moongate_list_tokens")}
-
-[gcode_macro MOONGATE_REVOKE_ALL]
-description: Revoke every Moongate token — all paired apps must re-pair afterwards
-gcode:
-    {action_call_remote_method("moongate_revoke_all_tokens")}
+    {action_call_remote_method("moongate_reset_owner")}
 MACROEOF
 
 success "Macro written to $MOONGATE_CFG"
@@ -229,22 +354,110 @@ else
     success "cloudflared installed"
 fi
 
+# ── 6b. Install moongate-authproxy systemd service (v0.4) ────────────────────
+# The auth proxy must be running BEFORE cloudflared starts pointing at it,
+# otherwise the tunnel comes up against a connection-refused upstream and
+# stays in that state for 30+ seconds while cloudflared backs off.
+#
+# The unit file in the repo (moongate-authproxy.service) is a template with
+# REPLACE_ placeholders documenting the intended shape. Here we write the
+# real unit inline with the actual paths substituted — same pattern as the
+# moongate-tunnel unit below.
+info "Installing moongate-authproxy systemd service..."
+
+# Resolve the Python that has aiohttp + PyJWT + cryptography. Prefer the
+# Moonraker venv (where step 2b installed the deps); fall back to system
+# python3 with a clear warning.
+if [[ -n "$MOONRAKER_VENV" && -x "$MOONRAKER_VENV/bin/python3" ]]; then
+    MG_PYTHON="$MOONRAKER_VENV/bin/python3"
+else
+    MG_PYTHON="$(command -v python3 || true)"
+    warn "Using system python3 ($MG_PYTHON) — make sure aiohttp/PyJWT/cryptography are installed."
+fi
+
+PLUGIN_DIR="$MOONGATE_DIR/klipper-plugin"
+
+sudo tee /etc/systemd/system/moongate-authproxy.service > /dev/null << UNIT
+[Unit]
+Description=Moongate v0.4 auth proxy
+Documentation=https://github.com/PEEKYPAUL/Moongate
+After=network-online.target moonraker.service
+Wants=network-online.target
+PartOf=moonraker.service
+
+[Service]
+Type=simple
+User=$USER
+WorkingDirectory=$PLUGIN_DIR
+ExecStart=$MG_PYTHON $PLUGIN_DIR/moongate_authproxy.py
+
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=10
+
+Environment=MG_LISTEN_HOST=127.0.0.1
+Environment=MG_LISTEN_PORT=$MG_AUTHPROXY_PORT
+Environment=MG_MOONRAKER=http://127.0.0.1:7125
+Environment=MG_MAINSAIL=http://127.0.0.1:$MOONGATE_PORT
+Environment=MG_PLUGIN_DIR=$PLUGIN_DIR
+Environment=MG_LOG_LEVEL=INFO
+
+StandardOutput=append:/run/moongate-authproxy.log
+StandardError=append:/run/moongate-authproxy.log
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/run $HOME/.config/moongate
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+sudo systemctl daemon-reload
+sudo systemctl enable moongate-authproxy
+sudo systemctl restart moongate-authproxy
+
+# Give the proxy a couple of seconds to bind before cloudflared connects.
+# Empirical: aiohttp + JWKS fetch is ready within ~1s on a Pi 4.
+sleep 2
+if systemctl is-active --quiet moongate-authproxy; then
+    success "moongate-authproxy running on 127.0.0.1:$MG_AUTHPROXY_PORT"
+else
+    warn "moongate-authproxy failed to start. Check: sudo journalctl -u moongate-authproxy -n 50"
+    warn "Cloudflared will still come up but every request will return 502."
+fi
+
 # ── 7. Create moongate-tunnel systemd service ────────────────────────────────
 # Always (re)write the unit file so fixes to it are applied on re-runs.
 # Use StandardOutput/StandardError instead of cloudflared's --logfile flag:
 # cloudflared prints the tunnel URL banner to stdout; systemd captures it
 # and appends it to /run/moongate-tunnel.log where the plugin can read it.
-info "Installing moongate-tunnel systemd service..."
+#
+# v0.4: target is now the auth proxy ($MG_AUTHPROXY_PORT) instead of
+# Moonraker / Mainsail directly. Every request goes through the EdDSA gate
+# before reaching any backend.
+info "Installing moongate-tunnel systemd service (cloudflared → :$MG_AUTHPROXY_PORT)..."
 sudo tee /etc/systemd/system/moongate-tunnel.service > /dev/null << UNIT
 [Unit]
 Description=Moongate Cloudflare Tunnel
-After=network-online.target
-Wants=network-online.target
+After=network-online.target moongate-authproxy.service
+Wants=network-online.target moongate-authproxy.service
 
 [Service]
 Type=simple
 User=$USER
-ExecStart=/usr/bin/cloudflared tunnel --url http://localhost:$MOONGATE_PORT --no-autoupdate
+ExecStart=/usr/bin/cloudflared tunnel --url http://localhost:$MG_AUTHPROXY_PORT --no-autoupdate
 Restart=on-failure
 RestartSec=10
 StandardOutput=append:/run/moongate-tunnel.log
@@ -310,7 +523,8 @@ echo -e "${GREEN}  Moongate installed!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "  Updates   : ${BLUE}Mainsail → Software Updates → Moongate${NC}"
-echo -e "  Pairing   : ${BLUE}http://$LOCAL_IP$PORT_SUFFIX/moongate-pair.html${NC}"
+echo -e "  Pairing   : ${BLUE}http://$LOCAL_IP$PORT_SUFFIX/moongate-pair.html${NC} (LAN only)"
+echo -e "  Auth proxy: ${BLUE}127.0.0.1:$MG_AUTHPROXY_PORT${NC} (every tunnel request EdDSA-gated)"
 if [[ -n "$TUNNEL_URL" ]]; then
     SUBDOMAIN="${TUNNEL_URL#https://}"
     SUBDOMAIN="${SUBDOMAIN%.trycloudflare.com}"
