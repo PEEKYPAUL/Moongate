@@ -144,6 +144,37 @@ class SupabaseService {
     }
   }
 
+  // ── Release (un-pair) ──────────────────────────────────────────────────────
+
+  /// Delete the printer row from Supabase so the same Pi can be re-paired.
+  /// Idempotent: a 404 (row already gone, or never owned by us) is treated
+  /// as success — the user's intent ("forget this printer") is satisfied
+  /// either way.
+  ///
+  /// Returns true on remote success, false on network/auth failure. The
+  /// caller should still clear local state on false so the user isn't
+  /// trapped if Supabase is unreachable.
+  Future<bool> releasePrinter(String printerId) async {
+    try {
+      await client.functions.invoke(
+        'release-printer',
+        body: {'printer_id': printerId},
+      );
+      _log('Released printer $printerId');
+      return true;
+    } on FunctionException catch (e) {
+      if (e.status == 404) {
+        _log('release-printer 404 for $printerId — already gone, treating as success');
+        return true;
+      }
+      _log('release-printer HTTP ${e.status}: ${e.details}');
+      return false;
+    } catch (e) {
+      _log('release-printer failed: $e');
+      return false;
+    }
+  }
+
   // ── Printers list (RLS-scoped to current user) ─────────────────────────────
 
   /// Returns the current user's printers as `[(id, name, last_seen)]`.

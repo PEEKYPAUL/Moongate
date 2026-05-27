@@ -8,7 +8,9 @@ import '../../models/printer_config.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/update_provider.dart';
 import '../../providers/version_provider.dart';
+import '../../services/printer_access_cache.dart';
 import '../../services/printer_registry.dart';
+import '../../services/supabase_service.dart';
 import '../../services/update_service.dart';
 import 'printer_tile.dart';
 
@@ -50,10 +52,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ],
       ),
     );
-    if (confirmed == true) {
-      await PrinterRegistry.instance.remove(printer.id);
-      _load();
+    if (confirmed != true) return;
+
+    // Release the Supabase row first so the same Pi can be re-paired
+    // without manual cleanup. Fail-open: if Supabase is unreachable we
+    // still clear local state and surface a hint so the user isn't trapped.
+    final released = await SupabaseService.instance.releasePrinter(printer.id);
+    await PrinterRegistry.instance.remove(printer.id);
+    PrinterAccessCache.instance.invalidate(printer.id);
+
+    if (!released && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Removed locally, but couldn’t reach Supabase. '
+            'Run MOONGATE_RESET_OWNER on the Pi if re-pairing fails.',
+          ),
+        ),
+      );
     }
+    _load();
   }
 
   @override
