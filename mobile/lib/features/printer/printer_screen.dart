@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../models/printer_config.dart';
@@ -88,12 +89,21 @@ class _PrinterScreenState extends State<PrinterScreen>
       _scheduleCookieRefresh();
 
       // Prefer the cached LAN URL when present — Mainsail loads dramatically
-      // faster on direct LAN than through Cloudflare. If LAN is unreachable
-      // the WebView's onWebResourceError surfaces an error overlay; user
-      // taps Retry to force the tunnel.
-      final lanUrl   = widget.printer.lanUrl;
-      final useUrl   = lanUrl ?? access.tunnelUrl;
-      _usingLan      = lanUrl != null;
+      // faster on direct LAN than through Cloudflare. Pre-flight a quick
+      // HEAD-style probe with a 2s timeout: on cellular the phone has no
+      // route to RFC1918 addresses, but the WebView would block silently
+      // (no `onWebResourceError`, just a forever loading spinner) because
+      // it relies on the OS to time the connect out. The probe gives us a
+      // fast decision and a clean fall-through to the tunnel.
+      final lanUrl = widget.printer.lanUrl;
+      final String useUrl;
+      if (lanUrl != null && await _isLanReachable(lanUrl)) {
+        useUrl    = lanUrl;
+        _usingLan = true;
+      } else {
+        useUrl    = access.tunnelUrl;
+        _usingLan = false;
+      }
       _initControllerIfNeeded();
       await _webController!.loadRequest(Uri.parse('$useUrl/'));
     } on PrinterUnavailableException catch (e) {
@@ -186,6 +196,25 @@ class _PrinterScreenState extends State<PrinterScreen>
     } catch (_) {
       // setCookie can throw on older WebView versions; fall through. The
       // WebView will eventually 401 and surface the error overlay.
+    }
+  }
+
+  /// Fast LAN probe. Returns true iff `${lanUrl}/server/info` answers
+  /// within 2 seconds. We hit Moonraker's own info endpoint rather than
+  /// `/` because nginx serving Mainsail's index always 200s — Moonraker
+  /// only answers when actually reachable, so a 200 here is also a
+  /// liveness signal for the printer side. 401/403 still counts as
+  /// reachable (we got an answer); only network failures and timeouts
+  /// fall through to the tunnel.
+  Future<bool> _isLanReachable(String lanUrl) async {
+    try {
+      final uri = Uri.parse('$lanUrl/server/info');
+      final resp = await http
+          .get(uri)
+          .timeout(const Duration(seconds: 2));
+      return resp.statusCode < 500;
+    } catch (_) {
+      return false;
     }
   }
 
