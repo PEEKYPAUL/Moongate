@@ -376,8 +376,15 @@ async def handle(request: web.Request) -> web.StreamResponse:
 # ─── Lifecycle ──────────────────────────────────────────────────────────────
 
 async def _on_startup(app: web.Application) -> None:
+    # auto_decompress=False is critical for transparent proxying. The
+    # default decompresses gzipped upstream responses server-side, but we
+    # forward Content-Encoding: gzip unchanged — so the client would try
+    # to gunzip already-decompressed bytes and fail. Disabling means the
+    # raw compressed bytes are relayed end-to-end, with Content-Encoding
+    # and Content-Length intact and matching each other.
     app["client"] = ClientSession(
         timeout=ClientTimeout(total=None, connect=10),
+        auto_decompress=False,
     )
     jwks = JwksCache(
         DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY,
