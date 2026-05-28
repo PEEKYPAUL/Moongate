@@ -480,6 +480,10 @@ class HeartbeatLoop:
         self.on_unpaired = on_unpaired_cb
         self._task: Optional[asyncio.Task] = None
         self._last_url_reported: Optional[str] = None
+        # Created in _run() so it binds to the running loop. None until
+        # the loop has started; request_immediate_send() is a no-op in
+        # that window.
+        self._poke_event: Optional[asyncio.Event] = None
 
     def start(self) -> None:
         if self._task is None or self._task.done():
@@ -493,15 +497,33 @@ class HeartbeatLoop:
     async def _run(self) -> None:
         # First heartbeat after a brief delay so cloudflared has time to come up
         await asyncio.sleep(5)
+        self._poke_event = asyncio.Event()
         while True:
             try:
                 self._send_one()
             except Exception as exc:
                 logger.warning("Heartbeat iteration crashed: %s", exc)
+            # Wait for either the scheduled interval OR a poke from
+            # MOONGATE_PAIR. Poke wakes the loop early so the cloud sees
+            # the current tunnel URL before the user's app calls
+            # /printer-access, instead of the user waiting up to
+            # `interval` seconds in "Starting up..." tile state.
             try:
-                await asyncio.sleep(self.interval)
+                await asyncio.wait_for(self._poke_event.wait(), timeout=self.interval)
+                self._poke_event.clear()
+                logger.debug("Heartbeat poked — sending early")
+            except asyncio.TimeoutError:
+                pass  # Normal interval elapsed
             except asyncio.CancelledError:
                 return
+
+    def request_immediate_send(self) -> None:
+        """Wake the heartbeat loop to send NOW instead of waiting for the
+        next scheduled interval. Idempotent — calling repeatedly between
+        sends collapses into a single early send. No-op until the loop
+        has started (the first 5 s post-boot)."""
+        if self._poke_event is not None:
+            self._poke_event.set()
 
     def _send_one(self) -> None:
         tunnel = _get_tunnel_url()
@@ -659,6 +681,13 @@ class MoongatePlugin:
         """MOONGATE_PAIR macro entry point."""
         pending = self._start_pairing()
         await asyncio.sleep(0.3)
+
+        if pending is not None:
+            # User is now actively waiting to scan. Kick the heartbeat so
+            # the cloud has a fresh tunnel URL by the time their app calls
+            # /printer-access — saves up to `heartbeat_interval_seconds`
+            # (5 min default) of "Starting up..." tile state.
+            self.heartbeat.request_immediate_send()
 
         if pending is None:
             script = "\n".join([
