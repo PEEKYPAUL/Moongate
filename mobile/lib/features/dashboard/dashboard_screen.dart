@@ -595,6 +595,12 @@ class _ChangelogEntry {
 
 // Top-level brief — bumped on each release. Newest first.
 const _changelog = <_ChangelogEntry>[
+  _ChangelogEntry('v0.4.2', [
+    'Re-pair after app reinstall just works — no more "already paired"',
+    'Pairing goes live within seconds, not up to 5 minutes',
+    'Mainsail through tunnel stays connected on cellular',
+    'Type the GATE code if the camera can\'t scan the QR',
+  ]),
   _ChangelogEntry('v0.4.1', [
     'Dashboard tile webcam preview works again on LAN and tunnel',
     'No reinstall on the Pi needed — just this app update',

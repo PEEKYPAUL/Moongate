@@ -65,25 +65,31 @@ class SupabaseService {
 
   // ── Pairing ────────────────────────────────────────────────────────────────
 
-  /// Claim a printer using the enrollment token and Pi public key from a
-  /// scanned v=3 QR. On success returns the Supabase printer id.
+  /// Claim a printer using an enrollment token, optionally with the Pi's
+  /// public key from a scanned v=3 QR. On success returns the Supabase
+  /// printer id.
+  ///
+  /// [piPublicKey] is optional: the QR-scan path supplies it for a
+  /// defense-in-depth check against the server-side enrollment row, while
+  /// the manual-code-entry path (camera-failure fallback) omits it and
+  /// lets the server trust its own stored pubkey.
   ///
   /// Throws:
   ///   • [PairingNotFoundException] for 404 — token expired / used / mismatched
   ///   • [PairingConflictException] for 409 — Pi already paired (run RESET_OWNER)
   ///   • [Exception] for any other failure
   Future<String> claimPrinter({
-    required String enrollmentToken,
-    required String piPublicKey,
-    required String name,
+    required String  enrollmentToken,
+    String?          piPublicKey,
+    required String  name,
   }) async {
     try {
       final response = await client.functions.invoke(
         'printer-claim',
         body: {
           'enrollment_token': enrollmentToken,
-          'pi_public_key':    piPublicKey,
           'name':             name,
+          if (piPublicKey != null) 'pi_public_key': piPublicKey,
         },
       );
       final data = response.data;
