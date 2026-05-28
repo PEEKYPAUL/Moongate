@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -31,8 +32,15 @@ class PairingScreen extends StatefulWidget {
 }
 
 class _PairingScreenState extends State<PairingScreen> {
-  final _nameController       = TextEditingController(text: 'My Printer');
-  final _manualCodeController = TextEditingController();
+  final _nameController      = TextEditingController(text: 'My Printer');
+
+  // Two 4-digit boxes for the GATE code. Split lets us show a numpad
+  // (TextInputType.number) instead of the full keyboard, and lets us
+  // auto-advance focus from box 1 to box 2 after 4 digits.
+  final _codeFirstController  = TextEditingController();
+  final _codeSecondController = TextEditingController();
+  final _codeFirstFocus       = FocusNode();
+  final _codeSecondFocus      = FocusNode();
 
   MobileScannerController? _scannerController;
   StreamSubscription<BarcodeCapture>? _barcodeSub;
@@ -54,30 +62,85 @@ class _PairingScreenState extends State<PairingScreen> {
     _barcodeSub?.cancel();
     _scannerController?.dispose();
     _nameController.dispose();
-    _manualCodeController.dispose();
+    _codeFirstController.dispose();
+    _codeSecondController.dispose();
+    _codeFirstFocus.dispose();
+    _codeSecondFocus.dispose();
     super.dispose();
   }
 
-  // ── Manual code normalisation ────────────────────────────────────────────
+  // ── Manual code normalisation + box wiring ───────────────────────────────
 
-  /// Accepts a GATE-XXXX-XXXX style code in lenient form (with or without
-  /// the `GATE-` prefix, with or without dashes, mixed case, surrounding
-  /// whitespace) and returns the canonical `GATE-XXXX-XXXX` form when
-  /// the input contains exactly 8 digits. Returns null otherwise.
-  static String? _normalisePairCode(String input) {
-    final digits = input.toUpperCase().replaceAll(RegExp(r'[^\d]'), '');
-    if (digits.length != 8) return null;
-    return 'GATE-${digits.substring(0, 4)}-${digits.substring(4, 8)}';
+  /// Build the canonical GATE-XXXX-XXXX form from the current contents of
+  /// the two code boxes. Returns null until both boxes have exactly 4
+  /// digits each (the formatters enforce digit-only + length 4 already,
+  /// so this is mostly a length gate).
+  static String? _normalisePairCode(String first, String second) {
+    if (first.length != 4 || second.length != 4) return null;
+    return 'GATE-$first-$second';
   }
 
-  void _onManualCodeChanged(String value) {
-    final normalised = _normalisePairCode(value);
+  void _onFirstBoxChanged(String value) {
+    // Auto-advance focus when the first box is full. The formatter caps
+    // input at 4 digits so we don't have to handle longer strings here.
+    if (value.length == 4) {
+      _codeSecondFocus.requestFocus();
+    }
+    _updateManualCode();
+  }
+
+  void _onSecondBoxChanged(String _) {
+    _updateManualCode();
+  }
+
+  void _updateManualCode() {
+    final normalised = _normalisePairCode(
+      _codeFirstController.text,
+      _codeSecondController.text,
+    );
     setState(() {
       _manualEnrollmentToken = normalised;
-      // Surfacing _error on every keystroke is noisy; only clear it when
-      // the user types something that looks valid.
+      // Clearing _error on every keystroke is noisy; only clear it when
+      // the user has actually typed something that looks valid.
       if (normalised != null) _error = null;
     });
+  }
+
+  /// One 4-digit GATE-code box. Numpad keyboard, centered large digits,
+  /// formatter clamps to digits-only and length 4. `isLast` controls the
+  /// keyboard "action" button (next vs done) and whether textInputAction
+  /// surfaces a Submit/Pair signal — done dismisses the keyboard on the
+  /// final box.
+  Widget _gateCodeBox({
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required ValueChanged<String> onChanged,
+    required bool isLast,
+  }) {
+    return TextField(
+      controller: controller,
+      focusNode:  focusNode,
+      enabled:    !_loading,
+      textAlign:  TextAlign.center,
+      style: const TextStyle(
+        fontSize: 28,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 6,
+      ),
+      keyboardType: TextInputType.number,
+      textInputAction: isLast ? TextInputAction.done : TextInputAction.next,
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(4),
+      ],
+      onChanged: onChanged,
+      decoration: const InputDecoration(
+        counterText: '',
+        hintText: '0000',
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+      ),
+    );
   }
 
   // ── QR scanner ────────────────────────────────────────────────────────────
@@ -306,21 +369,57 @@ class _PairingScreenState extends State<PairingScreen> {
                 Expanded(child: Divider(color: cs.outlineVariant)),
               ]),
               const SizedBox(height: 14),
-              TextField(
-                controller: _manualCodeController,
-                enabled: !_loading,
-                onChanged: _onManualCodeChanged,
-                textInputAction: TextInputAction.done,
-                keyboardType: TextInputType.text,
-                autocorrect: false,
-                decoration: InputDecoration(
-                  labelText: 'GATE code',
-                  hintText: 'GATE-1234-5678',
-                  helperText: _manualEnrollmentToken == null
-                      ? 'Type the code shown in your Klipper console — 8 digits.'
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 8),
+                child: Text(
+                  'GATE code',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: cs.onSurface.withValues(alpha: 0.7),
+                  ),
+                ),
+              ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(child: _gateCodeBox(
+                    controller: _codeFirstController,
+                    focusNode:  _codeFirstFocus,
+                    onChanged:  _onFirstBoxChanged,
+                    isLast:     false,
+                  )),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text('—',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurface.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                  Expanded(child: _gateCodeBox(
+                    controller: _codeSecondController,
+                    focusNode:  _codeSecondFocus,
+                    onChanged:  _onSecondBoxChanged,
+                    isLast:     true,
+                  )),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Text(
+                  _manualEnrollmentToken == null
+                      ? 'Type the 8-digit code shown in your Klipper console.'
                       : 'Code looks valid ✓',
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.dialpad),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _manualEnrollmentToken != null
+                        ? cs.primary
+                        : cs.onSurface.withValues(alpha: 0.6),
+                  ),
                 ),
               ),
             ],
