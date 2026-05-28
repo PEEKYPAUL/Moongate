@@ -309,6 +309,96 @@ async def _proxy_http(
 
 # ─── WebSocket proxy ────────────────────────────────────────────────────────
 
+# Per-direction frame buffer between the reader and writer halves of
+# _relay_one_direction. Sized for ~8 s of typical Mainsail/Moonraker
+# WS traffic (~4 frames/sec during a print): big enough to absorb a
+# transient cellular send-stall, small enough to apply backpressure
+# if the destination is genuinely stuck. See _relay_one_direction for
+# the why.
+_WS_QUEUE_MAXSIZE = 32
+
+
+async def _relay_one_direction(src, dst, label: str) -> None:
+    """Read from `src` and write to `dst` with a queue between them.
+
+    The naive `async for msg in src: await dst.send(msg)` shape blocks
+    the source-side read loop whenever the destination is slow — and on
+    cellular through the tunnel, `dst.send` can take 4-6 s. aiohttp's
+    autoping (which is what carries Moonraker's keepalive pings through
+    this layer, since heartbeat=None is set on both legs by design)
+    only fires when the read side calls receive() next. A blocked
+    sender therefore meant Moonraker saw a 6 s pong RTT on a localhost
+    socket, decided the connection was dead, and closed the WS with
+    code 1000. Mainsail then showed "Connection failed" every 30-60 s
+    on cellular.
+
+    Splitting reads from writes via a small asyncio.Queue keeps the
+    reader loop tight — autoping fires on its own schedule regardless
+    of how slow the destination is. The queue's maxsize provides
+    backpressure if dst is consistently slow: once 32 frames pile up,
+    queue.put blocks the reader too, but only after several seconds
+    of slack vs the previous shape's immediate stall.
+    """
+    queue: "asyncio.Queue[Optional[Tuple[str, object]]]" = asyncio.Queue(
+        maxsize=_WS_QUEUE_MAXSIZE,
+    )
+
+    async def reader() -> None:
+        try:
+            async for msg in src:
+                if msg.type == WSMsgType.TEXT:
+                    await queue.put(("text", msg.data))
+                elif msg.type == WSMsgType.BINARY:
+                    await queue.put(("binary", msg.data))
+                elif msg.type in (WSMsgType.CLOSE,
+                                  WSMsgType.CLOSED,
+                                  WSMsgType.ERROR):
+                    break
+        finally:
+            # Sentinel: tell the writer to drain & exit. Wrapped in
+            # try because the writer may already be dead and the
+            # queue may be full at cancellation.
+            try:
+                queue.put_nowait(None)
+            except asyncio.QueueFull:
+                pass
+
+    async def writer() -> None:
+        while True:
+            item = await queue.get()
+            if item is None:
+                return
+            kind, data = item
+            try:
+                if kind == "text":
+                    await dst.send_str(data)  # type: ignore[arg-type]
+                elif kind == "binary":
+                    await dst.send_bytes(data)  # type: ignore[arg-type]
+            except Exception:
+                # dst is closed or in an unsendable state. Bail; the
+                # reader will exit when src closes.
+                return
+
+    reader_task = asyncio.create_task(reader())
+    writer_task = asyncio.create_task(writer())
+    try:
+        # Whichever side finishes first wins — the other gets cancelled
+        # so a half-closed leg can't keep the other end alive.
+        await asyncio.wait(
+            {reader_task, writer_task},
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+    except Exception as exc:
+        logger.debug("ws relay %s wait raised: %s", label, exc)
+    finally:
+        for t in (reader_task, writer_task):
+            if not t.done():
+                t.cancel()
+        # Reap cancellations so we don't leave dangling tasks.
+        await asyncio.gather(reader_task, writer_task,
+                             return_exceptions=True)
+
+
 async def _proxy_websocket(
     request: web.Request, backend_base: str,
 ) -> web.WebSocketResponse:
@@ -373,24 +463,11 @@ async def _proxy_websocket(
             headers=ws_headers,
             timeout=ClientTimeout(total=None, connect=10),
         ) as backend_ws:
-
-            async def relay(src, dst, label: str) -> None:
-                try:
-                    async for msg in src:
-                        if msg.type == WSMsgType.TEXT:
-                            await dst.send_str(msg.data)
-                        elif msg.type == WSMsgType.BINARY:
-                            await dst.send_bytes(msg.data)
-                        elif msg.type in (WSMsgType.CLOSE,
-                                          WSMsgType.CLOSED,
-                                          WSMsgType.ERROR):
-                            break
-                except Exception as exc:
-                    logger.debug("ws relay %s ended: %s", label, exc)
-
             await asyncio.gather(
-                relay(client_ws,  backend_ws, "client→backend"),
-                relay(backend_ws, client_ws, "backend→client"),
+                _relay_one_direction(
+                    client_ws, backend_ws, "client→backend"),
+                _relay_one_direction(
+                    backend_ws, client_ws, "backend→client"),
                 return_exceptions=True,
             )
     except Exception as exc:
