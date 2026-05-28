@@ -150,7 +150,12 @@ class PrinterStatus {
   final String? filename;
   final PrinterConnection connection;
 
-  final String? webcamSnapshotPath;
+  /// Absolute, ready-to-fetch snapshot URL — base + path + (mg_token for
+  /// tunnel mode). Built fresh each poll by PrinterStatusService so the
+  /// URL always reflects the path the service is currently using and
+  /// carries a valid access token. Null when no webcam is configured or
+  /// the printer hasn't been reached yet.
+  final String? webcamSnapshotUrl;
   final bool    webcamFlipH;
   final bool    webcamFlipV;
   final int     webcamRotation;
@@ -167,7 +172,7 @@ class PrinterStatus {
     this.chamberTarget = 0,
     this.filename,
     this.connection = PrinterConnection.offline,
-    this.webcamSnapshotPath,
+    this.webcamSnapshotUrl,
     this.webcamFlipH    = false,
     this.webcamFlipV    = false,
     this.webcamRotation = 0,

@@ -595,6 +595,10 @@ class _ChangelogEntry {
 
 // Top-level brief — bumped on each release. Newest first.
 const _changelog = <_ChangelogEntry>[
+  _ChangelogEntry('v0.4.1', [
+    'Dashboard tile webcam preview works again on LAN and tunnel',
+    'No reinstall on the Pi needed — just this app update',
+  ]),
   _ChangelogEntry('v0.4.0', [
     'Hardened remote access — the tunnel URL alone grants nothing',
     'Mainsail reachable through the tunnel from anywhere',

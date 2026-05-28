@@ -344,7 +344,13 @@ class PrinterStatusService {
       // webcam is configured.
       if (!_uiTypeChecked) _detectUiType(baseUrl, access.accessToken);
 
-      return _parseStatus(status: status, moongateResult: result, isLan: isLan);
+      return _parseStatus(
+        status: status,
+        moongateResult: result,
+        isLan: isLan,
+        baseUrl: baseUrl,
+        accessToken: access.accessToken,
+      );
     } catch (_) {
       return null;
     }
@@ -397,6 +403,8 @@ class PrinterStatusService {
     required Map<String, dynamic> status,
     required Map<String, dynamic>? moongateResult,
     required bool                 isLan,
+    required String               baseUrl,
+    required String               accessToken,
   }) {
     final printStats = status['print_stats'] as Map<String, dynamic>? ?? {};
     final extruder   = status['extruder']    as Map<String, dynamic>? ?? {};
@@ -468,6 +476,24 @@ class PrinterStatusService {
       }
     }
 
+    // Build the absolute snapshot URL from the path the Pi reported plus
+    // the base URL we're currently winning the poll on. Tunnel-side needs
+    // the EdDSA token in the query string because Image.network can't set
+    // headers or cookies — the auth proxy accepts mg_token via query as a
+    // documented fallback (see klipper-plugin/moongate_authproxy.py).
+    // LAN-side needs no auth because Moonraker / nginx trust the subnet.
+    final snapshotPath = moongateResult?['webcam_snapshot_path'] as String?;
+    String? webcamSnapshotUrl;
+    if (snapshotPath != null && snapshotPath.isNotEmpty) {
+      if (isLan) {
+        webcamSnapshotUrl = '$baseUrl$snapshotPath';
+      } else {
+        final sep = snapshotPath.contains('?') ? '&' : '?';
+        webcamSnapshotUrl =
+            '$baseUrl$snapshotPath${sep}mg_token=${Uri.encodeComponent(accessToken)}';
+      }
+    }
+
     return PrinterStatus(
       state:              state,
       progress:           progress,
@@ -479,7 +505,7 @@ class PrinterStatusService {
       chamberTarget:      (chamberSensor?['target']      as num?)?.toDouble() ?? 0,
       filename:           printStats['filename']         as String?,
       connection:         isLan ? PrinterConnection.local : PrinterConnection.remote,
-      webcamSnapshotPath: moongateResult?['webcam_snapshot_path'] as String?,
+      webcamSnapshotUrl:  webcamSnapshotUrl,
       webcamFlipH:     (moongateResult?['webcam_flip_horizontal'] as bool?) ?? false,
       webcamFlipV:     (moongateResult?['webcam_flip_vertical']   as bool?) ?? false,
       webcamRotation:  (moongateResult?['webcam_rotation']        as num?)?.toInt() ?? 0,

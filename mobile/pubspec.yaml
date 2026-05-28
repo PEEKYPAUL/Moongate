@@ -1,6 +1,6 @@
 name: moongate
 description: Remote control interface for Klipper 3D printers via local WiFi or Cloudflare tunnel.
-version: 0.4.0+44
+version: 0.4.1+45
 publish_to: none
 
 environment:
