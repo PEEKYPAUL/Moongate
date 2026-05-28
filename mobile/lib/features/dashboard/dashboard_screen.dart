@@ -504,31 +504,36 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void _showRemoveSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      builder: (ctx) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text('Remove a printer',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          ),
-          ..._printers.map(
-            (p) => ListTile(
-              leading: const Icon(Icons.print, color: Colors.redAccent),
-              title: Text(p.name),
-              subtitle: Text(
-                'id ${p.id.substring(0, 8)}…',
-                style: const TextStyle(fontSize: 12),
-              ),
-              trailing: const Icon(Icons.delete_outline, color: Colors.redAccent),
-              onTap: () {
-                Navigator.pop(ctx);
-                _removePrinter(p);
-              },
+      // Without SafeArea the last ListTile clips behind the 3-button nav
+      // bar on devices using on-screen system navigation.
+      builder: (ctx) => SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Remove a printer',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
-          ),
-          const SizedBox(height: 8),
-        ],
+            ..._printers.map(
+              (p) => ListTile(
+                leading: const Icon(Icons.print, color: Colors.redAccent),
+                title: Text(p.name),
+                subtitle: Text(
+                  'id ${p.id.substring(0, 8)}…',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                trailing: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _removePrinter(p);
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }
@@ -595,6 +600,12 @@ class _ChangelogEntry {
 
 // Top-level brief — bumped on each release. Newest first.
 const _changelog = <_ChangelogEntry>[
+  _ChangelogEntry('v0.4.2', [
+    'Re-pair after app reinstall just works — no more "already paired"',
+    'Pairing goes live within seconds, not up to 5 minutes',
+    'Mainsail through tunnel stays connected on cellular',
+    'Type the GATE code if the camera can\'t scan the QR',
+  ]),
   _ChangelogEntry('v0.4.1', [
     'Dashboard tile webcam preview works again on LAN and tunnel',
     'No reinstall on the Pi needed — just this app update',

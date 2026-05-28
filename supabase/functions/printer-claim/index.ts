@@ -10,9 +10,15 @@
 // Request body:
 //   {
 //     "enrollment_token": "<raw string, e.g. GATE-XXXX-XXXX>",
-//     "pi_public_key":    "<base64 Ed25519 pubkey from the QR>",
+//     "pi_public_key":    "<base64 Ed25519 pubkey from the QR>",  // optional
 //     "name":             "<user-chosen name>"
 //   }
+//
+// pi_public_key is OPTIONAL. The QR-scan path supplies it for a
+// defense-in-depth match against the server-side enrollment row.
+// The manual-code-entry path (camera failure fallback) omits it; the
+// server then trusts the enrollment_tokens row's own pi_public_key
+// (which IS the source of truth — see the claim_printer SQL).
 //
 // Response 200:
 //   { "printer_id": "<uuid>" }
@@ -50,24 +56,31 @@ Deno.serve(async (req) => {
   }
 
   const enrollmentToken = body.enrollment_token;
-  const piPubKey        = body.pi_public_key;
+  const piPubKeyRaw     = body.pi_public_key;
   const name            = body.name;
 
   if (typeof enrollmentToken !== "string" || enrollmentToken.length === 0) {
     return badRequest("enrollment_token required");
   }
-  if (typeof piPubKey !== "string") {
-    return badRequest("pi_public_key required");
-  }
   if (typeof name !== "string" || name.length === 0 || name.length > MAX_NAME_LENGTH) {
     return badRequest(`name required (1-${MAX_NAME_LENGTH} chars)`);
   }
 
-  try {
-    const pkBytes = base64ToBytes(piPubKey);
-    if (pkBytes.length !== 32) return badRequest("pi_public_key must decode to 32 bytes");
-  } catch {
-    return badRequest("invalid pi_public_key base64");
+  // pi_public_key is optional. If supplied, validate it; if omitted or
+  // empty, the manual-code-entry path is in play and the RPC falls back
+  // to the server-side enrollment row.
+  let piPubKey: string | null = null;
+  if (piPubKeyRaw !== undefined && piPubKeyRaw !== null && piPubKeyRaw !== "") {
+    if (typeof piPubKeyRaw !== "string") {
+      return badRequest("pi_public_key must be a string when present");
+    }
+    try {
+      const pkBytes = base64ToBytes(piPubKeyRaw);
+      if (pkBytes.length !== 32) return badRequest("pi_public_key must decode to 32 bytes");
+    } catch {
+      return badRequest("invalid pi_public_key base64");
+    }
+    piPubKey = piPubKeyRaw;
   }
 
   // Hash the raw token to look it up against enrollment_tokens.token_hash

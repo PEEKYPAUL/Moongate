@@ -494,6 +494,14 @@ class HeartbeatLoop:
                 return
             self._task = loop.create_task(self._run())
 
+    # Quick-retry cadence used after Pi boot while cloudflared hasn't
+    # published a URL yet (or while the cloud row hasn't been created).
+    # ~20-25 s of cloudflared startup × 300 s heartbeat interval = up to
+    # 5 minutes of "Starting up..." tile state for a user who pairs
+    # right after a Pi reboot. With this we catch the URL within a few
+    # seconds of cloudflared publishing it.
+    _BOOTSTRAP_INTERVAL = 5
+
     async def _run(self) -> None:
         # First heartbeat after a brief delay so cloudflared has time to come up
         await asyncio.sleep(5)
@@ -503,13 +511,21 @@ class HeartbeatLoop:
                 self._send_one()
             except Exception as exc:
                 logger.warning("Heartbeat iteration crashed: %s", exc)
+            # Until we've successfully reported a URL once, poll fast
+            # so the cloud picks up the tunnel within seconds of
+            # cloudflared coming online. After the first successful
+            # heartbeat, drop to the configured cadence.
+            effective_interval = (
+                self.interval if self._last_url_reported is not None
+                else self._BOOTSTRAP_INTERVAL
+            )
             # Wait for either the scheduled interval OR a poke from
             # MOONGATE_PAIR. Poke wakes the loop early so the cloud sees
             # the current tunnel URL before the user's app calls
             # /printer-access, instead of the user waiting up to
             # `interval` seconds in "Starting up..." tile state.
             try:
-                await asyncio.wait_for(self._poke_event.wait(), timeout=self.interval)
+                await asyncio.wait_for(self._poke_event.wait(), timeout=effective_interval)
                 self._poke_event.clear()
                 logger.debug("Heartbeat poked — sending early")
             except asyncio.TimeoutError:
@@ -720,10 +736,14 @@ class MoongatePlugin:
                 "M118 DO NOT SHARE the code above.",
                 "M118 If shared by accident: MOONGATE_RESET_OWNER",
                 "M118 ==========================================",
-                "M118 Open this URL on a PC, tablet, or other phone:",
+                "M118 Option A — Scan the QR. Open this URL on a",
+                "M118 PC, tablet, or other phone:",
                 f"M118   {local_page}",
-                "M118 Then scan the QR with your phone's Moongate app",
-                "M118 (Add Printer > Scan QR).",
+                "M118 then scan the QR with the Moongate app",
+                "M118 (Add Printer > Scan QR code).",
+                "M118 ==========================================",
+                "M118 Option B — Type the code in the app:",
+                "M118 Add Printer > GATE code field.",
                 "M118 ==========================================",
                 f"M118 Code expires in {ttl_min} minutes.",
             ]

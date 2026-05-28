@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -9,19 +10,20 @@ import '../../models/printer_config.dart';
 import '../../services/printer_registry.dart';
 import '../../services/supabase_service.dart';
 
-/// v0.3.0 pairing flow:
+/// v0.3.0 pairing flow (with v0.4.2 manual-entry fallback):
 ///
 ///   1. User opens MOONGATE_PAIR on the Pi → Pi pre-registers the
 ///      enrollment-token hash + its Ed25519 public key with Supabase.
-///   2. Pi displays a QR containing `moongate://pair?v=3&pk=<base64>&et=<raw>`.
-///   3. App scans the QR, extracts `pk` and `et`, asks for a friendly name.
-///   4. App calls Supabase `/printer-claim` with those fields plus the
-///      current anonymous user's JWT (handled by supabase_flutter).
+///   2. Pi displays the GATE code via M118 + a QR containing
+///      `moongate://pair?v=3&pk=<base64>&et=<raw>`.
+///   3a. User scans the QR — app extracts `pk` and `et`.
+///   3b. OR user types the GATE code shown on the Pi's console — app has
+///       only `et`; the server uses its stored pubkey from the
+///       enrollment row.
+///   4. App asks for a friendly name and calls Supabase `/printer-claim`
+///      with the current anonymous user's JWT.
 ///   5. On success, the printer row exists in Supabase owned by this
 ///      anonymous user. Add it to the local cache and navigate back.
-///
-/// No manual code entry, no local-IP input, no tunnel-URL input — the QR
-/// has everything we need and Supabase handles the rest.
 class PairingScreen extends StatefulWidget {
   const PairingScreen({super.key});
 
@@ -30,7 +32,15 @@ class PairingScreen extends StatefulWidget {
 }
 
 class _PairingScreenState extends State<PairingScreen> {
-  final _nameController = TextEditingController(text: 'My Printer');
+  final _nameController      = TextEditingController(text: 'My Printer');
+
+  // Two 4-digit boxes for the GATE code. Split lets us show a numpad
+  // (TextInputType.number) instead of the full keyboard, and lets us
+  // auto-advance focus from box 1 to box 2 after 4 digits.
+  final _codeFirstController  = TextEditingController();
+  final _codeSecondController = TextEditingController();
+  final _codeFirstFocus       = FocusNode();
+  final _codeSecondFocus      = FocusNode();
 
   MobileScannerController? _scannerController;
   StreamSubscription<BarcodeCapture>? _barcodeSub;
@@ -39,16 +49,98 @@ class _PairingScreenState extends State<PairingScreen> {
   bool   _loading  = false;
   String? _error;
 
-  // Parsed from the most recent scan, waiting on the user to confirm name.
+  // QR-scan path: both fields populated.
   String? _scannedPubKey;
   String? _scannedEnrollmentToken;
+
+  // Manual-entry path: normalised GATE-XXXX-XXXX token. Pubkey unknown
+  // here — server uses its stored value from enrollment_tokens.
+  String? _manualEnrollmentToken;
 
   @override
   void dispose() {
     _barcodeSub?.cancel();
     _scannerController?.dispose();
     _nameController.dispose();
+    _codeFirstController.dispose();
+    _codeSecondController.dispose();
+    _codeFirstFocus.dispose();
+    _codeSecondFocus.dispose();
     super.dispose();
+  }
+
+  // ── Manual code normalisation + box wiring ───────────────────────────────
+
+  /// Build the canonical GATE-XXXX-XXXX form from the current contents of
+  /// the two code boxes. Returns null until both boxes have exactly 4
+  /// digits each (the formatters enforce digit-only + length 4 already,
+  /// so this is mostly a length gate).
+  static String? _normalisePairCode(String first, String second) {
+    if (first.length != 4 || second.length != 4) return null;
+    return 'GATE-$first-$second';
+  }
+
+  void _onFirstBoxChanged(String value) {
+    // Auto-advance focus when the first box is full. The formatter caps
+    // input at 4 digits so we don't have to handle longer strings here.
+    if (value.length == 4) {
+      _codeSecondFocus.requestFocus();
+    }
+    _updateManualCode();
+  }
+
+  void _onSecondBoxChanged(String _) {
+    _updateManualCode();
+  }
+
+  void _updateManualCode() {
+    final normalised = _normalisePairCode(
+      _codeFirstController.text,
+      _codeSecondController.text,
+    );
+    setState(() {
+      _manualEnrollmentToken = normalised;
+      // Clearing _error on every keystroke is noisy; only clear it when
+      // the user has actually typed something that looks valid.
+      if (normalised != null) _error = null;
+    });
+  }
+
+  /// One 4-digit GATE-code box. Numpad keyboard, centered large digits,
+  /// formatter clamps to digits-only and length 4. `isLast` controls the
+  /// keyboard "action" button (next vs done) and whether textInputAction
+  /// surfaces a Submit/Pair signal — done dismisses the keyboard on the
+  /// final box.
+  Widget _gateCodeBox({
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required ValueChanged<String> onChanged,
+    required bool isLast,
+  }) {
+    return TextField(
+      controller: controller,
+      focusNode:  focusNode,
+      enabled:    !_loading,
+      textAlign:  TextAlign.center,
+      style: const TextStyle(
+        fontSize: 28,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 6,
+      ),
+      keyboardType: TextInputType.number,
+      textInputAction: isLast ? TextInputAction.done : TextInputAction.next,
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(4),
+      ],
+      onChanged: onChanged,
+      decoration: const InputDecoration(
+        counterText: '',
+        hintText: '0000',
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+      ),
+    );
   }
 
   // ── QR scanner ────────────────────────────────────────────────────────────
@@ -164,12 +256,18 @@ class _PairingScreenState extends State<PairingScreen> {
   // ── Claim ────────────────────────────────────────────────────────────────
 
   Future<void> _claim() async {
-    final pk = _scannedPubKey;
-    final et = _scannedEnrollmentToken;
-    if (pk == null || et == null) {
-      setState(() => _error = 'Scan a QR code first.');
+    // QR-scan path wins if present (it carries the pubkey for the
+    // defense-in-depth server check). Manual path is the fallback.
+    final scannedEt = _scannedEnrollmentToken;
+    final manualEt  = _manualEnrollmentToken;
+    final et = scannedEt ?? manualEt;
+    if (et == null) {
+      setState(() => _error =
+          'Scan the QR code, or type the GATE code from the printer console.');
       return;
     }
+    final pk = scannedEt != null ? _scannedPubKey : null;
+
     final name = _nameController.text.trim().isEmpty
         ? 'My Printer'
         : _nameController.text.trim();
@@ -212,8 +310,10 @@ class _PairingScreenState extends State<PairingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cs       = Theme.of(context).colorScheme;
-    final hasScan  = _scannedPubKey != null && _scannedEnrollmentToken != null;
+    final cs        = Theme.of(context).colorScheme;
+    final hasScan   = _scannedPubKey != null && _scannedEnrollmentToken != null;
+    final hasManual = !hasScan && _manualEnrollmentToken != null;
+    final hasInput  = hasScan || hasManual;
 
     return Scaffold(
       appBar: AppBar(
@@ -231,8 +331,8 @@ class _PairingScreenState extends State<PairingScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Run MOONGATE_PAIR in your Klipper console, then scan the QR '
-              'code shown on the printer\'s screen.',
+              'Run MOONGATE_PAIR in your Klipper console — scan the QR or '
+              'type the GATE code shown on the console.',
               style: TextStyle(color: cs.onSurface.withValues(alpha: 0.6)),
             ),
             const SizedBox(height: 20),
@@ -249,13 +349,80 @@ class _PairingScreenState extends State<PairingScreen> {
             ),
             const SizedBox(height: 16),
 
-            // ── Scan button / scanned status ───────────────────────────
-            if (!hasScan && !_scanning)
+            // ── Scan button / scanned status / manual entry ───────────
+            if (!hasScan && !_scanning) ...[
               FilledButton.icon(
                 icon: const Icon(Icons.qr_code_scanner),
                 label: const Text('Scan QR code'),
-                onPressed: _openScanner,
+                onPressed: _loading ? null : _openScanner,
               ),
+              const SizedBox(height: 14),
+              Row(children: [
+                Expanded(child: Divider(color: cs.outlineVariant)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text('OR',
+                      style: TextStyle(
+                          color: cs.onSurface.withValues(alpha: 0.5),
+                          fontWeight: FontWeight.w600)),
+                ),
+                Expanded(child: Divider(color: cs.outlineVariant)),
+              ]),
+              const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 8),
+                child: Text(
+                  'GATE code',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: cs.onSurface.withValues(alpha: 0.7),
+                  ),
+                ),
+              ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(child: _gateCodeBox(
+                    controller: _codeFirstController,
+                    focusNode:  _codeFirstFocus,
+                    onChanged:  _onFirstBoxChanged,
+                    isLast:     false,
+                  )),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text('—',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurface.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                  Expanded(child: _gateCodeBox(
+                    controller: _codeSecondController,
+                    focusNode:  _codeSecondFocus,
+                    onChanged:  _onSecondBoxChanged,
+                    isLast:     true,
+                  )),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Text(
+                  _manualEnrollmentToken == null
+                      ? 'Type the 8-digit code shown in your Klipper console.'
+                      : 'Code looks valid ✓',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _manualEnrollmentToken != null
+                        ? cs.primary
+                        : cs.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+              ),
+            ],
 
             if (_scanning) ...[
               const SizedBox(height: 8),
@@ -342,6 +509,9 @@ class _PairingScreenState extends State<PairingScreen> {
                   ],
                 ),
               ),
+            ],
+
+            if (hasInput) ...[
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: _loading ? null : _claim,
