@@ -123,8 +123,10 @@ On first launch the app will ask you to add a printer.
 To completely remove Moongate from your Pi, SSH in and run:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/PEEKYPAUL/moongate/master/klipper-plugin/uninstall.sh | bash
+curl -fsSL https://raw.githubusercontent.com/PEEKYPAUL/moongate/master/klipper-plugin/uninstall.sh | MOONGATE_YES=1 bash
 ```
+
+(`MOONGATE_YES=1` skips the confirmation prompt, which can't be answered interactively when piping through `bash`. Omit it if you download the script first.)
 
 This removes:
 - The `moongate-tunnel` and `moongate-authproxy` systemd services

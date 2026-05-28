@@ -2,7 +2,9 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Moongate uninstaller
 # Run on your Klipper Pi:
-#   curl -fsSL https://raw.githubusercontent.com/PEEKYPAUL/moongate/master/klipper-plugin/uninstall.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/PEEKYPAUL/moongate/master/klipper-plugin/uninstall.sh | MOONGATE_YES=1 bash
+# or, with an interactive confirmation prompt:
+#   curl -fsSL https://raw.githubusercontent.com/PEEKYPAUL/moongate/master/klipper-plugin/uninstall.sh -o /tmp/u.sh && bash /tmp/u.sh
 #
 # Removes the plugin, tunnel service, repo clone, and all config data.
 # Does NOT remove cloudflared itself (it may be used by other services).
@@ -13,6 +15,7 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC
 info()    { echo -e "${BLUE}[moongate]${NC} $*"; }
 success() { echo -e "${GREEN}[moongate]${NC} $*"; }
 warn()    { echo -e "${YELLOW}[moongate]${NC} $*"; }
+die()     { echo -e "${RED}[moongate] ERROR:${NC} $*" >&2; exit 1; }
 
 MOONGATE_DIR="${MOONGATE_DIR:-$HOME/moongate}"
 MOONRAKER_DIR="${MOONRAKER_DIR:-$HOME/moonraker}"
@@ -38,7 +41,21 @@ echo ""
 echo "And RESTORE (from ~/.config/moongate/v0.4-backup/ if present):"
 echo "  • moonraker.conf — back to pre-v0.4 (Moonraker bound to 0.0.0.0)"
 echo ""
-read -r -p "Continue? [y/N] " confirm
+# Honor explicit non-interactive confirmation (env var or flag) before the
+# TTY check. Required for `curl ... | bash` because bash's stdin is the
+# script content — `read` can't reach the user's keyboard, so an interactive
+# prompt would silently abort.
+if [[ "${MOONGATE_YES:-}" == "1" ]] || [[ "${1:-}" == "-y" ]] || [[ "${1:-}" == "--yes" ]]; then
+    confirm=y
+elif [[ -t 0 ]]; then
+    read -r -p "Continue? [y/N] " confirm
+else
+    die "Cannot prompt for confirmation (stdin is not a terminal).
+To run via curl|bash, set MOONGATE_YES=1:
+    curl -fsSL <url> | MOONGATE_YES=1 bash
+Or download first and run with -y:
+    curl -fsSL <url> -o /tmp/u.sh && bash /tmp/u.sh -y"
+fi
 if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
     echo "Aborted."
     exit 0
@@ -62,6 +79,16 @@ if [[ -f /etc/systemd/system/moongate-tunnel.service ]]; then
     sudo rm -f /etc/systemd/system/moongate-tunnel.service
     sudo systemctl daemon-reload
     success "moongate-tunnel service removed"
+fi
+
+# Kill any lingering cloudflared process — guarantees a fresh tunnel URL on
+# the next install. systemctl stop reaps the managed PID, but a manually-
+# started cloudflared (or one orphaned from a half-finished prior install)
+# would survive otherwise and hold the existing URL.
+if pgrep -f "cloudflared tunnel" >/dev/null 2>&1; then
+    pkill -f "cloudflared tunnel" 2>/dev/null || true
+    sleep 1
+    success "Killed lingering cloudflared tunnel process(es)"
 fi
 
 # Tunnel log
