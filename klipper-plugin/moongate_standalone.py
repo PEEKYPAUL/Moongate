@@ -441,6 +441,22 @@ class SupabaseClient:
             "signature":     signature_b64,
         })
 
+    def release_pi_signed(
+        self,
+        pi_public_key_b64: str,
+        timestamp: int,
+        signature_b64: str,
+    ) -> tuple[int, dict]:
+        """Force-release the printer row in Supabase using a Pi-signed
+        request. Server verifies the signature against pi_public_key and
+        deletes the row regardless of owner. Used by MOONGATE_RESET_OWNER
+        so a wiped-app user can re-pair from a fresh anon UID."""
+        return self._post("/release-printer", {
+            "pi_public_key": pi_public_key_b64,
+            "timestamp":     timestamp,
+            "signature":     signature_b64,
+        })
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # HeartbeatLoop
@@ -691,22 +707,23 @@ class MoongatePlugin:
             logger.error("run_gcode failed: %s", exc)
 
     async def _klipper_reset_owner(self) -> None:
-        """MOONGATE_RESET_OWNER macro entry point. Wipes the local owner
-        binding so the printer can be re-paired. Does not delete the remote
-        printer row — Supabase's 6-week inactivity sweep handles that, or
-        the user can do it manually."""
-        had_owner = self.owner is not None
+        """MOONGATE_RESET_OWNER macro entry point. Wipes local owner binding
+        AND attempts a Pi-signed force-release of the cloud row so a fresh
+        app install (new anon UID) can re-pair without bouncing off
+        'already_paired'. Closes the v0.3.1 un-pair gap."""
         prior_pid = self.owner.printer_id[:8] if self.owner else None
-        self._wipe_owner()
+        had_owner, cloud_status = await self._do_factory_reset()
 
         await asyncio.sleep(0.3)
         if had_owner:
-            msg = f"M118 Moongate: owner state wiped (was {prior_pid}…)"
+            local_msg = f"M118 Moongate: owner state wiped (was {prior_pid}…)"
         else:
-            msg = "M118 Moongate: no owner state (already unpaired)"
+            local_msg = "M118 Moongate: no owner state (already unpaired)"
+        cloud_msg = self._cloud_status_m118(cloud_status)
         script = "\n".join([
             "M118 ============================================",
-            msg,
+            local_msg,
+            cloud_msg,
             "M118 Run MOONGATE_PAIR to re-pair.",
             "M118 ============================================",
         ])
@@ -715,6 +732,48 @@ class MoongatePlugin:
             await klippy_apis.run_gcode(script)
         except Exception as exc:
             logger.error("run_gcode failed: %s", exc)
+
+    async def _do_factory_reset(self) -> tuple[bool, int]:
+        """Shared reset path used by the macro and the HTTP endpoint:
+        wipe local owner.json + try to release the cloud row. Returns
+        (had_owner_before, cloud_release_status). cloud_status is the
+        HTTP code from the Pi-signed POST, with 0 meaning "network
+        error / no answer at all"."""
+        had_owner = self.owner is not None
+        self._wipe_owner()
+        # urllib in SupabaseClient is sync; off-load to a thread so the
+        # asyncio loop is free for other work (matters because the macro
+        # runs inline on Moonraker's loop).
+        loop = asyncio.get_event_loop()
+        cloud_status = await loop.run_in_executor(None, self._release_in_cloud)
+        return had_owner, cloud_status
+
+    def _release_in_cloud(self) -> int:
+        """Sign + POST a release request. Returns the HTTP status.
+        0 means the request didn't reach Supabase at all (DNS, offline)."""
+        ts        = int(time.time())
+        pk_b64    = self.device.public_key_b64
+        canonical = f"moongate-release\n{pk_b64}\n{ts}".encode()
+        sig_b64   = self.device.sign_b64(canonical)
+
+        status, body = self.sb.release_pi_signed(pk_b64, ts, sig_b64)
+        if status == 200:
+            logger.info("Cloud row released for pi_pubkey=%s...", pk_b64[:8])
+        elif status == 0:
+            logger.warning("Cloud release skipped: network unavailable (%s)", body)
+        else:
+            logger.warning("Cloud release returned HTTP %s: %s", status, body)
+        return status
+
+    @staticmethod
+    def _cloud_status_m118(status: int) -> str:
+        """Turn an HTTP status from _release_in_cloud into a one-line
+        M118 message for the Mainsail console."""
+        if status == 200:
+            return "M118 Cloud row released."
+        if status == 0:
+            return "M118 Cloud release skipped — network unavailable."
+        return f"M118 Cloud release failed — HTTP {status}."
 
     def _wipe_owner(self) -> None:
         self.owner = None
@@ -903,12 +962,17 @@ class MoongatePlugin:
 
     async def _handle_reset_owner(self, webrequest: Any) -> dict:
         """LAN-only owner reset (no token required by design; LAN access is
-        a stronger signal than a JWT for recovery)."""
+        a stronger signal than a JWT for recovery). Same semantics as the
+        MOONGATE_RESET_OWNER macro: wipes local owner.json AND attempts
+        a Pi-signed force-release of the cloud row."""
         if not self._is_lan_request(webrequest):
             raise self.server.error("Reset must be triggered from the local LAN", 403)
-        had_owner = self.owner is not None
-        self._wipe_owner()
-        return {"ok": True, "had_owner": had_owner}
+        had_owner, cloud_status = await self._do_factory_reset()
+        return {
+            "ok":           True,
+            "had_owner":    had_owner,
+            "cloud_status": cloud_status,
+        }
 
     # ── Webcam + chamber discovery (kept from v0.2.x) ─────────────────────────
 
