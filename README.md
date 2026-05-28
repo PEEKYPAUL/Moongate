@@ -92,9 +92,9 @@ At the end you'll see output like:
 
 ### Step 2 — Install the app
 
-**Latest public release: v0.2.29.** The next release — **v0.4.0** — is what this README describes; it's in final testing on the `v0.4-secure-remote` branch and will land here when it merges to master.
+**Latest public release: v0.4.2.**
 
-**[⬇ Download Moongate-v0.2.29.apk](https://github.com/PEEKYPAUL/Moongate/raw/master/APK/Moongate-v0.2.29.apk)** and install it on your Android phone.
+**[⬇ Download Moongate-v0.4.2.apk](https://github.com/PEEKYPAUL/Moongate/raw/master/APK/Moongate-v0.4.2.apk)** and install it on your Android phone.
 
 > Android only for now. Tap the link above to download directly to your phone.
 > Enable **Install from unknown sources** for your browser or file manager before installing.
@@ -112,7 +112,7 @@ On first launch the app will ask you to add a printer.
 3. In the Moongate app, tap **+** → **Scan QR** and point your camera at the QR code
 4. Done — your printer appears in the dashboard
 
-**No second device handy?** You can also type the code shown in the Klipper console (`GATE-XXXX-XXXX`) directly into the app.
+**No working camera on your phone?** Type the **GATE code** shown in the Klipper console (`GATE-XXXX-XXXX`) directly into the app's Add Printer screen — two 4-digit boxes with a numpad. No scan needed.
 
 > Pairing is LAN-only by design — your phone and the device showing the QR both need to be on the same WiFi as the Pi. The QR carries only the info needed to set up the cloud association; from that point on, the app finds your printer over LAN or tunnel automatically, no URL to remember and nothing for you to share.
 
@@ -193,7 +193,7 @@ The drawer scrolls — two captures to show everything.
 ```
 moongate/
 ├── APK/                    # Pre-built release APKs + version manifest
-│   ├── Moongate-v0.2.29.apk
+│   ├── Moongate-v0.4.2.apk
 │   ├── Moongate-latest.apk
 │   └── latest_version.json
 ├── docs/

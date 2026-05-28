@@ -212,7 +212,7 @@ CI only fires on `master`. Feature branches (like `v0.4-secure-remote`) don't bu
 
 ### Pairing (manual code path)
 
-If no second device is handy, the `GATE-XXXX-XXXX` code shown in the Klipper console can be typed into the app's pair screen instead of scanning. The rest of the flow is the same — code in, claim out, owner.json written, tile spins up.
+If the phone's camera doesn't work (permission denied, hardware fault, can't focus on the QR), the `GATE-XXXX-XXXX` code shown in the Klipper console can be typed into the app's pair screen instead of scanning — two 4-digit boxes with a numpad. The rest of the flow is the same: code in (no `pi_public_key` sent — the server uses the one already on the enrollment row), claim out, owner.json written, tile spins up.
 
 ### Status poll (every 4 s per tile)
 

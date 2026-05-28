@@ -100,14 +100,13 @@ If your own app is getting 401s from the tunnel side (status tile is stuck offli
 
 - Grant camera permission when prompted, or via **Settings → Apps → Moongate → Permissions → Camera**.
 - The QR scanner only works in **release** builds with the ProGuard rules in [`mobile/android/app/proguard-rules.pro`](mobile/android/app/proguard-rules.pro). Debug builds also work; R8 doesn't run in debug.
-- If the camera opens but fails to read the code: try the manual code path instead. Tap **+ → Enter Code** and type the `GATE-XXXX-XXXX` from the Klipper console.
+- If the camera opens but fails to read the code: type the **GATE code** instead. Tap **+** to open Add Printer; the two 4-digit boxes for the `GATE-XXXX-XXXX` code shown in the Klipper console are right below the Scan QR button (numpad keyboard).
 
 ## Pairing fails / "already paired" error
 
-If you previously paired this Pi but un-paired without going through `Dashboard → Remove printer`:
+In **v0.4.2+** the recovery is one macro: `MOONGATE_RESET_OWNER` on the Pi (Klipper console) wipes the local owner record **and** releases the cloud-side association (the Pi signs the release request with its own device key — same key it already uses for heartbeats). Then `MOONGATE_PAIR` and pair again from any app install.
 
-- The cloud-side association may still exist. Run `MOONGATE_RESET_OWNER` on the Pi (Klipper console) to clear the local owner record, then `MOONGATE_PAIR` and re-scan.
-- v0.3.1+ should handle this automatically — `claim_printer` is idempotent for the same anonymous user, so re-pairing with the same app install just works.
+Before v0.4.2 the cloud row could be orphaned by a fresh app install (new anonymous identity), which would cause `already_paired` on re-pair. That's gone now — the Pi can clean up its own cloud row without the original app being reachable.
 
 ## Tunnel URL leakage — what's actually exposed in v0.4?
 
