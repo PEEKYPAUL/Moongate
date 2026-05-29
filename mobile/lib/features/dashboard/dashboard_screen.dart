@@ -600,6 +600,11 @@ class _ChangelogEntry {
 
 // Top-level brief — bumped on each release. Newest first.
 const _changelog = <_ChangelogEntry>[
+  _ChangelogEntry('v0.4.4', [
+    'Pi-side groundwork for LAN discovery — your Pi now advertises itself on the local network',
+    'No visible change yet on its own; pairs with the upcoming v0.5.0 app update',
+    'Re-run the Pi installer to pick up the change',
+  ]),
   _ChangelogEntry('v0.4.3', [
     'Webcam tile now works on slow camera servers (stock RatRig Micron+ / uv4l-mjpeg)',
     'Self-throttles to whatever the camera can deliver instead of cancelling its own fetches',

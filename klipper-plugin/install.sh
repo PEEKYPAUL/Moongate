@@ -585,6 +585,54 @@ sleep 1
 sudo systemctl restart moongate-tunnel
 success "moongate-tunnel service started"
 
+# ── 7b. Avahi mDNS advertisement — sudoers + daemon (v0.4.4) ────────────────
+# Lets the plugin advertise this Pi on the local network as _moongate._tcp
+# so the v0.5+ app can find it without depending on Supabase + Cloudflare.
+# See docs/v0.5-lan-discovery-design.md §6 for the full design.
+#
+# Two pieces:
+#   (1) Sudoers entry letting the plugin (running as $USER via Moonraker)
+#       install + remove /etc/avahi/services/moongate.service without a
+#       password. Tightly scoped: exact source and dest paths only.
+#   (2) Make sure avahi-daemon is enabled. On stock MainsailOS/FluiddPI
+#       it already is; this is a defensive no-op in the common case.
+#
+# The plugin only WRITES the service file after a successful pair (per
+# §6.4 Option B). Unpaired Pis stay invisible on the LAN by design.
+info "Installing Avahi mDNS sudoers entry..."
+SUDOERS_FILE="/etc/sudoers.d/moongate-avahi"
+sudo tee "$SUDOERS_FILE" > /dev/null << SUDOERS
+# Moongate v0.4.4 — installed by klipper-plugin/install.sh
+# Allows the Moonraker user to manage the Avahi mDNS advertisement.
+# Tightly scoped: exactly one cp source/dest pair and one rm target.
+$USER ALL=(root) NOPASSWD: /bin/cp $HOME/.config/moongate/moongate-avahi.service.tmp /etc/avahi/services/moongate.service
+$USER ALL=(root) NOPASSWD: /bin/rm -f /etc/avahi/services/moongate.service
+SUDOERS
+sudo chmod 0440 "$SUDOERS_FILE"
+
+# visudo -c validates syntax; reject the file rather than ship a broken
+# sudoers entry that could lock out sudo for $USER on the next login.
+if sudo visudo -c -f "$SUDOERS_FILE" >/dev/null 2>&1; then
+    success "Avahi sudoers entry installed at $SUDOERS_FILE"
+else
+    sudo rm -f "$SUDOERS_FILE"
+    warn "Avahi sudoers entry rejected by visudo — mDNS will be unavailable."
+    warn "Other Moongate features are unaffected; tunnel + LAN-via-IP still work."
+fi
+
+# Make sure avahi-daemon is enabled. On stock MainsailOS / FluiddPI this is
+# already true (Mainsail's <hostname>.local resolution uses it).
+if systemctl is-active --quiet avahi-daemon 2>/dev/null; then
+    info "avahi-daemon already running"
+elif command -v systemctl &>/dev/null; then
+    if sudo systemctl enable --now avahi-daemon 2>/dev/null; then
+        success "avahi-daemon enabled"
+    else
+        warn "avahi-daemon could not be enabled (not installed?) — mDNS will be unavailable."
+        warn "On Debian/Ubuntu: sudo apt install avahi-daemon"
+    fi
+fi
+
 # ── 8. Restart Moonraker then Klipper ────────────────────────────────────────
 info "Restarting Moonraker..."
 sudo systemctl restart moonraker
