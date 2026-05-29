@@ -122,9 +122,12 @@ class LanDiscoveryService {
       _log('Resolved service has no printer_id TXT, ignoring: ${service.name}');
       return;
     }
+    // bonsoir 5.x: ResolvedBonsoirService.host is nullable (the resolver
+    // can complete with no IP if it raced a 'lost' event, etc.). Treat
+    // null and empty the same way — skip; the next browse will retry.
     final host = service.host;
     final port = service.port;
-    if (host.isEmpty) {
+    if (host == null || host.isEmpty) {
       _log('Resolved service has no host, ignoring: ${service.name}');
       return;
     }
