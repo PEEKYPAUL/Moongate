@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:http/http.dart' as http;
 
 import '../../models/printer_config.dart';
 import '../../services/print_control_service.dart';
@@ -173,7 +175,6 @@ class _PrinterTileState extends State<PrinterTile> {
                 fit: StackFit.expand,
                 children: [
                   _WebcamSnapshot(
-                    connection: _status.connection,
                     webcamSnapshotUrl: _status.webcamSnapshotUrl,
                     webcamFlipH:     _status.webcamFlipH,
                     webcamFlipV:     _status.webcamFlipV,
@@ -480,27 +481,38 @@ class _Btn extends StatelessWidget {
 
 // ── Webcam snapshot ───────────────────────────────────────────────────────────
 //
-// Network strategy delegated to PrinterStatusService — `connection` mirrors
-// the path the service is currently using so the webcam image lines up with
-// the connection indicator on the tile.
+// Self-paced fetch loop. We pull each snapshot ourselves with `http.get` and
+// only schedule the next fetch *after* the current one resolves — successful,
+// errored, or timed out. The effective frame rate self-adapts to whatever the
+// webcam server can actually deliver: fast Crowsnest setups still hit the
+// configured 15–30 FPS, slow uv4l-mjpeg (stock RatRig Micron+) and cellular-
+// tunnel paths drop to whatever they can sustain, but they never sit on the
+// placeholder forever.
+//
+// This replaces a v0.4.1-era `Image.network`-driven tick loop that incremented
+// a cache-buster every `1000/fps` ms. On any path where a single snapshot
+// took longer than that interval, `Image.network` would cancel every in-flight
+// fetch with the next tick and no frame ever finished — see PR #5 for the
+// tunnel-side incarnation of the same race. The fix there was a static 3 FPS
+// cap on tunnel mode; this generalises that to any slow path.
 
 class _WebcamSnapshot extends StatefulWidget {
-  final PrinterConnection connection;
   /// Absolute, ready-to-fetch snapshot URL (already includes mg_token for
   /// tunnel mode). Built by PrinterStatusService each poll. Null while
   /// no webcam is configured or the printer hasn't been reached yet —
-  /// errorBuilder renders the UI-type logo placeholder.
+  /// build() falls back to the UI-type logo placeholder.
   final String?           webcamSnapshotUrl;
   final bool              webcamFlipH;
   final bool              webcamFlipV;
   final int               webcamRotation; // 0 | 90 | 180 | 270
-  /// Crowsnest / Mainsail Target FPS — drives the snapshot-poll cadence.
+  /// Crowsnest / Mainsail Target FPS. Acts as the ceiling on the fetch
+  /// rate; the actual rate is bounded below by whatever the server can
+  /// sustain (the fetch loop is strictly sequential).
   final int               webcamTargetFps;
-  /// 'mainsail' | 'fluidd' | null — shown as logo when webcam unavailable.
+  /// 'mainsail' | 'fluidd' | null — shown as logo when no snapshot yet.
   final String?           uiType;
 
   const _WebcamSnapshot({
-    required this.connection,
     this.webcamSnapshotUrl,
     this.webcamFlipH     = false,
     this.webcamFlipV     = false,
@@ -514,72 +526,83 @@ class _WebcamSnapshot extends StatefulWidget {
 }
 
 class _WebcamSnapshotState extends State<_WebcamSnapshot> {
-  int _tick = 0;
+  /// Bytes of the most recent successful snapshot. Null until the first
+  /// fetch lands; build() shows the UI-type logo placeholder in that
+  /// window. After the first frame, `Image.memory(gaplessPlayback: true)`
+  /// keeps the last decoded frame on screen across subsequent re-fetches
+  /// — no flicker between updates.
+  Uint8List? _currentBytes;
 
   @override
   void initState() {
     super.initState();
-    _startTicker();
+    _loop();
   }
 
-  void _startTicker() {
-    // Tick interval is derived from the Crowsnest / Mainsail "Target FPS"
-    // the user configured on the Pi.  If the user set 15 fps server-side,
-    // we tick every ~67 ms; 30 fps → ~33 ms; 5 fps → 200 ms.  This way the
-    // displayed rate matches what the server is actually producing, instead
-    // of either over-polling a slow stream or under-polling a fast one.
-    //
-    // `Image.network` with `gaplessPlayback: true` keeps showing the last
-    // decoded frame until the new one is fully decoded, so the tile never
-    // flashes black between fetches even when the network leg is slower
-    // than the timer.  On a tunnel connection the snapshot latency usually
-    // caps the effective rate well below the target; on LAN it tracks.
-    //
-    // The widget rebuilds (e.g. when status updates change webcamTargetFps)
-    // restart this loop because of the `mounted` check + the closure
-    // capturing `widget.webcamTargetFps` is re-evaluated on every iteration.
-    Future.doWhile(() async {
-      // Cap the tick rate on tunnel mode. Cellular + Cloudflare-edge RTT
-      // makes each snapshot take 200-1000ms; at the configured 15+ FPS,
-      // Image.network would cancel every in-flight load with the next
-      // tick (new `_t=N` ⇒ new src), so no frame ever completes and the
-      // errorBuilder placeholder shows permanently. 3 FPS leaves ~333ms
-      // per fetch — plenty for the tunnel path while still smooth for a
-      // thumbnail. LAN mode keeps the configured rate (snapshots finish
-      // in tens of ms).
-      final maxFps = widget.connection == PrinterConnection.remote ? 3 : 60;
-      final fps = widget.webcamTargetFps.clamp(1, maxFps);
+  /// Sequential snapshot-fetch loop. One in flight at a time. The next
+  /// `_fetchOnce` only starts after the previous one has fully resolved
+  /// (200, non-200, timeout, or network error), so a slow upstream
+  /// naturally throttles the effective frame rate instead of triggering
+  /// the v0.4.1-era self-cancel race.
+  ///
+  /// The configured Target FPS becomes a *ceiling*: when a fetch returns
+  /// faster than `1000/fps` ms, we sleep the remainder so we don't spam
+  /// a fast server above the user's chosen rate. When it returns slower,
+  /// the sleep is effectively zero and the next fetch starts immediately.
+  Future<void> _loop() async {
+    while (mounted) {
+      final start = DateTime.now();
+      await _fetchOnce();
+      if (!mounted) return;
+
+      final fps        = widget.webcamTargetFps.clamp(1, 60);
       final intervalMs = (1000 / fps).round();
-      await Future.delayed(Duration(milliseconds: intervalMs));
-      if (!mounted) return false;
-      setState(() => _tick++);
-      return true;
-    });
+      final elapsedMs  = DateTime.now().difference(start).inMilliseconds;
+      final remaining  = intervalMs - elapsedMs;
+      if (remaining > 0) {
+        await Future.delayed(Duration(milliseconds: remaining));
+      }
+    }
   }
 
-  String get _snapshotUrl {
-    // PrinterStatusService gives us the absolute, pre-authenticated URL.
-    // We just bolt on a cache-buster so each tick refetches even when
-    // Image.network's cache would otherwise reuse the same response.
+  /// One GET to the snapshot URL. Success → store bytes, the next build
+  /// will render them. Failure → swallow silently; gaplessPlayback keeps
+  /// the previous frame visible (or the placeholder if there isn't one
+  /// yet).
+  Future<void> _fetchOnce() async {
     final url = widget.webcamSnapshotUrl;
-    if (url == null || url.isEmpty) return '';
-    final sep = url.contains('?') ? '&' : '?';
-    return '$url${sep}_t=$_tick';
+    if (url == null || url.isEmpty) return;
+    try {
+      // 8 s timeout. Generous because uv4l-mjpeg has been observed to
+      // take 3 s+ per snapshot on first wake. We'd rather block the
+      // loop briefly and get a frame than spin-fail and never display
+      // anything.
+      final resp = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 8));
+      if (!mounted) return;
+      if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
+        setState(() => _currentBytes = resp.bodyBytes);
+      }
+    } catch (_) {
+      // Network blip / 401 / timeout / parse error. No state change —
+      // the previous frame stays on screen.
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    Widget image = Image.network(
-      _snapshotUrl,
-      fit: BoxFit.cover,
-      gaplessPlayback: true,
-      // No loadingBuilder — it overrides gaplessPlayback and causes a
-      // one-second white flash.  Gapless holds the last frame silently.
-      errorBuilder: (_, __, ___) => Container(
-        color: Colors.black54,
-        child: Center(child: _WebcamPlaceholder(uiType: widget.uiType)),
-      ),
-    );
+    final bytes = _currentBytes;
+    Widget image = bytes != null
+        ? Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+          )
+        : Container(
+            color: Colors.black54,
+            child: Center(child: _WebcamPlaceholder(uiType: widget.uiType)),
+          );
 
     // Apply the webcam display transforms that Mainsail has configured.
     // This makes the tile image match the orientation shown in the web UI,

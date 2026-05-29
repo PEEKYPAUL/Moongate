@@ -600,6 +600,11 @@ class _ChangelogEntry {
 
 // Top-level brief — bumped on each release. Newest first.
 const _changelog = <_ChangelogEntry>[
+  _ChangelogEntry('v0.4.3', [
+    'Webcam tile now works on slow camera servers (stock RatRig Micron+ / uv4l-mjpeg)',
+    'Self-throttles to whatever the camera can deliver instead of cancelling its own fetches',
+    'No Pi-side change needed — just update the app',
+  ]),
   _ChangelogEntry('v0.4.2', [
     'Re-pair after app reinstall just works — no more "already paired"',
     'Pairing goes live within seconds, not up to 5 minutes',
