@@ -11,6 +11,7 @@ import 'features/splash/splash_screen.dart';
 import 'providers/custom_theme_provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/update_provider.dart';
+import 'services/lan_discovery_service.dart';
 import 'services/printer_registry.dart';
 
 final _router = GoRouter(
@@ -67,11 +68,15 @@ class _MoongateAppState extends ConsumerState<MoongateApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // v0.3.0: no LAN-vs-tunnel reprobing needed (all calls go through
-      // the Supabase-mediated tunnel). Just re-run the update check so a
-      // banner appears if CI published a new release while we were
-      // backgrounded.
+      // Re-run the update check so a banner appears if CI published a new
+      // release while we were backgrounded.
       ref.invalidate(updateProvider);
+      // v0.5.0: kick off an mDNS browse so the LanDiscoveryService cache
+      // is current the moment the user is looking at the dashboard.
+      // Fire-and-forget — the browse completes in ~5 s in the background
+      // and the status service will pick up any new entries on its next
+      // poll cycle. See docs/v0.5-lan-discovery-design.md §7.4.
+      LanDiscoveryService.instance.refresh().ignore();
     }
   }
 

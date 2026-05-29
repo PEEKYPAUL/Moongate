@@ -1,6 +1,6 @@
 name: moongate
 description: Remote control interface for Klipper 3D printers via local WiFi or Cloudflare tunnel.
-version: 0.4.3+48
+version: 0.5.0+50
 publish_to: none
 
 environment:
@@ -55,6 +55,11 @@ dependencies:
   # Separates permission request from camera initialisation so mobile_scanner
   # never tries to open the hardware before the user has granted access.
   permission_handler: ^11.0.0
+
+  # v0.5.0: mDNS / DNS-SD discovery for `_moongate._tcp.local` advertised
+  # by v0.4.4+ Pis. See docs/v0.5-lan-discovery-design.md §7.1 for the
+  # rationale (Android NsdManager + iOS NetServiceBrowser under one API).
+  bonsoir: ^5.1.0
 
 dev_dependencies:
   flutter_test:

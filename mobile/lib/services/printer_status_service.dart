@@ -5,6 +5,7 @@ import 'dart:developer' as dev;
 import 'package:http/http.dart' as http;
 
 import '../models/printer_config.dart';
+import 'lan_discovery_service.dart';
 import 'printer_access_cache.dart';
 import 'printer_registry.dart';
 import 'supabase_service.dart';
@@ -49,7 +50,18 @@ class PrinterStatusService {
   // `_currentLanUrl` is a mutable copy initialised from the PrinterConfig
   // snapshot. Subsequent /status responses update it in-place so the very
   // next poll uses the freshly-learned LAN URL.
+  //
+  // v0.5.0: [LanDiscoveryService] takes priority over this when present.
+  // The discovered URL is what the Pi is *currently* advertising on mDNS;
+  // the persisted one might be stale (DHCP renewal, router reboot). See
+  // docs/v0.5-lan-discovery-design.md §8.1.
   String? _currentLanUrl;
+
+  // v0.5.0: bump every poll. Trigger a fresh mDNS browse every Nth poll
+  // (N=15 ≈ 1 min at 4 s polling) so IP changes are picked up promptly
+  // without spamming the network. See docs/v0.5-lan-discovery-design.md §7.4.
+  int _pollCount = 0;
+  static const int _mDnsBrowseEveryNPolls = 15;
 
   PrinterStatusService(this.config)
       : _currentLanUrl = config.lanUrl,
@@ -131,6 +143,14 @@ class PrinterStatusService {
       return;
     }
 
+    // 0. v0.5.0: every Nth poll, kick off a non-blocking mDNS browse so
+    //    the LanDiscoveryService cache stays fresh against IP changes.
+    //    Fire-and-forget — never gate the poll itself on the browse.
+    _pollCount++;
+    if (_pollCount % _mDnsBrowseEveryNPolls == 1) {
+      LanDiscoveryService.instance.refresh().ignore();
+    }
+
     // 1. Fresh access token + tunnel URL from Supabase
     PrinterAccess access;
     try {
@@ -154,10 +174,16 @@ class PrinterStatusService {
       await _discoverChamberSensor(access);
     }
 
-    // 3. LAN-first on every poll when we have a cached URL. Same EdDSA
-    //    token works on LAN or tunnel. The 2s fast-fail timeout inside
-    //    _tryMoongateEndpoint caps the off-LAN penalty.
-    final lanUrl = _currentLanUrl;
+    // 3. LAN-first on every poll. Same EdDSA token works on LAN or
+    //    tunnel; the 2s fast-fail timeout inside _tryMoongateEndpoint
+    //    caps the off-LAN penalty.
+    //
+    //    v0.5.0: a freshly-discovered URL from mDNS takes precedence over
+    //    the persisted lanUrl. When both are set and the discovered one
+    //    differs (Pi just moved IPs), we go straight to the new IP
+    //    without wasting a poll on the stale persisted one.
+    final discoveredLanUrl = LanDiscoveryService.instance.lookup(config.id);
+    final lanUrl = discoveredLanUrl ?? _currentLanUrl;
     if (lanUrl != null) {
       final lan = await _tryMoongateEndpoint(
           baseUrl: lanUrl, access: access, isLan: true);
