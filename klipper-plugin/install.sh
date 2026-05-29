@@ -380,18 +380,46 @@ fi
 success "Plugin HTTP port saved to $PLUGIN_CFG_FILE"
 
 # ── 6. Install cloudflared (skip if already installed) ───────────────────────
+# Two install paths so this works on the variety of SBCs Klipper runs on:
+#   • Debian-family (dpkg present): grab the matching .deb. Covers
+#     stock MainsailOS / FluiddPI / KIAUH on Raspberry Pi, plus Armbian
+#     on Orange Pi / NanoPi / Odroid etc.
+#   • Anything else (no dpkg): pull the raw binary into /usr/local/bin.
+#     Covers Arch Linux ARM, Alpine, and any future distro where dpkg
+#     isn't around.
+# Cloudflare publishes both shapes for every arch we care about, so a
+# single $CF_ARCH variable drives both paths.
 if command -v cloudflared &>/dev/null; then
-    info "cloudflared already installed — skipping."
+    info "cloudflared already installed at $(command -v cloudflared) — skipping."
 else
-    info "Installing cloudflared..."
-    CF_DEB="cloudflared-linux-${CF_ARCH}.deb"
-    CF_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/$CF_DEB"
-    TMP_DEB="/tmp/$CF_DEB"
-    curl -fsSL "$CF_URL" -o "$TMP_DEB"
-    sudo dpkg -i "$TMP_DEB"
-    rm -f "$TMP_DEB"
-    success "cloudflared installed"
+    CF_BASE="https://github.com/cloudflare/cloudflared/releases/latest/download"
+    if command -v dpkg &>/dev/null; then
+        info "Installing cloudflared via dpkg (cloudflared-linux-${CF_ARCH}.deb)..."
+        TMP_DEB="/tmp/cloudflared-linux-${CF_ARCH}.deb"
+        curl -fsSL "$CF_BASE/cloudflared-linux-${CF_ARCH}.deb" -o "$TMP_DEB" \
+            || die "Failed to download cloudflared deb for $CF_ARCH"
+        sudo dpkg -i "$TMP_DEB" || die "dpkg failed installing $TMP_DEB"
+        rm -f "$TMP_DEB"
+    else
+        # No dpkg — install the binary directly. /usr/local/bin is on
+        # PATH on every Linux we'd realistically run on. systemd will
+        # find it via the resolved $CLOUDFLARED_BIN below.
+        info "Installing cloudflared binary to /usr/local/bin (no dpkg detected)..."
+        sudo curl -fsSL "$CF_BASE/cloudflared-linux-${CF_ARCH}" \
+            -o /usr/local/bin/cloudflared \
+            || die "Failed to download cloudflared binary for $CF_ARCH"
+        sudo chmod +x /usr/local/bin/cloudflared
+    fi
+    success "cloudflared installed at $(command -v cloudflared)"
 fi
+
+# Resolve the cloudflared path once so the systemd unit below uses
+# whichever location it actually ended up in: /usr/bin via dpkg,
+# /usr/local/bin via binary, or somewhere else for a pre-existing
+# install (e.g. the user dropped it in ~/bin). Avoids hard-coding
+# /usr/bin/cloudflared which is wrong on non-Debian systems.
+CLOUDFLARED_BIN="$(command -v cloudflared)"
+[[ -n "$CLOUDFLARED_BIN" ]] || die "cloudflared not on PATH after install"
 
 # ── 6b. Install moongate-authproxy systemd service (v0.4) ────────────────────
 # The auth proxy must be running BEFORE cloudflared starts pointing at it,
@@ -496,7 +524,7 @@ Wants=network-online.target moongate-authproxy.service
 [Service]
 Type=simple
 User=$USER
-ExecStart=/usr/bin/cloudflared tunnel --url http://localhost:$MG_AUTHPROXY_PORT --no-autoupdate
+ExecStart=$CLOUDFLARED_BIN tunnel --url http://localhost:$MG_AUTHPROXY_PORT --no-autoupdate
 Restart=on-failure
 RestartSec=10
 StandardOutput=append:/run/moongate-tunnel.log
