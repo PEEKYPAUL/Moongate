@@ -37,6 +37,7 @@ echo "  • ~/.config/moongate (tokens + secret key + v0.4 backup dir)"
 echo "  • [moongate] entries in moonraker.conf"
 echo "  • MOONGATE_PAIR macro from printer config"
 echo "  • moongate-pair.html from Mainsail"
+echo "  • Avahi mDNS service file + sudoers entry (v0.4.4)"
 echo ""
 echo "And RESTORE (from ~/.config/moongate/v0.4-backup/ if present):"
 echo "  • moonraker.conf — back to pre-v0.4 (Moonraker bound to 0.0.0.0)"
@@ -136,6 +137,22 @@ if [[ -d "$V04_BACKUP_DIR" ]]; then
     # restored manually or never modified.
 else
     info "No v0.4 backup dir found — skipping restore (Pi was never v0.4 or already cleaned)."
+fi
+
+# ── 1d. Remove Avahi mDNS advertisement + sudoers entry (v0.4.4) ─────────────
+# The plugin normally removes its own service file on _wipe_owner, but we
+# clean up here defensively in case (a) the plugin was uninstalled without
+# running MOONGATE_RESET_OWNER first, (b) sudo failed during plugin
+# shutdown, or (c) the file was left over from a manual edit. avahi-daemon
+# itself is left alone — other services on the system use it.
+info "Removing Avahi mDNS advertisement..."
+if [[ -f /etc/avahi/services/moongate.service ]]; then
+    sudo rm -f /etc/avahi/services/moongate.service
+    success "Avahi service file removed"
+fi
+if [[ -f /etc/sudoers.d/moongate-avahi ]]; then
+    sudo rm -f /etc/sudoers.d/moongate-avahi
+    success "Avahi sudoers entry removed"
 fi
 
 # ── 2. Remove plugin from Moonraker components ────────────────────────────────

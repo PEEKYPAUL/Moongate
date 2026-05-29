@@ -63,6 +63,28 @@ OWNER_FILE   = CONFIG_DIR / "owner.json"
 CONFIG_FILE  = CONFIG_DIR / "config.json"
 JWKS_CACHE   = CONFIG_DIR / "jwks.json"
 
+# v0.4.4 — Avahi mDNS advertisement for LAN discovery from the v0.5+ app.
+# See docs/v0.5-lan-discovery-design.md §6 for the full design.
+# AVAHI_SERVICE_TMP lives in the pi-owned config dir; the install-time
+# sudoers entry at /etc/sudoers.d/moongate-avahi permits exactly one cp
+# from AVAHI_SERVICE_TMP to AVAHI_SERVICE_FILE and one rm of the latter.
+AVAHI_SERVICE_FILE = Path("/etc/avahi/services/moongate.service")
+AVAHI_SERVICE_TMP  = CONFIG_DIR / "moongate-avahi.service.tmp"
+
+AVAHI_SERVICE_TEMPLATE = """<?xml version="1.0" standalone='no'?>
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<service-group>
+  <name replace-wildcards="yes">Moongate on %h</name>
+  <service>
+    <type>_moongate._tcp</type>
+    <port>{http_port}</port>
+    <txt-record>printer_id={printer_id}</txt-record>
+    <txt-record>http_port={http_port}</txt-record>
+    <txt-record>version=v0.5</txt-record>
+  </service>
+</service-group>
+"""
+
 # v0.3.0 talks to one centrally-hosted Supabase project. Override via
 # ~/.config/moongate/config.json if you ever want a self-hosted backend.
 DEFAULT_SUPABASE_URL = "https://wlmmaoupmupbrrkcjglj.supabase.co"
@@ -643,6 +665,13 @@ class MoongatePlugin:
         logger.info("Moongate v0.3 plugin loaded. Owner: %s. Tunnel: %s",
                     owner_str, _get_tunnel_url() or "not up")
 
+        # v0.4.4: defensive re-write of the Avahi service file if the Pi
+        # is paired but the file isn't there. Covers (a) upgrade from
+        # pre-v0.4.4, (b) manual deletion, (c) the file being lost during
+        # a system update that wiped /etc/avahi/services/.
+        if self.owner is not None and not AVAHI_SERVICE_FILE.exists():
+            self._write_avahi_service()
+
     # ── Config ────────────────────────────────────────────────────────────────
 
     def _load_config(self) -> dict:
@@ -831,12 +860,86 @@ class MoongatePlugin:
                 OWNER_FILE.unlink()
         except OSError as exc:
             logger.warning("Failed to delete %s: %s", OWNER_FILE, exc)
+        # v0.4.4: stop advertising on mDNS when we lose owner state — the Pi
+        # is no longer paired so it shouldn't be discoverable.
+        self._remove_avahi_service()
 
     def _on_unpaired(self) -> None:
         """Heartbeat callback: server says printer is gone."""
         if self.owner is not None:
             logger.warning("Server has no record of this printer — wiping local owner state")
             self._wipe_owner()
+
+    # ── v0.4.4: Avahi mDNS advertisement ──────────────────────────────────────
+    # See docs/v0.5-lan-discovery-design.md §6. The plugin owns the lifecycle
+    # of /etc/avahi/services/moongate.service: it writes it on successful
+    # owner bind (in _authenticate), removes it on _wipe_owner, and re-writes
+    # it defensively at startup if owner.json exists but the service file
+    # has gone missing (e.g. manual deletion, upgrade from pre-v0.4.4).
+    # All file operations to /etc/avahi/services/ go through sudo with a
+    # tightly-scoped sudoers entry installed by install.sh.
+
+    def _write_avahi_service(self) -> None:
+        """Install the Avahi service file. Idempotent. Best-effort —
+        failures are logged but never interrupt pairing or polling."""
+        if self.owner is None:
+            return
+        try:
+            content = AVAHI_SERVICE_TEMPLATE.format(
+                printer_id=self.owner.printer_id,
+                http_port=self.http_port,
+            )
+            AVAHI_SERVICE_TMP.write_text(content)
+            # `sudo -n` fails fast if the sudoers entry isn't in place
+            # (e.g. plugin updated from pre-v0.4.4 without re-running
+            # install.sh). 5 s timeout because we never want to block
+            # pairing on this.
+            result = subprocess.run(
+                ["sudo", "-n", "/bin/cp",
+                 str(AVAHI_SERVICE_TMP), str(AVAHI_SERVICE_FILE)],
+                check=False, capture_output=True, timeout=5,
+            )
+            if result.returncode == 0:
+                logger.info(
+                    "Avahi mDNS advertisement installed (printer_id=%s..., port=%s)",
+                    self.owner.printer_id[:8], self.http_port,
+                )
+            else:
+                # Most common cause: sudoers entry missing. Tell the user
+                # how to fix without scaring them — pairing itself succeeded.
+                logger.warning(
+                    "Avahi mDNS advertisement skipped (re-run install.sh "
+                    "to enable LAN discovery from the v0.5+ app): %s",
+                    result.stderr.decode(errors="replace").strip()
+                    or f"exit {result.returncode}",
+                )
+        except (OSError, subprocess.SubprocessError) as exc:
+            logger.warning("Failed to write Avahi service file: %s", exc)
+        finally:
+            try:
+                AVAHI_SERVICE_TMP.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+    def _remove_avahi_service(self) -> None:
+        """Remove the Avahi service file (best-effort; no-op if absent)."""
+        if not AVAHI_SERVICE_FILE.exists():
+            return
+        try:
+            result = subprocess.run(
+                ["sudo", "-n", "/bin/rm", "-f", str(AVAHI_SERVICE_FILE)],
+                check=False, capture_output=True, timeout=5,
+            )
+            if result.returncode == 0:
+                logger.info("Avahi mDNS advertisement removed")
+            else:
+                logger.warning(
+                    "Failed to remove Avahi service file: %s",
+                    result.stderr.decode(errors="replace").strip()
+                    or f"exit {result.returncode}",
+                )
+        except (OSError, subprocess.SubprocessError) as exc:
+            logger.warning("Failed to remove Avahi service file: %s", exc)
 
     # ── Auth ──────────────────────────────────────────────────────────────────
 
@@ -867,6 +970,10 @@ class MoongatePlugin:
                             claims.sub[:8], claims.printer_id[:8])
             except OSError as exc:
                 logger.error("Failed to persist owner.json: %s", exc)
+            # v0.4.4: Pi becomes discoverable on the LAN now that there's
+            # a valid owner. See docs/v0.5-lan-discovery-design.md §6.4 —
+            # unpaired Pis are intentionally invisible on mDNS.
+            self._write_avahi_service()
         return claims
 
     def _is_lan_request(self, webrequest: Any) -> bool:
