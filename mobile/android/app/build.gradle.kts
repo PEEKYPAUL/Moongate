@@ -20,7 +20,13 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.moongate.app.moongate"
-    compileSdk = flutter.compileSdkVersion
+    // v0.5.0: bonsoir 5.x transitively pulls in androidx.fragment 1.7.1 and
+    // androidx.window 1.2.0, both of which need compileSdk 34+. Flutter's
+    // stable channel default (flutter.compileSdkVersion) is still 33 in
+    // 3.44, so override explicitly. compileSdk only controls which APIs the
+    // build can compile against; it doesn't change minSdk or targetSdk, so
+    // there's no runtime behaviour change for users on older Android.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
