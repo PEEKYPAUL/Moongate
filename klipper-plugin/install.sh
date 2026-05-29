@@ -308,11 +308,49 @@ info "Found printer.cfg at $PRINTER_CFG"
 KLIPPER_CFG_DIR="$(dirname "$PRINTER_CFG")"
 MOONGATE_CFG="$KLIPPER_CFG_DIR/moongate.cfg"
 
-cat > "$MOONGATE_CFG" << 'MACROEOF'
+# Detect whether [respond] is already declared anywhere in the user's
+# Klipper config. The MOONGATE_PAIR macro uses M118 to print the pair
+# code, QR URL, and instructions to the Mainsail console; M118 is only
+# available when [respond] is enabled. Many stock setups (vanilla
+# MainsailOS / KIAUH) ship without it.
+#
+# We exclude moongate.cfg itself from the scan: on re-install, our own
+# previously-written [respond] would otherwise trip the detector and
+# we'd strip it back out, breaking M118 again. Excluding our file means
+# the check answers "is [respond] declared *outside* of us?".
+RESPOND_PRESENT=0
+while IFS= read -r f; do
+    [[ "$(basename "$f")" == "moongate.cfg" ]] && continue
+    if grep -qE '^\s*\[respond\]' "$f"; then
+        RESPOND_PRESENT=1
+        break
+    fi
+done < <(find "$KLIPPER_CFG_DIR" -maxdepth 2 -name "*.cfg" 2>/dev/null)
+
+# Build moongate.cfg. Always emits the two macros; conditionally emits
+# [respond] only when no other config file already declares it
+# (declaring [respond] twice is a fatal Klipper config error).
+{
+    cat << 'HEADER'
 # ── Moongate ──────────────────────────────────────────────────────────────────
 # Managed by the Moongate installer — do not edit manually.
 # Updates are handled automatically via Moonraker's update manager.
 
+HEADER
+
+    if [[ $RESPOND_PRESENT -eq 0 ]]; then
+        cat << 'RESPONDSECTION'
+# [respond] enables the M118 command, which MOONGATE_PAIR uses to print
+# the pair code, QR URL, and instructions to the Mainsail/Fluidd console.
+# Without this, MOONGATE_PAIR would log "Unknown command: M118" instead.
+# If you later add [respond] elsewhere in your config, remove this block
+# — Klipper refuses to start with two [respond] sections.
+[respond]
+
+RESPONDSECTION
+    fi
+
+    cat << 'MACROS'
 [gcode_macro MOONGATE_PAIR]
 description: Start a Moongate pairing session and show a QR for the mobile app
 gcode:
@@ -322,8 +360,14 @@ gcode:
 description: Wipe local Moongate owner binding so the printer can be re-paired
 gcode:
     {action_call_remote_method("moongate_reset_owner")}
-MACROEOF
+MACROS
+} > "$MOONGATE_CFG"
 
+if [[ $RESPOND_PRESENT -eq 1 ]]; then
+    info "[respond] already enabled in your config — moongate.cfg uses your existing one"
+else
+    success "[respond] auto-added to moongate.cfg (required for MOONGATE_PAIR's M118 output)"
+fi
 success "Macro written to $MOONGATE_CFG"
 
 if grep -q '\[include moongate\.cfg\]' "$PRINTER_CFG"; then
