@@ -56,14 +56,37 @@ KLIPPER_CFG_DIR="$PRINTER_DATA/config"
 [[ -f "$MOONRAKER_CONF" ]] || die "moonraker.conf not found at $MOONRAKER_CONF."
 
 ARCH=$(uname -m)
-case "$ARCH" in
-    aarch64|arm64) CF_ARCH="arm64" ;;
-    armv7l|armhf)  CF_ARCH="arm"   ;;
-    x86_64)        CF_ARCH="amd64" ;;
-    *) die "Unsupported architecture: $ARCH" ;;
-esac
 
-info "Architecture: $ARCH → cloudflared: $CF_ARCH"
+# Pick the cloudflared deb that matches the dpkg system architecture.
+# uname -m alone is unreliable: the kernel reports armv7l on a system
+# whose userland is armhf, and dpkg refuses to install an "arm" deb on
+# an "armhf" host. dpkg --print-architecture is what dpkg uses when
+# matching a .deb, so it's the authoritative source here.
+DPKG_ARCH=""
+if command -v dpkg &>/dev/null; then
+    DPKG_ARCH="$(dpkg --print-architecture)"
+    case "$DPKG_ARCH" in
+        arm64)  CF_ARCH="arm64" ;;
+        armhf)  CF_ARCH="armhf" ;;
+        armel)  CF_ARCH="arm"   ;;
+        amd64)  CF_ARCH="amd64" ;;
+        i386)   CF_ARCH="386"   ;;
+        *) die "Unsupported dpkg architecture: $DPKG_ARCH (uname: $ARCH)" ;;
+    esac
+else
+    # No dpkg — unusual on a Klipper Pi, but fall back to uname so the
+    # diagnostic still fires before we try to install cloudflared.
+    case "$ARCH" in
+        aarch64|arm64) CF_ARCH="arm64" ;;
+        armv7l)        CF_ARCH="armhf" ;;
+        armv6l)        CF_ARCH="arm"   ;;
+        x86_64)        CF_ARCH="amd64" ;;
+        i686|i386)     CF_ARCH="386"   ;;
+        *) die "Unsupported architecture: $ARCH" ;;
+    esac
+fi
+
+info "Architecture: $ARCH (dpkg: ${DPKG_ARCH:-n/a}) → cloudflared: $CF_ARCH"
 
 # ── 1. Clone or update the Moongate repo ─────────────────────────────────────
 # Cloning to ~/moongate lets Moonraker's update manager track the repo and
