@@ -92,9 +92,9 @@ At the end you'll see output like:
 
 ### Step 2 — Install the app
 
-**Latest public release: v0.4.2.**
+**Latest public release: v0.5.1.**
 
-**[⬇ Download Moongate-v0.4.2.apk](https://github.com/PEEKYPAUL/Moongate/raw/master/APK/Moongate-v0.4.2.apk)** and install it on your Android phone.
+**[⬇ Download Moongate-v0.5.1.apk](https://github.com/PEEKYPAUL/Moongate/raw/master/APK/Moongate-v0.5.1.apk)** and install it on your Android phone.
 
 > Android only for now. Tap the link above to download directly to your phone.
 > Enable **Install from unknown sources** for your browser or file manager before installing.
@@ -167,7 +167,7 @@ The drawer scrolls — two captures to show everything.
 | Top of menu | Bottom of menu |
 |---|---|
 | <img src="docs/screenshots/drawer.png" alt="Drawer — top"/> | <img src="docs/screenshots/drawer-bottom.png" alt="Drawer — bottom"/> |
-| Printer management, config import/export, theme selector (incl. the **Custom** option which jumps straight into the colour editor) | Font scale slider, 1/2/3-column dashboard layout, landscape rotation toggle, **About** section (What's new dialog + Buy me a coffee), Settings shortcut, current version |
+| Printer management, config import/export, theme selector (incl. the **Custom** option which jumps straight into the colour editor) | Font scale slider, 1/2/3-column dashboard layout, camera-feed refresh-rate selector, landscape rotation toggle, **About** section (What's new dialog + Buy me a coffee), Settings shortcut, current version |
 
 ---
 
@@ -175,7 +175,7 @@ The drawer scrolls — two captures to show everything.
 
 | Feature | Detail |
 |---|---|
-| **Dashboard** | See all your printers at a glance — live webcam thumbnails refreshing every second, print progress (matched to Mainsail's slicer-time calculation), temperatures, chamber sensor, and status |
+| **Dashboard** | See all your printers at a glance — live webcam thumbnails (refresh rate is yours to pick: Raw / 1s / 3s / 5s, default 1s, to balance smoothness against data use), print progress (matched to Mainsail's slicer-time calculation), temperatures, chamber sensor, and status |
 | **Print controls** | Pause, resume, and stop prints directly from the dashboard tile. Stop requires a second press to confirm. Idle / errored printers get a one-tap firmware-restart button |
 | **Full Mainsail / Fluidd UI** | Tap any tile to open the complete web UI in an embedded browser. Auto-detects whichever you run |
 | **Auto local / remote** | Tries your home WiFi first on every poll; falls back to the Cloudflare tunnel within ~2 seconds if LAN is unreachable. Walking back into WiFi range flips the tile back to "Local" on the next poll cycle — no manual switch, no stale state |
@@ -193,7 +193,7 @@ The drawer scrolls — two captures to show everything.
 ```
 moongate/
 ├── APK/                    # Pre-built release APKs + version manifest
-│   ├── Moongate-v0.4.2.apk
+│   ├── Moongate-v0.5.1.apk
 │   ├── Moongate-latest.apk
 │   └── latest_version.json
 ├── docs/

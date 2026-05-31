@@ -640,6 +640,14 @@ class _ChangelogEntry {
 
 // Top-level brief — bumped on each release. Newest first.
 const _changelog = <_ChangelogEntry>[
+  _ChangelogEntry('v0.5.1', [
+    'Pairing is instant — scan the QR and the printer shows as Local right away',
+    'Remote (tunnel) access now syncs in the background; both icons appear once it\'s ready',
+    'No more sitting on "Starting up… waiting for first heartbeat" after you pair',
+    'New "Dashboard camera feed" setting — Raw / 1s / 3s / 5s (default 1s) to cut data use',
+    'Dashboard webcams pause while the app is in the background',
+    'Re-run the Pi installer to enable instant pairing',
+  ]),
   _ChangelogEntry('v0.5.0', [
     'Dashboard tile stays "Local" when your Pi\'s IP changes — even if the internet is down',
     'Finds your Pi on the local network via mDNS (pairs with the v0.4.4 Pi advertisement)',
