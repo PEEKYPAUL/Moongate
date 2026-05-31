@@ -108,6 +108,16 @@ In **v0.4.2+** the recovery is one macro: `MOONGATE_RESET_OWNER` on the Pi (Klip
 
 Before v0.4.2 the cloud row could be orphaned by a fresh app install (new anonymous identity), which would cause `already_paired` on re-pair. That's gone now — the Pi can clean up its own cloud row without the original app being reachable.
 
+## All tiles offline after reinstalling the app (or a new phone)
+
+**Symptom:** You reinstalled Moongate, or switched to a new phone, and every printer shows offline — even sitting on your home WiFi.
+
+**Cause:** A fresh install creates a new anonymous app identity. Your printers are still associated with the *previous* identity in the cloud, so the new install owns nothing and every tile reads offline. Importing a config backup brings back the printer names and layout, but not the cloud association.
+
+**Fix:** Re-pair each printer. On the Pi, run `MOONGATE_RESET_OWNER` in the Klipper console, then `MOONGATE_PAIR`, and scan the QR (or type the GATE code) in the app.
+
+> **Save yourself a step:** run `MOONGATE_RESET_OWNER` *before* you uninstall the old app. Then a fresh install just needs `MOONGATE_PAIR` and a scan.
+
 ## Tunnel URL leakage — what's actually exposed in v0.4?
 
 **Nothing.** This was a real concern in v0.2.x where the tunnel terminated at nginx serving Mainsail without auth. In v0.4 the tunnel terminates at the auth proxy, which returns flat 401s for every request without a valid short-lived token. The URL alone is useless. Share it with anyone — they get 401s.
