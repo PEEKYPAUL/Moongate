@@ -103,6 +103,8 @@ All releases are in the [APK folder](https://github.com/PEEKYPAUL/Moongate/tree/
 
 On first launch the app will ask you to add a printer.
 
+> **Reinstalling, or moving to a new phone?** A fresh install creates a brand-new app identity, so your printers won't reconnect on their own — every tile shows offline until you re-pair. Before pairing again, run **`MOONGATE_RESET_OWNER`** in the Klipper console for each printer (it releases the old association), then `MOONGATE_PAIR` and scan as usual. Exporting your config first (menu → **Export config**) restores your printer *names* and layout, but re-pairing is what restores the actual connection. **Tip:** running `MOONGATE_RESET_OWNER` *before* you uninstall saves a step.
+
 ---
 
 ### Step 3 — Pair
