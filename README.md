@@ -256,7 +256,7 @@ moongate/
     ├── moongate-authproxy.service # systemd unit template for the auth proxy
     ├── install.sh                 # One-line installer for the Pi
     ├── update.sh                  # Post-pull hook called by Moonraker update manager
-    ├── uninstall.sh               # Complete uninstaller (Step 4)
+    ├── uninstall.sh               # Complete uninstaller (see "Removing Moongate")
     └── moongate-pair.html         # QR pairing page (deployed to Mainsail)
 ```
 
