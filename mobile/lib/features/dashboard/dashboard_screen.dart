@@ -646,6 +646,7 @@ const _changelog = <_ChangelogEntry>[
     'No more sitting on "Starting up… waiting for first heartbeat" after you pair',
     'New "Dashboard camera feed" setting — Raw / 1s / 3s / 5s (default 1s) to cut data use',
     'Dashboard webcams pause while the app is in the background',
+    'Reinstalling or on a new phone? Run MOONGATE_RESET_OWNER on the Pi first, then re-pair',
     'Re-run the Pi installer to enable instant pairing',
   ]),
   _ChangelogEntry('v0.5.0', [
