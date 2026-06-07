@@ -78,7 +78,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
+  flutter_lints: ^6.0.0
 
 # supabase_flutter 2.x transitively depends on app_links for OAuth deep-link
 # callbacks. We only use anonymous sign-in, so the dep is unused at runtime,
