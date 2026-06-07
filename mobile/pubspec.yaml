@@ -19,7 +19,7 @@ dependencies:
   # v0.3.0 routes every printer call through Supabase: app signs in
   # anonymously, gets a JWT, calls /printer-access to fetch the current
   # tunnel URL + a short-lived EdDSA access token, then hits the Pi.
-  supabase_flutter: ^2.5.0
+  supabase_flutter: ^2.14.1
 
   # Secure storage (token / pairing data)
   flutter_secure_storage: ^9.0.0
