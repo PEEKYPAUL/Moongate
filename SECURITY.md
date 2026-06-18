@@ -231,7 +231,7 @@ These are real options that came up during v0.4 design and were rejected, in cas
 - **WireGuard on Android.** Requires the user to grant the OS-level `VpnService` permission, which Google Play increasingly disfavours for non-VPN-product apps. No native NAT-traversal mechanism — needs a relay anyway for ~85% of home networks. Closed off at the design stage; see the alternatives appendix in [`docs/v0.4-secure-remote-access-design.md`](docs/v0.4-secure-remote-access-design.md).
 - **Tailscale / Headscale / ZeroTier / NetBird.** Either paid above 3 nodes, requires accounts, or requires self-hosting infrastructure that defeats "no VPN setup". Documented in the same appendix.
 - **Browser-side Mainsail login via `force_logins` in Moonraker.** Was the v0.2.x recommended mitigation; the auth-proxy approach in v0.4 is strictly stronger (no Mainsail HTML ever leaves the Pi for unauthenticated requests) and doesn't require the user to type a Moonraker password into Mainsail every time the cookie expires.
-- **A Moongate-operated print server / relay.** Would centralise G-code, print history, and live status with us. Off the table — both for privacy and for "this is meant to stay a tiny project".
+- **A Moongate-operated print server / relay.** Would centralise G-code, print history, and live status with us. Off the table — both for privacy and by design: the cloud middleman is deliberately kept minimal (a lookup-and-token service), not a print server we operate.
 
 ---
 
