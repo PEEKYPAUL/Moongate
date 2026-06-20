@@ -7,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/printer_config.dart';
+import '../../providers/custom_theme_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/print_control_service.dart';
 import '../../services/printer_registry.dart';
@@ -547,7 +548,8 @@ class _PrinterTileState extends State<PrinterTile> with WidgetsBindingObserver {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Name + connection icon + the always-present settings gear.
+                  // Name + connection label — same as the full tile: wifi/cloud
+                  // icon + Local/Tunnel label + the remote-tunnel status dot.
                   Row(
                     children: [
                       Expanded(
@@ -558,7 +560,7 @@ class _PrinterTileState extends State<PrinterTile> with WidgetsBindingObserver {
                         ),
                       ),
                       if (_status.connection != PrinterConnection.offline) ...[
-                        const SizedBox(width: 5),
+                        const SizedBox(width: 4),
                         Icon(
                           _status.connection == PrinterConnection.local
                               ? Icons.wifi_rounded
@@ -566,28 +568,31 @@ class _PrinterTileState extends State<PrinterTile> with WidgetsBindingObserver {
                           size: 11,
                           color: connColor,
                         ),
-                        const SizedBox(width: 6),
-                        if (_status.klippyShutdown)
-                          _RestartButton(
-                            tooltip: l.tileFirmwareRestart,
-                            onTap: _handleFirmwareRestart,
-                          )
-                        else
-                          _EstopButton(
-                            tooltip: l.tileEmergencyStop,
-                            onFire: _handleEmergencyStop,
+                        const SizedBox(width: 3),
+                        Text(
+                          _status.connection == PrinterConnection.local
+                              ? l.tileLocal
+                              : l.tileTunnel,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: connColor,
+                            fontWeight: FontWeight.w600,
                           ),
+                        ),
+                        if (_status.connection == PrinterConnection.local)
+                          _TunnelStatusDot(ready: _status.tunnelReady),
                       ],
                     ],
                   ),
-                  // One status line: progress while printing, live temps when
-                  // there's a reading, otherwise the connection-state label.
+                  // Print progress — kept so a compact tile still shows it.
                   if (printing)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: _CompactProgress(status: _status),
-                    )
-                  else if (!noLiveReading)
+                    ),
+                  // Live temperatures + E-STOP on the SAME row (same as the full
+                  // tile) — shown whenever there's a live reading, including
+                  // mid-print, so the E-STOP stays reachable while online.
+                  if (!noLiveReading)
                     Padding(
                       padding: const EdgeInsets.only(top: 5),
                       child: Row(
@@ -614,10 +619,22 @@ class _PrinterTileState extends State<PrinterTile> with WidgetsBindingObserver {
                               target: _status.chamberTarget,
                             ),
                           ],
+                          const Spacer(),
+                          if (_status.klippyShutdown)
+                            _RestartButton(
+                              tooltip: l.tileFirmwareRestart,
+                              onTap: _handleFirmwareRestart,
+                            )
+                          else
+                            _EstopButton(
+                              tooltip: l.tileEmergencyStop,
+                              onFire: _handleEmergencyStop,
+                            ),
                         ],
                       ),
-                    )
-                  else
+                    ),
+                  // Connection-state label when there's nothing live to show.
+                  if (noLiveReading)
                     Padding(
                       padding: const EdgeInsets.only(top: 5),
                       child: _CompactStateLabel(state: _overlayState(_status)!),
@@ -939,13 +956,18 @@ class _Btn extends StatelessWidget {
 /// dialog; the double-tap is the safety. A single tap is swallowed
 /// (HitTestBehavior.opaque + a no-op onTap) so a stray touch neither halts the
 /// print nor opens the printer screen.
-class _EstopButton extends StatelessWidget {
+class _EstopButton extends ConsumerWidget {
   final String tooltip;
   final VoidCallback onFire;
   const _EstopButton({required this.tooltip, required this.onFire});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // The ring + icon follow the Custom theme's E-stop colour when that theme
+    // is active; otherwise the classic emergency red.
+    final c = ref.watch(themeModeProvider) == AppThemeMode.custom
+        ? ref.watch(customThemeProvider).estop
+        : Colors.red;
     return Tooltip(
       message: tooltip,
       child: GestureDetector(
@@ -957,11 +979,11 @@ class _EstopButton extends StatelessWidget {
           height: 28,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: Colors.red.withValues(alpha: 0.15),
+            color: c.withValues(alpha: 0.15),
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.red, width: 2),
+            border: Border.all(color: c, width: 2),
           ),
-          child: const Icon(Icons.warning_rounded, color: Colors.red, size: 16),
+          child: Icon(Icons.warning_rounded, color: c, size: 16),
         ),
       ),
     );

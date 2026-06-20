@@ -758,6 +758,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get customThemeErrorDesc => 'Необратимые действия, наложения ошибок';
 
   @override
+  String get customThemeEstop => 'Кнопка аварийной остановки';
+
+  @override
+  String get customThemeEstopDesc => 'Кольцо и значок аварийной остановки';
+
+  @override
   String get customThemePresets => 'Пресеты';
 
   @override

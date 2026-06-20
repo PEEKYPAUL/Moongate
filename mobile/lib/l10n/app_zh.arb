@@ -238,6 +238,8 @@
   "customThemeTextDesc": "界面上的正文和标题文字",
   "customThemeError": "错误 / 停止",
   "customThemeErrorDesc": "破坏性操作、错误浮层",
+  "customThemeEstop": "急停按钮",
+  "customThemeEstopDesc": "急停按钮的圆环和图标",
   "customThemePresets": "预设",
   "customThemeInvalidHex": "不是有效的十六进制颜色",
   "customThemeSamplePrinter": "示例打印机",

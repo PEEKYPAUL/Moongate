@@ -757,6 +757,12 @@ class AppLocalizationsPl extends AppLocalizations {
   String get customThemeErrorDesc => 'Działania destrukcyjne, nakładki błędów';
 
   @override
+  String get customThemeEstop => 'Przycisk awaryjnego zatrzymania';
+
+  @override
+  String get customThemeEstopDesc => 'Pierścień i ikona awaryjnego zatrzymania';
+
+  @override
   String get customThemePresets => 'Gotowe ustawienia';
 
   @override

@@ -748,6 +748,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get customThemeErrorDesc => 'Destructive actions, error overlays';
 
   @override
+  String get customThemeEstop => 'E-STOP button';
+
+  @override
+  String get customThemeEstopDesc => 'Emergency-stop ring and icon';
+
+  @override
   String get customThemePresets => 'Presets';
 
   @override

@@ -760,6 +760,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get customThemeErrorDesc => 'Destruktive Aktionen, Fehler-Overlays';
 
   @override
+  String get customThemeEstop => 'Not-Aus-Taste';
+
+  @override
+  String get customThemeEstopDesc => 'Ring und Symbol des Not-Aus';
+
+  @override
   String get customThemePresets => 'Vorlagen';
 
   @override

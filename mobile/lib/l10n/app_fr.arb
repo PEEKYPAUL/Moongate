@@ -238,6 +238,8 @@
   "customThemeTextDesc": "Texte du corps et des titres sur les surfaces",
   "customThemeError": "Erreur / Arrêt",
   "customThemeErrorDesc": "Actions destructrices, superpositions d'erreur",
+  "customThemeEstop": "Bouton d'arrêt d'urgence",
+  "customThemeEstopDesc": "Anneau et icône de l'arrêt d'urgence",
   "customThemePresets": "Préréglages",
   "customThemeInvalidHex": "Couleur hexadécimale non valide",
   "customThemeSamplePrinter": "Imprimante d'exemple",

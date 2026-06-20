@@ -764,6 +764,13 @@ class AppLocalizationsIt extends AppLocalizations {
   String get customThemeErrorDesc => 'Azioni distruttive, overlay di errore';
 
   @override
+  String get customThemeEstop => 'Pulsante di arresto di emergenza';
+
+  @override
+  String get customThemeEstopDesc =>
+      'Anello e icona dell\'arresto di emergenza';
+
+  @override
   String get customThemePresets => 'Preimpostazioni';
 
   @override

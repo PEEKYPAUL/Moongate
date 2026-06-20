@@ -719,6 +719,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get customThemeErrorDesc => '破坏性操作、错误浮层';
 
   @override
+  String get customThemeEstop => '急停按钮';
+
+  @override
+  String get customThemeEstopDesc => '急停按钮的圆环和图标';
+
+  @override
   String get customThemePresets => '预设';
 
   @override

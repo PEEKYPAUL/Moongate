@@ -1,5 +1,13 @@
 [
   {
+    "version": "v0.9.21",
+    "bullets": [
+      "You can now set the emergency-stop button's colour — a new E-STOP slot on the Custom theme changes its ring and icon (defaults to the classic emergency red)",
+      "Compact (webcam-hidden) tiles now match the full tiles: the E-STOP sits on the temperature row, and the Wi-Fi/Local and cloud/Tunnel indicators show — the same layout, just without the camera",
+      "No Pi update needed — just update the app"
+    ]
+  },
+  {
     "version": "v0.9.20",
     "bullets": [
       "The custom dashboard background now fills the whole screen — it extends behind the top app bar (and the status bar) instead of stopping just below it. Set or change it on the Custom theme screen",

@@ -238,6 +238,8 @@
   "customThemeTextDesc": "Tekst treści i nagłówków na powierzchniach",
   "customThemeError": "Błąd / Stop",
   "customThemeErrorDesc": "Działania destrukcyjne, nakładki błędów",
+  "customThemeEstop": "Przycisk awaryjnego zatrzymania",
+  "customThemeEstopDesc": "Pierścień i ikona awaryjnego zatrzymania",
   "customThemePresets": "Gotowe ustawienia",
   "customThemeInvalidHex": "Nieprawidłowy kolor szesnastkowy",
   "customThemeSamplePrinter": "Przykładowa drukarka",

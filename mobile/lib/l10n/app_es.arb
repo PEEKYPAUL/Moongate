@@ -238,6 +238,8 @@
   "customThemeTextDesc": "Texto de cuerpo y títulos sobre las superficies",
   "customThemeError": "Error / Parar",
   "customThemeErrorDesc": "Acciones destructivas, superposiciones de error",
+  "customThemeEstop": "Botón de parada de emergencia",
+  "customThemeEstopDesc": "Anillo e icono de parada de emergencia",
   "customThemePresets": "Preajustes",
   "customThemeInvalidHex": "No es un color hexadecimal válido",
   "customThemeSamplePrinter": "Impresora de ejemplo",

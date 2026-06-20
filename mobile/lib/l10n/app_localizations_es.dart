@@ -767,6 +767,12 @@ class AppLocalizationsEs extends AppLocalizations {
       'Acciones destructivas, superposiciones de error';
 
   @override
+  String get customThemeEstop => 'Botón de parada de emergencia';
+
+  @override
+  String get customThemeEstopDesc => 'Anillo e icono de parada de emergencia';
+
+  @override
   String get customThemePresets => 'Preajustes';
 
   @override

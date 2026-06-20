@@ -24,6 +24,11 @@ class CustomTheme {
   final Color text;
   final Color error;
 
+  /// Colour of the dashboard E-STOP button's ring + icon. Defaults to the
+  /// classic emergency red. Applied on the Custom theme only (see
+  /// printer_tile's _EstopButton); rides the custom_theme backup.
+  final Color estop;
+
   /// Printer-tile background opacity, 0.0–1.0 (default 1.0 = opaque). Lets the
   /// custom dashboard background show through the tiles' card/stats area; the
   /// camera feed stays opaque. Applied on the Custom theme only (see
@@ -36,6 +41,7 @@ class CustomTheme {
     required this.surface,
     required this.text,
     required this.error,
+    this.estop = const Color(0xFFF44336),
     this.tileOpacity = 1.0,
   });
 
@@ -55,6 +61,7 @@ class CustomTheme {
     Color? surface,
     Color? text,
     Color? error,
+    Color? estop,
     double? tileOpacity,
   }) =>
       CustomTheme(
@@ -63,6 +70,7 @@ class CustomTheme {
         surface:    surface    ?? this.surface,
         text:       text       ?? this.text,
         error:      error      ?? this.error,
+        estop:      estop      ?? this.estop,
         tileOpacity: tileOpacity ?? this.tileOpacity,
       );
 
@@ -72,6 +80,7 @@ class CustomTheme {
         'surface':    hexOf(surface),
         'text':       hexOf(text),
         'error':      hexOf(error),
+        'estop':      hexOf(estop),
         'tileOpacity': tileOpacity,
       };
 
@@ -81,6 +90,7 @@ class CustomTheme {
         surface:    parseHex(j['surface']    as String?) ?? defaults.surface,
         text:       parseHex(j['text']       as String?) ?? defaults.text,
         error:      parseHex(j['error']      as String?) ?? defaults.error,
+        estop:      parseHex(j['estop']      as String?) ?? defaults.estop,
         tileOpacity: (j['tileOpacity'] as num?)?.toDouble() ?? 1.0,
       );
 
@@ -138,6 +148,7 @@ class CustomThemeNotifier extends Notifier<CustomTheme> {
   Future<void> setSurface(Color c)    async { state = state.copyWith(surface: c);    await _save(); }
   Future<void> setText(Color c)       async { state = state.copyWith(text: c);       await _save(); }
   Future<void> setError(Color c)      async { state = state.copyWith(error: c);      await _save(); }
+  Future<void> setEstop(Color c)      async { state = state.copyWith(estop: c);      await _save(); }
   Future<void> setTileOpacity(double v) async { state = state.copyWith(tileOpacity: v.clamp(0.0, 1.0)); await _save(); }
 
   Future<void> reset() async {

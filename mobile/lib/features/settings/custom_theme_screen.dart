@@ -118,6 +118,12 @@ class CustomThemeScreen extends ConsumerWidget {
             colour: theme.error,
             onPick: (c) => notifier.setError(c),
           ),
+          _ColourRow(
+            label: l.customThemeEstop,
+            description: l.customThemeEstopDesc,
+            colour: theme.estop,
+            onPick: (c) => notifier.setEstop(c),
+          ),
 
           const Divider(height: 1),
 

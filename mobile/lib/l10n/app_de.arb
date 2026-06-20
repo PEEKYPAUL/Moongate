@@ -238,6 +238,8 @@
   "customThemeTextDesc": "Fließ- und Überschriftentext auf Oberflächen",
   "customThemeError": "Fehler / Stopp",
   "customThemeErrorDesc": "Destruktive Aktionen, Fehler-Overlays",
+  "customThemeEstop": "Not-Aus-Taste",
+  "customThemeEstopDesc": "Ring und Symbol des Not-Aus",
   "customThemePresets": "Vorlagen",
   "customThemeInvalidHex": "Keine gültige Hex-Farbe",
   "customThemeSamplePrinter": "Beispieldrucker",

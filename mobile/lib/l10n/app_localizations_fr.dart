@@ -770,6 +770,12 @@ class AppLocalizationsFr extends AppLocalizations {
       'Actions destructrices, superpositions d\'erreur';
 
   @override
+  String get customThemeEstop => 'Bouton d\'arrêt d\'urgence';
+
+  @override
+  String get customThemeEstopDesc => 'Anneau et icône de l\'arrêt d\'urgence';
+
+  @override
   String get customThemePresets => 'Préréglages';
 
   @override

@@ -238,6 +238,8 @@
   "customThemeTextDesc": "Основной текст и заголовки на поверхностях",
   "customThemeError": "Ошибка / Стоп",
   "customThemeErrorDesc": "Необратимые действия, наложения ошибок",
+  "customThemeEstop": "Кнопка аварийной остановки",
+  "customThemeEstopDesc": "Кольцо и значок аварийной остановки",
   "customThemePresets": "Пресеты",
   "customThemeInvalidHex": "Недопустимый шестнадцатеричный цвет",
   "customThemeSamplePrinter": "Пример принтера",

@@ -238,6 +238,8 @@
   "customThemeTextDesc": "Testo del corpo e dei titoli sulle superfici",
   "customThemeError": "Errore / Stop",
   "customThemeErrorDesc": "Azioni distruttive, overlay di errore",
+  "customThemeEstop": "Pulsante di arresto di emergenza",
+  "customThemeEstopDesc": "Anello e icona dell'arresto di emergenza",
   "customThemePresets": "Preimpostazioni",
   "customThemeInvalidHex": "Non è un colore esadecimale valido",
   "customThemeSamplePrinter": "Stampante di esempio",

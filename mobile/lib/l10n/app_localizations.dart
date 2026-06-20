@@ -1412,6 +1412,18 @@ abstract class AppLocalizations {
   /// **'Destructive actions, error overlays'**
   String get customThemeErrorDesc;
 
+  /// Label for the emergency-stop colour slot.
+  ///
+  /// In en, this message translates to:
+  /// **'E-STOP button'**
+  String get customThemeEstop;
+
+  /// Description of where the E-stop colour is used.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency-stop ring and icon'**
+  String get customThemeEstopDesc;
+
   /// Label above the grid of preset colours in the colour picker sheet.
   ///
   /// In en, this message translates to:
