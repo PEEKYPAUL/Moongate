@@ -33,7 +33,7 @@ dependencies:
   # v0.3.0 routes every printer call through Supabase: app signs in
   # anonymously, gets a JWT, calls /printer-access to fetch the current
   # tunnel URL + a short-lived EdDSA access token, then hits the Pi.
-  supabase_flutter: ^2.14.2
+  supabase_flutter: ^2.15.0
 
   # Secure storage (token / pairing data)
   flutter_secure_storage: ^9.0.0
@@ -54,12 +54,12 @@ dependencies:
   shared_preferences: ^2.2.0
 
   # App version info (reads version from the installed package manifest)
-  package_info_plus: ^8.0.0
+  package_info_plus: ^9.0.1
 
   # Device model + Android version for the in-app bug-report diagnostics.
   # This project's bugs skew heavily Samsung / One UI, so the exact model is
   # worth capturing on every report. Read-only; no runtime permissions.
-  device_info_plus: ^10.1.0
+  device_info_plus: ^12.4.0
 
   # Open URLs in the browser (used for the in-app update download prompt)
   url_launcher: ^6.3.0
@@ -81,12 +81,12 @@ dependencies:
   # Storage Access Framework (saveFile + pickFiles). Replaces the old
   # clipboard round-trip, which was fragile. No storage permission needed —
   # SAF hands back a user-chosen document URI.
-  file_picker: ^8.0.0
+  file_picker: ^11.0.2
 
   # Custom dashboard background: copy the user-picked image into the app's
   # documents directory so it persists across launches (file_picker only hands
   # back a cache path the OS may evict). Path lookup only, no permissions.
-  path_provider: ^2.1.0
+  path_provider: ^2.1.6
 
   # App lock: biometric (fingerprint/face) prompt. MainActivity already
   # extends FlutterFragmentActivity, which local_auth requires on Android,
