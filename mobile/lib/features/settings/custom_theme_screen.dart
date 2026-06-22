@@ -599,7 +599,7 @@ class _BackgroundRow extends ConsumerWidget {
     final messenger = ScaffoldMessenger.of(context);
     FilePickerResult? result;
     try {
-      result = await FilePicker.platform
+      result = await FilePicker
           .pickFiles(type: FileType.image, withData: true);
     } catch (_) {
       result = null;

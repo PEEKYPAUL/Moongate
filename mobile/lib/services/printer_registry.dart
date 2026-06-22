@@ -151,7 +151,7 @@ class PrinterRegistry {
     // withData:true returns bytes inline rather than a path we may not be able
     // to read under scoped storage. Accept any file type (Android often greys
     // out custom .json filters) and validate by parsing instead.
-    final picked = await FilePicker.platform.pickFiles(
+    final picked = await FilePicker.pickFiles(
       dialogTitle: 'Select a Moongate backup',
       withData: true,
     );

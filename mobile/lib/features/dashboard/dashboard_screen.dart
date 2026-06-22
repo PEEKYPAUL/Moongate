@@ -881,7 +881,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       // SAF "create document" dialog and return its path (null if cancelled).
       // Without `bytes`, saveFile only returns a path and leaves the write to
       // us — which scoped storage won't allow.
-      savedPath = await FilePicker.platform.saveFile(
+      savedPath = await FilePicker.saveFile(
         dialogTitle: l.dashboardSaveBackupDialogTitle,
         fileName: 'moongate-printers.json',
         bytes: bytes,
