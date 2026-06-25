@@ -145,7 +145,8 @@ flutter:
 # legacy launchers fall back to the full square icon.
 flutter_launcher_icons:
   android: true
-  ios: false
+  ios: true
+  remove_alpha_ios: true
   image_path: "assets/icon/icon_full.png"
   adaptive_icon_background: "#0E0E10"
   adaptive_icon_foreground: "assets/icon/icon_foreground.png"
