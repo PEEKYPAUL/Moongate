@@ -1,0 +1,44 @@
+name: Build iOS
+
+# Builds the iOS app on every PR and master push, alongside the Android build.
+# This is the cross-platform guardrail: because Moongate is one Flutter codebase
+# that ships to both stores, a change can compile fine for Android yet break iOS
+# (a plugin without an iOS implementation, a Podfile or Info.plist mistake, a
+# Swift-side issue). Building both platforms here catches that immediately.
+#
+# Cost note: macOS runners use more Actions minutes than Ubuntu. If that becomes
+# a concern, narrow the triggers (e.g. only run on PRs, or only when files under
+# mobile/ change).
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build iOS (no codesign)
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      # Build without code signing so CI needs no Apple certificates or secrets.
+      # This still compiles the Dart + Swift, runs `pod install`, and links every
+      # plugin, which is what catches iOS-only breakage. Signing happens locally
+      # (and later in the release/TestFlight pipeline), not here.
+      - name: Build iOS (no code signing)
+        run: flutter build ios --release --no-codesign
