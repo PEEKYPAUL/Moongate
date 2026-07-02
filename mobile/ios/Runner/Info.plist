@@ -43,6 +43,8 @@
 	<string>Moongate uses Face ID to unlock the app when app lock is turned on.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Moongate uses your local network to discover and connect directly to printers on the same Wi-Fi.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Moongate can use your location to detect the Wi-Fi network your printers are on, so it can find and connect to them on your local network. Your location is never stored or shared.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Moongate uses your photo library so you can choose a custom image for your dashboard background.</string>
 	<key>UIApplicationSceneManifest</key>
