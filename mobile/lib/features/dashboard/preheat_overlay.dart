@@ -34,6 +34,7 @@ Future<void> showPreheatSheet(
   PrinterConfig printer, {
   required double hotendTarget,
   required double bedTarget,
+  List<ToolheadTemp> toolheads = const [],
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -47,6 +48,7 @@ Future<void> showPreheatSheet(
       printer: printer,
       hotendTarget: hotendTarget,
       bedTarget: bedTarget,
+      toolheads: toolheads,
     ),
   );
 }
@@ -55,10 +57,12 @@ class _PreheatSheet extends ConsumerStatefulWidget {
   final PrinterConfig printer;
   final double hotendTarget;
   final double bedTarget;
+  final List<ToolheadTemp> toolheads;
   const _PreheatSheet({
     required this.printer,
     required this.hotendTarget,
     required this.bedTarget,
+    required this.toolheads,
   });
 
   @override
@@ -67,9 +71,17 @@ class _PreheatSheet extends ConsumerStatefulWidget {
 
 class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
   late final PrintControlService _control;
-  final _hotendCtl = TextEditingController();
+
+  /// The toolheads to offer a field for, sorted by tool number. A single-hotend
+  /// printer keeps the classic Hotend + Bed layout; a multi-toolhead printer
+  /// (IDEX / tool changer) lists one compact row per tool (T0, T1, ...) plus
+  /// Bed.
+  late final List<ToolheadTemp> _tools;
+  late final List<TextEditingController> _hotendCtls;
   final _bedCtl = TextEditingController();
   final _timeCtl = TextEditingController(text: '0');
+
+  bool get _isMulti => _tools.length > 1;
 
   /// Detected heater object names. Seeded with the Klipper defaults and replaced
   /// when the `available_heaters` probe returns, so a Set fired before the probe
@@ -82,6 +94,9 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
   @override
   void initState() {
     super.initState();
+    _tools = [...widget.toolheads]..sort((a, b) => a.index.compareTo(b.index));
+    _hotendCtls = List.generate(
+        _isMulti ? _tools.length : 1, (_) => TextEditingController());
     _control = PrintControlService(widget.printer);
     _control.detectHeaters().then((h) {
       if (mounted) setState(() => _heaters = h);
@@ -90,7 +105,9 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
 
   @override
   void dispose() {
-    _hotendCtl.dispose();
+    for (final c in _hotendCtls) {
+      c.dispose();
+    }
     _bedCtl.dispose();
     _timeCtl.dispose();
     super.dispose();
@@ -118,21 +135,44 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
     await PrintNotificationService.instance.sync(true);
   }
 
+  /// Heater object name for tool [index]: the detected primary hotend for T0
+  /// (honours a custom `[heater_generic hotend]` name), and Klipper's convention
+  /// `extruder{N}` for the rest.
+  String _hotendName(int index) =>
+      index == 0 ? _heaters.hotend : 'extruder$index';
+
   Future<void> _submit() async {
-    final hotend = _parseTemp(_hotendCtl.text);
-    final bed = _parseTemp(_bedCtl.text);
-    if (hotend == null && bed == null) return; // nothing to set
-    final minutes = _parseMinutes(_timeCtl.text);
     final l = AppLocalizations.of(context);
+    final targets = <String, double>{};
+    final confirmParts = <String>[];
+
+    void addHotend(int index, String label, double? temp) {
+      if (temp == null) return;
+      targets[_hotendName(index)] = temp;
+      confirmParts.add('$label ${temp.round()}°');
+    }
+
+    if (_isMulti) {
+      for (var i = 0; i < _tools.length; i++) {
+        addHotend(_tools[i].index, 'T${_tools[i].index}',
+            _parseTemp(_hotendCtls[i].text));
+      }
+    } else {
+      addHotend(0, l.preheatHotend, _parseTemp(_hotendCtls[0].text));
+    }
+
+    final bed = _parseTemp(_bedCtl.text);
+    if (bed != null) {
+      targets[_heaters.bed] = bed;
+      confirmParts.add('${l.preheatBed} ${bed.round()}°');
+    }
+
+    if (targets.isEmpty) return; // nothing to set
+    final minutes = _parseMinutes(_timeCtl.text);
     final messenger = ScaffoldMessenger.of(context); // survives the pop
 
     setState(() => _sending = true);
-    final ok = await _control.setHeaters(
-      hotend: hotend,
-      bed: bed,
-      hotendName: _heaters.hotend,
-      bedName: _heaters.bed,
-    );
+    final ok = await _control.setHeaterTargets(targets);
     if (!mounted) return;
 
     if (!ok) {
@@ -159,18 +199,13 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
 
     Navigator.of(context).pop();
     messenger.showSnackBar(SnackBar(
-      content: Text(_confirmText(l, hotend, bed, minutes)),
+      content: Text(_confirmText(l, confirmParts, minutes)),
       behavior: SnackBarBehavior.floating,
       duration: const Duration(seconds: 3),
     ));
   }
 
-  String _confirmText(
-      AppLocalizations l, double? hotend, double? bed, int minutes) {
-    final parts = <String>[
-      if (hotend != null) '${l.preheatHotend} ${hotend.round()}°',
-      if (bed != null) '${l.preheatBed} ${bed.round()}°',
-    ];
+  String _confirmText(AppLocalizations l, List<String> parts, int minutes) {
     final set = l.preheatSetConfirm(parts.join(' · '));
     return minutes > 0 ? '$set · ${l.preheatSoakIn(minutes)}' : set;
   }
@@ -180,7 +215,7 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
     final theme = Theme.of(context);
     final l = AppLocalizations.of(context);
     final notifsOn = ref.watch(printNotificationsEnabledProvider);
-    final hasTemp = _hotendCtl.text.trim().isNotEmpty ||
+    final hasTemp = _hotendCtls.any((c) => c.text.trim().isNotEmpty) ||
         _bedCtl.text.trim().isNotEmpty;
     final soakMinutes = _parseMinutes(_timeCtl.text);
 
@@ -204,24 +239,51 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
               ),
               const SizedBox(height: 16),
 
-              // ── Hotend + bed targets (either may be left blank) ──────────
-              _TempField(
-                controller: _hotendCtl,
-                label: l.preheatHotend,
-                icon: Icons.whatshot,
-                color: Colors.deepOrange,
-                currentTarget: widget.hotendTarget,
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 12),
-              _TempField(
-                controller: _bedCtl,
-                label: l.preheatBed,
-                icon: Icons.bed,
-                color: Colors.blue,
-                currentTarget: widget.bedTarget,
-                onChanged: (_) => setState(() {}),
-              ),
+              // ── Hotend(s) + bed targets (any may be left blank) ──────────
+              // Single-hotend printers keep the classic Hotend + Bed fields; a
+              // multi-toolhead printer lists a compact row per tool (T0, T1, …)
+              // then Bed, so every hotend can be set at once.
+              if (_isMulti) ...[
+                for (var i = 0; i < _tools.length; i++) ...[
+                  _HeaterRow(
+                    controller: _hotendCtls[i],
+                    label: 'T${_tools[i].index}',
+                    icon: Icons.whatshot,
+                    color: Colors.deepOrange,
+                    currentTarget: _tools[i].target,
+                    active: _tools[i].active,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                _HeaterRow(
+                  controller: _bedCtl,
+                  label: l.preheatBed,
+                  icon: Icons.bed,
+                  color: Colors.blue,
+                  currentTarget: widget.bedTarget,
+                  active: false,
+                  onChanged: (_) => setState(() {}),
+                ),
+              ] else ...[
+                _TempField(
+                  controller: _hotendCtls[0],
+                  label: l.preheatHotend,
+                  icon: Icons.whatshot,
+                  color: Colors.deepOrange,
+                  currentTarget: widget.hotendTarget,
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 12),
+                _TempField(
+                  controller: _bedCtl,
+                  label: l.preheatBed,
+                  icon: Icons.bed,
+                  color: Colors.blue,
+                  currentTarget: widget.bedTarget,
+                  onChanged: (_) => setState(() {}),
+                ),
+              ],
               const SizedBox(height: 6),
               Text(
                 l.preheatHint,
@@ -309,6 +371,69 @@ class _TempField extends StatelessWidget {
         hintText: currentTarget > 0 ? currentTarget.round().toString() : null,
         border: const OutlineInputBorder(),
       ),
+    );
+  }
+}
+
+/// One compact heater row for the multi-toolhead preheat layout: a coloured
+/// flame/bed icon, a short label (T0, T1, ... / Bed) with the active tool bold,
+/// and a dense °C field on the right. Empty = leave that heater alone; the
+/// current target (when set) shows as the greyed hint.
+class _HeaterRow extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final IconData icon;
+  final Color color;
+  final double currentTarget;
+  final bool active;
+  final ValueChanged<String> onChanged;
+
+  const _HeaterRow({
+    required this.controller,
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.currentTarget,
+    required this.active,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 22),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 44,
+          child: Text(
+            label,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: active ? FontWeight.bold : FontWeight.w500,
+              color: active ? theme.colorScheme.primary : null,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              isDense: true,
+              hintText:
+                  currentTarget > 0 ? currentTarget.round().toString() : null,
+              suffixText: '°C',
+              border: const OutlineInputBorder(),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -341,26 +341,36 @@ class PrintControlService {
     return (hotend: hotend, bed: bed);
   }
 
-  /// Set heater target temperatures via the gcode console. Sends one
-  /// `SET_HEATER_TEMPERATURE` per provided target (both in a single newline-
-  /// joined script when both are given). A null target leaves that heater
-  /// untouched; pass 0 to turn one off. Returns true once Moonraker accepts the
-  /// command, or false when nothing was requested.
+  /// Set one or more heater target temperatures in a single gcode script.
+  /// [targets] maps each heater OBJECT name (`extruder`, `extruder1`, ... ,
+  /// `heater_bed`) to its °C target; pass 0 to turn one off. One
+  /// `SET_HEATER_TEMPERATURE` per entry, newline-joined and sent over the same
+  /// transparent `printer/gcode/script` proxy as [runMacro] (no plugin update).
+  /// Returns true once Moonraker accepts it, false when [targets] is empty. Used
+  /// by the preheat sheet, including multi-toolhead machines that set every
+  /// hotend at once.
+  Future<bool> setHeaterTargets(Map<String, double> targets) async {
+    if (targets.isEmpty) return false;
+    final lines = targets.entries
+        .map((e) =>
+            'SET_HEATER_TEMPERATURE HEATER=${e.key} TARGET=${e.value.round()}')
+        .toList();
+    return runMacro(lines.join('\n'));
+  }
+
+  /// Convenience for the common single-hotend + bed case. A null target leaves
+  /// that heater untouched; 0 turns one off. Thin wrapper over
+  /// [setHeaterTargets].
   Future<bool> setHeaters({
     double? hotend,
     double? bed,
     required String hotendName,
     required String bedName,
-  }) async {
-    final lines = <String>[
-      if (hotend != null)
-        'SET_HEATER_TEMPERATURE HEATER=$hotendName TARGET=${hotend.round()}',
-      if (bed != null)
-        'SET_HEATER_TEMPERATURE HEATER=$bedName TARGET=${bed.round()}',
-    ];
-    if (lines.isEmpty) return false;
-    return runMacro(lines.join('\n'));
-  }
+  }) =>
+      setHeaterTargets({
+        if (hotend != null) hotendName: hotend,
+        if (bed != null) bedName: bed,
+      });
 
   /// Clear a finished job and return Klipper's print state to standby (Idle).
   ///

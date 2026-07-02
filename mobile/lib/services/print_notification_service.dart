@@ -213,6 +213,12 @@ class _PrintTaskHandler extends TaskHandler {
   // the notification's progress matches Mainsail's file-relative default and the
   // dashboard. Fetched once per print - see _fetchOffsets.
   final Map<String, _MetaOffsets> _meta = {};
+
+  /// Per-printer extra-hotend object keys (`extruder1`, `extruder2`, ...),
+  /// discovered once via `printer/objects/list` so multi-toolhead temps can be
+  /// supplemented each tick. A cached empty list means "single hotend - never
+  /// re-query"; a printer absent from the map hasn't been discovered yet.
+  final Map<String, List<String>> _extraExtruders = {};
   late AppLocalizations _l;
   // Which notification segments to show + their order - re-read from prefs each
   // tick (the user edits them on the main isolate). Defaults to all-on.
@@ -637,6 +643,38 @@ class _PrintTaskHandler extends TaskHandler {
         sdcardProgress:  (sdcard?['progress'] as num?)?.toDouble(),
       );
 
+      // Multi-toolhead temps for the notification's hotend line (Option C:
+      // "🔥210° 205° 25°"). Only while a card actually shows temps (printing /
+      // paused), and only when the printer reports extra hotends. T0 is the
+      // extruder already in this payload; the rest come from a supplement that
+      // hits the Pi directly (no Supabase cost), mirroring PrinterStatusService.
+      final toolheads = <ToolheadTemp>[
+        ToolheadTemp(
+          index:  0,
+          temp:   (extruder['temperature'] as num?)?.toDouble() ?? 0,
+          target: (extruder['target']      as num?)?.toDouble() ?? 0,
+        ),
+      ];
+      if (state == 'printing' || state == 'paused') {
+        final extras =
+            await _discoverExtruders(printerId, base, token, isLan: isLan);
+        if (extras.isNotEmpty) {
+          final supp = await _fetchExtruders(base, token, extras, isLan: isLan);
+          if (supp != null) {
+            for (final key in extras) {
+              final obj = supp[key] as Map<String, dynamic>?;
+              if (obj == null) continue;
+              toolheads.add(ToolheadTemp(
+                index:  int.tryParse(key.substring(8)) ?? 0,
+                temp:   (obj['temperature'] as num?)?.toDouble() ?? 0,
+                target: (obj['target']      as num?)?.toDouble() ?? 0,
+              ));
+            }
+            toolheads.sort((a, b) => a.index.compareTo(b.index));
+          }
+        }
+      }
+
       return _Poll(
         state:            state,
         progress:         progress,
@@ -645,6 +683,7 @@ class _PrintTaskHandler extends TaskHandler {
         hotendTarget:     (extruder['target']      as num?)?.toDouble() ?? 0,
         bed:              (bed['temperature']      as num?)?.toDouble() ?? 0,
         bedTarget:        (bed['target']           as num?)?.toDouble() ?? 0,
+        toolheads:        toolheads,
       );
     } catch (_) {
       return null;
@@ -699,6 +738,63 @@ class _PrintTaskHandler extends TaskHandler {
       return m;
     } catch (_) {
       return cached;
+    }
+  }
+
+  // ── Multi-toolhead temps (extra hotends) ─────────────────────────────────
+
+  /// Discover a printer's extra hotend object names (`extruder1`, `extruder2`,
+  /// ...) once via `printer/objects/list`, cached per printer. Klipper names
+  /// extra hotends `extruder{N}`; `extruder_stepper <name>` helpers carry a
+  /// space, so an exact `^extruder\d+$` match picks only real hotends. A cached
+  /// empty list means single-hotend (never re-queried). Only cached on a 200 so
+  /// a cold-tunnel blip retries next tick. Pi-direct - no Supabase cost.
+  Future<List<String>> _discoverExtruders(
+      String printerId, String base, String token,
+      {required bool isLan}) async {
+    final cached = _extraExtruders[printerId];
+    if (cached != null) return cached;
+    try {
+      final uri = Uri.parse('$base/printer/objects/list');
+      final resp = await http
+          .get(uri, headers: isLan ? null : {'Authorization': 'Bearer $token'})
+          .timeout(const Duration(seconds: 5));
+      if (resp.statusCode != 200) return const [];
+      final objects =
+          (jsonDecode(resp.body)['result']?['objects'] as List<dynamic>?) ??
+              const [];
+      final extra = <String>[];
+      for (final o in objects) {
+        final key = o.toString();
+        if (RegExp(r'^extruder\d+$').hasMatch(key)) extra.add(key);
+      }
+      extra.sort((a, b) =>
+          int.parse(a.substring(8)).compareTo(int.parse(b.substring(8))));
+      _extraExtruders[printerId] = extra;
+      return extra;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Fetch the live objects for [keys] (a printer's extra hotends) in one
+  /// `printer/objects/query`, returning the Moonraker `status` map or null on
+  /// failure. Same header rule as the other supplements (LAN header-less, tunnel
+  /// Bearer).
+  Future<Map<String, dynamic>?> _fetchExtruders(
+      String base, String token, List<String> keys,
+      {required bool isLan}) async {
+    try {
+      final query = keys.map(Uri.encodeComponent).join('&');
+      final uri = Uri.parse('$base/printer/objects/query?$query');
+      final resp = await http
+          .get(uri, headers: isLan ? null : {'Authorization': 'Bearer $token'})
+          .timeout(const Duration(seconds: 5));
+      if (resp.statusCode != 200) return null;
+      final body = jsonDecode(resp.body) as Map<String, dynamic>;
+      return body['result']?['status'] as Map<String, dynamic>?;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -767,6 +863,13 @@ class _PrintTaskHandler extends TaskHandler {
         final clock = _formatFinishClock(rem);
         return clock == null ? null : '$kNotifEtaMarker$clock';
       case NotifField.hotend:
+        // Multi-toolhead: list every hotend's live temperature after one 🔥,
+        // space-joined and positional (T0, T1, ... in order) - e.g.
+        // "🔥210° 205° 25°". A single-hotend printer keeps the classic "🔥210°".
+        if (s.toolheads.length > 1) {
+          return kNotifHotendMarker +
+              s.toolheads.map((t) => '${t.temp.round()}°').join(' ');
+        }
         return '$kNotifHotendMarker${s.hotend.round()}°';
       case NotifField.bed:
         return '$kNotifBedMarker${s.bed.round()}°';
@@ -1116,6 +1219,13 @@ class _Poll {
   final double bed;
   final double bedTarget;
 
+  /// Live per-toolhead temperatures for a multi-hotend printer (IDEX / tool
+  /// changer), sorted by tool number - populated only while printing / paused,
+  /// and only when the printer reports extra hotends. Empty on an ordinary
+  /// single-hotend machine, where the notification keeps its classic single 🔥
+  /// chip.
+  final List<ToolheadTemp> toolheads;
+
   /// True when this came from a real /status read (a genuine Klipper state).
   /// False for the synthesized "reachable but /status didn't answer" Idle
   /// placeholder - those must never drive a state-change alert (see _tick).
@@ -1128,6 +1238,7 @@ class _Poll {
     required this.hotendTarget,
     required this.bed,
     required this.bedTarget,
+    this.toolheads = const [],
     this.live = true,
   });
 

@@ -42,7 +42,19 @@ class PrinterStatusService {
   /// found in the object list, for multi-toolhead printers - empty on an
   /// ordinary single-hotend machine. Discovered once alongside the chamber
   /// sensor. Excludes `extruder_stepper <name>` helpers (those aren't hotends).
+  /// Used as the fallback when there's no klipper-toolchanger object.
   List<String> _extraExtruderKeys = const [];
+
+  /// Authoritative klipper-toolchanger enumeration: (tool number → that tool's
+  /// own extruder heater object name), learned once from the `[toolchanger]` +
+  /// `[tool <name>]` objects. Non-empty only on a real tool changer; then it
+  /// takes precedence over [_extraExtruderKeys] (handles any heater naming and
+  /// gives the true active tool). Empty → fall back to the extruder scan.
+  List<({int number, String extruder})> _toolchangerTools = const [];
+
+  /// Matches an extra-hotend object name (`extruder1`, `extruder2`, ...); the
+  /// bare `extruder` (T0) is handled separately.
+  static final _extruderNumRe = RegExp(r'^extruder\d+$');
 
   // ── File-metadata cache for accurate progress ────────────────────────────
   // The slicer's gcode body byte offsets, cached per filename. They drive the
@@ -540,6 +552,23 @@ class PrinterStatusService {
             int.parse(a.substring(8)).compareTo(int.parse(b.substring(8))));
         _extraExtruderKeys = extra;
 
+        // Prefer the authoritative klipper-toolchanger enumeration when the
+        // printer exposes a `[toolchanger]` object: read each `[tool <name>]`
+        // object (the space excludes `tool_probe ...`) for its own extruder
+        // heater + tool number. This handles any heater naming the bare
+        // extruderN scan would miss and yields the real active tool. If it
+        // comes back empty we keep the extruderN scan above as the fallback.
+        if (objects.any((o) => o.toString() == 'toolchanger')) {
+          final toolKeys = objects
+              .map((o) => o.toString())
+              .where((k) => k.startsWith('tool '))
+              .toList();
+          if (toolKeys.isNotEmpty) {
+            _toolchangerTools = await _queryToolMap(
+                base, access.accessToken, toolKeys, isLan: isLan);
+          }
+        }
+
         // Only mark discovery done once the list call actually returned 200, so
         // a cold-tunnel 502/503 on the first poll retries next time instead of
         // giving up for the whole service lifetime (which left chamber blank).
@@ -547,6 +576,42 @@ class PrinterStatusService {
       }
     } catch (_) {
       // Network blip - retry next poll.
+    }
+  }
+
+  /// One-shot query of a tool changer's `[tool <name>]` objects → the
+  /// (tool number, extruder heater name) for each, sorted by number. Each tool
+  /// object names its own extruder, so this is naming-agnostic. Returns empty on
+  /// any failure (the caller then falls back to the extruderN scan).
+  Future<List<({int number, String extruder})>> _queryToolMap(
+      String base, String accessToken, List<String> toolKeys,
+      {required bool isLan}) async {
+    try {
+      final query    = toolKeys.map(Uri.encodeComponent).join('&');
+      final uri      = Uri.parse('$base/printer/objects/query?$query');
+      final response = await _authedGet(
+          uri, accessToken,
+          isLan: isLan,
+          timeout: const Duration(seconds: 5));
+      if (response.statusCode != 200) return const [];
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final s    = body['result']?['status'] as Map<String, dynamic>?;
+      if (s == null) return const [];
+      final tools = <({int number, String extruder})>[];
+      for (final key in toolKeys) {
+        final obj = s[key] as Map<String, dynamic>?;
+        if (obj == null) continue;
+        final extruder = (obj['extruder'] as String?)?.trim();
+        if (extruder == null || extruder.isEmpty) continue;
+        tools.add((
+          number:   (obj['tool_number'] as num?)?.toInt() ?? 0,
+          extruder: extruder,
+        ));
+      }
+      tools.sort((a, b) => a.number.compareTo(b.number));
+      return tools;
+    } catch (_) {
+      return const [];
     }
   }
 
@@ -623,9 +688,14 @@ class PrinterStatusService {
             isLan: isLan);
       }
       // The plugin's /status only returns the first extruder, so fetch the extra
-      // hotends (and the active tool) separately when this is a multi-toolhead
-      // printer - same supplement pattern the chamber sensor uses.
-      if (_extraExtruderKeys.isNotEmpty) {
+      // hotends (and the active tool) separately for a multi-toolhead printer -
+      // same supplement pattern the chamber sensor uses. Prefer the toolchanger
+      // path (each tool's own extruder + the active tool) and fall back to the
+      // extruderN scan when this isn't a tool changer.
+      if (_toolchangerTools.isNotEmpty) {
+        await _supplementaryToolchangerQuery(baseUrl, access.accessToken, status,
+            isLan: isLan);
+      } else if (_extraExtruderKeys.isNotEmpty) {
         await _supplementaryExtruderQuery(baseUrl, access.accessToken, status,
             isLan: isLan);
       }
@@ -703,6 +773,37 @@ class PrinterStatusService {
     try {
       final objects = [..._extraExtruderKeys, 'toolhead'];
       final query   = objects.map(Uri.encodeComponent).join('&');
+      final uri      = Uri.parse('$baseUrl/printer/objects/query?$query');
+      final response = await _authedGet(
+          uri, accessToken,
+          isLan: isLan,
+          timeout: const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        final s    = body['result']?['status'] as Map<String, dynamic>?;
+        if (s != null) {
+          for (final key in objects) {
+            if (s[key] != null) status[key] = s[key];
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// Multi-toolhead supplement for a klipper-toolchanger: fetch the
+  /// `toolchanger` object (for the active tool) plus each mapped tool's extruder
+  /// heater (for its live temp) in one query, folded into [status]. 'extruder'
+  /// (T0) is already in the plugin /status but re-querying is harmless. Pi-
+  /// direct, so no added Supabase Edge calls.
+  Future<void> _supplementaryToolchangerQuery(
+      String baseUrl, String accessToken, Map<String, dynamic> status,
+      {required bool isLan}) async {
+    try {
+      final objects = <String>{
+        'toolchanger',
+        for (final t in _toolchangerTools) t.extruder,
+      }.toList();
+      final query    = objects.map(Uri.encodeComponent).join('&');
       final uri      = Uri.parse('$baseUrl/printer/objects/query?$query');
       final response = await _authedGet(
           uri, accessToken,
@@ -943,26 +1044,34 @@ class PrinterStatusService {
     final klippyShutdown =
         klippyState == 'shutdown' || klippyState == 'error';
 
-    // Multi-toolhead list: T0 is `extruder`; extruder1, extruder2 ... are
-    // T1, T2 ... Populated even for a single hotend (just T0) so the tile
-    // switches to the grid only when there's genuinely more than one. The
-    // active tool comes from toolhead.extruder (defaults to T0 when absent).
-    final toolheads = <ToolheadTemp>[];
+    // Multi-toolhead list, built from whatever extruder objects are present in
+    // the merged status map. On plugin 0.6.12+ the /status call itself carries
+    // every extruder + toolhead + toolchanger, so this works even when the app's
+    // own object queries can't get through (e.g. a remote / VPN client); on
+    // older plugins the supplements above fold the same objects in when they
+    // can. Active tool: the toolchanger's tool_number, else toolhead.extruder. A
+    // single-hotend printer yields just T0, so the tile shows the grid only when
+    // there's more than one.
+    final activeToolNum =
+        ((status['toolchanger'] as Map<String, dynamic>?)?['tool_number']
+                as num?)
+            ?.toInt();
     final activeKey =
         (status['toolhead'] as Map<String, dynamic>?)?['extruder'] as String?;
-    void addTool(String key, Map<String, dynamic>? obj) {
-      if (obj == null || obj.isEmpty) return;
+    final toolheads = <ToolheadTemp>[];
+    for (final key in status.keys) {
+      if (key != 'extruder' && !_extruderNumRe.hasMatch(key)) continue;
+      final obj = status[key] as Map<String, dynamic>?;
+      if (obj == null || obj.isEmpty) continue;
       final idx = key == 'extruder' ? 0 : int.tryParse(key.substring(8)) ?? 0;
       toolheads.add(ToolheadTemp(
         index:  idx,
         temp:   (obj['temperature'] as num?)?.toDouble() ?? 0,
         target: (obj['target']      as num?)?.toDouble() ?? 0,
-        active: key == (activeKey ?? 'extruder'),
+        active: activeToolNum != null
+            ? idx == activeToolNum
+            : key == (activeKey ?? 'extruder'),
       ));
-    }
-    addTool('extruder', extruder);
-    for (final key in _extraExtruderKeys) {
-      addTool(key, status[key] as Map<String, dynamic>?);
     }
     toolheads.sort((a, b) => a.index.compareTo(b.index));
 

@@ -173,6 +173,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
       widget.printer,
       hotendTarget: _status.hotendTarget,
       bedTarget: _status.bedTarget,
+      toolheads: _status.toolheads,
     ).whenComplete(() => _preheatDemoOpen = false);
   }
 
@@ -353,6 +354,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
           widget.printer,
           hotendTarget: _status.hotendTarget,
           bedTarget: _status.bedTarget,
+          toolheads: _status.toolheads,
         );
       },
       child: chips,

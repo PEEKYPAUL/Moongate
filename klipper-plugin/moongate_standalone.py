@@ -63,7 +63,7 @@ logger = logging.getLogger("moonraker.moongate")
 # Bumped on each release; surfaced in the /status response so the app's bug
 # reports show which plugin a Pi is actually running - the #1 triage blind spot
 # (an old plugin explains most "works on LAN / fails over tunnel" reports).
-MOONGATE_PLUGIN_VERSION = "0.6.11"
+MOONGATE_PLUGIN_VERSION = "0.6.12"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -877,6 +877,8 @@ class MoongatePlugin:
         self._pending: Optional[PendingPair]   = None
         self._chamber_key: Optional[str]       = None
         self._chamber_key_checked: bool        = False
+        self._extra_extruders                  = []     # extruder1, extruder2, ... (multi-toolhead)
+        self._has_toolchanger                  = False  # klipper-toolchanger printer
 
         # HTTP endpoints
         self.server.register_endpoint("/server/moongate/pair",        ["POST"], self._handle_pair)
@@ -1330,12 +1332,22 @@ class MoongatePlugin:
 
         client = AsyncHTTPClient()
         if not self._chamber_key_checked:
-            self._chamber_key = await self._discover_chamber_sensor(client)
+            await self._discover_objects(client)
             self._chamber_key_checked = True
 
         query = "print_stats&heater_bed&extruder"
         if self._chamber_key:
             query += "&" + urllib.parse.quote(self._chamber_key, safe="")
+        # Multi-toolhead: fold every extra hotend + the active tool + the
+        # toolchanger into this one authenticated query, so the app gets the
+        # whole multi-toolhead picture straight from /status and never needs its
+        # own (transport-fragile) object queries to fill it in.
+        for key in self._extra_extruders:
+            query += "&" + key
+        if self._extra_extruders or self._has_toolchanger:
+            query += "&toolhead"
+        if self._has_toolchanger:
+            query += "&toolchanger"
 
         req = HTTPRequest(
             f"http://127.0.0.1:7125/printer/objects/query?{query}",
@@ -1505,7 +1517,13 @@ class MoongatePlugin:
         except Exception:
             return _defaults
 
-    async def _discover_chamber_sensor(self, client: Any) -> Optional[str]:
+    async def _discover_objects(self, client: Any) -> None:
+        """One-shot scan of Moonraker's object list (per service lifetime) for
+        the chamber sensor, any extra hotends (extruder1, extruder2, ... on an
+        IDEX / tool changer) and whether this is a klipper-toolchanger. The
+        results are folded into the /status query so a multi-toolhead printer's
+        extra hotends + active tool ride the single authenticated /status call,
+        instead of the app having to make its own (transport-fragile) queries."""
         from tornado.httpclient import HTTPRequest
         try:
             req = HTTPRequest(
@@ -1514,14 +1532,26 @@ class MoongatePlugin:
             )
             resp = await client.fetch(req, raise_error=False)
             if resp.code != 200:
-                return None
+                return
             objects = json.loads(resp.body).get("result", {}).get("objects", [])
             for obj in objects:
                 if ("temperature_sensor" in obj or "heater_generic" in obj
                         or "temperature_fan" in obj) \
                         and "chamber" in obj.lower():
+                    self._chamber_key = obj
                     logger.info("Moongate: chamber sensor detected: '%s'", obj)
-                    return obj
+                    break
+            # Extra hotends: Klipper names them extruder1, extruder2, ... (the
+            # bare `extruder` is T0 and is always queried; an `extruder_stepper
+            # <name>` helper carries a space, so the isdigit() check skips it).
+            extra = [o for o in objects
+                     if o.startswith("extruder") and o[8:].isdigit()]
+            extra.sort(key=lambda o: int(o[8:]))
+            self._extra_extruders = extra
+            self._has_toolchanger = "toolchanger" in objects
+            if extra or self._has_toolchanger:
+                logger.info(
+                    "Moongate: multi-toolhead detected (extras=%s toolchanger=%s)",
+                    extra, self._has_toolchanger)
         except Exception:
             pass
-        return None
