@@ -402,7 +402,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get dashboardThemeHeading => 'Тема';
 
   @override
-  String get dashboardThemeSystem => 'Системная';
+  String get dashboardThemeSystem => 'Цвета телефона';
 
   @override
   String get dashboardThemeDark => 'Тёмная';
@@ -412,6 +412,21 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get dashboardThemeCustom => 'Своя';
+
+  @override
+  String get dashboardFontHeading => 'Шрифт';
+
+  @override
+  String get fontStandard => 'По умолчанию';
+
+  @override
+  String get fontRounded => 'Округлый';
+
+  @override
+  String get fontSerif => 'С засечками';
+
+  @override
+  String get fontReadable => 'Высокая читаемость';
 
   @override
   String get dashboardCustomiseColours => 'Настроить цвета';
@@ -444,6 +459,13 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get dashboardAutoArrangeSubtitle =>
       'Сортировать плитки по активности. Выключите, чтобы перетаскивать их в своём порядке.';
+
+  @override
+  String get dashboardShowButtons => 'Показывать кнопки панели';
+
+  @override
+  String get dashboardShowButtonsSubtitle =>
+      'Показывает кнопки добавления и изменения порядка внизу. Когда скрыты, добавляйте принтеры из меню.';
 
   @override
   String get dashboardReorderHint =>
@@ -1676,4 +1698,125 @@ class AppLocalizationsRu extends AppLocalizations {
   String heatsoakDoneBody(String printer) {
     return '$printer прогрет до температуры';
   }
+
+  @override
+  String get tutorialOfferTitle => 'Хотите краткий обзор?';
+
+  @override
+  String get tutorialOfferBody =>
+      'Показать краткое руководство по работе с Moongate?';
+
+  @override
+  String get tutorialOfferDontRemind => 'Больше не напоминать';
+
+  @override
+  String get tutorialOfferNo => 'Нет, спасибо';
+
+  @override
+  String get tutorialOfferStart => 'Начать обучение';
+
+  @override
+  String get tutorialMenuTitle => 'Обучение по приложению';
+
+  @override
+  String get tutorialNext => 'Далее';
+
+  @override
+  String get tutorialDone => 'Готово';
+
+  @override
+  String get tutorialSkip => 'Завершить';
+
+  @override
+  String get tutorialBack => 'Назад';
+
+  @override
+  String get tutorialLocalBar =>
+      'Цветная полоса показывает, как Moongate подключается к этому принтеру. Зелёный цвет со значком Wi-Fi означает, что вы в одной сети - быстрое прямое локальное соединение.';
+
+  @override
+  String get tutorialTunnelBar =>
+      'Оранжевый цвет со значком облака означает, что вы вне дома и подключены безопасно через интернет по туннелю принтера. Moongate переключается между ними автоматически.';
+
+  @override
+  String get tutorialRemoteBuilding =>
+      'При первой привязке принтера удалённый доступ доступен не сразу. Этот значок облака означает, что безопасный туннель ещё создаётся в фоне. Когда он станет зелёным облаком с галочкой, вы сможете подключаться к этому принтеру откуда угодно.';
+
+  @override
+  String get tutorialHotend => 'Это ваш хотенд - температура сопла.';
+
+  @override
+  String get tutorialBed => 'А это нагреваемый стол.';
+
+  @override
+  String get tutorialChamber =>
+      'Если у принтера есть датчик камеры, его температура тоже отображается здесь.';
+
+  @override
+  String get tutorialTemps =>
+      'Это температуры в реальном времени: хотенд (сопло), нагреваемый стол и, если у принтера есть датчик камеры, камера.';
+
+  @override
+  String get tutorialEstop =>
+      'Это аварийная остановка. Чтобы её включить, нужно двойное нажатие - так её не сработает случайно, и она немедленно останавливает принтер.';
+
+  @override
+  String get tutorialWebcam =>
+      'Нажатие на изображение камеры открывает полный интерфейс принтера - живой экран Klipper.';
+
+  @override
+  String get tutorialPreheatPress =>
+      'Нажмите и удерживайте имя принтера или его температуры, чтобы открыть панель прогрева.';
+
+  @override
+  String get tutorialPreheatSheet =>
+      'Здесь можно задать целевые температуры хотенда и стола, а также необязательное время прогрева.';
+
+  @override
+  String get tutorialAddPrinter =>
+      'Нажмите кнопку «плюс» в любой момент, чтобы добавить ещё один принтер и привязать его.';
+
+  @override
+  String get tutorialMenuIcon =>
+      'Это меню. Вы можете открыть его отсюда в любой момент.';
+
+  @override
+  String get tutorialMenuPrinters =>
+      'Добавьте ещё один принтер или удалите тот, который больше не используете.';
+
+  @override
+  String get tutorialMenuBackup =>
+      'Сохраните настройки в файл или восстановите их на другом устройстве.';
+
+  @override
+  String get tutorialMenuTheme =>
+      'Выберите светлую, тёмную или полностью свою цветовую тему.';
+
+  @override
+  String get tutorialMenuDisplaySize =>
+      'Перетащите ползунок, чтобы сделать всё крупнее или мельче под ваше зрение.';
+
+  @override
+  String get tutorialMenuColumns =>
+      'Разместите принтеры в один, два или три столбца.';
+
+  @override
+  String get tutorialMenuCameras =>
+      'Задайте, как часто обновляются видеопотоки, и включайте или отключайте камеру каждого принтера.';
+
+  @override
+  String get tutorialMenuAbout =>
+      'Что нового, как работает привязка, руководство по значкам и куда сообщить о проблеме - всё здесь.';
+
+  @override
+  String get tutorialMenuSupport =>
+      'Чашка кофе для меня помогает сохранять Moongate бесплатным для всех и с открытым исходным кодом.';
+
+  @override
+  String get tutorialMenuSettings =>
+      'В настройках есть два пункта: очистить все принтеры или удалить все данные и начать полностью с нуля.';
+
+  @override
+  String get tutorialMenuLanguage =>
+      'А здесь можно сменить язык приложения - Moongate говорит на восьми. На этом обзор завершён, приятного пользования!';
 }

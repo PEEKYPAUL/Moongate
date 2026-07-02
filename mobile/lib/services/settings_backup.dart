@@ -25,6 +25,7 @@ class SettingsBackup {
 
   static const Map<String, _Kind> _keys = {
     'theme_mode':                  _Kind.string,
+    'app_font':                    _Kind.string,
     'custom_theme':                _Kind.string,
     'font_scale':                  _Kind.real,
     'grid_columns':                _Kind.integer,
@@ -40,6 +41,7 @@ class SettingsBackup {
     'notif_online_only':           _Kind.boolean,
     'app_locale':                  _Kind.string,
     'show_camera_config_icons':    _Kind.boolean,
+    'show_dashboard_buttons':      _Kind.boolean,
   };
 
   /// Snapshot the currently-set preferences into a JSON-safe map. Unset keys

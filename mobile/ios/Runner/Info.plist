@@ -4,21 +4,6 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>Moongate uses the camera to scan the pairing QR code shown in your printer's Klipper console.</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>Moongate uses Face ID to unlock the app when app lock is turned on.</string>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Moongate uses your local network to discover and connect directly to printers on the same Wi-Fi.</string>
-	<key>NSBonjourServices</key>
-	<array>
-		<string>_moongate._tcp</string>
-	</array>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsLocalNetworking</key>
-		<true/>
-	</dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -39,8 +24,27 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_moongate._tcp</string>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Moongate uses the camera to scan the pairing QR code shown in your printer's Klipper console.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Moongate uses Face ID to unlock the app when app lock is turned on.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Moongate uses your local network to discover and connect directly to printers on the same Wi-Fi.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Moongate uses your photo library so you can choose a custom image for your dashboard background.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

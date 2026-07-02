@@ -34,6 +34,7 @@ void main() async {
   await container.read(localeProvider.notifier).load();
   await container.read(customThemeProvider.notifier).load();
   await container.read(fontScaleProvider.notifier).load();
+  await container.read(appFontProvider.notifier).load();
   await container.read(gridColumnsProvider.notifier).load();
   await container.read(allowRotationProvider.notifier).load();
   await container.read(autoArrangeProvider.notifier).load();
@@ -49,6 +50,7 @@ void main() async {
   await container.read(notifOnlineOnlyProvider.notifier).load();
   await container.read(dashboardBackgroundProvider.notifier).load();
   await container.read(globalPowerButtonProvider.notifier).load();
+  await container.read(dashboardButtonsProvider.notifier).load();
 
   // Start listening for Wi-Fi <-> mobile-data changes now, so the dashboard's
   // camera feeds pick the right refresh rate from the first frame.

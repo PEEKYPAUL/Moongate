@@ -249,25 +249,34 @@ class PrintControlService {
     });
   }
 
+  /// POST a single G-code line to Moonraker's `printer/gcode/script` over
+  /// [base]. Returns true on HTTP 200, else null so [_viaLanThenTunnel] tries
+  /// the next path. One command per call: callers that set several things (e.g.
+  /// [setHeaterTargets]) issue one request each rather than a newline-joined
+  /// batch, so a single heater can't abort the rest and each result is visible.
+  Future<bool?> _postGcode(
+      String base, String token, bool isLan, String gcode) async {
+    try {
+      final uri = Uri.parse('$base/printer/gcode/script'
+          '?script=${Uri.encodeComponent(gcode)}');
+      final resp = await http
+          .post(uri,
+              headers: isLan ? null : {'Authorization': 'Bearer $token'})
+          .timeout(Duration(seconds: isLan ? 4 : 12));
+      // null (not false) on non-200 so the next path is still tried.
+      return resp.statusCode == 200 ? true : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Run a Klipper macro by name via Moonraker's `printer/gcode/script`. Klipper
   /// uppercases the command token before dispatch, so the name is sent verbatim
   /// from the object list. LAN-first, then tunnel; returns true once Moonraker
   /// accepts it (200).
   Future<bool> runMacro(String macro) async {
-    final ok = await _viaLanThenTunnel((base, token, isLan) async {
-      try {
-        final uri = Uri.parse('$base/printer/gcode/script'
-            '?script=${Uri.encodeComponent(macro)}');
-        final resp = await http
-            .post(uri,
-                headers: isLan ? null : {'Authorization': 'Bearer $token'})
-            .timeout(Duration(seconds: isLan ? 4 : 12));
-        // null (not false) on non-200 so the next path is still tried.
-        return resp.statusCode == 200 ? true : null;
-      } catch (_) {
-        return null;
-      }
-    });
+    final ok = await _viaLanThenTunnel(
+        (base, token, isLan) => _postGcode(base, token, isLan, macro));
     return ok ?? false;
   }
 
@@ -341,26 +350,58 @@ class PrintControlService {
     return (hotend: hotend, bed: bed);
   }
 
-  /// Set heater target temperatures via the gcode console. Sends one
-  /// `SET_HEATER_TEMPERATURE` per provided target (both in a single newline-
-  /// joined script when both are given). A null target leaves that heater
-  /// untouched; pass 0 to turn one off. Returns true once Moonraker accepts the
-  /// command, or false when nothing was requested.
+  /// Set one or more heater target temperatures. [targets] maps each heater
+  /// OBJECT name (`extruder`, `extruder1`, ... , `heater_bed`) to its °C target;
+  /// pass 0 to turn one off. Sends ONE `SET_HEATER_TEMPERATURE` request per
+  /// heater over the transparent `printer/gcode/script` proxy (no plugin update),
+  /// reusing a single resolved connection. Returns true once every heater is
+  /// accepted, false when [targets] is empty or any heater is rejected. Used by
+  /// the preheat sheet, including multi-toolhead machines that set every hotend
+  /// (up to 6) at once.
+  ///
+  /// One request per heater rather than a single newline-joined script: separate
+  /// commands stop one heater's error from aborting the rest, and each result is
+  /// logged so a multi-toolhead set that only takes on some hotends is
+  /// diagnosable. The connection is resolved once and reused, so a 6-hotend set
+  /// does not pay a LAN-probe timeout per command.
+  Future<bool> setHeaterTargets(Map<String, double> targets) async {
+    if (targets.isEmpty) return false;
+    final cmds = targets.entries
+        .map((e) =>
+            'SET_HEATER_TEMPERATURE HEATER=${e.key} TARGET=${e.value.round()}')
+        .toList();
+    final result = await _viaLanThenTunnel<bool>((base, token, isLan) async {
+      // The first command doubles as the connection probe: a miss returns null
+      // so _viaLanThenTunnel falls through to the next path; the rest then ride
+      // the same connection.
+      final firstOk = await _postGcode(base, token, isLan, cmds.first);
+      dev.log('${isLan ? 'lan' : 'tunnel'} "${cmds.first}" -> $firstOk',
+          name: 'MOONGATE/PREHEAT');
+      if (firstOk != true) return null;
+      var allOk = true;
+      for (final cmd in cmds.skip(1)) {
+        final ok = await _postGcode(base, token, isLan, cmd);
+        dev.log('"$cmd" -> $ok', name: 'MOONGATE/PREHEAT');
+        if (ok != true) allOk = false;
+      }
+      return allOk;
+    });
+    return result ?? false;
+  }
+
+  /// Convenience for the common single-hotend + bed case. A null target leaves
+  /// that heater untouched; 0 turns one off. Thin wrapper over
+  /// [setHeaterTargets].
   Future<bool> setHeaters({
     double? hotend,
     double? bed,
     required String hotendName,
     required String bedName,
-  }) async {
-    final lines = <String>[
-      if (hotend != null)
-        'SET_HEATER_TEMPERATURE HEATER=$hotendName TARGET=${hotend.round()}',
-      if (bed != null)
-        'SET_HEATER_TEMPERATURE HEATER=$bedName TARGET=${bed.round()}',
-    ];
-    if (lines.isEmpty) return false;
-    return runMacro(lines.join('\n'));
-  }
+  }) =>
+      setHeaterTargets({
+        if (hotend != null) hotendName: hotend,
+        if (bed != null) bedName: bed,
+      });
 
   /// Clear a finished job and return Klipper's print state to standby (Idle).
   ///

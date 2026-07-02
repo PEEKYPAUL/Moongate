@@ -403,7 +403,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get dashboardThemeHeading => 'Tema';
 
   @override
-  String get dashboardThemeSystem => 'Predefinito di sistema';
+  String get dashboardThemeSystem => 'Colori del telefono';
 
   @override
   String get dashboardThemeDark => 'Scuro';
@@ -413,6 +413,21 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get dashboardThemeCustom => 'Personalizzato';
+
+  @override
+  String get dashboardFontHeading => 'Carattere';
+
+  @override
+  String get fontStandard => 'Predefinito';
+
+  @override
+  String get fontRounded => 'Arrotondato';
+
+  @override
+  String get fontSerif => 'Serif';
+
+  @override
+  String get fontReadable => 'Alta leggibilità';
 
   @override
   String get dashboardCustomiseColours => 'Personalizza colori';
@@ -445,6 +460,13 @@ class AppLocalizationsIt extends AppLocalizations {
   @override
   String get dashboardAutoArrangeSubtitle =>
       'Ordina i riquadri per attività. Disattiva per trascinarli nel tuo ordine.';
+
+  @override
+  String get dashboardShowButtons => 'Mostra i pulsanti della dashboard';
+
+  @override
+  String get dashboardShowButtonsSubtitle =>
+      'Mostra i pulsanti per aggiungere e riordinare in basso. Aggiungi stampanti dal menu quando sono nascosti.';
 
   @override
   String get dashboardReorderHint =>
@@ -1687,4 +1709,126 @@ class AppLocalizationsIt extends AppLocalizations {
   String heatsoakDoneBody(String printer) {
     return '$printer è in temperatura';
   }
+
+  @override
+  String get tutorialOfferTitle => 'Vuoi fare un breve tour?';
+
+  @override
+  String get tutorialOfferBody =>
+      'Ti va una rapida panoramica su come funziona Moongate?';
+
+  @override
+  String get tutorialOfferDontRemind => 'Non ricordarmelo più';
+
+  @override
+  String get tutorialOfferNo => 'No, grazie';
+
+  @override
+  String get tutorialOfferStart => 'Avvia il tutorial';
+
+  @override
+  String get tutorialMenuTitle => 'Tutorial dell\'app';
+
+  @override
+  String get tutorialNext => 'Avanti';
+
+  @override
+  String get tutorialDone => 'Fatto';
+
+  @override
+  String get tutorialSkip => 'Termina';
+
+  @override
+  String get tutorialBack => 'Indietro';
+
+  @override
+  String get tutorialLocalBar =>
+      'La barra colorata mostra come Moongate sta raggiungendo questa stampante. Verde con l\'icona Wi-Fi significa che sei sulla stessa rete, una connessione locale veloce e diretta.';
+
+  @override
+  String get tutorialTunnelBar =>
+      'Arancione con l\'icona della nuvola significa che sei fuori casa, connesso in modo sicuro tramite internet attraverso il tunnel della tua stampante. Moongate passa automaticamente dall\'una all\'altra.';
+
+  @override
+  String get tutorialRemoteBuilding =>
+      'Quando abbini una stampante per la prima volta, l\'accesso remoto non è immediato. Questo piccolo simbolo della nuvola indica che il tunnel sicuro si sta ancora creando in background. Quando diventa una nuvola verde con la spunta, potrai raggiungere questa stampante da qualsiasi luogo.';
+
+  @override
+  String get tutorialHotend =>
+      'Questo è il tuo hotend, la temperatura dell\'ugello.';
+
+  @override
+  String get tutorialBed => 'E questo è il piano riscaldato.';
+
+  @override
+  String get tutorialChamber =>
+      'Se la tua stampante ha un sensore della camera, qui appare anche la sua temperatura.';
+
+  @override
+  String get tutorialTemps =>
+      'Queste sono le temperature in tempo reale: l\'hotend (l\'ugello), il piano riscaldato e, se la tua stampante ha un sensore della camera, la camera.';
+
+  @override
+  String get tutorialEstop =>
+      'Questo è l\'arresto di emergenza. Richiede un doppio tocco per attivarsi, così non può essere azionato per sbaglio, e ferma immediatamente la stampante.';
+
+  @override
+  String get tutorialWebcam =>
+      'Toccando la vista della telecamera si apre l\'interfaccia completa della stampante, la schermata Klipper dal vivo.';
+
+  @override
+  String get tutorialPreheatPress =>
+      'Tieni premuto il nome di una stampante o le sue temperature per mostrare il pannello di preriscaldamento.';
+
+  @override
+  String get tutorialPreheatSheet =>
+      'Qui puoi impostare le temperature target di hotend e piano e un tempo di riscaldamento facoltativo.';
+
+  @override
+  String get tutorialAddPrinter =>
+      'Tocca il pulsante più in qualsiasi momento per aggiungere e abbinare un\'altra stampante.';
+
+  @override
+  String get tutorialMenuIcon =>
+      'Questo è il menu. Puoi aprirlo da qui in qualsiasi momento.';
+
+  @override
+  String get tutorialMenuPrinters =>
+      'Aggiungi un\'altra stampante o rimuovine una che non usi più.';
+
+  @override
+  String get tutorialMenuBackup =>
+      'Esegui il backup della tua configurazione su un file o ripristinala su un altro dispositivo.';
+
+  @override
+  String get tutorialMenuTheme =>
+      'Scegli un tema di colori chiaro, scuro o completamente personalizzato.';
+
+  @override
+  String get tutorialMenuDisplaySize =>
+      'Trascina questo per rendere tutto più grande o più piccolo, secondo i tuoi occhi.';
+
+  @override
+  String get tutorialMenuColumns =>
+      'Disponi le tue stampanti su una, due o tre colonne.';
+
+  @override
+  String get tutorialMenuCameras =>
+      'Imposta con quale frequenza si aggiornano i feed delle webcam e attiva o disattiva la telecamera di ogni stampante.';
+
+  @override
+  String get tutorialMenuAbout =>
+      'Le novità, come funziona l\'abbinamento, una guida alle icone e dove segnalare un problema sono tutti qui.';
+
+  @override
+  String get tutorialMenuSupport =>
+      'Offrirmi un caffè aiuta a mantenere Moongate gratuito per tutti e open source.';
+
+  @override
+  String get tutorialMenuSettings =>
+      'Le impostazioni hanno due opzioni al loro interno: cancella tutte le tue stampanti, oppure elimina tutti i tuoi dati e ricomincia completamente da capo.';
+
+  @override
+  String get tutorialMenuLanguage =>
+      'E qui puoi cambiare la lingua dell\'app - Moongate ne parla otto. Questo è il tour, buon divertimento!';
 }

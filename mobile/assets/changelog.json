@@ -1,5 +1,93 @@
 [
   {
+    "version": "v0.9.45",
+    "bullets": [
+      "Fixed: a printer switched back on while Moongate was in the background could stay stuck on \"offline\" until you force-closed and reopened it. Moongate now re-checks each printer's live status the moment you return to the app.",
+      "Multi-toolhead preheat now sends each hotend its own command, so setting several tools at once is more reliable and one heater refusing a target no longer stops the others. The preheat panel also scrolls, so every tool fits on a tool changer with lots of hotends."
+    ]
+  },
+  {
+    "version": "v0.9.44",
+    "bullets": [
+      "Multi-toolhead detection, fixed at the source: the printer now sends every hotend and the active tool to the app in one go, so all your tools show on the dashboard even over a remote or VPN connection where the app couldn't fetch them separately before.",
+      "This one is not app-only: update the Moongate plugin on your printer too, from Moonraker's update panel (Machine tab), so it sends the extra hotends. Single-hotend and IDEX printers are unaffected."
+    ]
+  },
+  {
+    "version": "v0.9.43",
+    "bullets": [
+      "More reliable multi-toolhead detection: tool changers (klipper-toolchanger / StealthChanger) are now recognised straight from the printer's tool setup, reading each tool's own hotend and the active tool, so every hotend shows on the dashboard. Plain single-hotend and IDEX printers are detected exactly as before.",
+      "App-only update, no Pi update needed."
+    ]
+  },
+  {
+    "version": "v0.9.42",
+    "bullets": [
+      "Multi-toolhead preheat: long-press the temperatures on a tool changer or IDEX printer and the Preheat sheet now lists every hotend (T0, T1, T2 and so on) as its own row, so you can set them all at once, plus the bed. Single-hotend printers look exactly as before.",
+      "Multi-toolhead notifications: the print notification's hotend reading now shows every tool's temperature on one line (for example 210° 205° 25°) instead of just the first tool. Single-hotend printers still show the one reading.",
+      "Fixed: the \"Printer unreachable\" screen (shown when a printer can't be reached over the tunnel) now fills the whole page in your theme, instead of leaving a blank strip down the side with the failed page showing through.",
+      "App-only update, no Pi update needed."
+    ]
+  },
+  {
+    "version": "v0.9.41",
+    "bullets": [
+      "New: a \"Show dashboard buttons\" switch (menu -> Dashboard Layout). Turn it off to hide the add and reorder buttons that float at the bottom of the dashboard - handy when you have a lot of printers and the buttons cover the bottom tiles. You can still add a printer from the menu, and turn the switch back on when you want to reorder.",
+      "App-only update, no Pi update needed."
+    ]
+  },
+  {
+    "version": "v0.9.40",
+    "bullets": [
+      "The dashboard temperatures now stay one consistent size on every tile, set only by the display-size slider. Instead of shrinking to tiny text when a tile is busy or narrow (a regression from the v0.9.39 font update), they wrap onto another row, or stack the icon above the number, to fit.",
+      "Multi-toolhead printers use the tile width better: on a wide single-column tile all the tool temperatures sit on one line with the bed and chamber, and they only flow onto extra rows when the tile is narrow.",
+      "App-only update, no Pi update needed."
+    ]
+  },
+  {
+    "version": "v0.9.39",
+    "bullets": [
+      "New: printers with more than one toolhead (IDEX and tool changers) now show every hotend on the dashboard tile. Each tool gets its own temperature labelled T0, T1, T2 and so on, the tool currently in use is highlighted, and the bed and chamber move to a row beneath. Single-toolhead printers look exactly as before.",
+      "The font picker now has a lot more to choose from - over 30 typefaces grouped by style (sans, rounded, serif, slab, monospace, techy, condensed, handwriting and even retro/pixel), each previewed in its own font.",
+      "Tight spots like printer names and the temperature row now auto-shrink so no font ever gets clipped, whichever one you pick.",
+      "Fixed: the persistent status notification now follows your dashboard order. With \"Auto-arrange by status\" turned off (so your printers stay in the order you arranged them), the notification lists them the same way, instead of always floating the busiest printer to the top.",
+      "App-only update, no Pi update needed."
+    ]
+  },
+  {
+    "version": "v0.9.38",
+    "bullets": [
+      "New: choose the app's font. A Font option in the menu (under Theme) switches the whole app between a Default, Rounded, Serif, and High-readability typeface. Apps can't read the specific font you've set in your phone's own settings, so this is a small built-in set instead. Your choice is saved and travels in backups.",
+      "Tutorial polish: in the temperatures step, the hotend, bed and chamber readings are now highlighted inside one box together, rather than a separate ring around each.",
+      "App-only update, no Pi update needed."
+    ]
+  },
+  {
+    "version": "v0.9.37",
+    "bullets": [
+      "New: a \"Phone colours\" theme. On Android 12 and newer, choose Phone colours in the menu and Moongate matches your phone's own colour scheme - the wallpaper-based palette Android calls Material You - and follows your light/dark setting automatically. It sits alongside Dark, Light and Custom, and only appears on phones that support it (older Android and iPhone have no system palette to read, so it stays hidden there).",
+      "The first-run tutorial is a little shorter: the hotend, bed and chamber temperatures are now introduced together in one step instead of three, it skips the menu items that explain themselves - Theme, About, Settings and Buy me a coffee - and the button to leave the tour early reads \"End\" instead of \"Skip\".",
+      "App-only update, no Pi update needed."
+    ]
+  },
+  {
+    "version": "v0.9.36",
+    "bullets": [
+      "New: an optional in-app tutorial. After you add your first printer, Moongate offers a quick guided walkthrough that highlights each part of the app live - the green/orange connection bars and what they mean, the tunnel-still-building marker, the hotend, bed and chamber temperatures, the double-tap emergency stop, the webcam, and preheat - then opens the menu and walks every option in it. Move through it with Next and Back, leave with Skip, and run it again any time from the bottom of the menu.",
+      "The press-and-hold area that opens preheat is now the whole tile (name and temperatures), so it's much easier to trigger - it had become fiddly at larger display sizes.",
+      "Delete my data now lives in Settings alongside Remove all printers, instead of its own menu entry."
+    ]
+  },
+  {
+    "version": "v0.9.35",
+    "bullets": [
+      "The display-size slider in the menu (renamed from \"Font size\") now scales the dashboard icons as well as the text, so the whole dashboard grows and shrinks together. The emergency-stop button resizes with it and is a little smaller by default.",
+      "At larger display sizes, each printer's hotend, bed and chamber temperatures now stack into two rows (icons above the values) so they no longer run off the edge of a narrow tile.",
+      "New first-run reminder at the top of \"How pairing works\": it points out that the Moongate plugin must be installed on your printer's Pi first, with a one-tap link to the setup guide. It keeps the usual \"don't show again\".",
+      "Plus a round of text and styling tidy-ups across the app."
+    ]
+  },
+  {
     "version": "v0.9.34",
     "bullets": [
       "Power all machines now works with printers powered by a Klipper macro (the Advanced Power Switch), not only smart-plug power devices. It also reads how each printer is set up and shows the right buttons, so a machine can be off only, on only, or both.",
