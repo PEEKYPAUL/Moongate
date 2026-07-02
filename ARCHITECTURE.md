@@ -40,6 +40,7 @@ MoongateApp                    (lib/app.dart - root widget, lifecycle observer)
 │   ├─ themeModeProvider       (AppThemeMode: system/dark/light/custom)
 │   ├─ customThemeProvider     (5 user-picked colours; persisted as JSON)
 │   ├─ fontScaleProvider       (0.8 - 1.4)
+│   ├─ appFontProvider         (selected bundled font id; 36-option picker)
 │   ├─ gridColumnsProvider     (1 / 2 / 3)
 │   ├─ allowRotationProvider   (bool; pins SystemChrome orientations)
 │   ├─ updateProvider          (one-shot GitHub release check)
@@ -66,8 +67,10 @@ MoongateApp                    (lib/app.dart - root widget, lifecycle observer)
 | Theme mode | `themeModeProvider` | Yes | `SharedPreferences` key `theme_mode` |
 | Custom theme | `customThemeProvider` | Yes | `SharedPreferences` key `custom_theme` (JSON of 5 HEX strings) |
 | Font scale / grid cols / rotation | `settings_provider.dart` | Yes | One `SharedPreferences` key each |
+| App font | `appFontProvider` | Yes | `SharedPreferences` key `app_font` (bundled font id) |
 | Current access token + tunnel URL | `PrinterAccessCache` | **No** (in-memory only) | Refreshed from the middleman every few minutes |
 | Live `PrinterStatus` per tile | `PrinterStatusService.stream` | **No** | StreamController - last emission only |
+| Dashboard buttons visibility | `dashboardButtonsProvider` | Yes | `SharedPreferences` key `show_dashboard_buttons` (v0.9.41) |
 
 ### The service layer
 
@@ -77,7 +80,7 @@ The `services/` directory has zero UI. Each file is a focused capability:
 |---|---|
 | `supabase_service.dart` | Talks to the cloud middleman. Anonymous sign-in, fetch the current access record for a printer, release a printer on un-pair, list-my-printers refresh |
 | `printer_access_cache.dart` | In-memory cache of `{tunnel_url, access_token}` per printer. Reuses a token until ~30 s before its expiry, then refreshes via the middleman. Used by every outbound call to the Pi |
-| `printer_status_service.dart` | The heart of the app. One instance per printer tile. Polls every 4 s. LAN-first when a cached LAN URL is known; falls back to the tunnel within a couple of seconds. Distinguishes Pi-up-but-printer-idle from totally-offline. Sniffs the printer's web UI (Mainsail / Fluidd) on first successful poll and persists it. Also reads a printer's configured light object - when lighting is enabled - so the dashboard bulb shows the light's real on/off state. Reads Moonraker's `webhooks.state` too, so the tile can tell a **shut-down** Klipper (e.g. after an emergency stop) from merely idle and offer a restart instead of the E-STOP triangle |
+| `printer_status_service.dart` | The heart of the app. One instance per printer tile. Polls every 4 s. LAN-first when a cached LAN URL is known; falls back to the tunnel within a couple of seconds. Distinguishes Pi-up-but-printer-idle from totally-offline. Sniffs the printer's web UI (Mainsail / Fluidd) on first successful poll and persists it. Also reads a printer's configured light object - when lighting is enabled - so the dashboard bulb shows the light's real on/off state. Reads Moonraker's `webhooks.state` too, so the tile can tell a **shut-down** Klipper (e.g. after an emergency stop) from merely idle and offer a restart instead of the E-STOP triangle. **v0.9.39+:** builds the **multi-toolhead** temperature list. On the current Pi plugin (0.6.12+) every `extruder`/`extruderN`, the active `toolhead` and the `toolchanger` ride the one authenticated `/status` call and the app reads them straight from it (falling back to a direct per-object query for older plugins); the persistent-notification roster order follows the dashboard's **Auto-arrange by status** setting |
 | `print_control_service.dart` | Sends `pause` / `resume` / `cancel` / `firmware_restart` / `emergency_stop`, lists and runs Klipper macros (the macro sheet and the lighting on/off/toggle), and starts a stored G-code. Same per-call token retrieval, same LAN-first routing |
 | `printer_webview_cache.dart` | Keeps each printer's Mainsail/Fluidd `WebViewController` warm across visits to the dashboard, so re-opening a printer is instant (no reload). **Pre-warms every printer's page in the background at app startup, so even the *first* open is instant** (v0.9.15). Owns the per-session token-cookie refresh and evicts least-recently-used sessions under OS memory pressure |
 | `printer_liveness_service.dart` | Tracks each printer's online/offline state from the cloud - subscribing to `last_seen` changes over **Supabase Realtime** plus a periodic RLS-scoped read as a fallback - so the dashboard and the notification service can mark a powered-off printer offline and **skip requesting access for it entirely** rather than polling it every cycle. Realtime delivery is scoped by the same "select own printers" RLS policy, so it widens nothing (v0.9.16) |

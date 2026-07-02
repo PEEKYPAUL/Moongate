@@ -20,6 +20,13 @@ const String kNotifFieldsEnabledKey = 'notif_fields_enabled';
 /// (PrintNotificationService). Rides the settings backup.
 const String kNotifOnlineOnlyKey = 'notif_online_only';
 
+/// The dashboard's "Auto-arrange by status" toggle key. ON (default) re-sorts
+/// by live status so active prints float to the top; OFF freezes the user's
+/// manual drag-to-reorder order. Read by both the dashboard (autoArrangeProvider)
+/// and the background isolate, so the persistent notification roster mirrors the
+/// dashboard's order in either mode. Rides the settings backup.
+const String kAutoArrangeByStatusKey = 'auto_arrange_by_status';
+
 /// Inline markers prefixing the finish-time / temperature segments so each stays
 /// self-describing even when the user reorders them. Shared by the live
 /// notification renderer and the settings-screen preview so the two never drift.

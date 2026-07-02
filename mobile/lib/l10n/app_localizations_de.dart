@@ -405,7 +405,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get dashboardThemeHeading => 'Design';
 
   @override
-  String get dashboardThemeSystem => 'Systemstandard';
+  String get dashboardThemeSystem => 'Systemfarben';
 
   @override
   String get dashboardThemeDark => 'Dunkel';
@@ -415,6 +415,21 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get dashboardThemeCustom => 'Benutzerdefiniert';
+
+  @override
+  String get dashboardFontHeading => 'Schriftart';
+
+  @override
+  String get fontStandard => 'Standard';
+
+  @override
+  String get fontRounded => 'Abgerundet';
+
+  @override
+  String get fontSerif => 'Serif';
+
+  @override
+  String get fontReadable => 'Gut lesbar';
 
   @override
   String get dashboardCustomiseColours => 'Farben anpassen';
@@ -446,6 +461,13 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get dashboardAutoArrangeSubtitle =>
       'Kacheln nach Aktivität sortieren. Zum eigenen Anordnen ausschalten und Kacheln ziehen.';
+
+  @override
+  String get dashboardShowButtons => 'Dashboard-Schaltflächen anzeigen';
+
+  @override
+  String get dashboardShowButtonsSubtitle =>
+      'Zeigt die Schaltflächen zum Hinzufügen und Umsortieren unten an. Drucker über das Menü hinzufügen, wenn ausgeblendet.';
 
   @override
   String get dashboardReorderHint => 'Kachel halten und ziehen zum Umsortieren';
@@ -1681,4 +1703,125 @@ class AppLocalizationsDe extends AppLocalizations {
   String heatsoakDoneBody(String printer) {
     return '$printer hat die Temperatur erreicht';
   }
+
+  @override
+  String get tutorialOfferTitle => 'Kurze Tour gefällig?';
+
+  @override
+  String get tutorialOfferBody =>
+      'Möchtest du eine kurze Einführung, wie Moongate funktioniert?';
+
+  @override
+  String get tutorialOfferDontRemind => 'Nicht mehr erinnern';
+
+  @override
+  String get tutorialOfferNo => 'Nein danke';
+
+  @override
+  String get tutorialOfferStart => 'Tutorial starten';
+
+  @override
+  String get tutorialMenuTitle => 'App-Tutorial';
+
+  @override
+  String get tutorialNext => 'Weiter';
+
+  @override
+  String get tutorialDone => 'Fertig';
+
+  @override
+  String get tutorialSkip => 'Beenden';
+
+  @override
+  String get tutorialBack => 'Zurück';
+
+  @override
+  String get tutorialLocalBar =>
+      'Der Farbbalken zeigt, wie Moongate diesen Drucker erreicht. Grün mit einem Wi-Fi-Symbol bedeutet, dass du im selben Netzwerk bist - eine schnelle, direkte lokale Verbindung.';
+
+  @override
+  String get tutorialTunnelBar =>
+      'Orange mit einem Wolkensymbol bedeutet, dass du unterwegs bist und sicher über das Internet durch den Tunnel deines Druckers verbunden bist. Moongate wechselt automatisch zwischen beiden.';
+
+  @override
+  String get tutorialRemoteBuilding =>
+      'Wenn du einen Drucker zum ersten Mal koppelst, ist der Fernzugriff nicht sofort verfügbar. Diese kleine Wolkenmarkierung bedeutet, dass der sichere Tunnel im Hintergrund noch aufgebaut wird. Sobald daraus ein grünes Wolken-Häkchen wird, erreichst du diesen Drucker von überall.';
+
+  @override
+  String get tutorialHotend => 'Das ist dein Hotend, die Düsentemperatur.';
+
+  @override
+  String get tutorialBed => 'Und das ist das beheizte Bett.';
+
+  @override
+  String get tutorialChamber =>
+      'Wenn dein Drucker einen Kammersensor hat, wird dessen Temperatur hier ebenfalls angezeigt.';
+
+  @override
+  String get tutorialTemps =>
+      'Das sind die Live-Temperaturen: das Hotend (Düse), das beheizte Bett und - falls dein Drucker einen Kammersensor hat - die Kammer.';
+
+  @override
+  String get tutorialEstop =>
+      'Das ist der Notstopp. Er muss doppelt getippt werden, damit er nicht versehentlich ausgelöst wird, und er hält den Drucker sofort an.';
+
+  @override
+  String get tutorialWebcam =>
+      'Ein Tippen auf die Kameraansicht öffnet die vollständige Druckeroberfläche, den Live-Klipper-Bildschirm.';
+
+  @override
+  String get tutorialPreheatPress =>
+      'Halte den Namen eines Druckers oder seine Temperaturen gedrückt, um das Vorheiz-Panel anzuzeigen.';
+
+  @override
+  String get tutorialPreheatSheet =>
+      'Hier kannst du Zieltemperaturen für Hotend und Bett sowie optional eine Heat-Soak-Zeit festlegen.';
+
+  @override
+  String get tutorialAddPrinter =>
+      'Tippe jederzeit auf die Plus-Schaltfläche, um einen weiteren Drucker hinzuzufügen und zu koppeln.';
+
+  @override
+  String get tutorialMenuIcon =>
+      'Das ist das Menü. Du kannst es von hier aus jederzeit öffnen.';
+
+  @override
+  String get tutorialMenuPrinters =>
+      'Füge einen weiteren Drucker hinzu oder entferne einen, den du nicht mehr nutzt.';
+
+  @override
+  String get tutorialMenuBackup =>
+      'Sichere deine Einrichtung in einer Datei oder stelle sie auf einem anderen Gerät wieder her.';
+
+  @override
+  String get tutorialMenuTheme =>
+      'Wähle ein helles, dunkles oder vollständig eigenes Farbdesign.';
+
+  @override
+  String get tutorialMenuDisplaySize =>
+      'Ziehe hier, um alles größer oder kleiner zu machen, passend für deine Augen.';
+
+  @override
+  String get tutorialMenuColumns =>
+      'Ordne deine Drucker in einer, zwei oder drei Spalten an.';
+
+  @override
+  String get tutorialMenuCameras =>
+      'Lege fest, wie oft die Webcam-Feeds aktualisiert werden, und schalte die Kamera jedes Druckers ein oder aus.';
+
+  @override
+  String get tutorialMenuAbout =>
+      'Neuigkeiten, wie das Koppeln funktioniert, eine Symbolübersicht und wo du ein Problem melden kannst, findest du alles hier.';
+
+  @override
+  String get tutorialMenuSupport =>
+      'Mir einen Kaffee zu spendieren hilft, Moongate für alle kostenlos und quelloffen zu halten.';
+
+  @override
+  String get tutorialMenuSettings =>
+      'In den Einstellungen gibt es zwei Optionen: alle Drucker löschen oder alle deine Daten löschen und ganz neu beginnen.';
+
+  @override
+  String get tutorialMenuLanguage =>
+      'Und hier kannst du die Sprache der App ändern - Moongate spricht acht. Das war die Tour, viel Spaß!';
 }

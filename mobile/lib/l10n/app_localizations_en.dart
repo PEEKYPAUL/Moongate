@@ -400,7 +400,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dashboardThemeHeading => 'Theme';
 
   @override
-  String get dashboardThemeSystem => 'System default';
+  String get dashboardThemeSystem => 'Phone colours';
 
   @override
   String get dashboardThemeDark => 'Dark';
@@ -410,6 +410,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dashboardThemeCustom => 'Custom';
+
+  @override
+  String get dashboardFontHeading => 'Font';
+
+  @override
+  String get fontStandard => 'Default';
+
+  @override
+  String get fontRounded => 'Rounded';
+
+  @override
+  String get fontSerif => 'Serif';
+
+  @override
+  String get fontReadable => 'High-readability';
 
   @override
   String get dashboardCustomiseColours => 'Customise colours';
@@ -442,6 +457,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get dashboardAutoArrangeSubtitle =>
       'Sort tiles by activity. Turn off to drag tiles into your own order.';
+
+  @override
+  String get dashboardShowButtons => 'Show dashboard buttons';
+
+  @override
+  String get dashboardShowButtonsSubtitle =>
+      'Show the add and reorder buttons at the bottom. Add printers from the menu when hidden.';
 
   @override
   String get dashboardReorderHint => 'Hold and drag a tile to reorder';
@@ -1659,4 +1681,125 @@ class AppLocalizationsEn extends AppLocalizations {
   String heatsoakDoneBody(String printer) {
     return '$printer is up to temperature';
   }
+
+  @override
+  String get tutorialOfferTitle => 'Take a quick tour?';
+
+  @override
+  String get tutorialOfferBody =>
+      'Would you like a quick walkthrough of how Moongate works?';
+
+  @override
+  String get tutorialOfferDontRemind => 'Don\'t remind me again';
+
+  @override
+  String get tutorialOfferNo => 'No thanks';
+
+  @override
+  String get tutorialOfferStart => 'Start tutorial';
+
+  @override
+  String get tutorialMenuTitle => 'App tutorial';
+
+  @override
+  String get tutorialNext => 'Next';
+
+  @override
+  String get tutorialDone => 'Done';
+
+  @override
+  String get tutorialSkip => 'End';
+
+  @override
+  String get tutorialBack => 'Back';
+
+  @override
+  String get tutorialLocalBar =>
+      'The colour bar shows how Moongate is reaching this printer. Green with a Wi-Fi icon means you are on the same network, a fast, direct local connection.';
+
+  @override
+  String get tutorialTunnelBar =>
+      'Orange with a cloud icon means you are away from home, connected securely over the internet through your printer\'s tunnel. Moongate switches between the two automatically.';
+
+  @override
+  String get tutorialRemoteBuilding =>
+      'When you first pair a printer, remote access isn\'t instant. This little cloud marker means the secure tunnel is still building in the background. Once it turns into a green cloud tick, you can reach this printer from anywhere.';
+
+  @override
+  String get tutorialHotend => 'This is your hotend, the nozzle temperature.';
+
+  @override
+  String get tutorialBed => 'And this is the heated bed.';
+
+  @override
+  String get tutorialChamber =>
+      'If your printer has a chamber sensor, its temperature shows here too.';
+
+  @override
+  String get tutorialTemps =>
+      'These are the live temperatures: the hotend (nozzle), the heated bed, and - if your printer has a chamber sensor - the chamber.';
+
+  @override
+  String get tutorialEstop =>
+      'This is the emergency stop. It needs a double tap to fire, so it can\'t be triggered by accident, and it halts the printer immediately.';
+
+  @override
+  String get tutorialWebcam =>
+      'Tapping the camera view opens the full printer interface, the live Klipper screen.';
+
+  @override
+  String get tutorialPreheatPress =>
+      'Press and hold a printer\'s name or its temperatures to display the preheat panel.';
+
+  @override
+  String get tutorialPreheatSheet =>
+      'Here you can set hotend and bed targets and an optional heat-soak time.';
+
+  @override
+  String get tutorialAddPrinter =>
+      'Tap the plus button any time to add another printer and pair it.';
+
+  @override
+  String get tutorialMenuIcon =>
+      'This is the menu. You can open it any time from here.';
+
+  @override
+  String get tutorialMenuPrinters =>
+      'Add another printer, or remove one you no longer use.';
+
+  @override
+  String get tutorialMenuBackup =>
+      'Back up your setup to a file, or restore it on another device.';
+
+  @override
+  String get tutorialMenuTheme =>
+      'Choose a light, dark, or fully custom colour theme.';
+
+  @override
+  String get tutorialMenuDisplaySize =>
+      'Drag this to make everything bigger or smaller to suit your eyes.';
+
+  @override
+  String get tutorialMenuColumns =>
+      'Lay your printers out in one, two, or three columns.';
+
+  @override
+  String get tutorialMenuCameras =>
+      'Set how often the webcam feeds refresh, and turn each printer\'s camera on or off.';
+
+  @override
+  String get tutorialMenuAbout =>
+      'What\'s new, how pairing works, an icon guide, and where to report a problem all live here.';
+
+  @override
+  String get tutorialMenuSupport =>
+      'Buying me a coffee helps keep Moongate free for everyone and open source.';
+
+  @override
+  String get tutorialMenuSettings =>
+      'Settings has two options inside: clear all your printers, or delete all your data and start completely fresh.';
+
+  @override
+  String get tutorialMenuLanguage =>
+      'And you can switch the app\'s language here - Moongate speaks eight. That\'s the tour, enjoy!';
 }

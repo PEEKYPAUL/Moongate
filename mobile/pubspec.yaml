@@ -1,6 +1,6 @@
 name: moongate
 description: Remote control interface for Klipper 3D printers via local WiFi or Cloudflare tunnel.
-version: 0.9.34+103
+version: 0.9.45+116
 publish_to: none
 
 environment:
@@ -52,6 +52,12 @@ dependencies:
 
   # Persistent settings
   shared_preferences: ^2.2.0
+
+  # Material You "dynamic colour" - reads the wallpaper-derived palette on
+  # Android 12+ for the optional "Phone colours" theme. The builder returns
+  # null schemes on older Android / iOS, where the app falls back to its seeded
+  # theme; the option itself is only shown where the palette is available.
+  dynamic_color: ^1.7.0
 
   # App version info (reads version from the installed package manifest)
   package_info_plus: ^9.0.1
@@ -139,6 +145,139 @@ flutter:
   assets:
     - assets/icons/
     - assets/changelog.json
+
+  # Bundled, open-licensed (SIL OFL) fonts for the in-app Font picker. A Flutter
+  # app can't read the user's selected system font, so we ship a small set: a
+  # rounded sans (Nunito), a serif (Lora), and a high-readability face (Atkinson
+  # Hyperlegible). "Default" uses no override. Nunito/Lora are variable fonts
+  # (one file covers all weights); Atkinson is static, so we ship Regular + Bold.
+  # Licenses live in assets/fonts/OFL-*.txt.
+  fonts:
+    - family: Nunito
+      fonts:
+        - asset: assets/fonts/Nunito-variable.ttf
+    - family: Lora
+      fonts:
+        - asset: assets/fonts/Lora-variable.ttf
+    - family: AtkinsonHyperlegible
+      fonts:
+        - asset: assets/fonts/AtkinsonHyperlegible-Regular.ttf
+        - asset: assets/fonts/AtkinsonHyperlegible-Bold.ttf
+          weight: 700
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700
+    - family: Lexend
+      fonts:
+        - asset: assets/fonts/Lexend-variable.ttf
+    - family: Rubik
+      fonts:
+        - asset: assets/fonts/Rubik-variable.ttf
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope-variable.ttf
+    - family: Work Sans
+      fonts:
+        - asset: assets/fonts/WorkSans-variable.ttf
+    - family: Mulish
+      fonts:
+        - asset: assets/fonts/Mulish-variable.ttf
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/Outfit-variable.ttf
+    - family: Montserrat
+      fonts:
+        - asset: assets/fonts/Montserrat-variable.ttf
+    - family: Raleway
+      fonts:
+        - asset: assets/fonts/Raleway-variable.ttf
+    - family: Source Sans 3
+      fonts:
+        - asset: assets/fonts/SourceSans3-variable.ttf
+    - family: Fira Sans
+      fonts:
+        - asset: assets/fonts/FiraSans-Regular.ttf
+        - asset: assets/fonts/FiraSans-Bold.ttf
+          weight: 700
+    - family: Quicksand
+      fonts:
+        - asset: assets/fonts/Quicksand-variable.ttf
+    - family: Baloo 2
+      fonts:
+        - asset: assets/fonts/Baloo2-variable.ttf
+    - family: Fredoka
+      fonts:
+        - asset: assets/fonts/Fredoka-variable.ttf
+    - family: Merriweather
+      fonts:
+        - asset: assets/fonts/Merriweather-Regular.ttf
+    - family: PT Serif
+      fonts:
+        - asset: assets/fonts/PT_Serif-Regular.ttf
+        - asset: assets/fonts/PT_Serif-Bold.ttf
+          weight: 700
+    - family: Bitter
+      fonts:
+        - asset: assets/fonts/Bitter-variable.ttf
+    - family: Roboto Slab
+      fonts:
+        - asset: assets/fonts/RobotoSlab-variable.ttf
+    - family: Zilla Slab
+      fonts:
+        - asset: assets/fonts/ZillaSlab-Regular.ttf
+        - asset: assets/fonts/ZillaSlab-Bold.ttf
+          weight: 700
+    - family: Arvo
+      fonts:
+        - asset: assets/fonts/Arvo-Regular.ttf
+        - asset: assets/fonts/Arvo-Bold.ttf
+          weight: 700
+    - family: IBM Plex Mono
+      fonts:
+        - asset: assets/fonts/IBMPlexMono-Regular.ttf
+        - asset: assets/fonts/IBMPlexMono-Bold.ttf
+          weight: 700
+    - family: Orbitron
+      fonts:
+        - asset: assets/fonts/Orbitron-variable.ttf
+    - family: Exo 2
+      fonts:
+        - asset: assets/fonts/Exo2-variable.ttf
+    - family: Chakra Petch
+      fonts:
+        - asset: assets/fonts/ChakraPetch-Regular.ttf
+        - asset: assets/fonts/ChakraPetch-Bold.ttf
+          weight: 700
+    - family: Rajdhani
+      fonts:
+        - asset: assets/fonts/Rajdhani-Regular.ttf
+        - asset: assets/fonts/Rajdhani-Bold.ttf
+          weight: 700
+    - family: Oswald
+      fonts:
+        - asset: assets/fonts/Oswald-variable.ttf
+    - family: Teko
+      fonts:
+        - asset: assets/fonts/Teko-variable.ttf
+    - family: Bebas Neue
+      fonts:
+        - asset: assets/fonts/BebasNeue-Regular.ttf
+    - family: Caveat
+      fonts:
+        - asset: assets/fonts/Caveat-variable.ttf
+    - family: Patrick Hand
+      fonts:
+        - asset: assets/fonts/PatrickHand-Regular.ttf
+    - family: VT323
+      fonts:
+        - asset: assets/fonts/VT323-Regular.ttf
+    - family: Silkscreen
+      fonts:
+        - asset: assets/fonts/Silkscreen-Regular.ttf
+        - asset: assets/fonts/Silkscreen-Bold.ttf
+          weight: 700
 
 # Launcher icon generation (see tool/make_icon.py for the source artwork).
 # Adaptive icon = solid near-black background + the red moon-gate foreground;

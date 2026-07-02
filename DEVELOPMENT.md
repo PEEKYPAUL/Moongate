@@ -125,7 +125,7 @@ mobile/lib/
 ├── models/
 │   └── printer_config.dart             # PrinterConfig (persisted) + PrinterStatus (live)
 ├── providers/                          # Riverpod NotifierProviders
-│   ├── settings_provider.dart          # AppThemeMode, font scale, grid cols, rotation
+│   ├── settings_provider.dart          # AppThemeMode, app font (kAppFonts), font scale, grid cols, rotation
 │   ├── custom_theme_provider.dart      # 5 user-picked colours
 │   ├── update_provider.dart            # GitHub release check
 │   └── version_provider.dart           # PackageInfo

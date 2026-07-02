@@ -812,10 +812,10 @@ abstract class AppLocalizations {
   /// **'Theme'**
   String get dashboardThemeHeading;
 
-  /// Theme radio option: follow the system light/dark setting.
+  /// Theme radio option: use the phone's own system (Material You) colours. Android 12+ only.
   ///
   /// In en, this message translates to:
-  /// **'System default'**
+  /// **'Phone colours'**
   String get dashboardThemeSystem;
 
   /// Theme radio option: dark theme.
@@ -835,6 +835,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Custom'**
   String get dashboardThemeCustom;
+
+  /// Drawer item / dialog title for choosing the app's typeface.
+  ///
+  /// In en, this message translates to:
+  /// **'Font'**
+  String get dashboardFontHeading;
+
+  /// App font option: the platform default typeface.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get fontStandard;
+
+  /// App font option: a rounded sans-serif typeface.
+  ///
+  /// In en, this message translates to:
+  /// **'Rounded'**
+  String get fontRounded;
+
+  /// App font option: a serif typeface.
+  ///
+  /// In en, this message translates to:
+  /// **'Serif'**
+  String get fontSerif;
+
+  /// App font option: a high-readability / accessibility typeface.
+  ///
+  /// In en, this message translates to:
+  /// **'High-readability'**
+  String get fontReadable;
 
   /// Drawer item to open the custom colour editor.
   ///
@@ -889,6 +919,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sort tiles by activity. Turn off to drag tiles into your own order.'**
   String get dashboardAutoArrangeSubtitle;
+
+  /// Dashboard Layout switch title: show/hide the floating add + reorder buttons at the bottom of the dashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Show dashboard buttons'**
+  String get dashboardShowButtons;
+
+  /// Subtitle under the show-dashboard-buttons switch.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the add and reorder buttons at the bottom. Add printers from the menu when hidden.'**
+  String get dashboardShowButtonsSubtitle;
 
   /// Hint shown above the dashboard grid when manual drag-to-reorder is active.
   ///
@@ -3097,6 +3139,204 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{printer} is up to temperature'**
   String heatsoakDoneBody(String printer);
+
+  /// Title of the first-run popup offering the in-app tutorial.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a quick tour?'**
+  String get tutorialOfferTitle;
+
+  /// Body of the first-run tutorial offer popup.
+  ///
+  /// In en, this message translates to:
+  /// **'Would you like a quick walkthrough of how Moongate works?'**
+  String get tutorialOfferBody;
+
+  /// Checkbox on the tutorial offer popup that suppresses future offers.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t remind me again'**
+  String get tutorialOfferDontRemind;
+
+  /// Button that declines the tutorial offer.
+  ///
+  /// In en, this message translates to:
+  /// **'No thanks'**
+  String get tutorialOfferNo;
+
+  /// Button that starts the walkthrough from the offer popup.
+  ///
+  /// In en, this message translates to:
+  /// **'Start tutorial'**
+  String get tutorialOfferStart;
+
+  /// Drawer menu entry that launches the walkthrough on demand.
+  ///
+  /// In en, this message translates to:
+  /// **'App tutorial'**
+  String get tutorialMenuTitle;
+
+  /// Button that advances to the next tutorial step.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get tutorialNext;
+
+  /// Button that finishes the tutorial on the last step.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get tutorialDone;
+
+  /// Button that ends the tutorial early.
+  ///
+  /// In en, this message translates to:
+  /// **'End'**
+  String get tutorialSkip;
+
+  /// Button that steps the tutorial back one step.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get tutorialBack;
+
+  /// Tutorial step explaining the green local-mode connection bar on a printer tile.
+  ///
+  /// In en, this message translates to:
+  /// **'The colour bar shows how Moongate is reaching this printer. Green with a Wi-Fi icon means you are on the same network, a fast, direct local connection.'**
+  String get tutorialLocalBar;
+
+  /// Tutorial step explaining the orange tunnel-mode connection bar.
+  ///
+  /// In en, this message translates to:
+  /// **'Orange with a cloud icon means you are away from home, connected securely over the internet through your printer\'s tunnel. Moongate switches between the two automatically.'**
+  String get tutorialTunnelBar;
+
+  /// Tutorial step explaining the tunnel-status pip while remote access is still being set up after pairing.
+  ///
+  /// In en, this message translates to:
+  /// **'When you first pair a printer, remote access isn\'t instant. This little cloud marker means the secure tunnel is still building in the background. Once it turns into a green cloud tick, you can reach this printer from anywhere.'**
+  String get tutorialRemoteBuilding;
+
+  /// Tutorial step pointing at the hotend temperature chip.
+  ///
+  /// In en, this message translates to:
+  /// **'This is your hotend, the nozzle temperature.'**
+  String get tutorialHotend;
+
+  /// Tutorial step pointing at the bed temperature chip.
+  ///
+  /// In en, this message translates to:
+  /// **'And this is the heated bed.'**
+  String get tutorialBed;
+
+  /// Tutorial step pointing at the chamber temperature chip.
+  ///
+  /// In en, this message translates to:
+  /// **'If your printer has a chamber sensor, its temperature shows here too.'**
+  String get tutorialChamber;
+
+  /// Tutorial step spotlighting the hotend, bed and chamber temperature chips together in one popup.
+  ///
+  /// In en, this message translates to:
+  /// **'These are the live temperatures: the hotend (nozzle), the heated bed, and - if your printer has a chamber sensor - the chamber.'**
+  String get tutorialTemps;
+
+  /// Tutorial step pointing at the E-STOP button and explaining the double-tap-to-fire safety.
+  ///
+  /// In en, this message translates to:
+  /// **'This is the emergency stop. It needs a double tap to fire, so it can\'t be triggered by accident, and it halts the printer immediately.'**
+  String get tutorialEstop;
+
+  /// Tutorial step pointing at the tile webcam square.
+  ///
+  /// In en, this message translates to:
+  /// **'Tapping the camera view opens the full printer interface, the live Klipper screen.'**
+  String get tutorialWebcam;
+
+  /// Tutorial step that highlights the long-press area used to open preheat.
+  ///
+  /// In en, this message translates to:
+  /// **'Press and hold a printer\'s name or its temperatures to display the preheat panel.'**
+  String get tutorialPreheatPress;
+
+  /// Tutorial step shown while the preheat sheet is open, explaining the hotend / bed / heat-soak fields.
+  ///
+  /// In en, this message translates to:
+  /// **'Here you can set hotend and bed targets and an optional heat-soak time.'**
+  String get tutorialPreheatSheet;
+
+  /// Tutorial step pointing at the add-printer button on the dashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the plus button any time to add another printer and pair it.'**
+  String get tutorialAddPrinter;
+
+  /// Tutorial step pointing at the hamburger menu button before the drawer opens.
+  ///
+  /// In en, this message translates to:
+  /// **'This is the menu. You can open it any time from here.'**
+  String get tutorialMenuIcon;
+
+  /// Menu tutorial step for the add / remove printer entries.
+  ///
+  /// In en, this message translates to:
+  /// **'Add another printer, or remove one you no longer use.'**
+  String get tutorialMenuPrinters;
+
+  /// Menu tutorial step for the backup / restore config entries.
+  ///
+  /// In en, this message translates to:
+  /// **'Back up your setup to a file, or restore it on another device.'**
+  String get tutorialMenuBackup;
+
+  /// Menu tutorial step pointing at the Theme selector in the drawer.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a light, dark, or fully custom colour theme.'**
+  String get tutorialMenuTheme;
+
+  /// Menu tutorial step pointing at the display-size slider.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag this to make everything bigger or smaller to suit your eyes.'**
+  String get tutorialMenuDisplaySize;
+
+  /// Menu tutorial step pointing at the dashboard column-count picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Lay your printers out in one, two, or three columns.'**
+  String get tutorialMenuColumns;
+
+  /// Menu tutorial step pointing at the camera-feeds / webcams entries.
+  ///
+  /// In en, this message translates to:
+  /// **'Set how often the webcam feeds refresh, and turn each printer\'s camera on or off.'**
+  String get tutorialMenuCameras;
+
+  /// Menu tutorial step pointing at the About section.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s new, how pairing works, an icon guide, and where to report a problem all live here.'**
+  String get tutorialMenuAbout;
+
+  /// Menu tutorial step pointing at the buy-me-a-coffee support entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Buying me a coffee helps keep Moongate free for everyone and open source.'**
+  String get tutorialMenuSupport;
+
+  /// Menu tutorial step pointing at the Settings entry, which holds remove-all-printers and delete-my-data.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings has two options inside: clear all your printers, or delete all your data and start completely fresh.'**
+  String get tutorialMenuSettings;
+
+  /// Final menu tutorial step pointing at the language entry.
+  ///
+  /// In en, this message translates to:
+  /// **'And you can switch the app\'s language here - Moongate speaks eight. That\'s the tour, enjoy!'**
+  String get tutorialMenuLanguage;
 }
 
 class _AppLocalizationsDelegate

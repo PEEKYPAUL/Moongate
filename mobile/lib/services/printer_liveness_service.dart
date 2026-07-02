@@ -45,6 +45,10 @@ class PrinterLivenessService {
   Timer? _reseedTimer;
   bool _started = false;
 
+  /// Coalesces a burst of [refresh] calls (every dashboard tile fires one on
+  /// app resume) into a single in-flight SELECT.
+  Future<void>? _refreshing;
+
   void _log(String msg) => dev.log(msg, name: 'MOONGATE/LIVENESS');
 
   /// True only when we have a `last_seen` for [printerId] AND it's older than
@@ -85,6 +89,19 @@ class PrinterLivenessService {
       SupabaseService.instance.signedIn.removeListener(_onSignedIn);
       start();
     }
+  }
+
+  /// Re-read the fleet's `last_seen` now, out of the periodic cadence. Call on
+  /// app resume: while backgrounded the OS can freeze the process, dropping the
+  /// Realtime socket and suspending the re-seed timer, so [_lastSeen] (and thus
+  /// [isKnownOffline]) can hold a stale 'offline' verdict for a printer that has
+  /// since come back on - the exact case where the poll gate would keep the tile
+  /// offline until a cold start. A fresh SELECT corrects it before the status
+  /// poll re-runs. Starts the service instead if it never came up (no session at
+  /// launch). Concurrent calls share one SELECT.
+  Future<void> refresh() {
+    if (!_started) return start();
+    return _refreshing ??= _reseed().whenComplete(() => _refreshing = null);
   }
 
   /// Read every owned printer's `last_seen` in one RLS-scoped query (PostgREST,

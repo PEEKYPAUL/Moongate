@@ -15,11 +15,13 @@ import '../../services/printer_status_registry.dart';
 import '../../services/printer_status_service.dart';
 import '../../widgets/webcam_view.dart';
 import '../printer/printer_camera_screen.dart';
+import '../tutorial/tutorial_anchors.dart';
+import '../tutorial/tutorial_controller.dart';
 import 'gcode_files_overlay.dart';
 import 'macros_overlay.dart';
 import 'preheat_overlay.dart';
 
-class PrinterTile extends StatefulWidget {
+class PrinterTile extends ConsumerStatefulWidget {
   final PrinterConfig printer;
   final VoidCallback onTap;
 
@@ -35,25 +37,42 @@ class PrinterTile extends StatefulWidget {
   /// can give height back rather than overflow on a busy tile. See _webcamCell.
   final bool bounded;
 
+  /// True only for the one tile the live tutorial spotlights (the first tile on
+  /// the dashboard). When set, the tile attaches the shared [TutorialAnchors]
+  /// keys to its parts so the tutorial overlay can locate them. Off for every
+  /// other tile (a GlobalKey must be mounted only once).
+  final bool anchorForTutorial;
+
   const PrinterTile({
     super.key,
     required this.printer,
     required this.onTap,
     this.tileOpacity = 1.0,
     this.bounded = false,
+    this.anchorForTutorial = false,
   });
 
   @override
-  State<PrinterTile> createState() => _PrinterTileState();
+  ConsumerState<PrinterTile> createState() => _PrinterTileState();
 }
 
-class _PrinterTileState extends State<PrinterTile> with WidgetsBindingObserver {
+class _PrinterTileState extends ConsumerState<PrinterTile>
+    with WidgetsBindingObserver {
   late final PrinterStatusService _statusService;
   late final PrintControlService _controlService;
   late PrinterStatus _status;
 
   bool _stopConfirmPending = false;
   Timer? _stopConfirmTimer;
+
+  /// Live tutorial: while a demo step is showing doctored state on this (the
+  /// first) tile, [_realBehindDemo] holds the genuine latest status so it can be
+  /// restored the moment the demo ends. Null when no demo override is active.
+  PrinterStatus? _realBehindDemo;
+
+  /// True while the tutorial's preheat step has the preheat sheet open, so it
+  /// can be closed again when the step moves on.
+  bool _preheatDemoOpen = false;
 
   /// Web UI type - 'mainsail', 'fluidd', or null. Seeded from the persisted
   /// config (so a cold launch shows the logo immediately even if the
@@ -92,6 +111,12 @@ class _PrinterTileState extends State<PrinterTile> with WidgetsBindingObserver {
       // this tile is no longer mounted - it's the most useful triage signal.
       PrinterStatusRegistry.instance.update(widget.printer.id, s);
       if (!mounted) return;
+      // While the tutorial is showing a demo override on this tile, keep the
+      // real status fresh behind the scenes but don't disturb what's on screen.
+      if (_realBehindDemo != null) {
+        _realBehindDemo = s;
+        return;
+      }
       final wasActive = _status.state == 'printing' || _status.state == 'paused';
       final isActive  = s.state == 'printing' || s.state == 'paused';
       // Print ended naturally while stop-confirm timer was still running -
@@ -110,6 +135,86 @@ class _PrinterTileState extends State<PrinterTile> with WidgetsBindingObserver {
     _statusService.start();
   }
 
+  // ── Live tutorial demo state ───────────────────────────────────────────────
+  // The first dashboard tile reacts to the tutorial's current step by showing a
+  // clean, idle, locally-connected version of itself (so the tour reads well
+  // even if the real printer is offline or mid-print), with the step's twist
+  // applied (tunnel mode, or a faked chamber reading). Restored on the way out.
+  static const _tileDemoSteps = {
+    'localBar', 'tunnelBar', 'remoteBuilding', 'temps',
+    'estop', 'webcam', 'preheatPress', 'preheatSheet',
+  };
+
+  void _applyDemoForStep(TutorialState s) {
+    final id = s.active ? s.current?.id : null;
+    if (id != null && _tileDemoSteps.contains(id)) {
+      _realBehindDemo ??= _status; // remember the real status once
+      setState(() => _status = _demoStatusFor(id));
+    } else if (_realBehindDemo != null) {
+      setState(() {
+        _status = _realBehindDemo!;
+        _realBehindDemo = null;
+      });
+    }
+    // The second preheat step shows the real preheat sheet; open on entry, close
+    // on the way out (next step, or the tour ending / being skipped).
+    if (id == 'preheatSheet') {
+      _openPreheatDemo();
+    } else {
+      _closePreheatDemo();
+    }
+  }
+
+  void _openPreheatDemo() {
+    if (_preheatDemoOpen) return;
+    _preheatDemoOpen = true;
+    showPreheatSheet(
+      context,
+      widget.printer,
+      hotendTarget: _status.hotendTarget,
+      bedTarget: _status.bedTarget,
+      toolheads: _status.toolheads,
+    ).whenComplete(() => _preheatDemoOpen = false);
+  }
+
+  void _closePreheatDemo() {
+    if (!_preheatDemoOpen) return;
+    _preheatDemoOpen = false;
+    Navigator.of(context).maybePop();
+  }
+
+  PrinterStatus _demoStatusFor(String id) {
+    final real = _realBehindDemo ?? _status;
+    // A tidy, idle, local baseline so every tile step reads correctly.
+    final base = real.copyWith(
+      state:       'standby',
+      connection:  PrinterConnection.local,
+      tunnelReady: true,
+      hotendTemp:  real.hotendTemp > 0 ? real.hotendTemp : 24,
+      bedTemp:     real.bedTemp > 0 ? real.bedTemp : 24,
+      klippyShutdown: false,
+    );
+    switch (id) {
+      case 'tunnelBar':
+        return base.copyWith(connection: PrinterConnection.remote);
+      case 'remoteBuilding':
+        // Stay on Local but show the tunnel as still building in the background.
+        return base.copyWith(tunnelReady: false);
+      case 'temps':
+        // Spotlight all three chips at once: fake a chamber reading if the
+        // printer has none, so the chamber chip mounts and can be highlighted.
+        return base.chamberTemp > 0 ? base : base.copyWith(chamberTemp: 28);
+      default:
+        return base;
+    }
+  }
+
+  /// Wrap [child] with a tutorial spotlight anchor, but only on the tile the
+  /// tour targets (a GlobalKey must be mounted exactly once). Other tiles and
+  /// the off-tour case pass the child straight through.
+  Widget _anchor(GlobalKey key, Widget child) =>
+      widget.anchorForTutorial ? KeyedSubtree(key: key, child: child) : child;
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -121,10 +226,12 @@ class _PrinterTileState extends State<PrinterTile> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // The OS may have frozen us (battery optimisation) and suspended the poll
-    // timer. On return to the foreground, poll immediately so a stale 'offline'
-    // tile refreshes at once instead of waiting up to a full cycle. The
-    // app-level observer (app.dart) kicks the mDNS browse in parallel.
-    if (state == AppLifecycleState.resumed) _statusService.pollNow();
+    // timer. On return to the foreground, re-seed cloud liveness and poll
+    // immediately so a stale 'offline' tile refreshes at once instead of waiting
+    // up to a full cycle - and, crucially, so a printer powered back on while we
+    // were away isn't held offline by a stale liveness verdict. The app-level
+    // observer (app.dart) kicks the mDNS browse in parallel.
+    if (state == AppLifecycleState.resumed) _statusService.resumePoll();
   }
 
   Future<void> _handlePause() async {
@@ -233,9 +340,11 @@ class _PrinterTileState extends State<PrinterTile> with WidgetsBindingObserver {
        _status.state == 'complete' ||
        _status.state == 'cancelled');
 
-  /// Wrap the temperature chips so a long-press opens the preheat sheet - but
-  /// only when [_canPreheat]; otherwise the chips render plainly and a press does
-  /// nothing (a normal tap still opens the printer page via the tile's InkWell).
+  /// Wrap the name + temperature block so a long-press anywhere on it opens the
+  /// preheat sheet - but only when [_canPreheat]; otherwise it renders plainly
+  /// and a press does nothing (a normal tap still opens the printer page via the
+  /// tile's InkWell). The big target replaces the old chips-only one, which got
+  /// fiddly once the display-size slider stacks each chip into a narrow column.
   Widget _preheatable(Widget chips) {
     if (!_canPreheat) return chips;
     return GestureDetector(
@@ -247,16 +356,169 @@ class _PrinterTileState extends State<PrinterTile> with WidgetsBindingObserver {
           widget.printer,
           hotendTarget: _status.hotendTarget,
           bedTarget: _status.bedTarget,
+          toolheads: _status.toolheads,
         );
       },
       child: chips,
     );
   }
 
+  /// The E-STOP triangle, or the firmware-restart button when Klipper is shut
+  /// down. Shared by the single-hotend row and the multi-toolhead footer. The
+  /// E-STOP carries the tutorial anchor (a no-op on non-tutorial tiles).
+  Widget _estopWidget(AppLocalizations l) {
+    if (_status.klippyShutdown) {
+      return _RestartButton(
+        tooltip: l.tileFirmwareRestart,
+        onTap: _handleFirmwareRestart,
+      );
+    }
+    return _anchor(
+      TutorialAnchors.instance.estop,
+      _EstopButton(
+        tooltip: l.tileEmergencyStop,
+        onFire: _handleEmergencyStop,
+      ),
+    );
+  }
+
+  /// Shared temperature row for EVERY tile (single- and multi-toolhead). All
+  /// chips sit in one Wrap, so they flow onto as many rows as the tile width
+  /// needs at ONE global size (the display-size slider) - they never shrink
+  /// per-tile, which used to make a busy tile's temps smaller than a quiet
+  /// one's. When the tile is too narrow to fit even one horizontal chip the
+  /// chips stack (icon over value, much narrower) instead of clipping, so
+  /// nothing overflows into the E-STOP, which stays pinned at the right.
+  ///
+  /// [chips] is a builder because whether the chips stack depends on the width
+  /// the LayoutBuilder measures.
+  Widget _tempRow(
+    AppLocalizations l,
+    List<Widget> Function(bool stack) chips,
+  ) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scale = MediaQuery.textScalerOf(context).scale(1.0);
+        // Width the Wrap has after reserving the E-STOP (its ring tracks the
+        // scale) plus the gap before it.
+        final wrapWidth = constraints.maxWidth - (24 * scale + 8);
+        // Stack when the font is already large (the historic threshold) OR when
+        // a horizontal chip would not fit the row - a labelled toolhead chip is
+        // the widest, roughly 66px * scale. Stacking collapses a chip to its
+        // widest single element (the value), which fits any tile, so this kills
+        // the clip WITHOUT shrinking; size stays globally controlled.
+        final stack = scale >= 1.15 || wrapWidth < 90 * scale;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: chips(stack),
+              ),
+            ),
+            const SizedBox(width: 8),
+            _estopWidget(l),
+          ],
+        );
+      },
+    );
+  }
+
+  /// The single-toolhead temperature row: hotend, bed, and (if present) chamber
+  /// flowed through [_tempRow]. The [_anchor] calls are no-ops on every tile
+  /// except the one the tutorial spotlights.
+  Widget _singleToolheadTemps(AppLocalizations l) {
+    return _tempRow(l, (stack) => [
+      _anchor(
+        TutorialAnchors.instance.tempHotend,
+        _TempChip(
+          icon: Icons.whatshot,
+          color: Colors.deepOrange,
+          temp: _status.hotendTemp,
+          target: _status.hotendTarget,
+          stack: stack,
+        ),
+      ),
+      _anchor(
+        TutorialAnchors.instance.tempBed,
+        _TempChip(
+          icon: Icons.bed,
+          color: Colors.blue,
+          temp: _status.bedTemp,
+          target: _status.bedTarget,
+          stack: stack,
+        ),
+      ),
+      if (_status.chamberTemp > 0)
+        _anchor(
+          TutorialAnchors.instance.tempChamber,
+          _TempChip(
+            icon: Icons.sensor_window,
+            color: Colors.teal,
+            temp: _status.chamberTemp,
+            target: _status.chamberTarget,
+            stack: stack,
+          ),
+        ),
+    ]);
+  }
+
+  /// The multi-toolhead temperature row: a flame + `T{n}` + temperature chip per
+  /// tool, then bed and (if present) chamber, all in one [_tempRow] Wrap so they
+  /// flow onto as many rows as the tile width needs (2 tools on a wide tile = one
+  /// line; 6 on a narrow tile = a 3x2-ish grid), every chip the same global size.
+  /// Bed and chamber are independent chips, so they wrap naturally with the
+  /// tools. Every detected tool shows heated or not - a heating tool keeps the
+  /// orange flame, idle ones go grey, the active tool's label is bold. Only
+  /// reached when `_status.toolheads.length > 1`.
+  Widget _multiToolheadTemps(AppLocalizations l) {
+    return _tempRow(l, (stack) => [
+      for (final t in _status.toolheads)
+        t.index == 0
+            ? _anchor(
+                TutorialAnchors.instance.tempHotend,
+                _ToolheadChip(tool: t, stack: stack),
+              )
+            : _ToolheadChip(tool: t, stack: stack),
+      _anchor(
+        TutorialAnchors.instance.tempBed,
+        _TempChip(
+          icon: Icons.bed,
+          color: Colors.blue,
+          temp: _status.bedTemp,
+          target: _status.bedTarget,
+          stack: stack,
+        ),
+      ),
+      if (_status.chamberTemp > 0)
+        _anchor(
+          TutorialAnchors.instance.tempChamber,
+          _TempChip(
+            icon: Icons.sensor_window,
+            color: Colors.teal,
+            temp: _status.chamberTemp,
+            target: _status.chamberTarget,
+            stack: stack,
+          ),
+        ),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l = AppLocalizations.of(context);
+
+    // The first tile drives the live tutorial's faked state: react to each step.
+    if (widget.anchorForTutorial) {
+      ref.listen<TutorialState>(
+        tutorialControllerProvider,
+        (_, next) => _applyDemoForStep(next),
+      );
+    }
 
     // Colours used for the connection indicator throughout the tile.
     final connColor = switch (_status.connection) {
@@ -300,7 +562,13 @@ class _PrinterTileState extends State<PrinterTile> with WidgetsBindingObserver {
           mainAxisSize: MainAxisSize.min,
           children: [
             // ── Connection accent bar (clipped to card corners at top) ────
-            Container(height: 3, color: connColor),
+            Container(
+              key: widget.anchorForTutorial
+                  ? TutorialAnchors.instance.connectionBar
+                  : null,
+              height: 3,
+              color: connColor,
+            ),
 
             // ── Webcam ───────────────────────────────────────────────────
             // A fixed 1:1 square so the feed always reads cleanly, independent
@@ -314,7 +582,9 @@ class _PrinterTileState extends State<PrinterTile> with WidgetsBindingObserver {
             // reorder mode the tile sits in a fixed-height cell instead, so
             // _webcamCell wraps it in a loose Flexible (bounded) to let a busy
             // tile give height back rather than overflow.
-            _webcamCell(AspectRatio(
+            _anchor(
+                TutorialAnchors.instance.webcam,
+                _webcamCell(AspectRatio(
               aspectRatio: 1.0,
               child: Stack(
                 fit: StackFit.expand,
@@ -405,7 +675,7 @@ class _PrinterTileState extends State<PrinterTile> with WidgetsBindingObserver {
                   ),
                 ],
               ),
-            )),
+            ))),
 
             // ── Progress + buttons in ONE row ────────────────────────────
             // Hide action row when there's nothing to act on: offline,
@@ -439,98 +709,79 @@ class _PrinterTileState extends State<PrinterTile> with WidgetsBindingObserver {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Printer name + connection label on the same row
-                  Row(
+                  // The whole name + temperature block is one big long-press
+                  // target: press and hold anywhere on the name or the hotend /
+                  // bed / chamber readouts to open the preheat / heat-soak sheet
+                  // (online + idle only). The E-STOP / restart button at the end
+                  // swallows its own long-press, so it stays out of the gesture.
+                  _anchor(
+                    TutorialAnchors.instance.preheatArea,
+                    _preheatable(Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: Text(
-                          widget.printer.name,
-                          style: theme.textTheme.titleSmall,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (_status.connection != PrinterConnection.offline) ...[
-                        const SizedBox(width: 4),
-                        Icon(
-                          _status.connection == PrinterConnection.local
-                              ? Icons.wifi_rounded
-                              : Icons.cloud_outlined,
-                          size: 11,
-                          color: connColor,
-                        ),
-                        const SizedBox(width: 3),
-                        Text(
-                          _status.connection == PrinterConnection.local
-                              ? l.tileLocal
-                              : l.tileTunnel,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: connColor,
-                            fontWeight: FontWeight.w600,
+                      // Printer name + connection label on the same row
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.printer.name,
+                              style: theme.textTheme.titleSmall,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                        // v0.5.0: when connected over LAN, show the remote
-                        // (tunnel) status as a small background hint - a
-                        // spinner-ish "connecting" pip while the Pi's tunnel
-                        // is still coming up after a fresh pair / reboot, and
-                        // a green check once the cloud knows the tunnel URL.
-                        // On the tunnel path itself the badge already says so.
-                        if (_status.connection == PrinterConnection.local)
-                          _TunnelStatusDot(ready: _status.tunnelReady),
+                          if (_status.connection != PrinterConnection.offline) ...[
+                            const SizedBox(width: 4),
+                            // The Local/Tunnel label + its icon, grouped so the
+                            // tutorial can spotlight it (it flips to Tunnel + a
+                            // cloud icon when the demo fakes tunnel mode).
+                            _anchor(
+                              TutorialAnchors.instance.connectionLabel,
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _status.connection == PrinterConnection.local
+                                        ? Icons.wifi_rounded
+                                        : Icons.cloud_outlined,
+                                    size: 11,
+                                    color: connColor,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    _status.connection == PrinterConnection.local
+                                        ? l.tileLocal
+                                        : l.tileTunnel,
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: connColor,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  // v0.5.0: when on LAN, a small tunnel-status pip
+                                  // (connecting vs ready) next to the Local badge.
+                                  if (_status.connection == PrinterConnection.local)
+                                    _anchor(
+                                      TutorialAnchors.instance.tunnelDot,
+                                      _TunnelStatusDot(ready: _status.tunnelReady),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      // Live temperatures - shown only when there's a real
+                      // reading. Offline / waiting / connecting tiles collapse to
+                      // just the name (no meaningless 0°/0° row), like the K3.
+                      if (!noLiveReading) ...[
+                        const SizedBox(height: 4),
+                        _status.toolheads.length > 1
+                            ? _multiToolheadTemps(l)
+                            : _singleToolheadTemps(l),
                       ],
                     ],
-                  ),
-                  // Live temperatures - shown only when there's a real reading.
-                  // Offline / waiting / connecting tiles collapse to just the
-                  // name (no meaningless 0°/0° row), matching the K3 tile.
-                  if (!noLiveReading) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        // Long-press the temps to open the preheat / heat-soak
-                        // sheet (online + idle only); the E-STOP at the row's
-                        // end is deliberately left outside the gesture.
-                        _preheatable(Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _TempChip(
-                              icon: Icons.whatshot,
-                              color: Colors.deepOrange,
-                              temp: _status.hotendTemp,
-                              target: _status.hotendTarget,
-                            ),
-                            const SizedBox(width: 8),
-                            _TempChip(
-                              icon: Icons.bed,
-                              color: Colors.blue,
-                              temp: _status.bedTemp,
-                              target: _status.bedTarget,
-                            ),
-                            if (_status.chamberTemp > 0) ...[
-                              const SizedBox(width: 8),
-                              _TempChip(
-                                icon: Icons.sensor_window,
-                                color: Colors.teal,
-                                temp: _status.chamberTemp,
-                                target: _status.chamberTarget,
-                              ),
-                            ],
-                          ],
-                        )),
-                        // E-STOP at the right end of the temperature line.
-                        const Spacer(),
-                        if (_status.klippyShutdown)
-                          _RestartButton(
-                            tooltip: l.tileFirmwareRestart,
-                            onTap: _handleFirmwareRestart,
-                          )
-                        else
-                          _EstopButton(
-                            tooltip: l.tileEmergencyStop,
-                            onFire: _handleEmergencyStop,
-                          ),
-                      ],
-                    ),
-                  ],
+                  ))),
                   if (_status.filename != null && _status.isPrinting)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
@@ -579,7 +830,13 @@ class _PrinterTileState extends State<PrinterTile> with WidgetsBindingObserver {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Connection accent bar (matches the full tile).
-            Container(height: 3, color: connColor),
+            Container(
+              key: widget.anchorForTutorial
+                  ? TutorialAnchors.instance.connectionBar
+                  : null,
+              height: 3,
+              color: connColor,
+            ),
             Padding(
               // Right inset matches the full tile (10) so the connection icons
               // and the E-STOP line up with a full tile stacked above/below.
@@ -588,105 +845,77 @@ class _PrinterTileState extends State<PrinterTile> with WidgetsBindingObserver {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Name + connection label - same as the full tile: wifi/cloud
-                  // icon + Local/Tunnel label + the remote-tunnel status dot. A
-                  // power button leads the row (compact tiles have no webcam to
-                  // host it); it self-hides when the printer has no power control.
-                  Row(
+                  // The name + temperature block is one big long-press target
+                  // (same as the full tile): press and hold anywhere on the name
+                  // or the hotend / bed / chamber readouts to open the preheat /
+                  // heat-soak sheet (online + idle only). The power button and the
+                  // E-STOP / restart button each swallow their own long-press, so
+                  // they stay out of the gesture.
+                  _preheatable(Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      _PowerButton(
-                        printer: widget.printer,
-                        status: _status,
-                        onSurface: true,
-                      ),
-                      Expanded(
-                        child: Text(
-                          widget.printer.name,
-                          style: theme.textTheme.titleSmall,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (_status.connection != PrinterConnection.offline) ...[
-                        const SizedBox(width: 4),
-                        Icon(
-                          _status.connection == PrinterConnection.local
-                              ? Icons.wifi_rounded
-                              : Icons.cloud_outlined,
-                          size: 11,
-                          color: connColor,
-                        ),
-                        const SizedBox(width: 3),
-                        Text(
-                          _status.connection == PrinterConnection.local
-                              ? l.tileLocal
-                              : l.tileTunnel,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: connColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (_status.connection == PrinterConnection.local)
-                          _TunnelStatusDot(ready: _status.tunnelReady),
-                      ],
-                    ],
-                  ),
-                  // Print progress - kept so a compact tile still shows it.
-                  if (printing)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: _CompactProgress(status: _status),
-                    ),
-                  // Live temperatures + E-STOP on the SAME row (same as the full
-                  // tile) - shown whenever there's a live reading, including
-                  // mid-print, so the E-STOP stays reachable while online.
-                  if (!noLiveReading)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 5),
-                      child: Row(
+                      // Name + connection label - same as the full tile: wifi/cloud
+                      // icon + Local/Tunnel label + the remote-tunnel status dot. A
+                      // power button leads the row (compact tiles have no webcam to
+                      // host it); it self-hides when the printer has no power control.
+                      Row(
                         children: [
-                          // Long-press the temps to open the preheat / heat-soak
-                          // sheet (online + idle only).
-                          _preheatable(Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _TempChip(
-                                icon: Icons.whatshot,
-                                color: Colors.deepOrange,
-                                temp: _status.hotendTemp,
-                                target: _status.hotendTarget,
-                              ),
-                              const SizedBox(width: 8),
-                              _TempChip(
-                                icon: Icons.bed,
-                                color: Colors.blue,
-                                temp: _status.bedTemp,
-                                target: _status.bedTarget,
-                              ),
-                              if (_status.chamberTemp > 0) ...[
-                                const SizedBox(width: 8),
-                                _TempChip(
-                                  icon: Icons.sensor_window,
-                                  color: Colors.teal,
-                                  temp: _status.chamberTemp,
-                                  target: _status.chamberTarget,
-                                ),
-                              ],
-                            ],
-                          )),
-                          const Spacer(),
-                          if (_status.klippyShutdown)
-                            _RestartButton(
-                              tooltip: l.tileFirmwareRestart,
-                              onTap: _handleFirmwareRestart,
-                            )
-                          else
-                            _EstopButton(
-                              tooltip: l.tileEmergencyStop,
-                              onFire: _handleEmergencyStop,
+                          _PowerButton(
+                            printer: widget.printer,
+                            status: _status,
+                            onSurface: true,
+                          ),
+                          Expanded(
+                            child: Text(
+                              widget.printer.name,
+                              style: theme.textTheme.titleSmall,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
+                          ),
+                          if (_status.connection != PrinterConnection.offline) ...[
+                            const SizedBox(width: 4),
+                            Icon(
+                              _status.connection == PrinterConnection.local
+                                  ? Icons.wifi_rounded
+                                  : Icons.cloud_outlined,
+                              size: 11,
+                              color: connColor,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              _status.connection == PrinterConnection.local
+                                  ? l.tileLocal
+                                  : l.tileTunnel,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: connColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (_status.connection == PrinterConnection.local)
+                              _TunnelStatusDot(ready: _status.tunnelReady),
+                          ],
                         ],
                       ),
-                    ),
+                      // Print progress - kept so a compact tile still shows it.
+                      if (printing)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: _CompactProgress(status: _status),
+                        ),
+                      // Live temperatures + E-STOP on the SAME row (same as the
+                      // full tile) - shown whenever there's a live reading,
+                      // including mid-print, so the E-STOP stays reachable.
+                      if (!noLiveReading)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 5),
+                          child: _status.toolheads.length > 1
+                              ? _multiToolheadTemps(l)
+                              : _singleToolheadTemps(l),
+                        ),
+                    ],
+                  )),
                   // Connection-state label when there's nothing live to show.
                   if (noLiveReading)
                     Padding(
@@ -1031,6 +1260,7 @@ class _EstopButton extends ConsumerWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {}, // swallow single taps - must not fire or navigate
+        onLongPress: () {}, // swallow long-press too - stays out of the preheat gesture
         onDoubleTap: onFire,
         child: Container(
           width: ring,
@@ -1064,6 +1294,7 @@ class _RestartButton extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
+        onLongPress: () {}, // swallow long-press - stays out of the preheat gesture
         child: Container(
           width: MediaQuery.textScalerOf(context).scale(24),
           height: MediaQuery.textScalerOf(context).scale(24),
@@ -1354,11 +1585,18 @@ class _TempChip extends StatelessWidget {
   final double temp;
   final double target;
 
+  /// When non-null, forces stacked (true) or horizontal (false) layout - the
+  /// temp row computes it from the tile width + display-size so every chip on a
+  /// tile stacks together when the tile is too narrow, never shrinking. Null
+  /// falls back to the display-size-only threshold.
+  final bool? stack;
+
   const _TempChip({
     required this.icon,
     required this.color,
     required this.temp,
     required this.target,
+    this.stack,
   });
 
   @override
@@ -1383,7 +1621,7 @@ class _TempChip extends StatelessWidget {
     // row overflow a narrow tile. Past a threshold, stack each chip vertically
     // (icon over value) so the three read as two tidy rows - icons on top,
     // values beneath - instead of running off the edge.
-    final stacked = MediaQuery.textScalerOf(context).scale(1.0) >= 1.15;
+    final stacked = stack ?? (MediaQuery.textScalerOf(context).scale(1.0) >= 1.15);
     if (stacked) {
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -1393,6 +1631,67 @@ class _TempChip extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [iconWidget, const SizedBox(width: 2), valueWidget],
+    );
+  }
+}
+
+// ── Toolhead chip (multi-extruder printers) ───────────────────────────────────
+//
+// One tool's readout in the grid layout: a flame + T{index} + temperature.
+// Follows [_TempChip]'s colour rules (a neutral blueGrey that reads on both
+// the light and dark themes; the flame keeps its orange only while that tool
+// has a target, going grey when the tool is idle). The tool number is bold
+// when it's Klipper's currently-selected tool. Stacks icon-over-text past the
+// same display-size threshold [_TempChip] uses.
+
+class _ToolheadChip extends StatelessWidget {
+  final ToolheadTemp tool;
+
+  /// See [_TempChip.stack] - forces stacked/horizontal, else display-size only.
+  final bool? stack;
+
+  const _ToolheadChip({required this.tool, this.stack});
+
+  @override
+  Widget build(BuildContext context) {
+    const neutral = Colors.blueGrey;
+    final muted   = neutral.withValues(alpha: 0.7);
+    final heating = tool.target > 0;
+
+    final iconWidget = Icon(Icons.whatshot,
+        size: 13, color: heating ? Colors.deepOrange : muted);
+    final labelWidget = Text(
+      'T${tool.index}',
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: tool.active ? FontWeight.w700 : FontWeight.w500,
+        color: tool.active ? neutral : muted,
+      ),
+    );
+    final valueWidget = Text(
+      '${tool.temp.toStringAsFixed(0)}°',
+      style: TextStyle(
+        fontSize: 12,
+        color: heating ? neutral : muted,
+      ),
+    );
+
+    final stacked = stack ?? (MediaQuery.textScalerOf(context).scale(1.0) >= 1.15);
+    if (stacked) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [iconWidget, const SizedBox(height: 1), labelWidget, valueWidget],
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        iconWidget,
+        const SizedBox(width: 2),
+        labelWidget,
+        const SizedBox(width: 3),
+        valueWidget,
+      ],
     );
   }
 }
@@ -1904,6 +2203,7 @@ class _PowerButtonState extends State<_PowerButton> {
           padding: const EdgeInsets.only(right: 6),
           child: InkWell(
             onTap: onTap,
+            onLongPress: () {}, // swallow long-press - stays out of the preheat gesture
             borderRadius: BorderRadius.circular(8),
             child:
                 Padding(padding: const EdgeInsets.all(2), child: iconOrSpinner),
@@ -1919,6 +2219,7 @@ class _PowerButtonState extends State<_PowerButton> {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
+          onLongPress: () {}, // swallow long-press - stays out of the preheat gesture
           child:
               Padding(padding: const EdgeInsets.all(5), child: iconOrSpinner),
         ),

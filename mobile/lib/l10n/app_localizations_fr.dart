@@ -408,7 +408,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get dashboardThemeHeading => 'Thème';
 
   @override
-  String get dashboardThemeSystem => 'Thème du système';
+  String get dashboardThemeSystem => 'Couleurs du téléphone';
 
   @override
   String get dashboardThemeDark => 'Sombre';
@@ -418,6 +418,21 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get dashboardThemeCustom => 'Personnalisé';
+
+  @override
+  String get dashboardFontHeading => 'Police';
+
+  @override
+  String get fontStandard => 'Par défaut';
+
+  @override
+  String get fontRounded => 'Arrondie';
+
+  @override
+  String get fontSerif => 'Serif';
+
+  @override
+  String get fontReadable => 'Haute lisibilité';
 
   @override
   String get dashboardCustomiseColours => 'Personnaliser les couleurs';
@@ -450,6 +465,13 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get dashboardAutoArrangeSubtitle =>
       'Trie les tuiles par activité. Désactivez pour glisser les tuiles dans votre ordre.';
+
+  @override
+  String get dashboardShowButtons => 'Afficher les boutons du tableau de bord';
+
+  @override
+  String get dashboardShowButtonsSubtitle =>
+      'Affiche les boutons d\'ajout et de réorganisation en bas. Ajoutez des imprimantes depuis le menu lorsqu\'ils sont masqués.';
 
   @override
   String get dashboardReorderHint =>
@@ -1694,4 +1716,125 @@ class AppLocalizationsFr extends AppLocalizations {
   String heatsoakDoneBody(String printer) {
     return '$printer est à température';
   }
+
+  @override
+  String get tutorialOfferTitle => 'Faire un tour rapide ?';
+
+  @override
+  String get tutorialOfferBody =>
+      'Souhaitez-vous une présentation rapide du fonctionnement de Moongate ?';
+
+  @override
+  String get tutorialOfferDontRemind => 'Ne plus me le rappeler';
+
+  @override
+  String get tutorialOfferNo => 'Non merci';
+
+  @override
+  String get tutorialOfferStart => 'Démarrer le tutoriel';
+
+  @override
+  String get tutorialMenuTitle => 'Tutoriel de l\'app';
+
+  @override
+  String get tutorialNext => 'Suivant';
+
+  @override
+  String get tutorialDone => 'Terminé';
+
+  @override
+  String get tutorialSkip => 'Terminer';
+
+  @override
+  String get tutorialBack => 'Retour';
+
+  @override
+  String get tutorialLocalBar =>
+      'La barre de couleur indique comment Moongate joint cette imprimante. Vert avec une icône Wi-Fi signifie que vous êtes sur le même réseau, une connexion locale directe et rapide.';
+
+  @override
+  String get tutorialTunnelBar =>
+      'Orange avec une icône nuage signifie que vous êtes hors de chez vous, connecté en toute sécurité via internet par le tunnel de votre imprimante. Moongate bascule automatiquement entre les deux.';
+
+  @override
+  String get tutorialRemoteBuilding =>
+      'Lorsque vous appairez une imprimante pour la première fois, l\'accès distant n\'est pas immédiat. Ce petit nuage signifie que le tunnel sécurisé est encore en cours d\'établissement en arrière-plan. Une fois qu\'il devient un nuage vert coché, vous pouvez joindre cette imprimante de partout.';
+
+  @override
+  String get tutorialHotend => 'Voici votre hotend, la température de la buse.';
+
+  @override
+  String get tutorialBed => 'Et voici le plateau chauffant.';
+
+  @override
+  String get tutorialChamber =>
+      'Si votre imprimante possède un capteur de caisson, sa température s\'affiche aussi ici.';
+
+  @override
+  String get tutorialTemps =>
+      'Voici les températures en direct : le hotend (la buse), le plateau chauffant et, si votre imprimante possède un capteur de caisson, le caisson.';
+
+  @override
+  String get tutorialEstop =>
+      'Voici l\'arrêt d\'urgence. Il faut un double appui pour le déclencher, afin d\'éviter tout déclenchement accidentel, et il arrête l\'imprimante immédiatement.';
+
+  @override
+  String get tutorialWebcam =>
+      'Toucher la vue caméra ouvre l\'interface complète de l\'imprimante, l\'écran Klipper en direct.';
+
+  @override
+  String get tutorialPreheatPress =>
+      'Maintenez le nom d\'une imprimante ou ses températures pour afficher le panneau de préchauffage.';
+
+  @override
+  String get tutorialPreheatSheet =>
+      'Ici, vous pouvez définir les consignes de la buse et du plateau ainsi qu\'un temps de chauffe optionnel.';
+
+  @override
+  String get tutorialAddPrinter =>
+      'Touchez le bouton plus à tout moment pour ajouter une autre imprimante et l\'appairer.';
+
+  @override
+  String get tutorialMenuIcon =>
+      'Voici le menu. Vous pouvez l\'ouvrir à tout moment depuis ici.';
+
+  @override
+  String get tutorialMenuPrinters =>
+      'Ajoutez une autre imprimante, ou retirez-en une que vous n\'utilisez plus.';
+
+  @override
+  String get tutorialMenuBackup =>
+      'Sauvegardez votre configuration dans un fichier, ou restaurez-la sur un autre appareil.';
+
+  @override
+  String get tutorialMenuTheme =>
+      'Choisissez un thème de couleurs clair, sombre ou entièrement personnalisé.';
+
+  @override
+  String get tutorialMenuDisplaySize =>
+      'Faites glisser ceci pour tout agrandir ou réduire selon votre confort visuel.';
+
+  @override
+  String get tutorialMenuColumns =>
+      'Disposez vos imprimantes sur une, deux ou trois colonnes.';
+
+  @override
+  String get tutorialMenuCameras =>
+      'Réglez la fréquence de rafraîchissement des flux webcam, et activez ou désactivez la caméra de chaque imprimante.';
+
+  @override
+  String get tutorialMenuAbout =>
+      'Les nouveautés, le fonctionnement de l\'appairage, un guide des icônes et où signaler un problème se trouvent tous ici.';
+
+  @override
+  String get tutorialMenuSupport =>
+      'M\'offrir un café aide à garder Moongate gratuit pour tous et open source.';
+
+  @override
+  String get tutorialMenuSettings =>
+      'Les paramètres contiennent deux options : effacer toutes vos imprimantes, ou supprimer toutes vos données et repartir de zéro.';
+
+  @override
+  String get tutorialMenuLanguage =>
+      'Et vous pouvez changer la langue de l\'app ici - Moongate en parle huit. Voilà pour le tour, profitez-en !';
 }

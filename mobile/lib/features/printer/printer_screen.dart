@@ -457,6 +457,8 @@ class _PrinterScreenState extends State<PrinterScreen>
 
                 if (_errorMsg != null && !_loading)
                   Container(
+                    width: double.infinity,
+                    height: double.infinity,
                     color: cs.surface,
                     padding: const EdgeInsets.all(32),
                     child: Column(
