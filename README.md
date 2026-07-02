@@ -8,16 +8,17 @@
 
 [![Latest release](https://img.shields.io/github/v/release/PEEKYPAUL/Moongate?label=latest%20release&color=6C63FF)](https://github.com/PEEKYPAUL/Moongate/releases/latest)
 [![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white)](#quick-start)
-![iOS](https://img.shields.io/badge/iOS-in%20development-A2AAAD?logo=apple&logoColor=white)
+[![Platform](https://img.shields.io/badge/platform-iPhone%20%7C%20Android-6C63FF)](#quick-start)
+[![App Store](https://img.shields.io/badge/iPhone-on%20the%20App%20Store-0D96F6?logo=apple&logoColor=white)](https://apps.apple.com/gb/app/moongate-klipper-control/id6785038887)
 
-<img src="docs/screenshots/generated/hero.png" width="820" alt="Moongate on Android - fleet dashboard, the full Mainsail UI in-app, and custom themes"/>
+<img src="docs/screenshots/generated/hero-ios.png" width="820" alt="Moongate on iPhone and Android - fleet dashboard, the full Mainsail UI in-app, and custom themes"/>
 
-Free, open-source Android control for your **Klipper 3D printer** - live webcam, print controls, temperatures, and the complete Mainsail/Fluidd UI - over home WiFi and **automatically over the internet** when you're away. No Tailscale, no VPN, no port forwarding, no subscriptions.
+Free, open-source **iPhone and Android** control for your **Klipper 3D printer** - live webcam, print controls, temperatures, and the complete Mainsail/Fluidd UI - over home WiFi and **automatically over the internet** when you're away. No Tailscale, no VPN, no port forwarding, no subscriptions.
 
+<a href="https://apps.apple.com/gb/app/moongate-klipper-control/id6785038887"><img src="https://img.shields.io/badge/Download%20on%20the%20App%20Store-0D96F6?style=for-the-badge&logo=apple&logoColor=white" alt="Download on the App Store"/></a>
 <a href="https://github.com/PEEKYPAUL/Moongate/releases/latest"><img src="https://img.shields.io/badge/%E2%AC%87%20Download%20the%20APK-6C63FF?style=for-the-badge&logo=android&logoColor=white" alt="Download the APK"/></a>
 
-**🍎 Apple app development has started.** A native iPhone and iPad version is on the way alongside Android.
+**🍎 Now on iPhone.** The iPhone app is [live on the App Store](https://apps.apple.com/gb/app/moongate-klipper-control/id6785038887), built from the same codebase as Android.
 
 </div>
 
@@ -108,9 +109,12 @@ In the app's pair screen, set the **Port** field to match (leave it blank for 80
 
 ### 2. Install the app
 
+[![Download on the App Store](https://img.shields.io/badge/iPhone-App%20Store-0D96F6?style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/gb/app/moongate-klipper-control/id6785038887)
 [![Download Moongate APK](https://img.shields.io/badge/%E2%AC%87%20download-Moongate%20APK-success?style=for-the-badge)](https://github.com/PEEKYPAUL/Moongate/releases/latest)
 
-Android only. Enable **Install from unknown sources** for your browser or file manager, then open the APK. Every release lives on the [Releases page](https://github.com/PEEKYPAUL/Moongate/releases).
+**iPhone** - get it on the [App Store](https://apps.apple.com/gb/app/moongate-klipper-control/id6785038887).
+
+**Android** - enable **Install from unknown sources** for your browser or file manager, then open the APK. Every release lives on the [Releases page](https://github.com/PEEKYPAUL/Moongate/releases).
 
 ### 3. Pair
 
