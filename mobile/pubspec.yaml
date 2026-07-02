@@ -65,7 +65,11 @@ dependencies:
   # Device model + Android version for the in-app bug-report diagnostics.
   # This project's bugs skew heavily Samsung / One UI, so the exact model is
   # worth capturing on every report. Read-only; no runtime permissions.
-  device_info_plus: ^12.4.0
+  # Pinned at 10.x: 12.x's iOS plugin calls NSProcessInfo.isiOSAppOnVision,
+  # a selector our Xcode SDK doesn't have, so 12 fails the iOS build (Android
+  # is unaffected). Revisit when a device_info_plus release guards that call
+  # or the iOS build SDK moves up.
+  device_info_plus: ^10.1.0
 
   # Open URLs in the browser (used for the in-app update download prompt)
   url_launcher: ^6.3.0
