@@ -59,6 +59,12 @@ Moongate reaches your printers either on your home Wi-Fi or over a Cloudflare tu
 
 If a printer still shows offline with the right address after the printer's Pi has rebooted, **force-stop Moongate and reopen it**. The app caches a printer's remote address for a while, and a reboot can change it, so a force-stop makes the app fetch the current one.
 
+## A printer you switched back on still shows offline
+
+If you power a printer back on (from Home Assistant, a smart plug, or its own switch) while Moongate is in the background, its tile can still read **offline** when you return to the app.
+
+To save battery, your phone can freeze Moongate while it's in the background, which briefly drops its live-status link - so on return the app still thinks the printer is off, even though the notifications may already show it back. Since **v0.9.45**, Moongate re-checks every printer's live status the moment you switch back to it, so the tile clears itself within a few seconds, no force-close needed. On older versions, force-stop Moongate and reopen it to refresh.
+
 ## Chamber temperature missing on the dashboard
 
 If a printer's chamber temperature doesn't appear on its tile even though it shows in Mainsail, update to **v0.9.32 or newer**. That release made chamber detection robust for combined chamber sensors (`temperature_combined`) and sensors named with capital letters, especially over the remote tunnel.
