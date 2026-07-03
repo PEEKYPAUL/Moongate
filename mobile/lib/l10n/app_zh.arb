@@ -549,5 +549,10 @@
   "tutorialMenuAbout": "更新内容、配对原理、图标指南，以及在哪里反馈问题，都在这里。",
   "tutorialMenuSupport": "请我喝杯咖啡，有助于让 Moongate 对所有人保持免费和开源。",
   "tutorialMenuSettings": "设置中有两个选项：清除所有打印机，或删除所有数据并完全重新开始。",
-  "tutorialMenuLanguage": "你还可以在这里切换应用的语言，Moongate 支持八种语言。导览到此结束，祝你使用愉快！"
+  "tutorialMenuLanguage": "你还可以在这里切换应用的语言，Moongate 支持八种语言。导览到此结束，祝你使用愉快！",
+  "notifPauseTooltip": "暂停监控",
+  "notifResumeTooltip": "恢复监控",
+  "notifPausedSnack": "已暂停打印监控",
+  "notifResumedSnack": "已恢复打印监控",
+  "tutorialPauseButton": "这会暂停打印监控。当你的打印机将有一段时间关闭时，点按它可停止后台检查以省电，再次点按即可恢复。"
 }

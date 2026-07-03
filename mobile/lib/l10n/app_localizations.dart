@@ -3337,6 +3337,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'And you can switch the app\'s language here - Moongate speaks eight. That\'s the tour, enjoy!'**
   String get tutorialMenuLanguage;
+
+  /// Tooltip on the app bar pause button that suspends the print-notification service.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause monitoring'**
+  String get notifPauseTooltip;
+
+  /// Tooltip on the app bar play button that resumes the print-notification service.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume monitoring'**
+  String get notifResumeTooltip;
+
+  /// Snackbar confirming the print-notification service was paused from the app bar.
+  ///
+  /// In en, this message translates to:
+  /// **'Print monitoring paused'**
+  String get notifPausedSnack;
+
+  /// Snackbar confirming the print-notification service was resumed from the app bar.
+  ///
+  /// In en, this message translates to:
+  /// **'Print monitoring resumed'**
+  String get notifResumedSnack;
+
+  /// One-off hint spotlighting the app bar pause/play button the first time notifications are enabled.
+  ///
+  /// In en, this message translates to:
+  /// **'This pauses print monitoring. When your printers will be off for a while, tap it to stop the background checks and save battery, then tap again to resume.'**
+  String get tutorialPauseButton;
 }
 
 class _AppLocalizationsDelegate

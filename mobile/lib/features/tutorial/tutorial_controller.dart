@@ -119,6 +119,19 @@ class TutorialController extends Notifier<TutorialState> {
     state = TutorialState(active: true, index: 0, steps: _buildSteps());
   }
 
+  /// One-off coach-mark shown the first time print notifications are turned on:
+  /// a single spotlight over the app bar's pause/play button. Reuses the tour
+  /// overlay (single step → no progress dots, no Skip, just "Done"). No-op if a
+  /// run is already active so it can't stomp the main walkthrough.
+  void startPauseHint() {
+    if (state.active) return;
+    state = TutorialState(
+      active: true,
+      index: 0,
+      steps: [TutorialStep(id: 'pauseButton', anchors: [TutorialAnchors.instance.notifPause])],
+    );
+  }
+
   void next() {
     if (!state.active) return;
     if (state.isLast) {

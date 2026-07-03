@@ -1819,4 +1819,20 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get tutorialMenuLanguage =>
       'A tutaj możesz zmienić język aplikacji - Moongate mówi w ośmiu. To koniec wprowadzenia, miłego korzystania!';
+
+  @override
+  String get notifPauseTooltip => 'Wstrzymaj monitorowanie';
+
+  @override
+  String get notifResumeTooltip => 'Wznów monitorowanie';
+
+  @override
+  String get notifPausedSnack => 'Monitorowanie druku wstrzymane';
+
+  @override
+  String get notifResumedSnack => 'Monitorowanie druku wznowione';
+
+  @override
+  String get tutorialPauseButton =>
+      'To wstrzymuje monitorowanie druku. Gdy drukarki będą przez jakiś czas wyłączone, dotknij, aby zatrzymać sprawdzanie w tle i oszczędzać baterię, a następnie dotknij ponownie, aby wznowić.';
 }

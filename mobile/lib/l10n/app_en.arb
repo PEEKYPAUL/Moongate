@@ -1095,5 +1095,15 @@
   "tutorialMenuSettings": "Settings has two options inside: clear all your printers, or delete all your data and start completely fresh.",
   "@tutorialMenuSettings": {"description": "Menu tutorial step pointing at the Settings entry, which holds remove-all-printers and delete-my-data."},
   "tutorialMenuLanguage": "And you can switch the app's language here - Moongate speaks eight. That's the tour, enjoy!",
-  "@tutorialMenuLanguage": {"description": "Final menu tutorial step pointing at the language entry."}
+  "@tutorialMenuLanguage": {"description": "Final menu tutorial step pointing at the language entry."},
+  "notifPauseTooltip": "Pause monitoring",
+  "@notifPauseTooltip": {"description": "Tooltip on the app bar pause button that suspends the print-notification service."},
+  "notifResumeTooltip": "Resume monitoring",
+  "@notifResumeTooltip": {"description": "Tooltip on the app bar play button that resumes the print-notification service."},
+  "notifPausedSnack": "Print monitoring paused",
+  "@notifPausedSnack": {"description": "Snackbar confirming the print-notification service was paused from the app bar."},
+  "notifResumedSnack": "Print monitoring resumed",
+  "@notifResumedSnack": {"description": "Snackbar confirming the print-notification service was resumed from the app bar."},
+  "tutorialPauseButton": "This pauses print monitoring. When your printers will be off for a while, tap it to stop the background checks and save battery, then tap again to resume.",
+  "@tutorialPauseButton": {"description": "One-off hint spotlighting the app bar pause/play button the first time notifications are enabled."}
 }

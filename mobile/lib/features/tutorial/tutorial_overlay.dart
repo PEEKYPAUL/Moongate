@@ -253,6 +253,8 @@ String _copyFor(AppLocalizations l, String? id) {
       return l.tutorialMenuCameras;
     case 'menuLanguage':
       return l.tutorialMenuLanguage;
+    case 'pauseButton':
+      return l.tutorialPauseButton;
     default:
       return '';
   }

@@ -549,5 +549,10 @@
   "tutorialMenuAbout": "Les nouveautés, le fonctionnement de l'appairage, un guide des icônes et où signaler un problème se trouvent tous ici.",
   "tutorialMenuSupport": "M'offrir un café aide à garder Moongate gratuit pour tous et open source.",
   "tutorialMenuSettings": "Les paramètres contiennent deux options : effacer toutes vos imprimantes, ou supprimer toutes vos données et repartir de zéro.",
-  "tutorialMenuLanguage": "Et vous pouvez changer la langue de l'app ici - Moongate en parle huit. Voilà pour le tour, profitez-en !"
+  "tutorialMenuLanguage": "Et vous pouvez changer la langue de l'app ici - Moongate en parle huit. Voilà pour le tour, profitez-en !",
+  "notifPauseTooltip": "Suspendre la surveillance",
+  "notifResumeTooltip": "Reprendre la surveillance",
+  "notifPausedSnack": "Surveillance d'impression suspendue",
+  "notifResumedSnack": "Surveillance d'impression reprise",
+  "tutorialPauseButton": "Ceci suspend la surveillance d'impression. Quand vos imprimantes seront éteintes un moment, appuyez ici pour arrêter les vérifications en arrière-plan et économiser la batterie, puis appuyez à nouveau pour reprendre."
 }

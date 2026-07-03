@@ -45,6 +45,7 @@ void main() async {
   await container.read(biometricUnlockProvider.notifier).load();
   await container.read(autoLockTimeoutProvider.notifier).load();
   await container.read(printNotificationsEnabledProvider.notifier).load();
+  await container.read(notificationsPausedProvider.notifier).load();
   await container.read(notifPollIntervalProvider.notifier).load();
   await container.read(notificationFieldsProvider.notifier).load();
   await container.read(notifOnlineOnlyProvider.notifier).load();
@@ -57,9 +58,12 @@ void main() async {
   container.read(onMobileDataProvider);
 
   // Bring the print-notification foreground service in line with the saved
-  // preference - starts it if the user left notifications on. Best-effort.
+  // preference - starts it if the user left notifications on AND hasn't paused
+  // them from the dashboard. A persisted pause keeps the service stopped (and
+  // the battery saved) across restarts until the user resumes. Best-effort.
   PrintNotificationService.instance
-      .sync(container.read(printNotificationsEnabledProvider))
+      .sync(container.read(printNotificationsEnabledProvider) &&
+          !container.read(notificationsPausedProvider))
       .ignore();
 
   // v0.5.0: kick off the first mDNS browse in the background so the

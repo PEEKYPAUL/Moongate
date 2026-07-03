@@ -1802,4 +1802,20 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get tutorialMenuLanguage =>
       'And you can switch the app\'s language here - Moongate speaks eight. That\'s the tour, enjoy!';
+
+  @override
+  String get notifPauseTooltip => 'Pause monitoring';
+
+  @override
+  String get notifResumeTooltip => 'Resume monitoring';
+
+  @override
+  String get notifPausedSnack => 'Print monitoring paused';
+
+  @override
+  String get notifResumedSnack => 'Print monitoring resumed';
+
+  @override
+  String get tutorialPauseButton =>
+      'This pauses print monitoring. When your printers will be off for a while, tap it to stop the background checks and save battery, then tap again to resume.';
 }

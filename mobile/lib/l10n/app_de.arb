@@ -549,5 +549,10 @@
   "tutorialMenuAbout": "Neuigkeiten, wie das Koppeln funktioniert, eine Symbolübersicht und wo du ein Problem melden kannst, findest du alles hier.",
   "tutorialMenuSupport": "Mir einen Kaffee zu spendieren hilft, Moongate für alle kostenlos und quelloffen zu halten.",
   "tutorialMenuSettings": "In den Einstellungen gibt es zwei Optionen: alle Drucker löschen oder alle deine Daten löschen und ganz neu beginnen.",
-  "tutorialMenuLanguage": "Und hier kannst du die Sprache der App ändern - Moongate spricht acht. Das war die Tour, viel Spaß!"
+  "tutorialMenuLanguage": "Und hier kannst du die Sprache der App ändern - Moongate spricht acht. Das war die Tour, viel Spaß!",
+  "notifPauseTooltip": "Überwachung pausieren",
+  "notifResumeTooltip": "Überwachung fortsetzen",
+  "notifPausedSnack": "Drucküberwachung pausiert",
+  "notifResumedSnack": "Drucküberwachung fortgesetzt",
+  "tutorialPauseButton": "Dies pausiert die Drucküberwachung. Wenn deine Drucker eine Weile aus sind, tippe darauf, um die Hintergrundabfragen zu stoppen und Akku zu sparen. Tippe erneut, um fortzusetzen."
 }

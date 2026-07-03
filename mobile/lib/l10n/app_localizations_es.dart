@@ -1833,4 +1833,20 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get tutorialMenuLanguage =>
       'Y aquí puedes cambiar el idioma de la app - Moongate habla ocho. ¡Eso es todo el recorrido, disfruta!';
+
+  @override
+  String get notifPauseTooltip => 'Pausar supervisión';
+
+  @override
+  String get notifResumeTooltip => 'Reanudar supervisión';
+
+  @override
+  String get notifPausedSnack => 'Supervisión de impresión en pausa';
+
+  @override
+  String get notifResumedSnack => 'Supervisión de impresión reanudada';
+
+  @override
+  String get tutorialPauseButton =>
+      'Esto pausa la supervisión de impresión. Cuando tus impresoras vayan a estar apagadas un tiempo, tócalo para detener las comprobaciones en segundo plano y ahorrar batería; toca de nuevo para reanudar.';
 }

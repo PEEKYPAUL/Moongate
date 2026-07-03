@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.9.46",
+    "bullets": [
+      "New: a pause / play button in the dashboard top bar to quickly turn print notifications off and on. When your printers will be off for a while, tap pause to stop Moongate checking on them in the background and save battery, then tap play to start watching again. It only shows when notifications are on, and a pause is remembered even if you restart the app.",
+      "App-only update, no Pi update needed."
+    ]
+  },
+  {
     "version": "v0.9.45",
     "bullets": [
       "Fixed: a printer switched back on while Moongate was in the background could stay stuck on \"offline\" until you force-closed and reopened it. Moongate now re-checks each printer's live status the moment you return to the app.",

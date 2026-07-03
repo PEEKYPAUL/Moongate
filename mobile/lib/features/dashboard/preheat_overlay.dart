@@ -132,6 +132,9 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
         await PrintNotificationService.instance.requestPermission();
     if (!granted) return; // user denied at the OS prompt - the warning stays
     await ref.read(printNotificationsEnabledProvider.notifier).set(true);
+    // Enabling here also clears any prior dashboard pause, so the service
+    // actually starts (it runs only when enabled AND not paused).
+    await ref.read(notificationsPausedProvider.notifier).set(false);
     await PrintNotificationService.instance.sync(true);
   }
 

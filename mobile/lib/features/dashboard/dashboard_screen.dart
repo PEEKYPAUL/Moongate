@@ -206,6 +206,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final autoArrange = ref.watch(autoArrangeProvider);
     final globalPowerButton = ref.watch(globalPowerButtonProvider);
     final showDashboardButtons = ref.watch(dashboardButtonsProvider);
+    // Quick pause/play button in the app bar - only when print notifications are
+    // on (the master switch lives in the menu). [notifPaused] flips its icon.
+    final printNotifications = ref.watch(printNotificationsEnabledProvider);
+    final notifPaused = ref.watch(notificationsPausedProvider);
     // The custom dashboard background is part of the Custom theme - render it
     // only while that theme is active (it's configured on the Custom theme
     // screen, which is only reachable when Custom is selected, so this also
@@ -295,6 +299,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               icon: const Icon(Icons.power_settings_new),
               tooltip: l.globalPowerTooltip,
               onPressed: () => showGlobalPowerSheet(context, _printers),
+            ),
+          // Quick pause / resume for the print-notification service. Lets the
+          // user stop the background polling - and its battery drain - while
+          // their printers will be off for a while, without opening the menu.
+          // Shown only when notifications are enabled there; icon + tooltip flip
+          // with the paused state. Anchor for the one-off first-enable hint.
+          if (printNotifications && _printers.isNotEmpty)
+            IconButton(
+              key: TutorialAnchors.instance.notifPause,
+              icon: Icon(notifPaused ? Icons.play_arrow : Icons.pause),
+              tooltip:
+                  notifPaused ? l.notifResumeTooltip : l.notifPauseTooltip,
+              onPressed: _toggleNotificationsPaused,
             ),
           Builder(
             builder: (ctx) => IconButton(
@@ -406,7 +423,44 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
     }
     await ref.read(printNotificationsEnabledProvider.notifier).set(enable);
+    // A fresh (un)toggle clears any prior pause so the service state matches the
+    // switch exactly - enabling always starts watching, not silently paused.
+    await ref.read(notificationsPausedProvider.notifier).set(false);
     await PrintNotificationService.instance.sync(enable);
+  }
+
+  // Serialises _toggleNotificationsPaused: the start/stop it drives await the
+  // plugin's async isRunningService check, which is only idempotent when calls
+  // don't overlap. Without this, a sub-second double-tap can interleave (tap 2's
+  // start() sees the not-yet-torn-down service as "running" and no-ops while
+  // tap 1's stop() lands) leaving the service stopped but the flag/icon saying
+  // running. Dropping the re-entrant tap keeps the pref, service and icon in step.
+  bool _notifPauseBusy = false;
+
+  /// Quick pause / resume from the app bar. Flips the persisted paused flag and
+  /// starts or stops the foreground service accordingly, so pausing genuinely
+  /// halts the polling (and its battery cost), not just the notification's
+  /// display. Only reachable while notifications are enabled, so [enabled] here
+  /// is true; the service runs when enabled AND not paused.
+  Future<void> _toggleNotificationsPaused() async {
+    if (_notifPauseBusy) return; // ignore re-taps until this toggle settles
+    _notifPauseBusy = true;
+    try {
+      final paused = !ref.read(notificationsPausedProvider);
+      await ref.read(notificationsPausedProvider.notifier).set(paused);
+      final enabled = ref.read(printNotificationsEnabledProvider);
+      await PrintNotificationService.instance.sync(enabled && !paused);
+      if (!mounted) return;
+      final l = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(paused ? l.notifPausedSnack : l.notifResumedSnack),
+          duration: const Duration(seconds: 2),
+        ));
+    } finally {
+      _notifPauseBusy = false;
+    }
   }
 
   Widget _buildDrawer(BuildContext context) {
@@ -1193,12 +1247,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     await ref.read(tunnelCameraRefreshProvider.notifier).load();
     await ref.read(showCameraConfigIconsProvider.notifier).load();
     await ref.read(printNotificationsEnabledProvider.notifier).load();
+    await ref.read(notificationsPausedProvider.notifier).load();
     await ref.read(notificationFieldsProvider.notifier).load();
     await ref.read(notifOnlineOnlyProvider.notifier).load();
     await ref.read(globalPowerButtonProvider.notifier).load();
     await ref.read(dashboardButtonsProvider.notifier).load();
-    await PrintNotificationService.instance
-        .sync(ref.read(printNotificationsEnabledProvider));
+    await PrintNotificationService.instance.sync(
+        ref.read(printNotificationsEnabledProvider) &&
+            !ref.read(notificationsPausedProvider));
   }
 
   void _showRemoveSheet(BuildContext context) {
@@ -1375,6 +1431,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     await _maybeOfferNotifications();
     await _maybeShowDonationPrompt();
     await _maybeOfferTutorial();
+    await _maybeShowPauseHint();
+  }
+
+  static const _pauseHintSeenKey = 'notif_pause_hint_seen';
+
+  /// Spotlight the app bar's pause/play button once, the first time print
+  /// notifications are on and the dashboard is at rest. Runs last in the
+  /// first-run chain (and again on later cold launches until seen), so it never
+  /// overlaps the notifications / donation / tutorial popups, and skips while the
+  /// main walkthrough is active - the user just enabled notifications, so the
+  /// button is now on the app bar to point at. Android-only, like the feature.
+  Future<void> _maybeShowPauseHint() async {
+    if (!Platform.isAndroid) return;
+    if (!mounted) return;
+    if (!ref.read(printNotificationsEnabledProvider)) return;
+    if (_printers.isEmpty) return;
+    if (ref.read(tutorialControllerProvider).active) return;
+    // The button lives in the app bar, so the drawer must be closed to see it.
+    if (_scaffoldKey.currentState?.isEndDrawerOpen ?? false) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_pauseHintSeenKey) ?? false) return;
+    if (!mounted) return;
+    await prefs.setBool(_pauseHintSeenKey, true);
+    ref.read(tutorialControllerProvider.notifier).startPauseHint();
   }
 
   /// Offer the live walkthrough once, after the user has a printer to look at.
@@ -1532,6 +1612,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final granted = await PrintNotificationService.instance.requestPermission();
     if (!granted) return;
     await ref.read(printNotificationsEnabledProvider.notifier).set(true);
+    await ref.read(notificationsPausedProvider.notifier).set(false);
     await PrintNotificationService.instance.sync(true);
   }
 

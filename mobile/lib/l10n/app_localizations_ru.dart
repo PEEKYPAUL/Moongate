@@ -1819,4 +1819,20 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get tutorialMenuLanguage =>
       'А здесь можно сменить язык приложения - Moongate говорит на восьми. На этом обзор завершён, приятного пользования!';
+
+  @override
+  String get notifPauseTooltip => 'Приостановить мониторинг';
+
+  @override
+  String get notifResumeTooltip => 'Возобновить мониторинг';
+
+  @override
+  String get notifPausedSnack => 'Мониторинг печати приостановлен';
+
+  @override
+  String get notifResumedSnack => 'Мониторинг печати возобновлён';
+
+  @override
+  String get tutorialPauseButton =>
+      'Это приостанавливает мониторинг печати. Когда принтеры будут выключены надолго, нажмите, чтобы остановить фоновые проверки и сэкономить заряд батареи, затем нажмите снова, чтобы возобновить.';
 }

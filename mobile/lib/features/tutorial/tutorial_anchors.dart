@@ -39,6 +39,12 @@ class TutorialAnchors {
   /// The add-printer floating action button on the dashboard.
   final GlobalKey addPrinter = GlobalKey(debugLabel: 'tut_addPrinter');
 
+  /// The pause/play button in the app bar that suspends / resumes the print-
+  /// notification service. Only present when notifications are enabled, so it's
+  /// spotlighted by a one-off hint the first time they're turned on rather than
+  /// as part of the main tour.
+  final GlobalKey notifPause = GlobalKey(debugLabel: 'tut_notifPause');
+
   // ── Hamburger menu (end drawer) ─────────────────────────────────────────────
   /// The hamburger menu button in the app bar (spotlit before the drawer opens).
   final GlobalKey menuIcon = GlobalKey(debugLabel: 'tut_menuIcon');

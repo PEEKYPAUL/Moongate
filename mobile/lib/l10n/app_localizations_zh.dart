@@ -1721,4 +1721,20 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get tutorialMenuLanguage =>
       '你还可以在这里切换应用的语言，Moongate 支持八种语言。导览到此结束，祝你使用愉快！';
+
+  @override
+  String get notifPauseTooltip => '暂停监控';
+
+  @override
+  String get notifResumeTooltip => '恢复监控';
+
+  @override
+  String get notifPausedSnack => '已暂停打印监控';
+
+  @override
+  String get notifResumedSnack => '已恢复打印监控';
+
+  @override
+  String get tutorialPauseButton =>
+      '这会暂停打印监控。当你的打印机将有一段时间关闭时，点按它可停止后台检查以省电，再次点按即可恢复。';
 }

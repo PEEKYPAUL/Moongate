@@ -555,6 +555,40 @@ final printNotificationsEnabledProvider =
   PrintNotificationsEnabledNotifier.new,
 );
 
+/// Whether the print-notification service is temporarily *paused* from the
+/// dashboard's quick pause/play button. Distinct from
+/// [printNotificationsEnabledProvider]: the master switch (menu) says the user
+/// wants notifications at all AND controls whether the pause/play button is even
+/// shown; this transient flag lets them stop the polling - and its battery cost -
+/// for a spell without losing that setting. The foreground service runs only
+/// when notifications are ENABLED **and** NOT paused. Persisted so a pause sticks
+/// across app restarts / reboots (the point is to leave printers unwatched for
+/// days), and cleared whenever the master switch is (re)enabled. Deliberately
+/// NOT part of the settings backup - it's a moment-to-moment control, not a
+/// preference, so a restore should never silently pause someone's alerts.
+class NotificationsPausedNotifier extends Notifier<bool> {
+  static const _key = 'print_notifications_paused';
+
+  @override
+  bool build() => false;
+
+  Future<void> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getBool(_key) ?? false;
+  }
+
+  Future<void> set(bool paused) async {
+    state = paused;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_key, paused);
+  }
+}
+
+final notificationsPausedProvider =
+    NotifierProvider<NotificationsPausedNotifier, bool>(
+  NotificationsPausedNotifier.new,
+);
+
 /// When on, the persistent status notification shows only online printers -
 /// offline / shut-down machines are hidden from the roster. Off by default.
 /// Travels in backups. The background isolate reads the same pref directly
