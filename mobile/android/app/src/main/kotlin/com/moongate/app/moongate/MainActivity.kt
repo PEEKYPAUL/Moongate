@@ -37,41 +37,44 @@ class MainActivity : FlutterFragmentActivity() {
                 }
             }
 
-        // In-app updater: launch the system package installer on an APK the Dart
-        // side has already downloaded. The file is shared as a content:// URI
-        // via our FileProvider with a temporary read grant (file:// is blocked
-        // from Android 7+); Android then shows its standard install
-        // confirmation. The REQUEST_INSTALL_PACKAGES permission is requested by
-        // Dart before this is called.
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, INSTALL_CHANNEL)
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "installApk" -> {
-                        val path = call.argument<String>("path")
-                        if (path == null) {
-                            result.error("no_path", "Missing apk path", null)
-                            return@setMethodCallHandler
-                        }
-                        try {
-                            val file = File(path)
-                            val uri = FileProvider.getUriForFile(
-                                this, "$packageName.fileprovider", file
-                            )
-                            val intent = Intent(Intent.ACTION_VIEW).apply {
-                                setDataAndType(
-                                    uri, "application/vnd.android.package-archive"
-                                )
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // In-app updater (GitHub/KIAUH sideload channel only): launch the system
+        // package installer on an APK the Dart side has already downloaded. The
+        // file is shared as a content:// URI via our FileProvider with a
+        // temporary read grant (file:// is blocked from Android 7+); Android then
+        // shows its standard install confirmation. Compiled OUT of the Play build
+        // (BuildConfig.SELF_UPDATE == false), which ships no
+        // REQUEST_INSTALL_PACKAGES and lets Google Play deliver updates.
+        if (BuildConfig.SELF_UPDATE) {
+            MethodChannel(flutterEngine.dartExecutor.binaryMessenger, INSTALL_CHANNEL)
+                .setMethodCallHandler { call, result ->
+                    when (call.method) {
+                        "installApk" -> {
+                            val path = call.argument<String>("path")
+                            if (path == null) {
+                                result.error("no_path", "Missing apk path", null)
+                                return@setMethodCallHandler
                             }
-                            startActivity(intent)
-                            result.success(true)
-                        } catch (e: Exception) {
-                            result.error("install_failed", e.message, null)
+                            try {
+                                val file = File(path)
+                                val uri = FileProvider.getUriForFile(
+                                    this, "$packageName.fileprovider", file
+                                )
+                                val intent = Intent(Intent.ACTION_VIEW).apply {
+                                    setDataAndType(
+                                        uri, "application/vnd.android.package-archive"
+                                    )
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                startActivity(intent)
+                                result.success(true)
+                            } catch (e: Exception) {
+                                result.error("install_failed", e.message, null)
+                            }
                         }
+                        else -> result.notImplemented()
                     }
-                    else -> result.notImplemented()
                 }
-            }
+        }
     }
 }

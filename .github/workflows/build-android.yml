@@ -54,9 +54,19 @@ jobs:
             echo "RELEASE_KEYSTORE secret not set - falling back to debug signing."
           fi
 
-      - name: Build release APK
+      - name: Build release APK (github flavor)
+        # The sideload/KIAUH channel: signed APK that keeps the self-updater.
+        # Flavors make --flavor mandatory; the artefact is now app-github-release.apk.
         working-directory: mobile
-        run: flutter build apk --release
+        run: flutter build apk --release --flavor github --dart-define=MOONGATE_CHANNEL=github
+
+      - name: Build Play App Bundle (play flavor)
+        # The Play channel: an App Bundle with NO self-updater and NO
+        # REQUEST_INSTALL_PACKAGES (see the `play` flavor + src/github split).
+        # Uploaded as a workflow artifact for a MANUAL Play Console submission -
+        # it is never auto-published, mirroring the iOS altool/ASC flow.
+        working-directory: mobile
+        run: flutter build appbundle --release --flavor play --dart-define=MOONGATE_CHANNEL=play
 
       - name: Stage APK + read version
         # The signed APK is published ONLY as a GitHub Release asset (next step)
@@ -66,7 +76,7 @@ jobs:
         run: |
           VERSION=$(grep '^version:' mobile/pubspec.yaml | sed 's/version:[[:space:]]*//' | cut -d'+' -f1)
           BUILD=$(grep '^version:' mobile/pubspec.yaml | sed 's/version:[[:space:]]*//' | cut -d'+' -f2)
-          cp mobile/build/app/outputs/flutter-apk/app-release.apk "Moongate-v${VERSION}.apk"
+          cp mobile/build/app/outputs/flutter-apk/app-github-release.apk "Moongate-v${VERSION}.apk"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "build=$BUILD"     >> "$GITHUB_OUTPUT"
           echo "Built Moongate-v${VERSION}.apk (build $BUILD)"
@@ -170,4 +180,13 @@ jobs:
         with:
           name: Moongate-release
           path: Moongate-v${{ steps.meta.outputs.version }}.apk
+          retention-days: 30
+
+      - name: Upload Play App Bundle artifact
+        # Manual upload to the Play Console (closed test -> production); never
+        # auto-published. This is the .aab you drag into the Play Console.
+        uses: actions/upload-artifact@v7
+        with:
+          name: Moongate-play-aab
+          path: mobile/build/app/outputs/bundle/playRelease/app-play-release.aab
           retention-days: 30

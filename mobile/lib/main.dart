@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
+import 'config/build_channel.dart';
 import 'providers/custom_theme_provider.dart';
 import 'providers/dashboard_background_provider.dart';
 import 'providers/settings_provider.dart';
@@ -89,8 +90,9 @@ void main() async {
   // Clean up the APK left behind by a previous in-app update. By now its install
   // has finished (or was declined), so the ~80 MB file is just dead weight in
   // the cache - users were seeing it as the app eating storage. Best-effort, off
-  // the startup path.
-  OtaInstaller.clearDownloadedApks().ignore();
+  // the startup path. Only the self-updating GitHub build ever writes one; the
+  // Play build has nothing to clean (OtaInstaller stays dormant there).
+  if (kSelfUpdateEnabled) OtaInstaller.clearDownloadedApks().ignore();
 
   runApp(UncontrolledProviderScope(container: container, child: const MoongateApp()));
 }

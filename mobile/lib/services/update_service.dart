@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../config/build_channel.dart';
+
 /// Information about an available update fetched from GitHub.
 class UpdateInfo {
   final String version;
@@ -34,7 +36,11 @@ class UpdateService {
     // (you can't install an APK) and pointing users at an off-store download is
     // an App Store review risk. Returning null suppresses the update banner and
     // the in-app updater on iOS; the "What's new" changelog still shows.
-    if (!Platform.isAndroid) return null;
+    //
+    // Same on the Play channel (kSelfUpdateEnabled == false): Google Play
+    // delivers updates and REQUEST_INSTALL_PACKAGES is absent from that build's
+    // manifest, so the self-updater must stay dark. See config/build_channel.dart.
+    if (!Platform.isAndroid || !kSelfUpdateEnabled) return null;
     try {
       final info          = await PackageInfo.fromPlatform();
       final installedBuild = int.tryParse(info.buildNumber) ?? 0;

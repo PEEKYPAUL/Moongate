@@ -1,0 +1,23 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- GitHub / KIAUH sideload channel ONLY. The in-app updater downloads a new
+         release APK and hands it to the system package installer. These entries
+         are deliberately ABSENT from src/main so the Play App Bundle (the `play`
+         flavor) ships without them - Google Play forbids self-update and
+         restricts REQUEST_INSTALL_PACKAGES. The manifest merger unions this into
+         the github build, making its final manifest equivalent to pre-split. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <application>
+        <!-- FileProvider for the in-app updater: shares the downloaded APK with
+             the system package installer as a content:// URI (with a temporary
+             read grant), since file:// URIs are blocked from Android 7+. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+</manifest>

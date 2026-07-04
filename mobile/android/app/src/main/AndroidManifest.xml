@@ -9,9 +9,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- In-app updater: download a new release APK and hand it to the system
-         package installer (the install still shows Android's own confirmation). -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- REQUEST_INSTALL_PACKAGES (the in-app updater) lives in src/github's
+         manifest, so it is present only in the GitHub/KIAUH sideload build and
+         absent from the Play App Bundle. -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
     <application
@@ -56,8 +56,10 @@
 
         <!-- flutter_foreground_task: hosts the background isolate that polls
              /status for print notifications. specialUse (not dataSync) avoids
-             Android 15's 6h/day cap on a long print; we sideload, so the Play
-             Console review that specialUse would otherwise need doesn't apply. -->
+             Android 15's 6h/day cap on a long print. NOTE: the Play build ships
+             this service too, so the special-use subtype requires a Play Console
+             review declaration (justified by long prints exceeding dataSync's
+             6h cap). The GitHub/KIAUH sideload channel needs no such review. -->
         <service
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             android:foregroundServiceType="specialUse"
@@ -67,19 +69,6 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Live 3D-print progress and status notifications" />
         </service>
-
-        <!-- FileProvider for the in-app updater: shares the downloaded APK with
-             the system package installer as a content:// URI (with a temporary
-             read grant), since file:// URIs are blocked from Android 7+. -->
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
-        </provider>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

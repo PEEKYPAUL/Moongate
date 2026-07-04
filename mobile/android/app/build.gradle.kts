@@ -80,6 +80,32 @@ android {
             )
         }
     }
+
+    buildFeatures {
+        // Generate BuildConfig so MainActivity can compile the APK-installer
+        // channel out of the Play flavor (SELF_UPDATE == false). AGP 8+/9
+        // defaults this OFF, so enable it explicitly.
+        buildConfig = true
+    }
+
+    // Distribution channels. BOTH keep the same applicationId and are built by
+    // the single `release` buildType (so the same signing key, cert 8878da71),
+    // which is what lets a device move between the sideloaded APK and the Play
+    // build in place - no re-pair, no wipe. The flavor changes ONLY the merged
+    // manifest (REQUEST_INSTALL_PACKAGES + the updater FileProvider live in
+    // src/github) and the SELF_UPDATE BuildConfig flag - never the package id
+    // or the key. Do NOT add an applicationIdSuffix to either.
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("github") {
+            dimension = "distribution"
+            buildConfigField("boolean", "SELF_UPDATE", "true")
+        }
+        create("play") {
+            dimension = "distribution"
+            buildConfigField("boolean", "SELF_UPDATE", "false")
+        }
+    }
 }
 
 kotlin {
