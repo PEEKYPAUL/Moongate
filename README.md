@@ -156,7 +156,7 @@ Your Pi runs Klipper, Moonraker, the Moongate plugin, and an **auth proxy** that
 | [CHANGELOG.md](CHANGELOG.md) | Every release with a one-line summary of what changed and why |
 | [Privacy policy](https://peekypaul.github.io/Moongate/privacy-policy.html) | What data the app handles and why - anonymous, no analytics, no tracking, no data sold |
 
-> **Building from source?** `cd mobile && flutter pub get && flutter build apk --release`. Full developer workflow in [DEVELOPMENT.md](DEVELOPMENT.md).
+> **Building from source?** `cd mobile && flutter pub get && flutter build apk --release --flavor github --dart-define=MOONGATE_CHANNEL=github`. Full developer workflow in [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ---
 

@@ -97,8 +97,8 @@ For anything else, see the full [TROUBLESHOOTING.md](../TROUBLESHOOTING.md) at t
 git clone https://github.com/PEEKYPAUL/Moongate.git
 cd Moongate/mobile
 flutter pub get
-flutter build apk --release
-# APK: build/app/outputs/flutter-apk/app-release.apk
+flutter build apk --release --flavor github --dart-define=MOONGATE_CHANNEL=github
+# APK: build/app/outputs/flutter-apk/app-github-release.apk
 ```
 
 See [DEVELOPMENT.md](../DEVELOPMENT.md) for the full developer workflow.

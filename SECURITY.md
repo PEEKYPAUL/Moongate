@@ -216,7 +216,9 @@ The auth proxy is even more constrained - it doesn't talk to Klipper at all, it 
 
 ## In-app updater (v0.9.17)
 
-The update banner can now download and install a new version **without leaving the app** (Android only). That adds the `REQUEST_INSTALL_PACKAGES` permission and a `FileProvider`, so it's worth stating what it can and can't do:
+> Applies to the **GitHub / KIAUH sideload build** only. As of #178 the Google Play build is a separate flavor that ships **without** the self-updater and **without** `REQUEST_INSTALL_PACKAGES` - Google Play delivers its updates instead.
+
+The update banner can download and install a new version **without leaving the app** (Android only, sideload build). That adds the `REQUEST_INSTALL_PACKAGES` permission and a `FileProvider`, so it's worth stating what it can and can't do:
 
 - It downloads the APK over **HTTPS from the project's GitHub Releases** - the same artifact you'd get by tapping the download link yourself - into the app's private cache directory, then hands that file to **Android's system package installer** via a `content://` `FileProvider` URI.
 - The install is **not silent**: Android shows its standard "install this update?" confirmation, and the first time it requires the user to grant "install unknown apps" for Moongate. A sideloaded app cannot install anything without that interaction.

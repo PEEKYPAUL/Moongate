@@ -104,7 +104,7 @@ mobile/android/app/src/main/
 └── app/proguard-rules.pro           # R8 keep-rules for ML Kit + mobile_scanner + CameraX
 ```
 
-`MainActivity` extends `FlutterFragmentActivity` (not the default `FlutterActivity`) because CameraX requires the activity to be a `LifecycleOwner`. Switching this fixed an earlier camera-binding crash on first launch. It also hosts two small `MethodChannel`s: `com.moongate.app/secure` (toggles `FLAG_SECURE` for the app-lock screen) and `com.moongate.app/install` (v0.9.17 - launches the system package installer on the APK the in-app updater downloaded, shared as a `content://` URI via the `FileProvider`).
+`MainActivity` extends `FlutterFragmentActivity` (not the default `FlutterActivity`) because CameraX requires the activity to be a `LifecycleOwner`. Switching this fixed an earlier camera-binding crash on first launch. It also hosts two small `MethodChannel`s: `com.moongate.app/secure` (toggles `FLAG_SECURE` for the app-lock screen) and `com.moongate.app/install` (v0.9.17 - launches the system package installer on the APK the in-app updater downloaded, shared as a `content://` URI via the `FileProvider`; compiled out of the Play flavor via `BuildConfig.SELF_UPDATE` - #178).
 
 ---
 
@@ -202,8 +202,10 @@ push to master
   ├─ setup-flutter@v2 (stable channel)
   ├─ flutter pub get
   ├─ Decode the keystore from GitHub Secrets → key.properties
-  ├─ flutter build apk --release
-  ├─ Publish the signed APK as a GitHub Release asset (Moongate-v<X.Y.Z>.apk)
+  ├─ flutter build apk --release --flavor github --dart-define=MOONGATE_CHANNEL=github
+  ├─ flutter build appbundle --release --flavor play --dart-define=MOONGATE_CHANNEL=play
+  ├─ Publish the signed github APK as a GitHub Release asset (Moongate-v<X.Y.Z>.apk)
+  ├─ Upload the play .aab as the "Moongate-play-aab" workflow artifact (manual Play upload)
   ├─ Regenerate APK/latest_version.json (apk_url → the Release asset)
   └─ git commit + push the manifest  →  "Release Moongate-vX.Y.Z [skip ci]"
 ```
@@ -211,6 +213,8 @@ push to master
 The `[skip ci]` suffix prevents the commit-back from re-triggering CI. The in-app update banner ([`UpdateService`](mobile/lib/services/update_service.dart)) polls `latest_version.json` on launch and shows the banner if the remote `build_number` exceeds the installed one.
 
 CI only fires on `master`. Feature branches (like `v0.4-secure-remote`) don't build APKs automatically - that's intentional, so unreleased branches stay out of the in-app updater.
+
+**Build flavors (#178).** The Android build has two flavors on a `distribution` dimension: `github` (the sideload APK for GitHub Releases + KIAUH, keeps the self-updater) and `play` (the App Bundle for Google Play, no self-updater and no `REQUEST_INSTALL_PACKAGES`, since Play forbids self-install). Both keep the same `applicationId` and signing key, so users move between channels in place with no wipe. A Dart flag ([`config/build_channel.dart`](mobile/lib/config/build_channel.dart), fed by the `MOONGATE_CHANNEL` dart-define) plus `BuildConfig.SELF_UPDATE` gate the updater code; the permission + `FileProvider` live in `src/github/AndroidManifest.xml`. Full rationale in [`docs/design/play-flavor-plan.md`](docs/design/play-flavor-plan.md).
 
 ---
 

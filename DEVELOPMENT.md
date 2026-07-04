@@ -81,15 +81,21 @@ Debug builds are unsigned, slower, and have hot-reload. Press `r` in the termina
 
 ### Release build (production-equivalent)
 
+The app builds in two **distribution flavors** (added in #178 for the Play Store): `github` (the sideloaded APK for GitHub Releases + KIAUH, which keeps the in-app self-updater) and `play` (the App Bundle for Google Play, which ships **without** the self-updater or `REQUEST_INSTALL_PACKAGES`). Because flavors now exist, `--flavor` is **required** - a bare `flutter build apk` errors with "this app has flavors". Details in [`docs/design/play-flavor-plan.md`](docs/design/play-flavor-plan.md).
+
 ```bash
 cd mobile
-flutter build apk --release
-# Output: build/app/outputs/flutter-apk/app-release.apk
+# Sideload / dev APK (self-updating) - this is what you install on a device
+flutter build apk --release --flavor github --dart-define=MOONGATE_CHANNEL=github
+# Output: build/app/outputs/flutter-apk/app-github-release.apk
+adb install -r build/app/outputs/flutter-apk/app-github-release.apk
 
-adb install -r build/app/outputs/flutter-apk/app-release.apk
+# Play App Bundle (no self-updater) - CI / work-box only, never sideload it
+flutter build appbundle --release --flavor play --dart-define=MOONGATE_CHANNEL=play
+# Output: build/app/outputs/bundle/playRelease/app-play-release.aab
 ```
 
-Release builds are signed with the keystore configured in `mobile/android/key.properties` if present, otherwise they fall back to the debug key. CI uses GitHub Secrets - see [Release signing](#release-signing) below.
+Release builds are signed with the keystore configured in `mobile/android/key.properties` if present, otherwise they fall back to the debug key. Both flavors share the same key and `applicationId`, so a device moves between the sideload APK and the Play build in place with no wipe. CI uses GitHub Secrets - see [Release signing](#release-signing) below.
 
 > The QR scanner only works in **release** builds with the ProGuard rules in [`mobile/android/app/proguard-rules.pro`](mobile/android/app/proguard-rules.pro). Debug builds work fine too; R8 doesn't run in debug.
 
@@ -151,7 +157,7 @@ mobile/lib/
 
 > **v0.9.15-v0.9.16 services & deps.** `printer_webview_cache.dart` gained a **pre-warm** path that loads every printer's WebView in the background at startup (so the first open is instant), and a new `printer_liveness_service.dart` tracks each printer's online/offline state via **Supabase Realtime** on the `printers` table (plus a periodic RLS-scoped read) so the dashboard and the notification service stop requesting access for switched-off printers. A new `onMobileDataProvider` in `providers/settings_provider.dart` drives the connectivity-aware camera feed rate. New dependency: **`connectivity_plus`** (Wi-Fi vs. mobile-data detection). The liveness feature relies on the Realtime migration below being applied to the Supabase project.
 
-> **v0.9.17 services & native.** Two new app services: `print_progress.dart` - a pure helper that computes Mainsail-matching *file position (relative)* progress, now the **single source** for both the dashboard tile and the print notification (they used to disagree) - and `ota_installer.dart`, the in-app updater that streams the release APK to the cache dir with progress then triggers the system installer. The updater adds a native `MethodChannel` (`com.moongate.app/install`) in `MainActivity.kt`, a `FileProvider` + `res/xml/file_paths.xml`, and the `REQUEST_INSTALL_PACKAGES` permission in the manifest; it reuses the existing `http` / `path_provider` / `permission_handler` deps (no new package). The post-emergency-stop restart button keys off a new `klippyShutdown` flag on `PrinterStatus`, parsed from Moonraker's `webhooks.state`. Unit test: `mobile/test/print_progress_test.dart`.
+> **v0.9.17 services & native.** Two new app services: `print_progress.dart` - a pure helper that computes Mainsail-matching *file position (relative)* progress, now the **single source** for both the dashboard tile and the print notification (they used to disagree) - and `ota_installer.dart`, the in-app updater that streams the release APK to the cache dir with progress then triggers the system installer. The updater adds a native `MethodChannel` (`com.moongate.app/install`) in `MainActivity.kt`, a `FileProvider` + `res/xml/file_paths.xml`, and the `REQUEST_INSTALL_PACKAGES` permission (all now in the **`github` flavor** manifest and gated by `BuildConfig.SELF_UPDATE`, so the Play flavor omits them - #178); it reuses the existing `http` / `path_provider` / `permission_handler` deps (no new package). The post-emergency-stop restart button keys off a new `klippyShutdown` flag on `PrinterStatus`, parsed from Moonraker's `webhooks.state`. Unit test: `mobile/test/print_progress_test.dart`.
 
 For a guided tour of how these pieces fit together, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -279,8 +285,8 @@ The CI pipeline ([`.github/workflows/build-android.yml`](.github/workflows/build
 
 1. Sets up Flutter stable + JDK 17
 2. Decodes the keystore from Secrets and writes `key.properties`
-3. `flutter build apk --release`
-4. Publishes the signed APK as a **GitHub Release asset** (`Moongate-vX.Y.Z.apk`) - it is **not** committed to the repo (the ~73 MB binary tripped GitHub's 50 MB push warning on every push)
+3. `flutter build apk --release --flavor github --dart-define=MOONGATE_CHANNEL=github` (the sideload APK) **and** `flutter build appbundle --release --flavor play --dart-define=MOONGATE_CHANNEL=play` (the Play `.aab`, kept as the `Moongate-play-aab` workflow artifact for a manual Play upload)
+4. Publishes the signed github APK as a **GitHub Release asset** (`Moongate-vX.Y.Z.apk`) - it is **not** committed to the repo (the ~73 MB binary tripped GitHub's 50 MB push warning on every push)
 5. Generates a fresh `APK/latest_version.json` whose `apk_url` points at that Release asset, for the in-app update banner
 6. Commits **only the manifest** with `[skip ci]` and pushes back to `master`
 
