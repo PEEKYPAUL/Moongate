@@ -16,6 +16,30 @@ a user can move between the sideloaded APK and the Play build **in place, with n
 re-pair and no wipe**. That continuity is the whole reason we registered the
 existing key with Play App Signing.
 
+## Status - executed 2026-07-06 (live in closed testing)
+
+The split shipped in #178; the Play launch itself was carried out on 2026-07-06.
+Key outcomes and gotchas for whoever does the next one:
+
+- **Play App Signing is now `8878da71`.** Google auto-generates its *own* app
+  signing key when the app shell is created (ours was `BF:30:CC...`), and the
+  passive **App integrity -> App signing** page offers no way to change it. The
+  "use your own key" control lives in the **first closed-testing release** flow:
+  *App signing preferences -> Change signing key -> Export and upload a key from
+  Java keystore* (the `pepk` flow). Run `pepk` on the work box against the release
+  keystore, passing `--keystore-pass` / `--key-pass` (it otherwise demands an
+  interactive console), then upload `output.zip`. Both `8878da71` and the retired
+  `BF:30:CC` now show **Verified** under Android developer verification, so the
+  sideloaded github flavour is registered too - no separate action needed.
+- **Play leads on versionCode.** The closed-test `.aab` was built at **118**
+  (`--build-number=118`, no `pubspec` change) so it updates in place over the
+  public github `117`. Play has consumed 118, so the next release must be build
+  **>= 119**.
+- **FGS special-use declaration** was accepted (justification: continuous Klipper
+  print monitoring; the bundled demo video as evidence). Caveat 3 below held true.
+- Target audience set to **13+** (teens + adults; keeps out of the under-13
+  Families programme). Submitted with 13 testers; approved and published.
+
 ## How: one Gradle flavor dimension, two flavors
 
 `mobile/android/app/build.gradle.kts` defines a `distribution` dimension with two
