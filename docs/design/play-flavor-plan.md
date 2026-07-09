@@ -125,8 +125,8 @@ Play, but is not needed for v1.
 4. **Debug-signing fallback unchanged (deliberate).** A `--release` build with no
    `key.properties` still falls back to debug signing (existing behaviour, for
    local `flutter run --release`). Play refuses debug-signed `.aab` uploads, so
-   the Play path is safe; but only ever build the Play `.aab` in CI or on the
-   work box (CDG-3D-TECH) that holds the keystore - never the psych box.
+   the Play path is safe; but the `.aab` that actually goes to the Play Console
+   comes from CI **only** - see caveat 7 for why local builds are banned outright.
 
 5. **`flutter run` / `flutter build` now require `--flavor github`.** Once
    flavors exist, the bare commands error "this app has flavors". Update local
@@ -135,3 +135,27 @@ Play, but is not needed for v1.
 6. **iOS is unaffected.** Android product flavors do not create iOS schemes;
    `flutter build ipa` needs no `--flavor`. Watch the (non-required) `Build iOS`
    check on the first CI run regardless.
+
+7. **Play uploads: CI artifact ONLY, verify before upload (the 2026-07-09
+   incident).** Build 120 was built locally on the work box from a checkout that
+   had not been pulled since the 118 upload, with `0.9.48`/`120` stamped on via
+   build flags: Play reviewed, published, and served **v0.9.46 code labelled
+   v0.9.48** to every tester. Nothing in the upload flow catches this - the
+   version label proves nothing about the code inside. The fix consumed a
+   versionCode (Play accepts each number exactly once; the real 0.9.48 shipped
+   as 121). Rules since:
+   - The Play `.aab` is always the `Moongate-play-aab` artifact from the *Build
+     Android APK* workflow. The `workflow_dispatch` input `play_build_number`
+     re-stamps the versionCode when a number was burned by a bad upload; the
+     APK/Release/manifest pipeline is untouched by it (those steps are gated on
+     `push`).
+   - **Verify every bundle before upload**: unzip the `.aab`, confirm the
+     versionCode in `base/manifest/AndroidManifest.xml`, grep
+     `base/lib/arm64-v8a/libapp.so` for a user-facing string added by the
+     release (check UTF-8 **and** UTF-16-LE - Dart AOT stores any string with a
+     non-ASCII character two-byte, so a plain grep false-negatives), and check
+     the signer fingerprint (`openssl pkcs7 -inform DER -print_certs` on
+     `META-INF/*.RSA`, expect `8878da71...`).
+   - **Check the app on a real device within a day of any Play publish.** The
+     mislabel was caught only because the dev phone auto-updated the same
+     evening and the new features were missing.

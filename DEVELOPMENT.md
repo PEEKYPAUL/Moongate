@@ -90,10 +90,12 @@ flutter build apk --release --flavor github --dart-define=MOONGATE_CHANNEL=githu
 # Output: build/app/outputs/flutter-apk/app-github-release.apk
 adb install -r build/app/outputs/flutter-apk/app-github-release.apk
 
-# Play App Bundle (no self-updater) - CI / work-box only, never sideload it
+# Play App Bundle (no self-updater) - for local inspection only, never sideload it
 flutter build appbundle --release --flavor play --dart-define=MOONGATE_CHANNEL=play
 # Output: build/app/outputs/bundle/playRelease/app-play-release.aab
 ```
+
+> **The `.aab` that goes to the Play Console must come from the CI artifact, never a local build.** Run the *Build Android APK* workflow (Actions tab; `workflow_dispatch`) and download the `Moongate-play-aab` artifact. The optional `play_build_number` input stamps a different `versionCode` onto the `.aab` only - needed when Play has already consumed a number and the same code must be re-uploaded (Play accepts each `versionCode` exactly once). Before uploading, verify the bundle: `versionCode` in `base/manifest/AndroidManifest.xml`, a feature string from the release inside `base/lib/arm64-v8a/libapp.so` (search UTF-8 **and** UTF-16-LE - Dart stores non-ASCII strings two-byte), and the signing cert SHA-256. A local build from a stale checkout once shipped old code under a new version number; the version label proves nothing about the code inside.
 
 Release builds are signed with the keystore configured in `mobile/android/key.properties` if present, otherwise they fall back to the debug key. Both flavors share the same key and `applicationId`, so a device moves between the sideload APK and the Play build in place with no wipe. CI uses GitHub Secrets - see [Release signing](#release-signing) below.
 
