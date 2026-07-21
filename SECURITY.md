@@ -227,6 +227,8 @@ The auth proxy is even more constrained - it doesn't talk to Klipper at all, it 
 
 **Access-token TTL is now 30 minutes** (`ACCESS_TOKEN_TTL_SECONDS = 1800` in [`supabase/functions/_shared/accessToken.ts`](supabase/functions/_shared/accessToken.ts)), raised over time from 5 to cut how often the app calls `/printer-access`. It remains short-lived in the sense the threat model relies on - minutes, not days - so the replay window stays small and a refreshed token still supersedes the old one. The token is still the perimeter; nothing else about its scope or signing changed.
 
+**`/printer-access` accepts only well-formed printer ids.** The mint endpoint validates the id's shape (a UUID) before touching the database: anything else, including the synthetic local ids the app mints for Direct (LAN/VPN) printers, gets the same constant 404 as a printer that doesn't exist - no oracle, no server errors. The app holds the same line from its side: a Direct printer's id is refused locally before any network call is made, so Direct mode's "mints no tokens" promise is enforced in code at both ends, not just by design intent.
+
 ---
 
 ## In-app updater (v0.9.17)
