@@ -2494,6 +2494,12 @@ abstract class AppLocalizations {
   /// **'Open'**
   String get cameraHintOpen;
 
+  /// Shown with a spinner in the webcam box while the first frame is still being fetched - on-demand cameras (go2rtc) take a moment to start.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera waking up…'**
+  String get webcamWakingUp;
+
   /// Heading on the full-screen error overlay when the printer cannot be loaded.
   ///
   /// In en, this message translates to:

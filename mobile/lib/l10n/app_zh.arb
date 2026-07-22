@@ -424,6 +424,7 @@
   "cameraNoCamera": "未为此打印机配置摄像头。",
   "cameraHintBody": "网络摄像头在此处无法远程加载 - 打开 Moongate 摄像头。",
   "cameraHintOpen": "打开",
+  "webcamWakingUp": "摄像头唤醒中…",
   "printerUnreachable": "无法连接打印机",
   "printerUseTunnel": "使用隧道",
   "printerAddressInvalid": "请尝试例如 192.168.1.50:7125",

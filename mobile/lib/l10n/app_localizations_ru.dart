@@ -1363,6 +1363,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get cameraHintOpen => 'Открыть';
 
   @override
+  String get webcamWakingUp => 'Камера просыпается…';
+
+  @override
   String get printerUnreachable => 'Принтер недоступен';
 
   @override

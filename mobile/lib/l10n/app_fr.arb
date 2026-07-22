@@ -424,6 +424,7 @@
   "cameraNoCamera": "Aucune caméra configurée pour cette imprimante.",
   "cameraHintBody": "La webcam ne se charge pas ici à distance - ouvrez la caméra Moongate.",
   "cameraHintOpen": "Ouvrir",
+  "webcamWakingUp": "La caméra se réveille…",
   "printerUnreachable": "Imprimante injoignable",
   "printerUseTunnel": "Utiliser le tunnel",
   "printerAddressInvalid": "Essayez par ex. 192.168.1.50:7125",

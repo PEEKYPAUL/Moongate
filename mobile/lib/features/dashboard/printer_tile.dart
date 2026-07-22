@@ -645,6 +645,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                     webcamTargetFps: _status.webcamTargetFps,
                     webcamIsExternal: _status.webcamIsExternal,
                     uiType: _uiType,
+                    printerId: widget.printer.id,
                   ),
                   // Overlay shown while we don't yet have a usable
                   // status (first poll in flight, Pi waiting for its first

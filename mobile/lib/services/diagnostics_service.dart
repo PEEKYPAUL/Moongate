@@ -7,6 +7,7 @@ import '../models/printer_config.dart';
 import 'lan_discovery_service.dart';
 import 'printer_status_registry.dart';
 import 'supabase_service.dart';
+import 'webcam_fetch_diag.dart';
 
 /// Assembles as much debug context as we can for a bug report - built to make
 /// LAN / pairing failures self-explanatory so we can fix users' issues without
@@ -121,6 +122,9 @@ class DiagnosticsService {
           'tunnel_ready': live.tunnelReady,
           'has_webcam': live.webcamSnapshotUrl != null,
         },
+      // How the webcam fetch loop is doing for this printer - catches the
+      // "everything online but the tile never shows frames" class of report.
+      if (WebcamFetchDiag.report(p.id) case final webcam?) 'webcam': webcam,
       if (poll != null) 'last_poll': poll,
     };
   }

@@ -809,6 +809,8 @@
   "@cameraHintBody": {"description": "Dismissible hint on the printer page, shown only over the tunnel for an external camera, pointing the user to the native full-screen camera view."},
   "cameraHintOpen": "Open",
   "@cameraHintOpen": {"description": "Button on the camera-discoverability hint that opens the full-screen Moongate camera view."},
+  "webcamWakingUp": "Camera waking up…",
+  "@webcamWakingUp": {"description": "Shown with a spinner in the webcam box while the first frame is still being fetched - on-demand cameras (go2rtc) take a moment to start."},
   "printerUnreachable": "Printer unreachable",
   "@printerUnreachable": {"description": "Heading on the full-screen error overlay when the printer cannot be loaded."},
   "printerUseTunnel": "Use tunnel",

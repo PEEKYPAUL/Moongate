@@ -7,7 +7,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 
+import '../l10n/app_localizations.dart';
 import '../providers/settings_provider.dart';
+import '../services/webcam_fetch_diag.dart';
+
+/// How long a frameless camera shows the "waking up" spinner before falling
+/// back to the honest plain placeholder. Generous on purpose: a go2rtc
+/// producer wakes in under a second, uv4l has been seen taking 3 s+, and a
+/// remote data-saver cadence only attempts a frame every few seconds - the
+/// window has to survive several slow attempts before giving up.
+const _kWakeWindow = Duration(seconds: 25);
 
 // ── Shared webcam renderer ────────────────────────────────────────────────────
 //
@@ -46,6 +55,10 @@ class WebcamView extends ConsumerStatefulWidget {
   /// 'mainsail' | 'fluidd' | null - shown as a logo while there's no frame yet.
   final String? uiType;
 
+  /// Owning printer's id, for the bug-report webcam diagnostics
+  /// ([WebcamFetchDiag]). Null skips recording (nothing else changes).
+  final String? printerId;
+
   /// How a frame fills its box. The dashboard tile crops to fill
   /// ([BoxFit.cover]); the full-screen camera letterboxes the whole frame
   /// ([BoxFit.contain]).
@@ -66,6 +79,7 @@ class WebcamView extends ConsumerStatefulWidget {
     this.webcamTargetFps = 15,
     this.webcamIsExternal = false,
     this.uiType,
+    this.printerId,
     this.fit = BoxFit.cover,
     this.respectDashboardThrottle = true,
   });
@@ -86,22 +100,69 @@ class _WebcamViewState extends ConsumerState<WebcamView>
   /// pulling frames over the network. Resumes on foreground.
   bool _appPaused = false;
 
+  /// True once the wake window expired without a single frame - build() then
+  /// shows the honest plain placeholder instead of the waking spinner.
+  bool _wakeExpired = false;
+  Timer? _wakeTimer;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _armWakeWindow();
     _loop();
   }
 
   @override
   void dispose() {
+    _wakeTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
+  void didUpdateWidget(WebcamView old) {
+    super.didUpdateWidget(old);
+    // A changed URL (transport flipped LAN<->tunnel, webcam re-detected) is a
+    // fresh chance at a first frame - restart the wake window.
+    if (old.webcamSnapshotUrl != widget.webcamSnapshotUrl &&
+        _currentBytes == null) {
+      _armWakeWindow();
+    }
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    final wasPaused = _appPaused;
     _appPaused = state != AppLifecycleState.resumed;
+    // The camera slept while we idled in the background (no fetches), so a
+    // return to the foreground is a fresh wake - give it a fresh window.
+    if (wasPaused && !_appPaused && _currentBytes == null) _armWakeWindow();
+  }
+
+  /// (Re)start the wake window. Timer-driven rather than wall-clock so the
+  /// window doesn't burn while the loop idles in the background mid-count,
+  /// and so widget tests can advance it with pump(). No-ops without a URL
+  /// (nothing is being fetched, the plain placeholder is already honest).
+  void _armWakeWindow() {
+    if (_currentBytes != null) return;
+    _wakeTimer?.cancel();
+    final url = widget.webcamSnapshotUrl;
+    if (url == null || url.isEmpty) return;
+    if (_wakeExpired) setState(() => _wakeExpired = false);
+    _wakeTimer = Timer(_kWakeWindow, () {
+      if (mounted && _currentBytes == null) {
+        setState(() => _wakeExpired = true);
+      }
+    });
+  }
+
+  /// First (and every) successful frame: store + repaint, and retire the wake
+  /// window for good - once a camera has produced a frame, failures keep the
+  /// last frame on screen, never a spinner.
+  void _storeFrame(Uint8List bytes) {
+    _wakeTimer?.cancel();
+    if (mounted) setState(() => _currentBytes = bytes);
   }
 
   /// Sequential snapshot-fetch loop. One in flight at a time; the next
@@ -157,6 +218,7 @@ class _WebcamViewState extends ConsumerState<WebcamView>
       await _fetchFrameFromStream(url);
       return;
     }
+    String result = 'error';
     try {
       // Generous 8 s timeout - uv4l-mjpeg has been observed to take 3 s+ per
       // snapshot on first wake. Better to block the loop briefly and get a
@@ -165,10 +227,20 @@ class _WebcamViewState extends ConsumerState<WebcamView>
           await http.get(Uri.parse(url)).timeout(const Duration(seconds: 8));
       if (!mounted) return;
       if (resp.statusCode == 200 && _looksLikeImage(resp.bodyBytes)) {
-        setState(() => _currentBytes = resp.bodyBytes);
+        _storeFrame(resp.bodyBytes);
+        result = 'ok';
+      } else if (resp.statusCode != 200) {
+        result = 'http ${resp.statusCode}';
+      } else {
+        result = resp.bodyBytes.isEmpty ? 'empty' : 'not-image';
       }
+    } on TimeoutException {
+      result = 'timeout';
     } catch (_) {
-      // Network blip / 401 / timeout / parse error - previous frame stays.
+      // Network blip / 401 / parse error - previous frame stays.
+    } finally {
+      WebcamFetchDiag.record(widget.printerId,
+          url: url, external: false, result: result);
     }
   }
 
@@ -179,10 +251,14 @@ class _WebcamViewState extends ConsumerState<WebcamView>
   /// or the Pi's /mg-extcam proxy when remote).
   Future<void> _fetchFrameFromStream(String url) async {
     final client = http.Client();
+    String result = 'error';
     try {
       final req = http.Request('GET', Uri.parse(url));
       final resp = await client.send(req).timeout(const Duration(seconds: 8));
-      if (resp.statusCode != 200) return;
+      if (resp.statusCode != 200) {
+        result = 'http ${resp.statusCode}';
+        return;
+      }
       final ctype = (resp.headers['content-type'] ?? '').toLowerCase();
       final isMultipart = ctype.contains('multipart');
       final buffer = BytesBuilder();
@@ -193,7 +269,8 @@ class _WebcamViewState extends ConsumerState<WebcamView>
         if (isMultipart) {
           final frame = _extractJpeg(buffer.toBytes());
           if (frame != null) {
-            if (mounted) setState(() => _currentBytes = frame);
+            _storeFrame(frame);
+            result = 'ok';
             return; // got a frame - finally closes the still-open stream
           }
         }
@@ -203,14 +280,26 @@ class _WebcamViewState extends ConsumerState<WebcamView>
       // frame): use whatever bytes we collected if they look usable.
       if (!isMultipart) {
         final bytes = buffer.toBytes();
-        if (_looksLikeImage(bytes) && mounted) {
-          setState(() => _currentBytes = bytes);
+        if (_looksLikeImage(bytes)) {
+          _storeFrame(bytes);
+          result = 'ok';
+        } else {
+          // A 200 with zero bytes is the cold-camera-that-couldn't-start
+          // signature (seen in the field on go2rtc with a wedged device) -
+          // keep it distinct from a body that just isn't an image.
+          result = bytes.isEmpty ? 'empty' : 'not-image';
         }
+      } else {
+        result = 'no-frame';
       }
+    } on TimeoutException {
+      result = 'timeout';
     } catch (_) {
-      // Blip / timeout - keep the last frame on screen.
+      // Blip - keep the last frame on screen.
     } finally {
       client.close(); // aborts an MJPEG stream still in flight
+      WebcamFetchDiag.record(widget.printerId,
+          url: url, external: true, result: result);
     }
   }
 
@@ -256,11 +345,22 @@ class _WebcamViewState extends ConsumerState<WebcamView>
   @override
   Widget build(BuildContext context) {
     final bytes = _currentBytes;
+    final url = widget.webcamSnapshotUrl;
+    // Waking = we're actively fetching but nothing has landed yet and the
+    // window hasn't given up. An unset URL skips straight to the placeholder
+    // - there's nothing to wake.
+    final waking =
+        bytes == null && url != null && url.isNotEmpty && !_wakeExpired;
+    WebcamFetchDiag.recordShowing(widget.printerId,
+        bytes != null ? 'frames' : (waking ? 'waking' : 'placeholder'));
     Widget image = bytes != null
         ? Image.memory(bytes, fit: widget.fit, gaplessPlayback: true)
         : Container(
             color: Colors.black54,
-            child: Center(child: _WebcamPlaceholder(uiType: widget.uiType)),
+            child: Center(
+                child: waking
+                    ? const _WebcamWaking()
+                    : _WebcamPlaceholder(uiType: widget.uiType)),
           );
 
     // Apply the webcam display transforms Mainsail has configured, so the image
@@ -287,6 +387,44 @@ class _WebcamViewState extends ConsumerState<WebcamView>
     }
 
     return image;
+  }
+}
+
+// ── Waking spinner ────────────────────────────────────────────────────────────
+//
+// Shown instead of the placeholder while the first frame is still being
+// chased and the wake window hasn't expired. On-demand cameras (go2rtc)
+// genuinely take a moment to start their producer on the first request - an
+// honest "waking up" beats a logo that reads as broken.
+
+class _WebcamWaking extends StatelessWidget {
+  const _WebcamWaking();
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(
+          width: 26,
+          height: 26,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            color: Colors.white38,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Text(
+            l.webcamWakingUp,
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ],
+    );
   }
 }
 

@@ -1290,6 +1290,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cameraHintOpen => '打开';
 
   @override
+  String get webcamWakingUp => '摄像头唤醒中…';
+
+  @override
   String get printerUnreachable => '无法连接打印机';
 
   @override

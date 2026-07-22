@@ -424,6 +424,7 @@
   "cameraNoCamera": "Для этого принтера камера не настроена.",
   "cameraHintBody": "Веб-камера не загружается здесь удалённо - откройте камеру Moongate.",
   "cameraHintOpen": "Открыть",
+  "webcamWakingUp": "Камера просыпается…",
   "printerUnreachable": "Принтер недоступен",
   "printerUseTunnel": "Использовать туннель",
   "printerAddressInvalid": "Попробуйте, например, 192.168.1.50:7125",

@@ -424,6 +424,7 @@
   "cameraNoCamera": "Nessuna telecamera configurata per questa stampante.",
   "cameraHintBody": "La webcam non si carica qui da remoto - apri la telecamera Moongate.",
   "cameraHintOpen": "Apri",
+  "webcamWakingUp": "La telecamera si sta attivando…",
   "printerUnreachable": "Stampante irraggiungibile",
   "printerUseTunnel": "Usa il tunnel",
   "printerAddressInvalid": "Prova ad es. 192.168.1.50:7125",

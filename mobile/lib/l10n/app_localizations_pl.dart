@@ -1363,6 +1363,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get cameraHintOpen => 'Otwórz';
 
   @override
+  String get webcamWakingUp => 'Kamera się budzi…';
+
+  @override
   String get printerUnreachable => 'Drukarka nieosiągalna';
 
   @override
