@@ -138,14 +138,13 @@ If none of the three respond, the Pi is fully offline. If only the third fails, 
 
 ## Tile shows "Tunnel" badge when I'm on home WiFi
 
-In v0.4.0 the app retries LAN on every poll, so this should self-correct within one cycle (~4 s). If it doesn't:
+The app finds printers on your network two ways: the address it learned at pairing, and an automatic broadcast discovery (mDNS) that heals address changes. A tile stuck on **Tunnel** at home means both are failing for that printer - almost always a network quirk, not the printer:
 
-- Force-close the app and re-open. The LAN URL is rebuilt from the cached config + the current status reply.
-- Verify the Pi's LAN IP hasn't changed (DHCP lease expired and got a new address):
-  ```bash
-  ip -4 addr show | grep -A1 'state UP'
-  ```
-- If the IP changed: remove the printer in the app and re-pair on the new IP. The LAN URL persists across launches but isn't auto-discovered after a DHCP change.
+- **The instant fix: set the address by hand.** Open the printer's page, tap the **pencil**, and type its LAN address into **Printer address** (e.g. `192.168.1.50`). That field exists precisely for networks where discovery can't work.
+- **Separate 2.4GHz and 5GHz WiFi names?** Many routers block broadcast discovery *between* the two bands, so a phone on the "5G" network can never discover a printer on the 2.4GHz one. The manual address fixes it; joining the same band as the printer also works.
+- **Still stuck even with the right address typed in?** Check the router / access point for a "client isolation" or "allow WiFi devices to communicate with each other" setting - and if everything looks right, **reboot the access point**. A real field case: an AP had silently stopped forwarding traffic from its 5GHz clients to its 2.4GHz clients entirely; a reboot fixed everything at once.
+- **The Pi's IP changed** (a new DHCP lease)? Update the **Printer address** field - no need to remove or re-pair. When broadcast discovery works on your network this heals itself; the manual field is the belt-and-braces. Giving the printer a fixed IP in the router stops it recurring.
+- Guest networks and some mesh systems isolate devices from each other by design - a printer on one of those may only ever be reachable through the tunnel.
 
 ## Every printer away from home shows offline (orange crossed-out cloud in the top bar)
 
@@ -264,7 +263,12 @@ After **any** webcam config change, tap the **refresh icon** in the top-right of
 
 ## A tile shows the logo, or a printer has no camera at all
 
-If a tile shows the **Mainsail/Fluidd logo** instead of a live picture, that feed just isn't loading - the printer is offline or connecting, or it has no camera configured. The full-screen camera view (the eye on a tile, or the camera icon on the printer page) still works whenever there's a feed.
+Newer app versions show a small **"Camera waking up…"** spinner in the camera box while the first picture is still being fetched - on-demand cameras (like go2rtc) genuinely take a moment to start when nobody was watching. If the spinner gives way to the **Mainsail/Fluidd logo**, the feed really isn't coming: the printer is offline or connecting, it has no camera configured, or the camera itself isn't answering. The full-screen camera view (the eye on a tile, or the camera icon on the printer page) still works whenever there's a feed.
+
+Two diagnostics if a camera stays on the logo:
+
+- The **in-app bug report** (menu → Report a problem) now includes what each tile's camera fetch is actually doing - which address it tried and what came back - so a report tells us (and you) where it stops.
+- Away from home, remote camera pictures travel via the Pi, and the Pi now keeps a note when that fails (plugin 0.6.18+): `journalctl -u moongate-authproxy` on the Pi names the reason - a rejected camera address, a camera error, or a camera that answered with nothing (typically a camera whose device is stuck; a replug or Pi reboot usually revives it).
 
 If a printer has **no camera area at all** (a slim, compact tile), its webcam is switched **off**: open **Menu → Webcams** and turn it back on. Turning a printer's webcam off there collapses its tile to save space and data; turning it on restores the full tile with its feed.
 
