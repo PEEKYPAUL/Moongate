@@ -365,14 +365,38 @@ def _extcam_target_ok(raw: str) -> Optional[str]:
     return raw
 
 
+def _extcam_log_target(raw: str) -> str:
+    """Loggable form of a client-supplied camera URL: scheme + host + path,
+    query dropped (a camera URL can carry credentials, and our own request
+    URL carries mg_token - neither belongs in the journal)."""
+    if not raw:
+        return "(empty)"
+    try:
+        p = urlsplit(raw)
+    except ValueError:
+        return "(unparseable)"
+    return f"{p.scheme or '?'}://{p.netloc or '?'}{p.path or ''}"
+
+
 async def _proxy_extcam(request: web.Request) -> web.StreamResponse:
     """Relay a snapshot / MJPEG frame from a LAN camera the client points us
     at. Auth was already enforced by _authorize. The app reads one frame then
     disconnects; the byte cap is a backstop against a target that streams
     forever, and the content-type gate stops us relaying arbitrary content
-    from whatever happens to answer on that host:port."""
-    target = _extcam_target_ok(request.query.get("u", ""))
+    from whatever happens to answer on that host:port.
+
+    Every NON-frame outcome logs one terse line (the happy path stays
+    silent - the /run-log lesson). The app swallows relay failures by design,
+    so without these lines a remote camera that never frames is invisible at
+    every layer; with them, `journalctl -u moongate-authproxy` names the
+    failing hop: gate reject (a https/hostname URL in the tile gear), an
+    upstream error, or a 200 that carried no image (the cold-camera-that-
+    couldn't-start signature)."""
+    raw = request.query.get("u", "")
+    target = _extcam_target_ok(raw)
     if target is None:
+        logger.info("extcam reject (not plain-http private-IPv4): %s",
+                    _extcam_log_target(raw))
         return web.Response(status=400, text="bad target\n",
                             headers={"Cache-Control": "no-store"})
 
@@ -386,12 +410,18 @@ async def _proxy_extcam(request: web.Request) -> web.StreamResponse:
             "GET", target, headers=headers, allow_redirects=False,
         ) as upstream:
             if upstream.status != 200:
+                logger.info("extcam %s -> upstream %s",
+                            _extcam_log_target(target), upstream.status)
                 return web.Response(status=502, text="camera error\n")
             ctype = upstream.headers.get("Content-Type", "")
             low = ctype.lower()
             if not (low.startswith("image/")
                     or "multipart/x-mixed-replace" in low
                     or low.startswith("application/octet-stream")):
+                # A 200 with an empty/none content-type is how a camera
+                # backend that failed to start its producer answers.
+                logger.info("extcam %s -> 200 but content-type %r",
+                            _extcam_log_target(target), ctype[:60])
                 return web.Response(status=415, text="unsupported\n")
 
             response = web.StreamResponse(
@@ -408,6 +438,11 @@ async def _proxy_extcam(request: web.Request) -> web.StreamResponse:
                 sent += len(chunk)
                 if sent >= EXTCAM_MAX_BYTES:
                     break
+            if sent == 0:
+                # Image content-type but not one byte of body - the upstream
+                # accepted the request and produced nothing.
+                logger.info("extcam %s -> 200 with 0 bytes",
+                            _extcam_log_target(target))
             await response.write_eof()
             return response
     except asyncio.CancelledError:
@@ -416,7 +451,8 @@ async def _proxy_extcam(request: web.Request) -> web.StreamResponse:
         # App got its frame and closed the connection - normal.
         return web.Response(status=499, text="")
     except Exception as exc:
-        logger.warning("extcam %s failed: %s", target, exc)
+        logger.warning("extcam %s failed: %s",
+                       _extcam_log_target(target), exc)
         return web.Response(status=502, text="camera unreachable\n")
 
 

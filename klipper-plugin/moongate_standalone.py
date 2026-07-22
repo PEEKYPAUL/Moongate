@@ -82,7 +82,7 @@ logger = logging.getLogger("moonraker.moongate")
 # Bumped on each release; surfaced in the /status response so the app's bug
 # reports show which plugin a Pi is actually running - the #1 triage blind spot
 # (an old plugin explains most "works on LAN / fails over tunnel" reports).
-MOONGATE_PLUGIN_VERSION = "0.6.17"
+MOONGATE_PLUGIN_VERSION = "0.6.18"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
