@@ -49,24 +49,72 @@ double computePrintProgress({
   return 0.0;
 }
 
-/// Print time remaining (seconds), estimated from elapsed ÷ progress with no
-/// extra metadata call - the estimate the notification card has always shown,
-/// now shared with the dashboard tile's ETA chip.
+/// Print time remaining (seconds), following Mainsail's ETA recipe so the chip
+/// lands on the numbers users compare it against: the average of every
+/// estimate source with usable inputs -
+///   file     - elapsed ÷ file-relative progress (the classic extrapolation,
+///              and still the sole source when no metadata is known)
+///   filament - elapsed ÷ filament fraction (print_stats.filament_used over
+///              the file metadata's filament_total)
+///   slicer   - the slicer's own total (file metadata estimated_time) minus
+///              elapsed
+/// (mainsail-crew/mainsail src/store/printer/getters.ts getEstimatedTimeETA,
+/// whose default averages exactly these three.)
+///
+/// The two extrapolating sources only join once they have enough signal to
+/// mean anything (fraction ≥ 2%, ≥ 30s elapsed - below that the division
+/// produces garbage like "~43h"); the slicer total is trustworthy from the
+/// first second. The blend is what keeps the early-print number sane: pure
+/// file extrapolation read ~4h against Mainsail's ~3h at 5% of an ABS print
+/// whose opening minutes are brim + solid bottom layers (2026-07-25 user
+/// report - both screenshots are fixtures in print_progress_test.dart).
 ///
 /// Null when there's nothing meaningful to show:
 ///   - not actively printing (a paused print's elapsed clock is frozen, so its
 ///     estimate silently goes stale - hide rather than mislead);
-///   - too early to extrapolate (progress < 2% or < 30s elapsed - the maths
-///     divides by a near-zero progress and produces garbage like "~43h");
+///   - no source has usable inputs yet;
 ///   - implausibly long (> 100h - a corrupt duration/progress pair).
 double? printRemainingSeconds({
   required String state,
   required double progress,
   required double printDurationSec,
+  double? filamentUsedMm,
+  double? filamentTotalMm,
+  double? slicerEstimateSec,
 }) {
   if (state != 'printing') return null;
-  if (progress < 0.02 || printDurationSec < 30) return null;
-  final remaining = printDurationSec * (1 - progress) / progress;
+
+  final estimates = <double>[];
+
+  // file: elapsed ÷ byte-position progress.
+  if (progress >= 0.02 && printDurationSec >= 30) {
+    estimates.add(printDurationSec * (1 - progress) / progress);
+  }
+
+  // filament: elapsed ÷ consumed-filament fraction. A bottom-heavy part
+  // (solid base, brim) has this fraction running well ahead of the byte
+  // position early in the print, which is precisely the correction that
+  // pulls Mainsail's average down to a realistic figure.
+  if (filamentUsedMm != null &&
+      filamentTotalMm != null &&
+      filamentTotalMm > 0 &&
+      printDurationSec >= 30) {
+    final fraction = filamentUsedMm / filamentTotalMm;
+    if (fraction >= 0.02 && fraction <= 1) {
+      estimates.add(printDurationSec * (1 - fraction) / fraction);
+    }
+  }
+
+  // slicer: its own total minus elapsed. Goes negative once a print overruns
+  // the slicer's guess - drop it then, as Mainsail's average does.
+  if (slicerEstimateSec != null && slicerEstimateSec > 0) {
+    final slicerRemaining = slicerEstimateSec - printDurationSec;
+    if (slicerRemaining > 0) estimates.add(slicerRemaining);
+  }
+
+  if (estimates.isEmpty) return null;
+  final remaining =
+      estimates.reduce((a, b) => a + b) / estimates.length;
   if (remaining <= 0 || remaining > 100 * 3600) return null;
   return remaining;
 }

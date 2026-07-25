@@ -90,12 +90,17 @@ class PrinterStatusService {
   /// bare `extruder` (T0) is handled separately.
   static final _extruderNumRe = RegExp(r'^extruder\d+$');
 
-  // ── File-metadata cache for accurate progress ────────────────────────────
+  // ── File-metadata cache for accurate progress + ETA ──────────────────────
   // The slicer's gcode body byte offsets, cached per filename. They drive the
   // Mainsail-matching "file position (relative)" progress in _parseStatus -
   // (file_position − start) / (end − start) - via [computePrintProgress].
+  // The same metadata reply carries the slicer's estimated_time and
+  // filament_total, which feed the Mainsail-style blend in
+  // [printRemainingSeconds] (the tile's time chip).
   int?    _gcodeStartByte;
   int?    _gcodeEndByte;
+  double? _slicerEstimateSec;
+  double? _filamentTotalMm;
   String? _metadataFilename;
 
   // ── LAN-first state ──────────────────────────────────────────────────────
@@ -728,9 +733,11 @@ class PrinterStatusService {
       {required bool isLan}) async {
     if (filename == null || filename.isEmpty) return;
     if (filename == _metadataFilename) return;
-    _gcodeStartByte   = null;
-    _gcodeEndByte     = null;
-    _metadataFilename = null;
+    _gcodeStartByte    = null;
+    _gcodeEndByte      = null;
+    _slicerEstimateSec = null;
+    _filamentTotalMm   = null;
+    _metadataFilename  = null;
     try {
       final encoded  = Uri.encodeComponent(filename);
       final uri      = Uri.parse(
@@ -744,6 +751,11 @@ class PrinterStatusService {
             jsonDecode(response.body)['result'] as Map<String, dynamic>?;
         final start = (result?['gcode_start_byte'] as num?)?.toInt();
         final end   = (result?['gcode_end_byte']   as num?)?.toInt();
+        // The slicer's own numbers for the ETA blend - kept even when the
+        // offsets are missing (progress just falls back, the chip still gains
+        // the slicer estimate).
+        _slicerEstimateSec = (result?['estimated_time'] as num?)?.toDouble();
+        _filamentTotalMm   = (result?['filament_total'] as num?)?.toDouble();
         // Only cache (and stop re-fetching) once we have a usable range; a file
         // Moonraker is still analysing may omit the offsets for a moment.
         if (start != null && end != null && end > start) {
@@ -1211,6 +1223,9 @@ class PrinterStatusService {
       state:              state,
       progress:           progress,
       printDurationSec:   (printStats['print_duration']  as num?)?.toDouble() ?? 0,
+      filamentUsedMm:     (printStats['filament_used']   as num?)?.toDouble(),
+      filamentTotalMm:    _filamentTotalMm,
+      slicerEstimateSec:  _slicerEstimateSec,
       hotendTemp:         (extruder['temperature']       as num?)?.toDouble() ?? 0,
       hotendTarget:       (extruder['target']            as num?)?.toDouble() ?? 0,
       bedTemp:            (heaterBed['temperature']      as num?)?.toDouble() ?? 0,

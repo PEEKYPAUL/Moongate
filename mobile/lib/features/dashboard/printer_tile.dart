@@ -450,16 +450,20 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
   }
 
   /// Seconds left on the running print for the tile's time chip, or null when
-  /// the chip is hidden: the setting is off, nothing is printing, or it's too
-  /// early for the shared elapsed ÷ progress estimate ([printRemainingSeconds],
-  /// the notification card's maths) to be meaningful. Watched providers make
-  /// the chip appear/disappear live when the drawer setting changes.
+  /// the chip is hidden: the setting is off, nothing is printing, or no
+  /// estimate source has usable inputs yet ([printRemainingSeconds], the
+  /// notification card's maths - a Mainsail-style blend of file, filament and
+  /// slicer estimates). Watched providers make the chip appear/disappear live
+  /// when the drawer setting changes.
   double? get _etaRemaining {
     if (!ref.watch(tileEtaProvider)) return null;
     return printRemainingSeconds(
-      state:            _status.state,
-      progress:         _status.progress,
-      printDurationSec: _status.printDurationSec,
+      state:             _status.state,
+      progress:          _status.progress,
+      printDurationSec:  _status.printDurationSec,
+      filamentUsedMm:    _status.filamentUsedMm,
+      filamentTotalMm:   _status.filamentTotalMm,
+      slicerEstimateSec: _status.slicerEstimateSec,
     );
   }
 

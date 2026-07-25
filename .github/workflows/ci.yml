@@ -53,7 +53,10 @@ jobs:
           python-version: "3.11"
 
       - name: Install ruff
-        run: pip install ruff
+        # Pinned: 0.16.0 (released ~2026-07-23) turned on stricter defaults
+        # that flag 92 pre-existing lines in the (unchanged, shipped) plugin.
+        # Lift the pin only together with a deliberate cleanup to its rules.
+        run: pip install "ruff==0.15.22"
 
       - name: Lint klipper-plugin
         run: ruff check klipper-plugin/

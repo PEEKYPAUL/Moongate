@@ -744,6 +744,9 @@ class _PrintTaskHandler extends TaskHandler {
         state:            state,
         progress:         progress,
         printDurationSec: (printStats['print_duration'] as num?)?.toDouble() ?? 0,
+        filamentUsedMm:   (printStats['filament_used']  as num?)?.toDouble(),
+        filamentTotalMm:  offsets?.filamentTotalMm,
+        slicerEstimateSec: offsets?.estimatedTimeSec,
         hotend:           (extruder['temperature'] as num?)?.toDouble() ?? 0,
         hotendTarget:     (extruder['target']      as num?)?.toDouble() ?? 0,
         bed:              (bed['temperature']      as num?)?.toDouble() ?? 0,
@@ -798,6 +801,8 @@ class _PrintTaskHandler extends TaskHandler {
         filename,
         (result?['gcode_start_byte'] as num?)?.toInt(),
         (result?['gcode_end_byte']   as num?)?.toInt(),
+        (result?['estimated_time']   as num?)?.toDouble(),
+        (result?['filament_total']   as num?)?.toDouble(),
       );
       _meta[printerId] = m;
       return m;
@@ -974,9 +979,12 @@ class _PrintTaskHandler extends TaskHandler {
   /// [printRemainingSeconds], which the dashboard tile's ETA chip uses too so
   /// the two surfaces always agree.
   double? _remainingSeconds(_Poll s) => printRemainingSeconds(
-        state:            s.state,
-        progress:         s.progress,
-        printDurationSec: s.printDurationSec,
+        state:             s.state,
+        progress:          s.progress,
+        printDurationSec:  s.printDurationSec,
+        filamentUsedMm:    s.filamentUsedMm,
+        filamentTotalMm:   s.filamentTotalMm,
+        slicerEstimateSec: s.slicerEstimateSec,
       );
 
   /// "1h05m" / "14m" - how much longer the print has to run.
@@ -1266,13 +1274,18 @@ class _PrintTaskHandler extends TaskHandler {
 /// Lifecycle of a printer's "Print jobs" card.
 enum _CardPhase { none, active, done }
 
-/// The gcode body byte offsets for one printer's current file (from Moonraker
-/// metadata), used to compute Mainsail-style file-relative progress.
+/// One printer's current-file metadata (from Moonraker): the gcode body byte
+/// offsets for Mainsail-style file-relative progress, plus the slicer's
+/// estimated_time / filament_total for the Mainsail-style remaining-time blend
+/// ([printRemainingSeconds]).
 class _MetaOffsets {
-  final String filename;
-  final int? startByte;
-  final int? endByte;
-  const _MetaOffsets(this.filename, this.startByte, this.endByte);
+  final String  filename;
+  final int?    startByte;
+  final int?    endByte;
+  final double? estimatedTimeSec;
+  final double? filamentTotalMm;
+  const _MetaOffsets(this.filename, this.startByte, this.endByte,
+      this.estimatedTimeSec, this.filamentTotalMm);
 }
 
 /// A single printer's parsed status - just what the notification needs.
@@ -1280,6 +1293,15 @@ class _Poll {
   final String state;
   final double progress;        // 0..1
   final double printDurationSec;
+
+  /// Extra inputs for the Mainsail-style remaining-time blend - filament used
+  /// (print_stats) against the file's filament_total, and the slicer's own
+  /// estimated_time (both file metadata). Null when unknown; the estimate
+  /// falls back to elapsed ÷ progress alone.
+  final double? filamentUsedMm;
+  final double? filamentTotalMm;
+  final double? slicerEstimateSec;
+
   final double hotend;
   final double hotendTarget;
   final double bed;
@@ -1300,6 +1322,9 @@ class _Poll {
     required this.state,
     required this.progress,
     required this.printDurationSec,
+    this.filamentUsedMm,
+    this.filamentTotalMm,
+    this.slicerEstimateSec,
     required this.hotend,
     required this.hotendTarget,
     required this.bed,
