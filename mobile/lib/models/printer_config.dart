@@ -386,8 +386,18 @@ class PrinterStatus {
   /// Klipper's `print_stats.print_duration` - seconds of actual printing on
   /// the current job (excludes heat-up/pause time). 0 when idle or unknown.
   /// Feeds the tile's time-remaining chip via [printRemainingSeconds], the
-  /// same elapsed ÷ progress estimate the notification card shows.
+  /// same Mainsail-style estimate the notification card shows.
   final double printDurationSec;
+
+  /// Klipper's `print_stats.filament_used` (mm) plus the printing file's
+  /// `filament_total` / `estimated_time` from Moonraker metadata - the extra
+  /// inputs [printRemainingSeconds] blends, Mainsail-style, so the time chip
+  /// stops drifting an hour from Mainsail early in a print. Null when the
+  /// metadata isn't known (yet); the estimate then falls back to elapsed ÷
+  /// progress alone, exactly the pre-v0.9.56 behaviour.
+  final double? filamentUsedMm;
+  final double? filamentTotalMm;
+  final double? slicerEstimateSec;
 
   final double hotendTemp;
   final double hotendTarget;
@@ -457,6 +467,9 @@ class PrinterStatus {
     required this.state,
     required this.progress,
     this.printDurationSec = 0,
+    this.filamentUsedMm,
+    this.filamentTotalMm,
+    this.slicerEstimateSec,
     required this.hotendTemp,
     required this.hotendTarget,
     required this.bedTemp,
@@ -489,6 +502,9 @@ class PrinterStatus {
     String? state,
     double? progress,
     double? printDurationSec,
+    double? filamentUsedMm,
+    double? filamentTotalMm,
+    double? slicerEstimateSec,
     double? hotendTemp,
     double? hotendTarget,
     double? bedTemp,
@@ -514,6 +530,9 @@ class PrinterStatus {
       state:            state ?? this.state,
       progress:         progress ?? this.progress,
       printDurationSec: printDurationSec ?? this.printDurationSec,
+      filamentUsedMm:   filamentUsedMm ?? this.filamentUsedMm,
+      filamentTotalMm:  filamentTotalMm ?? this.filamentTotalMm,
+      slicerEstimateSec: slicerEstimateSec ?? this.slicerEstimateSec,
       hotendTemp:       hotendTemp ?? this.hotendTemp,
       hotendTarget:     hotendTarget ?? this.hotendTarget,
       bedTemp:          bedTemp ?? this.bedTemp,
