@@ -1,5 +1,15 @@
 [
   {
+    "version": "v0.9.56",
+    "bullets": [
+      "The dashboard's time-remaining readout now matches Mainsail (a user report, with side-by-side screenshots: Mainsail said ~3h left while the tile said ~4h). Early in a print the old estimate extrapolated purely from elapsed time versus progress, and a print's opening minutes (brim, slow solid bottom layers) made that far too pessimistic. The app now blends the same three estimates Mainsail averages - elapsed-based, filament-used-based and the slicer's own estimate for the file - using data it already had, so the tile and the notification land within a minute or two of Mainsail's ETA. Bonus: the readout now appears in the first seconds of a print instead of hiding until 2%.",
+      "Webcam tiles are honest while a camera wakes up. A sleeping camera (typically go2rtc) can take a moment to produce its first frame; the tile used to sit blank or flash a broken image while that happened. It now shows a small wake-up spinner until the picture arrives, and only settles to the placeholder when the camera genuinely won't answer. In-app bug reports also record what each camera fetch actually returned, so camera issues can be diagnosed straight from a report.",
+      "Direct (LAN/VPN) mode now keeps its zero-cloud promise to the letter. A background session-refresh timer (and the page pre-warm at app start) could still fire pointless cloud calls for a Direct printer every few minutes - no data left your network that mattered, but it was against the promise and it cluttered the server logs. Direct printers are now excluded at every level, and the server refuses such requests outright as a second line of defence.",
+      "Optional Pi plugin update (0.6.18): the plugin's external-camera relay now logs every non-picture outcome (camera busy, timeout, connection refused) to Moonraker's log, so remote-camera issues can be pinned down from the printer's log alone. No behaviour change - updating is optional and there's deliberately no update badge for it.",
+      "Also: three package updates (the QR scanner and the two web-view packages)."
+    ]
+  },
+  {
     "version": "v0.9.55",
     "bullets": [
       "Fixes the v0.9.54 dashboard: every tile could sit stuck on 'Connecting...' forever even though the printers were fine (opening a printer's page still worked). The v0.9.54 anti-flicker change accidentally stopped every status update from reaching the tiles. If your dashboard went quiet after updating, this brings it straight back - sorry about that one.",
