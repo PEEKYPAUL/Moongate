@@ -358,6 +358,7 @@ For this to work the Pi's clone must carry tags. `install.sh` uses a **blobless*
 | **State management** | Riverpod `NotifierProvider`. Avoid `StatefulWidget` for app-wide state |
 | **Colour API** | `withValues(alpha: 0.5)`, **not** the deprecated `withOpacity()` |
 | **Python** | PEP 8, type hints on public functions, zero runtime deps beyond what Moonraker already pulls in |
+| **Plugin lint** | CI runs `ruff check klipper-plugin/` with ruff **pinned** (see `.github/workflows/ci.yml`) - new ruff releases change default rules, so unpin only together with a deliberate lint cleanup |
 | **Commits** | Conventional prefixes: `feat:`, `fix:`, `docs:`, `release:`, `chore:`. Bodies wrap at ~72 cols |
 | **Pushes** | Push often. CI is the source of truth for the released APK |
 
