@@ -114,6 +114,21 @@ class PrinterWebViewCache with WidgetsBindingObserver {
     return s;
   }
 
+  /// Whether a kept-warm session should be dropped in favour of a rebuild
+  /// because it rides the tunnel while the dashboard's status poll is
+  /// currently succeeding over LAN. A session's transport is decided ONCE
+  /// (usually at app-start pre-warm, possibly off-WiFi), so without this a
+  /// tunnel-born session stays on the tunnel forever - the tile honestly
+  /// says Local while the printer page says Tunnel, paying tunnel latency
+  /// and the remote-camera limits for no reason. The poll re-probes LAN
+  /// every few seconds, so its verdict is the freshest signal available
+  /// and costs no extra probe here.
+  static bool tunnelSessionStaleOnLan({
+    required bool               sessionUsingLan,
+    required PrinterConnection? pollConnection,
+  }) =>
+      !sessionUsingLan && pollConnection == PrinterConnection.local;
+
   /// Register a freshly loaded session and start its background cookie refresh
   /// so it stays authed while off-screen.
   void store(String printerId, LiveWebSession session) {
