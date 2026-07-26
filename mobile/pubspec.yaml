@@ -41,7 +41,7 @@ dependencies:
   # QR code scanning (pairing screen).
   # 7.x rewrites the Android start path - fixes the `analysis.resolutionInfo!!`
   # NPE in 5.x that fired on Samsung One UI as `genericError / NPE getClass()`.
-  mobile_scanner: ^7.3.0
+  mobile_scanner: ^7.4.0
 
   # State management + navigation
   flutter_riverpod: ^2.5.0
