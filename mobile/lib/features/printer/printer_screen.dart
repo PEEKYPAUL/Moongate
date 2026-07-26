@@ -44,6 +44,8 @@ import 'printer_camera_screen.dart';
 ///
 /// Warm flow (re-open): re-attach to the cached controller instantly, then
 /// revalidate a LAN session in the background (it's stale if you've left home).
+/// The symmetric case is checked BEFORE re-attach: a tunnel session while the
+/// status poll runs on LAN is dropped and rebuilt on the LAN.
 class PrinterScreen extends StatefulWidget {
   final PrinterConfig printer;
   const PrinterScreen({super.key, required this.printer});
@@ -128,6 +130,21 @@ class _PrinterScreenState extends State<PrinterScreen>
     if (warm != null && _localOnly && !warm.usingLan) {
       // A live tunnel session can't be reused in Local-only - drop it and
       // cold-load below (LAN when reachable, else the local-only notice).
+      PrinterWebViewCache.instance.invalidate(widget.printer.id);
+      warm = null;
+    }
+    if (warm != null &&
+        PrinterWebViewCache.tunnelSessionStaleOnLan(
+          sessionUsingLan: warm.usingLan,
+          pollConnection:  PrinterStatusRegistry.instance
+              .snapshot(widget.printer.id)
+              ?.connection,
+        )) {
+      // The session was transport-decided once (pre-warm, possibly off-WiFi)
+      // but the tile's poll is running on LAN right now - rebuild on the
+      // better transport instead of trusting the tunnel forever. The cold
+      // load below re-probes LAN itself, so a stale poll verdict still falls
+      // through to the tunnel safely.
       PrinterWebViewCache.instance.invalidate(widget.printer.id);
       warm = null;
     }
@@ -271,8 +288,9 @@ class _PrinterScreenState extends State<PrinterScreen>
   /// only valid while you're on that network - if the address no longer answers
   /// (you've left home) drop it and reload so the tunnel takes over, rather than
   /// leaving the user on a dead page. Tunnel sessions are trusted here: the
-  /// cache's refresh timer drops them on rotation, and a hard failure still
-  /// surfaces the error overlay.
+  /// cache's refresh timer drops them on rotation, a hard failure still
+  /// surfaces the error overlay, and the tunnel-while-LAN case is already
+  /// handled before re-attach in [_start].
   Future<void> _revalidateWarm(LiveWebSession warm) async {
     if (!warm.usingLan) return;
     final stillReachable = await _isLanReachable(warm.baseUrl);

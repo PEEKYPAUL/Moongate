@@ -1,5 +1,11 @@
 [
   {
+    "version": "v0.9.57",
+    "bullets": [
+      "The printer page no longer sticks on the tunnel while you're at home (a user report: the dashboard tile said Local while the printer screen said Tunnel). The page is kept warm so re-opening it is instant, but its local-or-tunnel choice was made only once, usually when the app started - so a page first loaded away from home (or before WiFi was up) rode the tunnel forever. Opening a printer now checks the dashboard's live connection first: if your phone can currently reach the printer directly, a tunnel-riding page is rebuilt on the local network on the spot - faster Mainsail, and local-only cameras work. The refresh button always did this by hand; now it happens by itself."
+    ]
+  },
+  {
     "version": "v0.9.56",
     "bullets": [
       "The dashboard's time-remaining readout now matches Mainsail (a user report, with side-by-side screenshots: Mainsail said ~3h left while the tile said ~4h). Early in a print the old estimate extrapolated purely from elapsed time versus progress, and a print's opening minutes (brim, slow solid bottom layers) made that far too pessimistic. The app now blends the same three estimates Mainsail averages - elapsed-based, filament-used-based and the slicer's own estimate for the file - using data it already had, so the tile and the notification land within a minute or two of Mainsail's ETA. Bonus: the readout now appears in the first seconds of a print instead of hiding until 2%.",
