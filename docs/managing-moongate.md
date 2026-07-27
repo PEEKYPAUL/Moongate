@@ -6,11 +6,15 @@ Moongate has two parts - the **app** on your phone and the **plugin** on your Pi
 
 ## Updating the app
 
-When a new version is out, the app shows an **update banner** on launch. Tap **Update** and Moongate downloads the new version **inside the app** (with a progress bar), then hands it to Android's installer - just confirm the install. It installs **in place** (same signing key, so it's an upgrade, not a fresh install) and your printers and settings are kept. The first time, Android may ask you to let Moongate **install unknown apps** - allow it once, and after that an update is a single tap plus the install confirmation.
+How the app updates depends on where you installed it:
+
+**App Store (iPhone) and Google Play (Android)** - the store delivers updates like any other app; there's nothing to do inside Moongate. Store releases carry the stable channel, so a version can land there a little after the same release appears on GitHub (store review takes time).
+
+**Early-access APK (Android - GitHub Releases / KIAUH)** - the app updates itself. When a new version is out, it shows an **update banner** on launch. Tap **Update** and Moongate downloads the new version **inside the app** (with a progress bar), then hands it to Android's installer - just confirm the install. It installs **in place** (same signing key, so it's an upgrade, not a fresh install) and your printers and settings are kept. The first time, Android may ask you to let Moongate **install unknown apps** - allow it once, and after that an update is a single tap plus the install confirmation.
 
 Prefer to do it by hand? Tap **What's new** on the banner to read the changes first, or **[download the latest APK](https://github.com/PEEKYPAUL/Moongate/releases/latest)** from the Releases page and install over your existing copy. (If an in-app update ever fails - no network, or the permission declined - the app falls back to opening the download in your browser, so you're never stuck.)
 
-> As long as you **install over** the existing app (rather than uninstalling first), your identity is kept and nothing needs re-pairing.
+> As long as you **install over** the existing app (rather than uninstalling first), your identity is kept and nothing needs re-pairing. That includes **switching channels**: the Play build and the APK share a signing key, so moving between them installs in place too.
 
 ---
 

@@ -111,10 +111,11 @@ and none of these are advertising or data-broker services:
 - **Apple Push Notification service** - delivers print notifications to your
   iPhone (only if you enable notifications). The notification content is limited
   to your printer's name and print status.
-- **GitHub** - on **Android only**, the app fetches a small file to check
-  whether a newer version is available; this reveals your device's IP address to
-  GitHub as part of an ordinary web request. (On iOS, updates come from the App
-  Store and this check is not performed.)
+- **GitHub** - on the **Android early-access (APK) build only**, the app fetches
+  a small file to check whether a newer version is available; this reveals your
+  device's IP address to GitHub as part of an ordinary web request. (The Google
+  Play and App Store builds update through their store and never perform this
+  check.)
 
 These providers may process and store data on servers located in other
 countries, including outside your own. Where this involves transferring personal

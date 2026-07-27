@@ -81,7 +81,7 @@ Debug builds are unsigned, slower, and have hot-reload. Press `r` in the termina
 
 ### Release build (production-equivalent)
 
-The app builds in two **distribution flavors** (added in #178 for the Play Store): `github` (the sideloaded APK for GitHub Releases + KIAUH, which keeps the in-app self-updater) and `play` (the App Bundle for Google Play, which ships **without** the self-updater or `REQUEST_INSTALL_PACKAGES`). Because flavors now exist, `--flavor` is **required** - a bare `flutter build apk` errors with "this app has flavors". Details in [`docs/design/play-flavor-plan.md`](docs/design/play-flavor-plan.md).
+The app builds in two **distribution flavors** (added in #178 for the Play Store): `github` (the sideloaded APK for GitHub Releases + KIAUH - the **early-access channel** - which keeps the in-app self-updater) and `play` (the App Bundle for Google Play - the **stable channel**, live in production since v0.9.57 - which ships **without** the self-updater or `REQUEST_INSTALL_PACKAGES`). Because flavors now exist, `--flavor` is **required** - a bare `flutter build apk` errors with "this app has flavors". Details in [`docs/design/play-flavor-plan.md`](docs/design/play-flavor-plan.md).
 
 ```bash
 cd mobile

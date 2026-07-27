@@ -302,6 +302,8 @@ After an emergency stop the machine is **shut down**, not just idle - so the tri
 
 ## In-app update didn't install, or asks for a permission
 
+> **Early-access APK build only.** The App Store and Google Play builds update through their store and never show this flow.
+
 Tapping **Update** downloads the new version inside the app, then hands it to Android's package installer. The **first** time, Android asks you to allow Moongate to **install unknown apps** - expected for an app installed outside the Play Store. Grant it (the system jumps you straight to the toggle), come back, and tap **Update** again; after that it's a single tap plus the standard install confirmation.
 
 If the download or install fails for any reason, Moongate **falls back to opening the APK in your browser** - finish there and open it to install. Either route installs **in place** over your existing app (same signing key), so your printers and settings are kept.
