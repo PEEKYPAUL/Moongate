@@ -425,6 +425,7 @@
   "cameraHintBody": "Kamera nie ładuje się tutaj zdalnie - otwórz kamerę Moongate.",
   "cameraHintOpen": "Otwórz",
   "webcamWakingUp": "Kamera się budzi…",
+  "webcamUnreachable": "Kamera nieosiągalna, sprawdź jej adres",
   "printerUnreachable": "Drukarka nieosiągalna",
   "printerUseTunnel": "Użyj tunelu",
   "printerAddressInvalid": "Spróbuj np. 192.168.1.50:7125",

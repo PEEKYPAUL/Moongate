@@ -1366,6 +1366,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get webcamWakingUp => 'Камера просыпается…';
 
   @override
+  String get webcamUnreachable => 'Камера недоступна, проверьте её адрес';
+
+  @override
   String get printerUnreachable => 'Принтер недоступен';
 
   @override

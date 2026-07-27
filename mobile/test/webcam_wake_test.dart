@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:moongate/l10n/app_localizations.dart';
+import 'package:moongate/services/webcam_fetch_diag.dart';
 import 'package:moongate/widgets/webcam_view.dart';
 
 // The wake-window state machine: spinner while the first frame is still being
@@ -27,6 +28,8 @@ Future<void> _teardown(WidgetTester tester) async {
 }
 
 void main() {
+  setUp(WebcamFetchDiag.reset);
+
   testWidgets('waking spinner shows, then gives way to the placeholder',
       (tester) async {
     await tester.pumpWidget(_host(const WebcamView(
@@ -73,6 +76,102 @@ void main() {
     )));
     await tester.pump(const Duration(seconds: 1));
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    await _teardown(tester);
+  });
+
+  testWidgets('a token-only URL change does not resurrect an expired spinner',
+      (tester) async {
+    await tester.pumpWidget(_host(const WebcamView(
+      webcamSnapshotUrl:
+          'https://pi.example/mg-extcam?u=http%3A%2F%2F192.168.1.84%2F&mg_token=aaa',
+      uiType: 'mainsail',
+    )));
+    await tester.pump(const Duration(seconds: 30));
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+
+    // The mint rotates the token under the same camera - that must not be
+    // treated as a new camera (the field failure mode: the spinner returning
+    // forever for a dead address on every token refresh).
+    await tester.pumpWidget(_host(const WebcamView(
+      webcamSnapshotUrl:
+          'https://pi.example/mg-extcam?u=http%3A%2F%2F192.168.1.84%2F&mg_token=bbb',
+      uiType: 'mainsail',
+    )));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+
+    // A genuinely different relay target IS a new camera - fresh window.
+    await tester.pumpWidget(_host(const WebcamView(
+      webcamSnapshotUrl:
+          'https://pi.example/mg-extcam?u=http%3A%2F%2F192.168.1.83%2F&mg_token=bbb',
+      uiType: 'mainsail',
+    )));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    await _teardown(tester);
+  });
+
+  testWidgets('a run of hard failures on record skips the spinner on remount',
+      (tester) async {
+    const url = 'http://192.0.2.7/snapshot';
+    for (var i = 0; i < 6; i++) {
+      WebcamFetchDiag.record('deadcam',
+          url: url, external: true, result: 'http 502');
+    }
+
+    await tester.pumpWidget(_host(const WebcamView(
+      webcamSnapshotUrl: url,
+      printerId: 'deadcam',
+      uiType: 'mainsail',
+    )));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // No fresh 25 s of pretending - straight to the honest message.
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('Camera unreachable, check its address'), findsOneWidget);
+
+    await _teardown(tester);
+  });
+
+  testWidgets('soft failures (a genuinely waking camera) still get a spinner',
+      (tester) async {
+    const url = 'http://192.0.2.8/snapshot';
+    for (var i = 0; i < 6; i++) {
+      WebcamFetchDiag.record('wakingcam',
+          url: url, external: true, result: 'timeout');
+    }
+
+    await tester.pumpWidget(_host(const WebcamView(
+      webcamSnapshotUrl: url,
+      printerId: 'wakingcam',
+      uiType: 'mainsail',
+    )));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    await _teardown(tester);
+  });
+
+  testWidgets('natural expiry with failures on record shows the message',
+      (tester) async {
+    // With a printerId, the widget's own failing fetches (the test
+    // environment answers every request with 400) land in the diag - after
+    // the window expires the tile must say so, not show a logo that reads
+    // as still loading.
+    await tester.pumpWidget(_host(const WebcamView(
+      webcamSnapshotUrl: 'http://192.0.2.9/snapshot',
+      printerId: 'expiringcam',
+      uiType: 'mainsail',
+    )));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 30));
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('Camera unreachable, check its address'), findsOneWidget);
 
     await _teardown(tester);
   });

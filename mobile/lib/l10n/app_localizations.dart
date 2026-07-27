@@ -2500,6 +2500,12 @@ abstract class AppLocalizations {
   /// **'Camera waking up…'**
   String get webcamWakingUp;
 
+  /// Shown in the webcam box when every fetch failed and the wake window gave up - the camera is off or its address is wrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera unreachable, check its address'**
+  String get webcamUnreachable;
+
   /// Heading on the full-screen error overlay when the printer cannot be loaded.
   ///
   /// In en, this message translates to:

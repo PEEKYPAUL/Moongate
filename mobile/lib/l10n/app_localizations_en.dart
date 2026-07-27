@@ -1349,6 +1349,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get webcamWakingUp => 'Camera waking up…';
 
   @override
+  String get webcamUnreachable => 'Camera unreachable, check its address';
+
+  @override
   String get printerUnreachable => 'Printer unreachable';
 
   @override
