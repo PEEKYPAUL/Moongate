@@ -136,11 +136,43 @@ class LanDiscoveryService {
       _log('Resolved service has no host, ignoring: ${service.name}');
       return;
     }
-    final url = port == 80 ? 'http://$host' : 'http://$host:$port';
+    final url = urlForHost(host, port);
+    if (url == null) {
+      // Never store it: everything that consults this map treats a hit as
+      // better than the persisted lanUrl, so one bad answer would strand the
+      // printer on the tunnel while it sits on the same subnet (the field
+      // case: Android resolving to fe80::...%wlan0).
+      _log('Unusable resolved host for ${printerId.substring(0, 8)}... '
+          '($host), ignoring');
+      return;
+    }
     if (_discovered[printerId] != url) {
       _log('Discovered ${printerId.substring(0, 8)}... → $url');
       _discovered[printerId] = url;
     }
+  }
+
+  /// LAN URL for a resolved mDNS host, or null when the host can never work
+  /// as one. Android's resolver happily answers with IPv6 link-local
+  /// addresses carrying a zone index (`fe80::...%wlan0`) - meaningless off
+  /// the resolving interface and unusable in a URL, so they are rejected
+  /// rather than stored. A usable plain IPv6 host is bracketed; IPv4 and
+  /// hostnames pass through unchanged. Static and pure for tests.
+  static String? urlForHost(String host, int port) {
+    if (host.contains('%')) return null; // zone index = interface-scoped
+    var h = host;
+    if (h.contains(':')) {
+      // IPv6. Link-local (fe80::/10) is unroutable outside its interface -
+      // covers fe80-febf in the first hextet, any case.
+      final first = h.split(':').first.toLowerCase();
+      if (first.length == 4 &&
+          first.startsWith('fe') &&
+          '89ab'.contains(first[2])) {
+        return null;
+      }
+      h = '[$h]';
+    }
+    return port == 80 ? 'http://$h' : 'http://$h:$port';
   }
 
   /// Forget all discoveries - used on sign-out / user change.
