@@ -93,11 +93,11 @@ If a printer's chamber temperature doesn't appear on its tile even though it sho
 
 Since **v0.9.53** a printing tile shows the time left (or the projected finish time) after its temperatures. If it's missing:
 
-- **The print just started.** The readout appears once the estimate is meaningful - roughly a couple of minutes in (about 2% progress). Too early, the maths would show nonsense, so it's withheld.
+- **The print just started.** Since **v0.9.56** the readout appears within the first seconds of a print when the sliced file carries the slicer's own time estimate (almost all files do). A file without one waits until the estimate is meaningful - roughly a couple of minutes in (about 2% progress) - because too early, the maths would show nonsense.
 - **The print is paused.** A paused print's estimate can't be trusted (the print clock is frozen), so the readout hides until it resumes.
 - **The switch is off.** Check **menu → Dashboard Layout → Show time remaining** - the same place also switches between **Time left** ("~1h09m") and **Finish time** ("15:27").
 
-The tile and the print notification share the same estimate, so they always agree - but like Mainsail's ETA it's a projection from progress so far, and it settles as the print runs.
+The tile and the print notification share the same estimate, so they always agree. Since **v0.9.56** it's also computed the way **Mainsail's ETA** is - blending the slicer's estimate for the file, the filament used so far, and elapsed progress - so it should sit within a minute or two of what Mainsail shows on the same print (earlier versions extrapolated from elapsed time alone, which could read an hour or more too long early in a print). Like Mainsail's, it settles as the print runs.
 
 ## The light bulb shows the wrong state (on when the light's off)
 
@@ -145,6 +145,13 @@ The app finds printers on your network two ways: the address it learned at pairi
 - **Still stuck even with the right address typed in?** Check the router / access point for a "client isolation" or "allow WiFi devices to communicate with each other" setting - and if everything looks right, **reboot the access point**. A real field case: an AP had silently stopped forwarding traffic from its 5GHz clients to its 2.4GHz clients entirely; a reboot fixed everything at once.
 - **The Pi's IP changed** (a new DHCP lease)? Update the **Printer address** field - no need to remove or re-pair. When broadcast discovery works on your network this heals itself; the manual field is the belt-and-braces. Giving the printer a fixed IP in the router stops it recurring.
 - Guest networks and some mesh systems isolate devices from each other by design - a printer on one of those may only ever be reachable through the tunnel.
+
+## The printer page says "Tunnel" while the tile says "Local"
+
+The opposite mismatch: the dashboard tile shows **Local**, but opening the printer shows an orange **Tunnel via Moongate** in its header. The tile re-checks its route constantly, but the printer page is kept loaded in the background so re-opening it is instant - and its local-or-tunnel choice used to be made only once, when it first loaded (often at app start, before WiFi was up or away from home), so a page that started on the tunnel stayed there.
+
+- **v0.9.57 and newer fix this automatically**: opening a printer checks the dashboard's live connection first, and a tunnel-riding page is rebuilt on the local network on the spot.
+- **On older versions**, tap the **refresh** button (top right of the printer page) - it reloads the page from scratch and picks the local network when it's reachable.
 
 ## Every printer away from home shows offline (orange crossed-out cloud in the top bar)
 
