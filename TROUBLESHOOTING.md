@@ -142,6 +142,7 @@ The app finds printers on your network two ways: the address it learned at pairi
 
 - **The instant fix: set the address by hand.** Open the printer's page, tap the **pencil**, and type its LAN address into **Printer address** (e.g. `192.168.1.50`). That field exists precisely for networks where discovery can't work.
 - **Separate 2.4GHz and 5GHz WiFi names?** Many routers block broadcast discovery *between* the two bands, so a phone on the "5G" network can never discover a printer on the 2.4GHz one. The manual address fixes it; joining the same band as the printer also works.
+- **Discovery answered with an unusable address (fixed automatically in newer versions).** On some networks, broadcast discovery hands the app a special link-local IPv6 address that can't actually be used - and it used to silently replace the working address, stranding the printer on the tunnel with everything else looking healthy. The app now discards those answers and keeps the address that works; if a tile that always said Tunnel at home goes Local after updating, this was why.
 - **Still stuck even with the right address typed in?** Check the router / access point for a "client isolation" or "allow WiFi devices to communicate with each other" setting - and if everything looks right, **reboot the access point**. A real field case: an AP had silently stopped forwarding traffic from its 5GHz clients to its 2.4GHz clients entirely; a reboot fixed everything at once.
 - **The Pi's IP changed** (a new DHCP lease)? Update the **Printer address** field - no need to remove or re-pair. When broadcast discovery works on your network this heals itself; the manual field is the belt-and-braces. Giving the printer a fixed IP in the router stops it recurring.
 - Guest networks and some mesh systems isolate devices from each other by design - a printer on one of those may only ever be reachable through the tunnel.
@@ -270,7 +271,12 @@ After **any** webcam config change, tap the **refresh icon** in the top-right of
 
 ## A tile shows the logo, or a printer has no camera at all
 
-Newer app versions show a small **"Camera waking up…"** spinner in the camera box while the first picture is still being fetched - on-demand cameras (like go2rtc) genuinely take a moment to start when nobody was watching. If the spinner gives way to the **Mainsail/Fluidd logo**, the feed really isn't coming: the printer is offline or connecting, it has no camera configured, or the camera itself isn't answering. The full-screen camera view (the eye on a tile, or the camera icon on the printer page) still works whenever there's a feed.
+Newer app versions show a small **"Camera waking up…"** spinner in the camera box while the first picture is still being fetched - on-demand cameras (like go2rtc) genuinely take a moment to start when nobody was watching. The spinner gives up after about half a minute, and what replaces it tells you what's wrong:
+
+- **"Camera unreachable, check its address"** - every attempt got an error back: the address set in the tile's **gear** is wrong or stale (a camera that moved to a new IP), or nothing is listening there any more. Fix the address in the gear (or power the camera back on) and the picture returns by itself - nothing to restart. The spinner also stays gone on a camera the app already knows is dead, instead of pretending afresh every time you scroll past it.
+- The plain **Mainsail/Fluidd logo** - the feed really isn't coming for a quieter reason: the printer is offline or connecting, it has no camera configured, or the camera never answered at all.
+
+The full-screen camera view (the eye on a tile, or the camera icon on the printer page) still works whenever there's a feed.
 
 Two diagnostics if a camera stays on the logo:
 
