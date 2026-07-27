@@ -10,6 +10,7 @@
 [![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-iPhone%20%7C%20Android-6C63FF)](#quick-start)
 [![App Store](https://img.shields.io/badge/iPhone-on%20the%20App%20Store-0D96F6?logo=apple&logoColor=white)](https://apps.apple.com/gb/app/moongate-klipper-control/id6785038887)
+[![Google Play](https://img.shields.io/badge/Android-on%20Google%20Play-34A853?logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.moongate.app.moongate)
 
 <img src="docs/screenshots/generated/hero-ios.png" width="820" alt="Moongate on iPhone and Android - fleet dashboard, the full Mainsail UI in-app, and custom themes"/>
 
@@ -18,9 +19,10 @@ Free, open-source **iPhone and Android** control for your **Klipper 3D printer**
 **Prefer your own infrastructure? Run it your way.** The cloud-free **Direct (LAN/VPN)** mode talks straight to your printer over your network - or your own **WireGuard / Tailscale VPN** when you're out - and never touches the internet. [See how the two modes compare ›](#run-it-your-way)
 
 <a href="https://apps.apple.com/gb/app/moongate-klipper-control/id6785038887"><img src="https://img.shields.io/badge/Download%20on%20the%20App%20Store-0D96F6?style=for-the-badge&logo=apple&logoColor=white" alt="Download on the App Store"/></a>
-<a href="https://github.com/PEEKYPAUL/Moongate/releases/latest"><img src="https://img.shields.io/badge/%E2%AC%87%20Download%20the%20APK-6C63FF?style=for-the-badge&logo=android&logoColor=white" alt="Download the APK"/></a>
+<a href="https://play.google.com/store/apps/details?id=com.moongate.app.moongate"><img src="https://img.shields.io/badge/Get%20it%20on%20Google%20Play-34A853?style=for-the-badge&logo=googleplay&logoColor=white" alt="Get it on Google Play"/></a>
+<a href="https://github.com/PEEKYPAUL/Moongate/releases/latest"><img src="https://img.shields.io/badge/%E2%AC%87%20APK%20%E2%80%A2%20early%20access-6C63FF?style=for-the-badge&logo=android&logoColor=white" alt="Download the APK - early access channel"/></a>
 
-**🍎 Now on iPhone.** The iPhone app is [live on the App Store](https://apps.apple.com/gb/app/moongate-klipper-control/id6785038887), built from the same codebase as Android.
+**📱 Now on both stores.** Moongate is live on the [App Store](https://apps.apple.com/gb/app/moongate-klipper-control/id6785038887) and [Google Play](https://play.google.com/store/apps/details?id=com.moongate.app.moongate), built from one codebase. The stores carry the **stable releases**; the [GitHub APK](https://github.com/PEEKYPAUL/Moongate/releases/latest) is the **early-access channel** - every release lands there first, and it updates itself in-app.
 
 </div>
 
@@ -56,7 +58,7 @@ Free, open-source **iPhone and Android** control for your **Klipper 3D printer**
 - 🌍 **9 languages** - fully translated into English, German, French, Spanish, Italian, Simplified Chinese, Russian, Polish, and Brazilian Portuguese (community-contributed); choose on first launch or anytime from the menu.
 - 🎨 **Themes & layout** - **Light / Dark / fully Custom** colours, plus **Phone colours** on **Android 12+** that follow your system **Material You** wallpaper palette and light/dark setting. Custom adds your own **dashboard background image** and adjustable **tile opacity**. Restyle the whole app's text with a **36-font picker** (grouped by style), and there's a 1-3 column grid, display-size scaling, optional landscape, and a switch to **hide the floating add / reorder buttons** at the bottom (menu → Dashboard Layout) when you have a lot of printers.
 - 💾 **Backup & restore** - save your printers and settings to a file; restoring after a reinstall, or on a new phone, brings your printers **back online with no re-pairing**. Restoring **adds to** what's already on your dashboard - it never removes printers unless you choose to match the backup exactly.
-- 🔄 **In-app updates** - when a new version lands, update right inside the app: it downloads with a progress bar and installs in place - no browser detour, nothing re-paired. The dashboard also keeps the **printer side** current: a printer running an out-of-date Moongate plugin shows a small **update icon on its tile** until it's updated - tap it and (on recent plugins) **one tap updates the plugin straight from your phone**; older plugins get pointed at Mainsail's Software Updates panel.
+- 🔄 **In-app updates** (early-access APK; store builds update through their store) - when a new version lands, update right inside the app: it downloads with a progress bar and installs in place - no browser detour, nothing re-paired. The dashboard also keeps the **printer side** current: a printer running an out-of-date Moongate plugin shows a small **update icon on its tile** until it's updated - tap it and (on recent plugins) **one tap updates the plugin straight from your phone**; older plugins get pointed at Mainsail's Software Updates panel.
 
 > 🔐 **Hardened remote access** - every internet-facing request is gated by a short-lived signed token. Leaking the tunnel URL alone gives an attacker nothing but flat `401`s, with no Mainsail/Moonraker fingerprint. [How it works ›](#how-it-works)
 
@@ -146,11 +148,14 @@ Direct-mode printers work fully offline, but skip everything cloud-backed: no pr
 ### 2. Install the app
 
 [![Download on the App Store](https://img.shields.io/badge/iPhone-App%20Store-0D96F6?style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/gb/app/moongate-klipper-control/id6785038887)
-[![Download Moongate APK](https://img.shields.io/badge/%E2%AC%87%20download-Moongate%20APK-success?style=for-the-badge)](https://github.com/PEEKYPAUL/Moongate/releases/latest)
+[![Get it on Google Play](https://img.shields.io/badge/Android-Google%20Play-34A853?style=for-the-badge&logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.moongate.app.moongate)
+[![Download Moongate APK](https://img.shields.io/badge/%E2%AC%87%20APK-early%20access-6C63FF?style=for-the-badge&logo=android&logoColor=white)](https://github.com/PEEKYPAUL/Moongate/releases/latest)
 
 **iPhone** - get it on the [App Store](https://apps.apple.com/gb/app/moongate-klipper-control/id6785038887).
 
-**Android** - enable **Install from unknown sources** for your browser or file manager, then open the APK. Every release lives on the [Releases page](https://github.com/PEEKYPAUL/Moongate/releases).
+**Android** - get it on [Google Play](https://play.google.com/store/apps/details?id=com.moongate.app.moongate) (recommended - stable releases, updated automatically by the store).
+
+**Android early access** - want each release the day it ships? Grab the APK from the [Releases page](https://github.com/PEEKYPAUL/Moongate/releases) instead: enable **Install from unknown sources** for your browser or file manager, then open the APK. From then on it updates itself in-app. It's signed with the same key as the Play build, so you can move between the two channels later without losing your printers.
 
 ### 3. Pair
 
