@@ -35,12 +35,32 @@ class WebcamFetchDiag {
     entry['external'] = external;
     entry['last_attempt'] = now;
     entry['last_result']  = result;
+    // The relay form (/mg-extcam?u=...) hides which camera actually failed
+    // once the query is redacted - surface the u= target, itself redacted,
+    // so a bug report names the address that's bouncing.
+    final target = Uri.tryParse(url)?.queryParameters['u'];
+    if (target != null && target.isNotEmpty) {
+      entry['target'] = redactUrl(target);
+    } else {
+      entry.remove('target');
+    }
     if (ok) {
       entry['last_success'] = now;
       entry['consecutive_failures'] = 0;
+      entry['consecutive_hard']     = 0;
     } else {
       entry['consecutive_failures'] =
           ((entry['consecutive_failures'] as int?) ?? 0) + 1;
+      // Hard = something answered "no" (an HTTP status, a refused or
+      // unroutable connection). Timeouts and empty bodies stay soft - that's
+      // what a genuinely waking on-demand camera produces, and the wake
+      // window treats the two classes differently.
+      if (result == 'error' || result.startsWith('http ')) {
+        entry['consecutive_hard'] =
+            ((entry['consecutive_hard'] as int?) ?? 0) + 1;
+      } else {
+        entry['consecutive_hard'] = 0;
+      }
     }
     entry['attempts'] = ((entry['attempts'] as int?) ?? 0) + 1;
   }
@@ -59,4 +79,29 @@ class WebcamFetchDiag {
     final entry = _byPrinter[printerId];
     return entry == null ? null : Map.unmodifiable(entry);
   }
+
+  /// Consecutive failed fetches (any kind) recorded for this printer against
+  /// the same (redacted) URL - zero when the URL changed or nothing is
+  /// recorded yet. The wake window's expired state shows the "unreachable"
+  /// message only when this is non-zero (failures actually on record).
+  static int consecutiveFailures(String? printerId, String url) {
+    final entry = printerId == null ? null : _byPrinter[printerId];
+    if (entry == null || entry['url'] != redactUrl(url)) return 0;
+    return (entry['consecutive_failures'] as int?) ?? 0;
+  }
+
+  /// Consecutive HARD failures (HTTP status / refused connection) for this
+  /// printer against the same (redacted) URL. These counters outlive the
+  /// webcam widget, so the wake window can skip the optimistic spinner for a
+  /// camera this session already knows is dead instead of restarting it on
+  /// every remount (grid scroll, app reopen).
+  static int consecutiveHardFailures(String? printerId, String url) {
+    final entry = printerId == null ? null : _byPrinter[printerId];
+    if (entry == null || entry['url'] != redactUrl(url)) return 0;
+    return (entry['consecutive_hard'] as int?) ?? 0;
+  }
+
+  /// Test hook - the per-printer map is process-global state, so tests clear
+  /// it between cases. Production never calls this.
+  static void reset() => _byPrinter.clear();
 }

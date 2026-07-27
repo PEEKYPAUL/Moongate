@@ -18,6 +18,15 @@ import '../services/webcam_fetch_diag.dart';
 /// window has to survive several slow attempts before giving up.
 const _kWakeWindow = Duration(seconds: 25);
 
+/// Consecutive HARD failures (HTTP errors, refused connections) in the
+/// session-wide fetch history at which a remounting widget skips the
+/// optimistic spinner and starts in the honest expired state. A genuinely
+/// waking on-demand camera produces timeouts and empty bodies - soft results
+/// that never count toward this - so mid-wake remounts still get a spinner,
+/// while a dead address stops getting a fresh 25 s of pretending on every
+/// grid scroll or app reopen.
+const _kDeadCameraThreshold = 6;
+
 // ── Shared webcam renderer ────────────────────────────────────────────────────
 //
 // Self-paced snapshot-fetch loop, shared between the dashboard tile preview and
@@ -101,7 +110,7 @@ class _WebcamViewState extends ConsumerState<WebcamView>
   bool _appPaused = false;
 
   /// True once the wake window expired without a single frame - build() then
-  /// shows the honest plain placeholder instead of the waking spinner.
+  /// shows the honest unreachable/placeholder state instead of the spinner.
   bool _wakeExpired = false;
   Timer? _wakeTimer;
 
@@ -109,7 +118,7 @@ class _WebcamViewState extends ConsumerState<WebcamView>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _armWakeWindow();
+    _armWakeWindow(duringInit: true);
     _loop();
   }
 
@@ -123,12 +132,28 @@ class _WebcamViewState extends ConsumerState<WebcamView>
   @override
   void didUpdateWidget(WebcamView old) {
     super.didUpdateWidget(old);
-    // A changed URL (transport flipped LAN<->tunnel, webcam re-detected) is a
-    // fresh chance at a first frame - restart the wake window.
-    if (old.webcamSnapshotUrl != widget.webcamSnapshotUrl &&
+    // A changed camera (transport flipped LAN<->tunnel, webcam re-detected,
+    // gear override edited) is a fresh chance at a first frame - restart the
+    // wake window. Compared minus the rotating mg_token: a token refresh is
+    // the same camera and must not resurrect the spinner for a dead one.
+    if (_cameraKey(old.webcamSnapshotUrl) !=
+            _cameraKey(widget.webcamSnapshotUrl) &&
         _currentBytes == null) {
       _armWakeWindow();
     }
+  }
+
+  /// Camera identity for wake-window purposes: the snapshot URL minus the
+  /// short-lived mg_token. Everything else (host, path, the relay's u=
+  /// target) genuinely names a camera; the token just rotates under it.
+  static String? _cameraKey(String? url) {
+    if (url == null || url.isEmpty) return url;
+    final u = Uri.tryParse(url);
+    if (u == null || !u.queryParameters.containsKey('mg_token')) return url;
+    final q  = Map.of(u.queryParameters)..remove('mg_token');
+    final qs = q.entries.map((e) => '${e.key}=${e.value}').join('&');
+    final port = u.hasPort ? ':${u.port}' : '';
+    return '${u.scheme}://${u.host}$port${u.path}?$qs';
   }
 
   @override
@@ -144,12 +169,31 @@ class _WebcamViewState extends ConsumerState<WebcamView>
   /// window doesn't burn while the loop idles in the background mid-count,
   /// and so widget tests can advance it with pump(). No-ops without a URL
   /// (nothing is being fetched, the plain placeholder is already honest).
-  void _armWakeWindow() {
+  /// [duringInit] skips setState - fields are read by the first build anyway.
+  void _armWakeWindow({bool duringInit = false}) {
     if (_currentBytes != null) return;
     _wakeTimer?.cancel();
     final url = widget.webcamSnapshotUrl;
     if (url == null || url.isEmpty) return;
-    if (_wakeExpired) setState(() => _wakeExpired = false);
+    void setExpired(bool v) {
+      if (_wakeExpired == v) return;
+      if (duringInit) {
+        _wakeExpired = v;
+      } else {
+        setState(() => _wakeExpired = v);
+      }
+    }
+
+    // A camera whose session-wide history is a run of hard failures gets no
+    // fresh optimism - the fetch history outlives the widget, so a grid
+    // scroll or app reopen must not restart the spinner for a dead address.
+    // The loop still fetches; a later success lands frames as ever.
+    if (WebcamFetchDiag.consecutiveHardFailures(widget.printerId, url) >=
+        _kDeadCameraThreshold) {
+      setExpired(true);
+      return;
+    }
+    setExpired(false);
     _wakeTimer = Timer(_kWakeWindow, () {
       if (mounted && _currentBytes == null) {
         setState(() => _wakeExpired = true);
@@ -351,8 +395,22 @@ class _WebcamViewState extends ConsumerState<WebcamView>
     // - there's nothing to wake.
     final waking =
         bytes == null && url != null && url.isNotEmpty && !_wakeExpired;
-    WebcamFetchDiag.recordShowing(widget.printerId,
-        bytes != null ? 'frames' : (waking ? 'waking' : 'placeholder'));
+    // Unreachable = the window gave up AND the fetch history holds nothing
+    // but failures for this camera - say so instead of showing a logo that
+    // reads as "still loading". Without recorded failures (no printerId, or
+    // a fetch still in flight at expiry) the plain placeholder stays.
+    final unreachable = bytes == null && url != null && url.isNotEmpty &&
+        _wakeExpired &&
+        WebcamFetchDiag.consecutiveFailures(widget.printerId, url) > 0;
+    WebcamFetchDiag.recordShowing(
+        widget.printerId,
+        bytes != null
+            ? 'frames'
+            : waking
+                ? 'waking'
+                : unreachable
+                    ? 'unreachable'
+                    : 'placeholder');
     Widget image = bytes != null
         ? Image.memory(bytes, fit: widget.fit, gaplessPlayback: true)
         : Container(
@@ -360,7 +418,9 @@ class _WebcamViewState extends ConsumerState<WebcamView>
             child: Center(
                 child: waking
                     ? const _WebcamWaking()
-                    : _WebcamPlaceholder(uiType: widget.uiType)),
+                    : unreachable
+                        ? const _WebcamUnreachable()
+                        : _WebcamPlaceholder(uiType: widget.uiType)),
           );
 
     // Apply the webcam display transforms Mainsail has configured, so the image
@@ -419,6 +479,39 @@ class _WebcamWaking extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Text(
             l.webcamWakingUp,
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Unreachable camera ────────────────────────────────────────────────────────
+//
+// The wake window gave up with nothing but failures on record: the camera's
+// address is wrong, the camera is off, or the relay can't reach it. Saying so
+// beats both an eternal spinner and a logo that reads as "still loading". The
+// fetch loop keeps trying behind it, so a camera that comes back (or a fixed
+// gear override) replaces this with frames on the next successful fetch.
+
+class _WebcamUnreachable extends StatelessWidget {
+  const _WebcamUnreachable();
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.videocam_off_outlined,
+            size: 30, color: Colors.white38),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Text(
+            l.webcamUnreachable,
             style: const TextStyle(color: Colors.white54, fontSize: 12),
             textAlign: TextAlign.center,
           ),

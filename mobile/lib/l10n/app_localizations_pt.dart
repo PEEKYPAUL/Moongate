@@ -1371,6 +1371,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get webcamWakingUp => 'A câmera está acordando…';
 
   @override
+  String get webcamUnreachable => 'Câmera inacessível, verifique o endereço';
+
+  @override
   String get printerUnreachable => 'Impressora inacessível';
 
   @override

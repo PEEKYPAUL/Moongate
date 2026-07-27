@@ -1372,6 +1372,10 @@ class AppLocalizationsIt extends AppLocalizations {
   String get webcamWakingUp => 'La telecamera si sta attivando…';
 
   @override
+  String get webcamUnreachable =>
+      'Telecamera irraggiungibile, controlla l\'indirizzo';
+
+  @override
   String get printerUnreachable => 'Stampante irraggiungibile';
 
   @override

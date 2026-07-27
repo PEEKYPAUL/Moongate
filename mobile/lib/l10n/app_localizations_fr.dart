@@ -1380,6 +1380,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get webcamWakingUp => 'La caméra se réveille…';
 
   @override
+  String get webcamUnreachable => 'Caméra injoignable, vérifiez son adresse';
+
+  @override
   String get printerUnreachable => 'Imprimante injoignable';
 
   @override
