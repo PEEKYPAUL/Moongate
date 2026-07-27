@@ -233,7 +233,7 @@ The auth proxy is even more constrained - it doesn't talk to Klipper at all, it 
 
 ## In-app updater (v0.9.17)
 
-> Applies to the **GitHub / KIAUH sideload build** only. As of #178 the Google Play build is a separate flavor that ships **without** the self-updater and **without** `REQUEST_INSTALL_PACKAGES` - Google Play delivers its updates instead.
+> Applies to the **GitHub / KIAUH early-access (sideload) build** only. As of #178 the Google Play build is a separate flavor that ships **without** the self-updater and **without** `REQUEST_INSTALL_PACKAGES` - Google Play delivers its updates instead, and the App Store does the same for the iPhone build.
 
 The update banner can download and install a new version **without leaving the app** (Android only, sideload build). That adds the `REQUEST_INSTALL_PACKAGES` permission and a `FileProvider`, so it's worth stating what it can and can't do:
 

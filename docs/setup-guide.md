@@ -1,5 +1,7 @@
 # Moongate - Setup Guide
 
+> **This is the original v0.4-era guide, kept for reference.** The current, always-up-to-date setup lives in the **[README Quick start](../README.md#quick-start)** - and the app is now on the **[App Store](https://apps.apple.com/gb/app/moongate-klipper-control/id6785038887)** and **[Google Play](https://play.google.com/store/apps/details?id=com.moongate.app.moongate)** as well as the [early-access APK](https://github.com/PEEKYPAUL/Moongate/releases/latest).
+
 ## Requirements
 
 ### On your Raspberry Pi
@@ -9,7 +11,7 @@
 
 ### On your Android phone
 - Android 8.0 (Oreo) or later
-- "Install from unknown sources" enabled for the app you'll use to install the APK (browser or file manager)
+- Installing from [Google Play](https://play.google.com/store/apps/details?id=com.moongate.app.moongate) needs nothing extra; for the early-access APK, enable "Install from unknown sources" for the app you'll use to install it (browser or file manager)
 - The phone needs to be on the same WiFi as the Pi for pairing - both sides of the QR exchange are LAN-only by design
 
 ### To build from source (optional)
@@ -49,9 +51,9 @@ At the end you'll see:
 
 ## Step 2 - Install the app
 
-Download the latest APK from the [APK folder](https://github.com/PEEKYPAUL/Moongate/tree/master/APK) and install it on your phone.
+Get Moongate on the [App Store](https://apps.apple.com/gb/app/moongate-klipper-control/id6785038887) (iPhone) or [Google Play](https://play.google.com/store/apps/details?id=com.moongate.app.moongate) (Android). Want each release the day it ships? Grab the Android **early-access APK** from the [Releases page](https://github.com/PEEKYPAUL/Moongate/releases/latest) instead - it updates itself in-app.
 
-> Latest public release: **v0.4.2** - the version this guide describes.
+> This guide was written for **v0.4.2**; the flow it describes is unchanged, but see the [README Quick start](../README.md#quick-start) for the current version.
 
 ---
 
