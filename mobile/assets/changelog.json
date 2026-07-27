@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.9.58",
+    "bullets": [
+      "Webcam tiles now tell you when a camera can't be reached instead of spinning forever. If a camera's address is wrong, or the camera is off, the waking spinner used to restart endlessly and look like it was forever about to connect. After a few outright connection failures the tile now says \"Camera unreachable, check its address\" (in all 9 languages), so a typo'd address or a powered-down camera is obvious at a glance. Fix the address or the camera and the picture comes back as before. Thanks to the field report that caught it.",
+      "Fixed printers on your own WiFi being stuck on the tunnel. On some phones, local network discovery could answer with a link-local IPv6 address (fe80::...) that apps can't actually connect to - and because a freshly discovered address is trusted over the saved one, storing it quietly broke the direct local connection for a printer sitting on the same network. Unusable addresses are now rejected before they're ever stored, so discovery can no longer poison the local path."
+    ]
+  },
+  {
     "version": "v0.9.57",
     "bullets": [
       "The printer page no longer sticks on the tunnel while you're at home (a user report: the dashboard tile said Local while the printer screen said Tunnel). The page is kept warm so re-opening it is instant, but its local-or-tunnel choice was made only once, usually when the app started - so a page first loaded away from home (or before WiFi was up) rode the tunnel forever. Opening a printer now checks the dashboard's live connection first: if your phone can currently reach the printer directly, a tunnel-riding page is rebuilt on the local network on the spot - faster Mainsail, and local-only cameras work. The refresh button always did this by hand; now it happens by itself."
