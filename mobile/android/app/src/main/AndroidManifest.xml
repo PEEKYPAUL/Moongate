@@ -40,6 +40,16 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Tap-to-pair: the Pi's moongate-pair.html offers its QR payload
+                 (moongate://pair / moongate://lan) as a tappable link for the
+                 no-second-screen case. app_links receives it and routes to the
+                 pairing screen; the QR scanner parses the same URIs. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="moongate"/>
+            </intent-filter>
         </activity>
 
         <!-- Don't delete the meta-data below.

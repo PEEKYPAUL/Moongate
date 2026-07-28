@@ -20,6 +20,7 @@ import 'providers/app_lock_provider.dart';
 import 'providers/custom_theme_provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/update_provider.dart';
+import 'services/deep_link_service.dart';
 import 'services/lan_discovery_service.dart';
 import 'services/printer_registry.dart';
 
@@ -32,7 +33,12 @@ final _router = GoRouter(
       redirect: (_, __) => '/dashboard',
     ),
     GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
-    GoRoute(path: '/pair', builder: (_, __) => const PairingScreen()),
+    GoRoute(
+      path: '/pair',
+      // extra carries a tapped moongate:// link (DeepLinkService) so the
+      // pairing screen can stage it exactly as if its scanner had read it.
+      builder: (_, state) => PairingScreen(initialUri: state.extra as String?),
+    ),
     GoRoute(
       path: '/printer/:id',
       builder: (_, state) {
@@ -82,6 +88,7 @@ class _MoongateAppState extends ConsumerState<MoongateApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    DeepLinkService.instance.start(_router);
   }
 
   @override

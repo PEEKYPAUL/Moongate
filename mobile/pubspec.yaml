@@ -130,6 +130,12 @@ dependencies:
   # cells (the package needs them) while the masonry above is the normal view.
   reorderable_grid_view: ^2.2.8
 
+  # Tap-to-pair deep links: the Pi's pair page offers its moongate:// QR
+  # payload as a tappable link (DeepLinkService routes it to the pairing
+  # screen). Was already in the graph transitively via supabase_flutter; the
+  # 6.x pin below (dependency_overrides) still governs the resolved version.
+  app_links: ^6.4.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
