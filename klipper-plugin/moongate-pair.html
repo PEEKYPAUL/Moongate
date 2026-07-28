@@ -47,6 +47,9 @@
       margin-top: 16px; font-size: 0.7rem; color: #555;
       word-break: break-all; line-height: 1.4;
     }
+    .tap-hint {
+      margin-top: 8px; font-size: 0.75rem; color: #777; line-height: 1.4;
+    }
     .badge {
       display: inline-block; margin-bottom: 20px; padding: 4px 10px;
       border-radius: 20px; font-size: 0.75rem; font-weight: 600;
@@ -62,6 +65,7 @@
   <div id="badges"></div>
   <div id="qr-wrap"><div class="spinner"></div></div>
   <div id="msg"></div>
+  <div id="tap"></div>
 
   <div class="step"><span>1</span>Run <code>MOONGATE_PAIR</code> in your Klipper console</div>
   <div class="step"><span>2</span>Open the Moongate app &rarr; tap <strong>Add Printer</strong></div>
@@ -102,9 +106,11 @@ async function load() {
   const wrap = document.getElementById('qr-wrap');
   const msg  = document.getElementById('msg');
   const bdg  = document.getElementById('badges');
+  const tap  = document.getElementById('tap');
   wrap.innerHTML = '<div class="spinner"></div>';
   msg.innerHTML  = '';
   bdg.innerHTML  = '';
+  tap.innerHTML  = '';
 
   // 1. Fetch QR URL from Moonraker
   let qr_url, tunnel_url;
@@ -128,6 +134,16 @@ async function load() {
   bdg.innerHTML =
     '<span class="badge local">Local</span>' +
     (hasRemote ? ' <span class="badge remote">Remote ✓</span>' : '');
+
+  // 2b. Tap-to-pair: the QR payload is a moongate:// link, so on the phone
+  // that has the app installed the QR never needs a second screen - tapping
+  // hands the same payload straight to the app. Apps older than the deep-link
+  // support ignore the tap, hence the honest hint underneath.
+  tap.innerHTML = `
+    <a class="btn" href="${qr_url}">Pairing with this phone? Tap here</a>
+    <p class="tap-hint">Nothing happened? Your Moongate app doesn't support
+    tap-pairing yet - scan the QR from another screen, or add the printer
+    manually in the app instead.</p>`;
 
   // 3. Load QR library and render
   const loaded = await loadQRLib();

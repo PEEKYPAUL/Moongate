@@ -82,7 +82,7 @@ logger = logging.getLogger("moonraker.moongate")
 # Bumped on each release; surfaced in the /status response so the app's bug
 # reports show which plugin a Pi is actually running - the #1 triage blind spot
 # (an old plugin explains most "works on LAN / fails over tunnel" reports).
-MOONGATE_PLUGIN_VERSION = "0.6.18"
+MOONGATE_PLUGIN_VERSION = "0.6.19"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -615,12 +615,20 @@ class HeartbeatLoop:
         interval: int,
         on_unpaired_cb=None,
         on_dormant_cb=None,
+        pending_pair_cb=None,
     ) -> None:
         self.device      = device
         self.sb          = sb
         self.interval    = interval
         self.on_unpaired = on_unpaired_cb
         self.on_dormant  = on_dormant_cb
+        # Answers "is a pairing session open right now?" (an un-redeemed,
+        # un-expired GATE code). Consulted by the 404/410 handlers: while a
+        # user is mid-pair the row's absence is EXPECTED (reset-owner released
+        # it; the replacement only appears when the code is redeemed), so it
+        # must not put the loop to sleep - that stranded a re-pair with no
+        # heartbeat for up to 6 h (Lucas, 2026-07-28).
+        self.pending_pair = pending_pair_cb
         self._task: Optional[asyncio.Task] = None
         self._last_url_reported: Optional[str] = None
         # Orphan dormancy (v0.6.15). A Pi whose cloud row is gone for good
@@ -789,7 +797,13 @@ class HeartbeatLoop:
             # no new row is coming, so we must NOT keep re-arming or it would
             # spin at 5 s forever (~720 calls/hour). Left alone the window lapses
             # and the loop falls back to the steady cadence (~12 calls/hour).
-            if self._last_url_reported is not None:
+            #
+            # Exception: an OPEN pairing session keeps re-arming. The row
+            # appears the instant the user redeems the GATE code, and the fast
+            # cadence is what turns that into a live tile within ~5 s. Bounded
+            # by the code's TTL (the callback answers False once it expires),
+            # so the worst case is one TTL of fast polling per MOONGATE_PAIR.
+            if self._pair_in_flight() or self._last_url_reported is not None:
                 self._fast_deadline = time.time() + self._FAST_WINDOW_SECONDS
             self._last_url_reported = None
             if self.on_unpaired:
@@ -815,7 +829,21 @@ class HeartbeatLoop:
                 except Exception as exc:
                     logger.warning("on_unpaired callback failed: %s", exc)
             if body.get("error") == "printer_released":
-                self._enter_dormant("released by its owner")
+                if self._pair_in_flight():
+                    # The reset-owner → re-pair race (0.6.15 regression): the
+                    # poke MOONGATE_PAIR sends lands here BEFORE the user has
+                    # redeemed the new GATE code, so the only row is the
+                    # tombstone. Dorming now would leave the freshly-claimed
+                    # row with no tunnel URL for up to 6 h ("app can't
+                    # connect"). Stay awake on the fast cadence instead; once
+                    # the code is redeemed the next beat lands 200, and once
+                    # it expires un-redeemed the next 410 dorms as designed.
+                    logger.info(
+                        "Heartbeat 410 during an open pairing session - "
+                        "staying awake until the code is redeemed or expires")
+                    self._fast_deadline = time.time() + self._FAST_WINDOW_SECONDS
+                else:
+                    self._enter_dormant("released by its owner")
             return
         if status == 401:
             skew = self.sb.clock_skew_seconds()
@@ -837,6 +865,14 @@ class HeartbeatLoop:
     @property
     def dormant(self) -> bool:
         return self._dormant
+
+    def _pair_in_flight(self) -> bool:
+        """True while an un-redeemed, un-expired GATE code is outstanding."""
+        try:
+            return bool(self.pending_pair and self.pending_pair())
+        except Exception as exc:
+            logger.warning("pending_pair callback failed: %s", exc)
+            return False
 
     def _note_confirmed_notfound(self) -> None:
         """Advance the orphan evidence: one more confirmed "no such printer"
@@ -1083,6 +1119,10 @@ class MoongatePlugin:
                 int(self._config["heartbeat_interval_seconds"]),
                 on_unpaired_cb=self._on_unpaired,
                 on_dormant_cb=self._on_dormant,
+                pending_pair_cb=lambda: (
+                    self._pending is not None
+                    and time.time() < self._pending.expires_at
+                ),
             )
             self.watcher   = PrintEventWatcher(
                 self.device, self.sb,
@@ -1319,19 +1359,20 @@ class MoongatePlugin:
             ttl_min = int(self._config["enrollment_ttl_seconds"]) // 60
             lines = [
                 "M118 ==========================================",
-                f"M118 MOONGATE CODE: {pending.raw_token}",
+                "M118 Moongate pairing",
                 "M118 ==========================================",
-                "M118 DO NOT SHARE the code above.",
-                "M118 If shared by accident: MOONGATE_RESET_OWNER",
-                "M118 ==========================================",
-                "M118 Option A - Scan the QR. Open this URL on a",
-                "M118 PC, tablet, or other phone:",
+                "M118 RECOMMENDED - Scan the QR code.",
+                "M118 Open this URL on a PC, tablet, or",
+                "M118 another phone:",
                 f"M118   {local_page}",
-                "M118 then scan the QR with the Moongate app",
+                "M118 then scan it with the Moongate app",
                 "M118 (Add Printer > Scan QR code).",
                 "M118 ==========================================",
-                "M118 Option B - Type the code in the app:",
-                "M118 Add Printer > GATE code field.",
+                "M118 ALTERNATIVE - GATE code. Type it in the",
+                "M118 app: Add Printer > GATE code field.",
+                f"M118   {pending.raw_token}",
+                "M118 DO NOT SHARE this code.",
+                "M118 If shared by accident: MOONGATE_RESET_OWNER",
                 "M118 ==========================================",
                 f"M118 Code expires in {ttl_min} minutes.",
             ]
@@ -1363,14 +1404,15 @@ class MoongatePlugin:
                 "M118 ==========================================",
                 "M118 Moongate LAN-only (no tunnel, no cloud)",
                 "M118 ==========================================",
-                "M118 Option A - Scan the QR. Open this URL on a",
-                "M118 PC, tablet, or other phone:",
+                "M118 RECOMMENDED - Scan the QR code.",
+                "M118 Open this URL on a PC, tablet, or",
+                "M118 another phone:",
                 f"M118   {local_page}",
                 "M118 then scan it with the Moongate app",
                 "M118 (Add Printer > Scan QR code).",
                 "M118 ==========================================",
-                "M118 Option B - Add Printer > Direct (LAN/VPN),",
-                "M118 enter this address:",
+                "M118 ALTERNATIVE - Add Printer > Direct",
+                "M118 (LAN/VPN), enter this address:",
                 f"M118   {lan_addr}",
                 "M118 ==========================================",
                 "M118 Your phone must be on this LAN / your VPN.",
