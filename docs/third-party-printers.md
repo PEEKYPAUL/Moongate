@@ -170,6 +170,15 @@ wall of JSON including the plugin version.
   against piling on plugins. LAN-only Moongate is about as light as they
   come (no tunnel, no timers, no outbound calls), but temper expectations
   accordingly.
+- **Measured footprint, for the curious:** loading the module into an
+  already-running Moonraker costs about **1 MB of RAM** on a 32-bit Pi
+  (expect low single digits on other boards/Python versions) - for scale,
+  Moonraker itself runs ~19 MB on a Centauri Carbon. On disk the whole
+  install is the one plugin file plus the ~2 MB components copy the
+  bind-mount needs. If you measure something wildly different on your
+  machine, please open an issue with the numbers - `grep VmRSS
+  /proc/<moonraker-pid>/status` before and after is the comparison that
+  counts.
 
 ### Uninstalling
 
