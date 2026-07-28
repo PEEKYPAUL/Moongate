@@ -55,34 +55,60 @@ from typing import Any, Dict, Optional
 # signing, token verification). LAN-only installs never touch them, and the
 # embedded hosts in docs/third-party-printers.md (no pip, no prebuilt wheels)
 # can't install them at all - so their absence must not stop the module from
-# loading. _CLOUD_DEPS_ERROR doubles as the "why" surfaced in the log, the
+# loading.
+#
+# v0.6.20: the import moved from module level into _import_cloud_deps(),
+# called only when CLOUD mode constructs. A module-level try-import still
+# LOADED the pair whenever they happened to be installed, and a
+# present-but-unused cryptography costs ~6.5 MB of RSS inside Moonraker
+# (measured on a 32-bit Pi: module import ~1 MB without the pair, ~7.5 MB
+# with) - real money on the ~112 MB embedded hosts LAN-only exists for.
+# _CLOUD_DEPS_ERROR doubles as the "why" surfaced in the log, the
 # MOONGATE_PAIR console output and error responses when a CLOUD-mode box is
-# missing them.
-try:
-    import jwt as pyjwt  # PyJWT
-    from cryptography.hazmat.primitives import serialization
-    from cryptography.hazmat.primitives.asymmetric.ed25519 import (
-        Ed25519PrivateKey,
-        Ed25519PublicKey,
-    )
-    _CLOUD_DEPS_ERROR: Optional[str] = None
-except ImportError as _deps_exc:
-    pyjwt             = None  # type: ignore[assignment]
-    serialization     = None  # type: ignore[assignment]
-    Ed25519PrivateKey = None  # type: ignore[assignment]
-    Ed25519PublicKey  = None  # type: ignore[assignment]
-    _CLOUD_DEPS_ERROR = (
-        f"cloud dependencies unavailable ({_deps_exc}); cloud pairing and "
-        "heartbeats are disabled. Install PyJWT[crypto] + cryptography into "
-        "Moonraker's Python, or run LAN-only (lan_only: true)."
-    )
+# missing them; it stays None until cloud construction first probes.
+pyjwt             = None  # type: ignore[assignment]
+serialization     = None  # type: ignore[assignment]
+Ed25519PrivateKey = None  # type: ignore[assignment]
+Ed25519PublicKey  = None  # type: ignore[assignment]
+_CLOUD_DEPS_ERROR: Optional[str] = None
+_CLOUD_DEPS_PROBED = False
+
+
+def _import_cloud_deps() -> Optional[str]:
+    """Import PyJWT + cryptography into the module globals, once. Returns
+    None on success, else the human-readable reason (also kept in
+    _CLOUD_DEPS_ERROR). Idempotent - the verdict is cached either way."""
+    global pyjwt, serialization, Ed25519PrivateKey, Ed25519PublicKey
+    global _CLOUD_DEPS_ERROR, _CLOUD_DEPS_PROBED
+    if _CLOUD_DEPS_PROBED:
+        return _CLOUD_DEPS_ERROR
+    _CLOUD_DEPS_PROBED = True
+    try:
+        import jwt as _pyjwt  # PyJWT
+        from cryptography.hazmat.primitives import serialization as _serialization
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+            Ed25519PrivateKey as _priv,
+            Ed25519PublicKey as _pub,
+        )
+    except ImportError as exc:
+        _CLOUD_DEPS_ERROR = (
+            f"cloud dependencies unavailable ({exc}); cloud pairing and "
+            "heartbeats are disabled. Install PyJWT[crypto] + cryptography into "
+            "Moonraker's Python, or run LAN-only (lan_only: true)."
+        )
+        return _CLOUD_DEPS_ERROR
+    pyjwt             = _pyjwt
+    serialization     = _serialization
+    Ed25519PrivateKey = _priv
+    Ed25519PublicKey  = _pub
+    return None
 
 logger = logging.getLogger("moonraker.moongate")
 
 # Bumped on each release; surfaced in the /status response so the app's bug
 # reports show which plugin a Pi is actually running - the #1 triage blind spot
 # (an old plugin explains most "works on LAN / fails over tunnel" reports).
-MOONGATE_PLUGIN_VERSION = "0.6.19"
+MOONGATE_PLUGIN_VERSION = "0.6.20"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1097,8 +1123,11 @@ class MoongatePlugin:
         # still loads (the LAN endpoints keep working) and says exactly what
         # is wrong in the log and its error responses instead of crashing
         # Moonraker.
-        self._plugin_error = None if self.lan_only else _CLOUD_DEPS_ERROR
-        cloud_ready        = not self.lan_only and _CLOUD_DEPS_ERROR is None
+        # LAN-only never probes the cloud deps, so a host that happens to have
+        # PyJWT/cryptography installed doesn't pay their ~6.5 MB for machinery
+        # that is never constructed (v0.6.20; the embedded-host RAM complaint).
+        self._plugin_error = None if self.lan_only else _import_cloud_deps()
+        cloud_ready        = not self.lan_only and self._plugin_error is None
 
         self.owner = OwnerState.load(self._owner_file)
         if cloud_ready:
