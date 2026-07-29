@@ -331,11 +331,14 @@ This appears when the printer's cloud registration is gone - usually because the
 
 To reconnect it to the app, just run **`MOONGATE_PAIR`** in the Klipper console and pair as normal - pairing instantly wakes the plugin, no restart or reinstall needed.
 
+**Saw this message right after running `MOONGATE_PAIR`, and the printer stayed offline in the app even though pairing succeeded?** That was a bug in plugin 0.6.15-0.6.18: the quiet-down could kick in mid-pair, so the freshly paired printer never told the cloud its address and sat "offline" or "Starting up…" in the app. **Fixed in plugin 0.6.19** - update via Mainsail's Software Updates (or the amber tile icon). On an older plugin the workaround is simple: after the printer appears in the app, run `MOONGATE_PAIR` once more (or restart the Pi) - the tile comes alive within seconds, and the extra pairing code it prints just expires unused.
+
 ## QR scan won't work / camera fails
 
 - Grant camera permission when prompted, or via **Settings → Apps → Moongate → Permissions → Camera**.
 - The QR scanner only works in **release** builds with the ProGuard rules in [`mobile/android/app/proguard-rules.pro`](mobile/android/app/proguard-rules.pro). Debug builds also work; R8 doesn't run in debug.
 - If the camera opens but fails to read the code: type the **GATE code** instead. Tap **+** to open Add Printer; the two 4-digit boxes for the `GATE-XXXX-XXXX` code shown in the Klipper console are right below the Scan QR button (numpad keyboard).
+- **Only have the one phone** (the QR ends up on the same screen that would scan it)? Type the GATE code as above, or for a Direct (LAN/VPN) printer just enter its address. Newer plugins also show a **"Pairing with this phone? Tap here"** button on the pair page - if tapping it does nothing, your app version doesn't support tap-pairing yet (it arrives in an upcoming update); use the code or address route meanwhile.
 
 ## Pairing fails / "already paired" error
 
