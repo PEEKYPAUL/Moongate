@@ -31,7 +31,11 @@ import '../dashboard/feedback_sheet.dart';
 ///   5. On success, the printer row exists in Supabase owned by this
 ///      anonymous user. Add it to the local cache and navigate back.
 class PairingScreen extends StatefulWidget {
-  const PairingScreen({super.key});
+  const PairingScreen({super.key, this.initialUri});
+
+  /// A tapped moongate:// link (tap-to-pair on the Pi's pair page), staged on
+  /// open exactly as if the QR scanner had read it. Null for normal opens.
+  final String? initialUri;
 
   @override
   State<PairingScreen> createState() => _PairingScreenState();
@@ -107,6 +111,13 @@ class _PairingScreenState extends State<PairingScreen> {
         setState(() => _nameHintIx++);
       }
     });
+    // Tap-to-pair: stage the link the user tapped. Post-frame because the
+    // parser reads AppLocalizations from context for its error strings.
+    if (widget.initialUri != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _applyScannedCode(widget.initialUri!);
+      });
+    }
   }
 
   @override
