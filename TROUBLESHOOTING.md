@@ -45,7 +45,17 @@ sudo systemctl restart KlipperScreen
 
 …or restart it from the **Services** panel in Mainsail / Fluidd (no SSH needed).
 
-`127.0.0.1` is also sturdier than a LAN IP - it survives the Pi's address changing on a DHCP renewal. A client on a **separate device** (a standalone KlipperScreen tablet, a second Pi) can't use localhost and is fundamentally incompatible with the rebind; run it on the printer Pi instead.
+`127.0.0.1` is also sturdier than a LAN IP - it survives the Pi's address changing on a DHCP renewal. A client on a **separate device** (a standalone KlipperScreen tablet, a second Pi, a central Mainsail server) can't use localhost - point it at the Pi's **port 80** instead. See the next section.
+
+## A central (farm) Mainsail or Fluidd can no longer reach the printer on port 7125
+
+Same cause as the KlipperScreen entry above, seen from another machine: Moongate's tunnel-mode install binds Moonraker to `127.0.0.1`, so anything that used to talk to `http://<pi-ip>:7125` directly now gets `ERR_CONNECTION_REFUSED`. A centrally hosted Mainsail or Fluidd (one web UI managing several printers, each added by IP) is the usual victim, because its printer entries point at `<pi-ip>:7125`.
+
+The fix is one edit in the central UI, not on the Pi: change that printer's entry from `<pi-ip>:7125` to `<pi-ip>` (**port 80**). The Pi's own nginx - the thing already serving Mainsail at `http://<pi-ip>/` - proxies the full Moonraker API and websocket on port 80. That is exactly how the Pi's local web UI and the Moongate app's LAN mode connect, and it is why "connecting directly to the printer's IP works" even while `:7125` refuses. CORS and trusted-client checks behave the same through nginx, so an entry that worked on 7125 before Moongate works on 80 after.
+
+The same trick covers most separate-device clients that let you set a host and port - a standalone KlipperScreen tablet, for example, with `moonraker_host: <pi-ip>` and `moonraker_port: 80`.
+
+If some tool genuinely needs raw `:7125` back, you can undo the hardening: edit `~/printer_data/config/moonraker.conf`, set `host: 0.0.0.0` under `[server]`, and restart Moonraker. Remote access through Moongate keeps working (the tunnel reaches Moonraker over localhost either way), and plugin updates never re-apply the bind - only a full re-run of the installer in tunnel mode would. The trade-off is Moonraker listening on your LAN again, which is the stock Klipper-install posture.
 
 ## Updating Moongate from KlipperScreen looks stuck on "create mode 100644"
 
