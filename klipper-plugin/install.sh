@@ -101,6 +101,24 @@ fi
 [[ -n "$MOONGATE_LAN_ONLY" ]] \
     && info "LAN-only mode: no Cloudflare tunnel or auth proxy will be installed."
 
+# ── Keep-bind opt-out (MOONGATE_KEEP_BIND=1) ─────────────────────────────────
+# Cloud (tunnel) mode normally binds Moonraker's [server] host to 127.0.0.1
+# (step 2e) so only the EdDSA-gated proxy is network-exposed. Setups where
+# OTHER machines talk to Moonraker directly at <pi-ip>:7125 - a central "farm"
+# Mainsail/Fluidd, monitoring tools - can opt out: MOONGATE_KEEP_BIND=1 leaves
+# [server] host exactly as it is, and a re-run with it set never re-binds.
+# Env-only on purpose (no flag, no prompt): it loosens the default posture, so
+# it should be a deliberate, documented choice - most setups don't need it
+# because the Pi's nginx already serves the full Moonraker API on port 80.
+# Normalised like MOONGATE_LAN_ONLY: only a literal "1" enables it. Ignored in
+# LAN-only mode, which manages the bind itself (and needs to be able to un-do
+# OUR old loopback bind on a converted box - keep-bind would wrongly pin it).
+[[ "${MOONGATE_KEEP_BIND:-}" == "1" ]] && MOONGATE_KEEP_BIND=1 || MOONGATE_KEEP_BIND=""
+if [[ -n "$MOONGATE_KEEP_BIND" && -n "$MOONGATE_LAN_ONLY" ]]; then
+    info "MOONGATE_KEEP_BIND ignored: LAN-only mode manages the Moonraker bind itself."
+    MOONGATE_KEEP_BIND=""
+fi
+
 # ── Detect environment ────────────────────────────────────────────────────────
 MOONGATE_REPO="https://github.com/PEEKYPAUL/moongate.git"
 MOONGATE_DIR="${MOONGATE_DIR:-$HOME/moongate}"
@@ -381,6 +399,24 @@ backup_once() {
 # append a host line where none exists (Moonraker already defaults to all
 # interfaces) and we do NOT overwrite a deliberate bind such as a WireGuard-
 # only interface IP. Default (tunnel) mode still force-sets 127.0.0.1.
+if [[ -n "$MOONGATE_KEEP_BIND" ]]; then
+    # Deliberate opt-out (env knob above): honour whatever [server] host the
+    # user runs. The tunnel still needs Moonraker reachable over loopback -
+    # the auth proxy targets http://127.0.0.1:7125 - which an absent host,
+    # 0.0.0.0 or :: all provide. A single specific interface IP does not:
+    # flag it rather than die, the user asked for their bind to be kept.
+    info "MOONGATE_KEEP_BIND=1: leaving Moonraker's [server] host untouched."
+    backup_once "$MOONRAKER_CONF" "moonraker.conf.orig"
+    MG_CURRENT_HOST="$(sed -n '/^\[server\]/,/^\[/p' "$MOONRAKER_CONF" \
+        | sed -n 's/^[[:space:]]*host[[:space:]]*[:=][[:space:]]*\([^[:space:]#]*\).*/\1/p' \
+        | head -1)"
+    case "${MG_CURRENT_HOST:-0.0.0.0}" in
+        0.0.0.0|::|127.0.0.1) : ;;
+        *) warn "[server] host is '$MG_CURRENT_HOST' - remote access reaches Moonraker at 127.0.0.1:7125, which this bind does not serve. The tunnel will fail until the host covers loopback (e.g. 0.0.0.0)." ;;
+    esac
+    success "Moonraker [server] host kept as-is (MOONGATE_KEEP_BIND=1)."
+else
+
 if [[ -n "$MOONGATE_LAN_ONLY" ]]; then
     MG_MOONRAKER_HOST="0.0.0.0"
     MG_HOST_ONLY_IF_LOOPBACK=1
@@ -450,6 +486,8 @@ if [[ -n "$MOONGATE_LAN_ONLY" ]]; then
 else
     success "Moonraker bound to 127.0.0.1"
 fi
+
+fi  # MOONGATE_KEEP_BIND (the python block above is column-0 for its heredoc)
 
 # NOTE: We intentionally do NOT patch nginx vhosts in v0.4.0. The original
 # v0.4 design considered binding nginx to 127.0.0.1 (defense in depth), but
@@ -958,53 +996,61 @@ echo ""
 echo -e "  Run ${YELLOW}MOONGATE_PAIR${NC} in Klipper console to pair."
 echo ""
 
-# ── 10. KlipperScreen heads-up ────────────────────────────────────────────────
+# ── 10. Moonraker-clients heads-up ───────────────────────────────────────────
 # The 127.0.0.1 rebind in step 2e hides Moonraker from the LAN, which breaks any
-# ON-DEVICE client that reaches it by IP - most commonly KlipperScreen, which then
-# shows "Cannot connect to Moonraker - Connection refused". Pointing such a client
-# at 127.0.0.1 fixes it (and survives future DHCP IP changes). We only PROMPT when
-# a real terminal is attached: an interactive `curl | bash` can still read the
-# answer from /dev/tty even though its stdin is the pipe, while a headless / KIAUH
-# / MOONGATE_YES run has none - there we just print the notice so it's never lost,
-# and never block on a `read` under `set -e`.
-mg_klipperscreen_box() {
+# client that reached it by IP:7125 - ON this Pi that's usually KlipperScreen
+# ("Cannot connect to Moonraker - Connection refused"), and on OTHER machines a
+# central/farm Mainsail or Fluidd managing several printers by IP. The fixes
+# differ (localhost vs the Pi's nginx on port 80), so the box covers both.
+# We only PROMPT when a real terminal is attached: an interactive `curl | bash`
+# can still read the answer from /dev/tty even though its stdin is the pipe,
+# while a headless / KIAUH / MOONGATE_YES run has none - there we just print
+# the notice so it's never lost, and never block on a `read` under `set -e`.
+mg_moonraker_clients_box() {
     local line
     printf -v line '#%.0s' {1..70}
     echo -e "${YELLOW}"
     echo "$line"
     printf '# %-66s #\n' ""
-    printf '# %-66s #\n' "USING KLIPPERSCREEN (or another on-device Moonraker client)?"
+    printf '# %-66s #\n' "OTHER APPS TALK TO THIS PRINTER'S MOONRAKER DIRECTLY?"
     printf '# %-66s #\n' ""
     printf '# %-66s #\n' "Moongate just bound Moonraker to 127.0.0.1 (localhost) so only"
-    printf '# %-66s #\n' "its secure tunnel is exposed. A client that reaches Moonraker"
-    printf '# %-66s #\n' "by its LAN IP now fails with:"
-    printf '# %-66s #\n' "    Cannot connect to Moonraker - Connection refused"
+    printf '# %-66s #\n' "its secure tunnel is exposed. Anything that reached Moonraker"
+    printf '# %-66s #\n' "at this Pi's LAN IP on port 7125 now fails with:"
+    printf '# %-66s #\n' "    Connection refused"
     printf '# %-66s #\n' ""
-    printf '# %-66s #\n' "FIX: edit  ~/printer_data/config/KlipperScreen.conf , find the"
-    printf '# %-66s #\n' "[printer ...] section, and point it at localhost:"
-    printf '# %-66s #\n' ""
+    printf '# %-66s #\n' "ON THIS PI (KlipperScreen, HelixScreen, ...):  use localhost."
+    printf '# %-66s #\n' "Edit ~/printer_data/config/KlipperScreen.conf, [printer ...]:"
     printf '# %-66s #\n' "    moonraker_host: 127.0.0.1"
     printf '# %-66s #\n' "    moonraker_port: 7125"
+    printf '# %-66s #\n' "then:  sudo systemctl restart KlipperScreen  (or the Services"
+    printf '# %-66s #\n' "panel in Mainsail / Fluidd)."
     printf '# %-66s #\n' ""
-    printf '# %-66s #\n' "then restart KlipperScreen, either:"
-    printf '# %-66s #\n' "    - SSH:  sudo systemctl restart KlipperScreen"
-    printf '# %-66s #\n' "    - or the Services panel in Mainsail / Fluidd"
+    printf '# %-66s #\n' "FROM ANOTHER MACHINE (central/farm Mainsail or Fluidd, tools):"
+    printf '# %-66s #\n' "use port 80 - this Pi's nginx serves the full Moonraker API"
+    printf '# %-66s #\n' "there. Change the printer entry <pi-ip>:7125 to just <pi-ip>."
+    printf '# %-66s #\n' ""
+    printf '# %-66s #\n' "Need raw :7125 open on the LAN like a stock install? Re-run"
+    printf '# %-66s #\n' "this installer with MOONGATE_KEEP_BIND=1 (see TROUBLESHOOTING)."
     printf '# %-66s #\n' ""
     echo "$line"
     echo -e "${NC}"
 }
 
 if [[ -n "$MOONGATE_LAN_ONLY" ]]; then
-    # LAN-only kept Moonraker on 0.0.0.0, so on-device clients (KlipperScreen)
-    # that reach it by IP are unaffected - nothing to warn about.
-    info "LAN-only mode: Moonraker stays on the LAN - KlipperScreen is unaffected."
+    # LAN-only kept Moonraker on 0.0.0.0, so clients that reach it by IP
+    # (KlipperScreen, a farm Mainsail) are unaffected - nothing to warn about.
+    info "LAN-only mode: Moonraker stays on the LAN - existing clients are unaffected."
+elif [[ -n "$MOONGATE_KEEP_BIND" ]]; then
+    # Bind untouched by request - whatever talked to Moonraker still can.
+    info "Keep-bind: Moonraker's bind is unchanged - existing clients are unaffected."
 elif [[ -z "${MOONGATE_YES:-}" && -r /dev/tty ]]; then
-    printf '%b' "${YELLOW}[moongate]${NC} Do you use KlipperScreen on this Pi? [y/N] "
+    printf '%b' "${YELLOW}[moongate]${NC} Do you use KlipperScreen, a central/farm Mainsail, or other apps that talk to Moonraker directly? [y/N] "
     read -r MG_KS_ANS < /dev/tty || MG_KS_ANS=""
     case "$MG_KS_ANS" in
-        [Yy]*) mg_klipperscreen_box ;;
-        *)     info "No KlipperScreen - nothing else to do." ;;
+        [Yy]*) mg_moonraker_clients_box ;;
+        *)     info "No other Moonraker clients - nothing else to do." ;;
     esac
 else
-    mg_klipperscreen_box
+    mg_moonraker_clients_box
 fi

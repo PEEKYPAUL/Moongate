@@ -113,6 +113,12 @@ MOONGATE_PORT=8080 bash -c "$(curl -fsSL https://raw.githubusercontent.com/PEEKY
 
 In the app's pair screen, set the **Port** field to match (leave it blank for 80).
 
+**Other things talk to Moonraker at this Pi's IP?** A cloud install moves Moonraker onto localhost so only Moongate's gated tunnel is exposed. An on-Pi client like KlipperScreen then needs pointing at `127.0.0.1`, and a central "farm" Mainsail/Fluidd on another machine should target port 80 (this Pi's nginx serves the full Moonraker API there) - see [Troubleshooting](TROUBLESHOOTING.md) for both. If something genuinely needs raw `<pi-ip>:7125`, keep the bind exactly as it is:
+
+```bash
+MOONGATE_KEEP_BIND=1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/PEEKYPAUL/Moongate/master/klipper-plugin/install.sh)"
+```
+
 **LAN-only (own VPN, no tunnel)?** If you reach your printer over your own VPN / WireGuard and don't want an outbound Cloudflare tunnel or external exposure, install in LAN-only mode. It keeps Moonraker on the LAN (`0.0.0.0`) and skips cloudflared, the auth proxy, and the tunnel service. The plugin, `MOONGATE_PAIR` macro, and mDNS advertisement are still installed, and a later cloud re-install enables remote access.
 
 **The installer asks.** Run it interactively (the normal `curl | bash` one-liner counts) and it offers the choice - answer `2` for Direct (LAN/VPN):
