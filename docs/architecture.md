@@ -104,6 +104,8 @@ Each printer tile on the dashboard is fully independent - it probes its own loca
 
 When the Moongate plugin is not installed on a printer, the status and control services fall back to the native Moonraker REST API (`/printer/objects/query`, `/printer/print/pause`, etc.) so the tile still shows real status and controls still work.
 
+From plugin 0.6.22, `/status` also carries a `webcams` list - every *enabled* webcam Moonraker knows, normalised (name, uid, snapshot path, flips/rotation, target fps, resolved external stream/snapshot URLs), capped at 8. The flat `webcam_*` fields remain the first enabled camera so older apps are untouched; apps v0.9.59+ read the list, let the user pick a camera per printer (persisted by webcam uid, not list position), and resolve whichever is selected through the same LAN / tunnel / external-camera pipeline. An old plugin with a new app synthesises a one-entry list from the flat fields.
+
 ---
 
 ## Token / auth design

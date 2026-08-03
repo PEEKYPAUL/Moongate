@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.9.59",
+    "bullets": [
+      "Printers with more than one camera can now switch between them in the app. When a printer reports two or more webcams, a switch button appears on its tile's camera; tap it to pick which camera to show, on the tile and in the full-screen view alike. The choice is remembered for each printer and travels in your backups. Cameras themselves are still added, named, enabled and ordered in Mainsail or Fluidd; the app simply follows that list. Needs plugin 0.6.22 or newer on the printer (Mainsail -> Software Updates); on an older plugin the app keeps showing the first camera exactly as before, and a camera set by hand with the tile's gear always wins over the picker. Thanks to the field report that asked for it.",
+      "Tap-to-pair. The pairing page (the URL MOONGATE_PAIR prints) shows a tappable link under its QR code, for when you've opened that page on the very phone the app is on and can't scan the screen you're looking at. The app now answers that tap, on Android and iPhone alike: tapping the link opens Moongate straight into pairing, exactly as if the QR had been scanned, whether the app was already running or not."
+    ]
+  },
+  {
     "version": "v0.9.58",
     "bullets": [
       "Webcam tiles now tell you when a camera can't be reached instead of spinning forever. If a camera's address is wrong, or the camera is off, the waking spinner used to restart endlessly and look like it was forever about to connect. After a few outright connection failures the tile now says \"Camera unreachable, check its address\" (in all 9 languages), so a typo'd address or a powered-down camera is obvious at a glance. Fix the address or the camera and the picture comes back as before. Thanks to the field report that caught it.",

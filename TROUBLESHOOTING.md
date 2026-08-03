@@ -265,8 +265,18 @@ You can point a tile at a camera that isn't connected to Klipper (e.g. an old ph
 - **Use the camera's snapshot or stream URL** - the same address that works in a browser on your LAN (e.g. `http://192.168.0.107:8080/video`). The tile pulls one frame at a time, so a stream URL is fine; the camera's web-UI *page* URL is not.
 - **On Wi-Fi but blank?** Confirm the URL opens in your phone's browser while on the same network. The app fetches the camera directly on the LAN, so if the browser can't reach it, neither can the tile.
 - **Works on Wi-Fi but not remotely (cellular)?** Remote cameras go through the Pi, which needs the **v0.9.0 / plugin 0.6.8+** update - re-run the Pi installer (or *Mainsail → Software Updates*) and let it restart. Also note: only **home-network (private) cameras** can be reached remotely; a camera on a public address won't relay through the tunnel, by design. The URL must also be a **numeric LAN address** over plain `http` (like `http://192.168.1.20:8080/video`) - a name like `http://mypi.local/...` or an `https://` address works on your Wi-Fi, where the phone fetches the camera directly, but won't relay remotely, so the tile sits on the logo away from home.
-- **Auto-detected camera wrong or missing?** Moongate reads the *first* webcam from Mainsail's webcam list. If you have several, set the one you want by hand with the gear, or reorder them in Mainsail.
+- **Auto-detected camera wrong or missing?** With **app v0.9.59+ and plugin 0.6.22+**, a printer with several webcams gets a **switch button** on its tile's camera - pick the one you want and it sticks. On older plugins Moongate reads the *first* webcam from Mainsail's webcam list: set the one you want by hand with the gear, or reorder them in Mainsail. A gear-set camera always beats the picker.
 - **Gears in the way?** Turn them off under **Menu → Camera config icons** - that hides every tile's gear without affecting the camera feed.
+
+## Only one of a printer's several cameras shows (v0.9.59+)
+
+The camera switch button (top corner of the tile's camera box) appears only when **all** of these hold:
+
+- **The printer runs plugin 0.6.22 or newer** - older plugins report only their first webcam, so the app has nothing to switch between. Update via *Mainsail → Software Updates* (or re-run the installer) and let Moonraker restart.
+- **Two or more webcams are enabled** in Mainsail/Fluidd's webcam settings - disabled entries don't count and don't appear in the picker.
+- **The tile has no hand-set camera** - a camera pasted into the tile's **gear** overrides everything, so the switch hides rather than fight it. Clear the gear override to get the picker back.
+
+The picker lists cameras under the names they have in Mainsail (a nameless entry shows as "Camera 1", "Camera 2", …). Adding, renaming or removing cameras happens in Mainsail/Fluidd as usual; the app follows along on its next status poll. Your pick is per printer, survives restarts, and travels in backups.
 
 ## A go2rtc camera: tiles work, but it's black or freezes inside Mainsail (v0.9.52+)
 
