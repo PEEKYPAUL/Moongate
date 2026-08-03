@@ -115,7 +115,7 @@ logger = logging.getLogger("moonraker.moongate")
 # Bumped on each release; surfaced in the /status response so the app's bug
 # reports show which plugin a Pi is actually running - the #1 triage blind spot
 # (an old plugin explains most "works on LAN / fails over tunnel" reports).
-MOONGATE_PLUGIN_VERSION = "0.6.21"
+MOONGATE_PLUGIN_VERSION = "0.6.22"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -264,6 +264,104 @@ def _b64std(data: bytes) -> str:
 
 def _b64url_pad(s: str) -> bytes:
     return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+
+
+# v0.6.22 - every enabled Moonraker webcam rides /status (`webcams: [...]`),
+# not just the first, so the app's dashboard tile can offer a camera switcher.
+# Payload backstop: nobody runs 8 cameras on one printer; a runaway list (a
+# scripted config gone wrong) must not bloat every 4-second poll.
+_WEBCAM_LIST_CAP = 8
+
+
+def _external_cam_url(raw: Any) -> Optional[str]:
+    """An absolute http(s) URL whose host is some OTHER device on the
+    network (not localhost / 127.x) - i.e. a camera Moonraker can't
+    snapshot for us, e.g. an old phone running an IP-webcam app and
+    configured in Mainsail as a stream_url like
+    http://192.168.0.107:8080/video. Returns the URL, else None. The
+    app uses it directly on LAN, or via the /mg-extcam proxy remote."""
+    s = (raw or "").strip()
+    m = re.match(r"^https?://([^/:]+)", s, re.IGNORECASE)
+    if not m:
+        return None
+    host = m.group(1).lower()
+    if host == "localhost" or host.startswith("127."):
+        return None
+    return s
+
+
+def _webcam_entry(cam: dict, index: int = 0) -> dict:
+    """Normalise ONE raw Moonraker webcam entry into the shape /status
+    carries. Defensive on every field - one half-configured camera must
+    never take the whole list (or the poll) down with it."""
+    _default_path = "/webcam/?action=snapshot"
+    _default_fps  = 15
+
+    stream_external   = _external_cam_url(cam.get("stream_url"))
+    snapshot_external = _external_cam_url(cam.get("snapshot_url"))
+
+    # Relative Pi-served snapshot path for the normal (Crowsnest / uv4l)
+    # case. An absolute EXTERNAL snapshot_url must NOT leak into
+    # snapshot_path - the app would build tunnel_base + absolute_url and
+    # get garbage - so fall back to the default and surface the external
+    # URL separately via snapshot_external instead.
+    snap_raw = (cam.get("snapshot_url") or "").strip()
+    if snapshot_external:
+        snap = _default_path
+    elif snap_raw:
+        snap = re.sub(
+            r"^https?://(localhost|127\.0\.0\.1)(:\d+)?", "", snap_raw)
+    else:
+        snap = _default_path
+
+    raw_fps = cam.get("target_fps", _default_fps)
+    try:
+        tgt_fps = int(raw_fps)
+        if tgt_fps < 1 or tgt_fps > 60:
+            tgt_fps = _default_fps
+    except (TypeError, ValueError):
+        tgt_fps = _default_fps
+
+    try:
+        rotation = int(cam.get("rotation", 0) or 0)
+    except (TypeError, ValueError):
+        rotation = 0
+
+    # Moonraker names default to "webcam"; an empty one still needs a label
+    # the app can show in the picker. uid is the stable identity (survives
+    # renames); older Moonraker without uids falls back to name matching.
+    name = str(cam.get("name") or "").strip() or f"Camera {index + 1}"
+    uid  = str(cam.get("uid")  or "").strip() or None
+
+    return {
+        "name":              name,
+        "uid":               uid,
+        "snapshot_path":     snap or _default_path,
+        "flip_horizontal":   bool(cam.get("flip_horizontal", False)),
+        "flip_vertical":     bool(cam.get("flip_vertical",   False)),
+        "rotation":          rotation,
+        "target_fps":        tgt_fps,
+        "stream_external":   stream_external,
+        "snapshot_external": snapshot_external,
+    }
+
+
+def _webcam_entries(webcams: Any) -> list:
+    """The full normalised camera list for /status: enabled entries only,
+    original Moonraker order kept (index feeds the fallback names), capped
+    at _WEBCAM_LIST_CAP."""
+    entries: list = []
+    if not isinstance(webcams, list):
+        return entries
+    for i, cam in enumerate(webcams):
+        if not isinstance(cam, dict):
+            continue
+        if cam.get("enabled", True) is False:
+            continue
+        entries.append(_webcam_entry(cam, i))
+        if len(entries) >= _WEBCAM_LIST_CAP:
+            break
+    return entries
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1883,6 +1981,11 @@ class MoongatePlugin:
         # - directly on LAN, or through the /mg-extcam proxy when remote.
         result["webcam_stream_external"]   = webcam["stream_external"]
         result["webcam_snapshot_external"] = webcam["snapshot_external"]
+        # v0.6.22: the FULL camera list (same normalised shape per entry).
+        # The flat webcam_* fields above stay the first camera so older
+        # apps keep working; a 0.9.59+ app prefers this list and shows its
+        # dashboard camera switcher when there's more than one entry.
+        result["webcams"] = webcam["webcams"]
         return result
 
     async def _handle_control(self, webrequest: Any) -> dict:
@@ -1995,35 +2098,20 @@ class MoongatePlugin:
 
     async def _get_webcam_info(self, client: Any) -> dict:
         # Not a staticmethod since v0.6.17: the fetch below needs the
-        # instance's resolved Moonraker port.
+        # instance's resolved Moonraker port. Per-camera normalisation lives
+        # in the module-level _webcam_entry/_webcam_entries helpers (v0.6.22)
+        # so the stdlib tests can hit it without Moonraker or tornado.
         from tornado.httpclient import HTTPRequest
-        _default_path = "/webcam/?action=snapshot"
-        _default_fps  = 15
         _defaults = {
-            "snapshot_path":     _default_path,
+            "snapshot_path":     "/webcam/?action=snapshot",
             "flip_horizontal":   False,
             "flip_vertical":     False,
             "rotation":          0,
-            "target_fps":        _default_fps,
+            "target_fps":        15,
             "stream_external":   None,
             "snapshot_external": None,
+            "webcams":           [],
         }
-
-        def _ext(raw: Any) -> Optional[str]:
-            # An absolute http(s) URL whose host is some OTHER device on the
-            # network (not localhost / 127.x) - i.e. a camera Moonraker can't
-            # snapshot for us, e.g. an old phone running an IP-webcam app and
-            # configured in Mainsail as a stream_url like
-            # http://192.168.0.107:8080/video. Returns the URL, else None. The
-            # app uses it directly on LAN, or via the /mg-extcam proxy remote.
-            s = (raw or "").strip()
-            m = re.match(r"^https?://([^/:]+)", s, re.IGNORECASE)
-            if not m:
-                return None
-            host = m.group(1).lower()
-            if host == "localhost" or host.startswith("127."):
-                return None
-            return s
 
         try:
             req = HTTPRequest(
@@ -2034,44 +2122,20 @@ class MoongatePlugin:
             if resp.code != 200:
                 return _defaults
             data    = json.loads(resp.body)
-            webcams = data.get("result", {}).get("webcams", [])
-            if not webcams:
+            entries = _webcam_entries(
+                data.get("result", {}).get("webcams", []))
+            if not entries:
                 return _defaults
-            cam = webcams[0]
-
-            stream_external   = _ext(cam.get("stream_url"))
-            snapshot_external = _ext(cam.get("snapshot_url"))
-
-            # Relative Pi-served snapshot path for the normal (Crowsnest /
-            # uv4l) case. An absolute EXTERNAL snapshot_url must NOT leak into
-            # snapshot_path - the app would build tunnel_base + absolute_url
-            # and get garbage - so fall back to the default and surface the
-            # external URL separately via snapshot_external instead.
-            snap_raw = (cam.get("snapshot_url") or "").strip()
-            if snapshot_external:
-                snap = _default_path
-            elif snap_raw:
-                snap = re.sub(
-                    r"^https?://(localhost|127\.0\.0\.1)(:\d+)?", "", snap_raw)
-            else:
-                snap = _default_path
-
-            raw_fps = cam.get("target_fps", _default_fps)
-            try:
-                tgt_fps = int(raw_fps)
-                if tgt_fps < 1 or tgt_fps > 60:
-                    tgt_fps = _default_fps
-            except (TypeError, ValueError):
-                tgt_fps = _default_fps
-            return {
-                "snapshot_path":     snap or _default_path,
-                "flip_horizontal":   bool(cam.get("flip_horizontal", False)),
-                "flip_vertical":     bool(cam.get("flip_vertical",   False)),
-                "rotation":          int(cam.get("rotation", 0)),
-                "target_fps":        tgt_fps,
-                "stream_external":   stream_external,
-                "snapshot_external": snapshot_external,
-            }
+            # The flat single-camera fields mirror the FIRST enabled entry -
+            # the pre-0.6.22 shape, and what pre-multicam apps keep reading.
+            first = entries[0]
+            info  = {k: first[k] for k in (
+                "snapshot_path", "flip_horizontal", "flip_vertical",
+                "rotation", "target_fps", "stream_external",
+                "snapshot_external",
+            )}
+            info["webcams"] = entries
+            return info
         except Exception:
             return _defaults
 
