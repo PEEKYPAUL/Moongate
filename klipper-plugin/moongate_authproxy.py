@@ -62,6 +62,7 @@ from moongate_standalone import (  # noqa: E402  (import after path manipulation
     AccessTokenVerifier,
     JwksCache,
     OwnerState,
+    _import_cloud_deps,
 )
 
 # ─── Config ─────────────────────────────────────────────────────────────────
@@ -629,6 +630,27 @@ async def _proxy_websocket(
 
 # ─── Unified handler ────────────────────────────────────────────────────────
 
+@web.middleware
+async def _unhandled_error_middleware(request, handler):
+    """Last-resort catch: journal the traceback and answer a terse 500.
+    Without this, an unhandled exception renders aiohttp's stock HTML error
+    page ("Server got itself in trouble") and the journal shows NOTHING - the
+    0.6.20 pyjwt=None regression served that page to every tunnel request
+    with zero log lines to find it by. request.path deliberately, not
+    path_qs: the query string can carry mg_token."""
+    try:
+        return await handler(request)
+    except asyncio.CancelledError:
+        raise
+    except web.HTTPException:
+        raise
+    except Exception:
+        logger.exception("unhandled error serving %s %s",
+                         request.method, request.path)
+        return web.Response(status=500, text="internal error\n",
+                            headers={"Cache-Control": "no-store"})
+
+
 async def handle(request: web.Request) -> web.StreamResponse:
     deny = await _authorize(request)
     if deny is not None:
@@ -677,7 +699,7 @@ async def _on_cleanup(app: web.Application) -> None:
 
 
 def make_app() -> web.Application:
-    app = web.Application()
+    app = web.Application(middlewares=[_unhandled_error_middleware])
     app.on_startup.append(_on_startup)
     app.on_cleanup.append(_on_cleanup)
     # One catch-all that handles every HTTP method on every path, including
@@ -691,6 +713,18 @@ def main() -> None:
         level=getattr(logging, LOG_LEVEL, logging.INFO),
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
+    # v0.6.21: moongate_standalone imports PyJWT/cryptography lazily (0.6.20,
+    # so LAN-only never pays their RAM) and the probe only runs when the
+    # Moonraker component constructs in cloud mode - in ITS process. This
+    # process reuses that module's verifier classes and must run the probe
+    # itself, or pyjwt stays None and every tunnel request dies as an
+    # unhandled 500. The proxy only exists on cloud-mode installs, so the
+    # deps are a hard requirement: exit loud and let systemd surface it
+    # rather than serve a broken tunnel.
+    deps_err = _import_cloud_deps()
+    if deps_err is not None:
+        logger.critical("cannot start: %s", deps_err)
+        sys.exit(1)
     # access_log=None: aiohttp's default access logger writes one INFO line
     # per proxied request, and at the app's poll cadence that is ~13 MB/day
     # into a log nothing rotates (it filled a Pi's /run tmpfs in ~2 weeks).
