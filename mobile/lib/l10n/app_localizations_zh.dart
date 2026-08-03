@@ -1284,6 +1284,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cameraNoCamera => '未为此打印机配置摄像头。';
 
   @override
+  String get cameraSwitchTooltip => '切换摄像头';
+
+  @override
+  String get cameraPickerTitle => '摄像头';
+
+  @override
+  String get cameraPickerIntro => '选择此打印机显示的摄像头。';
+
+  @override
+  String get cameraPickerHint => '摄像头在打印机的网页界面中管理。';
+
+  @override
+  String cameraFallbackName(int number) {
+    return '摄像头 $number';
+  }
+
+  @override
   String get cameraHintBody => '网络摄像头在此处无法远程加载 - 打开 Moongate 摄像头。';
 
   @override

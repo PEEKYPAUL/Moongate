@@ -1361,6 +1361,25 @@ class AppLocalizationsPt extends AppLocalizations {
       'Nenhuma câmera configurada para esta impressora.';
 
   @override
+  String get cameraSwitchTooltip => 'Trocar câmera';
+
+  @override
+  String get cameraPickerTitle => 'Câmeras';
+
+  @override
+  String get cameraPickerIntro =>
+      'Escolha qual câmera mostrar para esta impressora.';
+
+  @override
+  String get cameraPickerHint =>
+      'As câmeras são gerenciadas na interface web da impressora.';
+
+  @override
+  String cameraFallbackName(int number) {
+    return 'Câmera $number';
+  }
+
+  @override
   String get cameraHintBody =>
       'A webcam não carregará remotamente aqui - abra a câmera do Moongate.';
 

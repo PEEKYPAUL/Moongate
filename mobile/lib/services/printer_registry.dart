@@ -340,6 +340,18 @@ class PrinterRegistry {
     await _save();
   }
 
+  /// Persist which camera the tile's switcher picked (the camera's uid/name
+  /// key, see [PrinterWebcam.key]). Pass null to fall back to the printer's
+  /// first camera.
+  Future<void> updateSelectedWebcam(String printerId, String? key) async {
+    final idx = _printers.indexWhere((p) => p.id == printerId);
+    if (idx == -1) return;
+    if (_printers[idx].selectedWebcam == key) return;
+    _printers = List.of(_printers)
+      ..[idx] = _printers[idx].copyWith(selectedWebcam: key);
+    await _save();
+  }
+
   /// Persist whether this printer's webcam is hidden on the dashboard (set from
   /// the camera dialog). When true the tile renders compact (band-only) and the
   /// masonry grid packs it tightly. Rides backups via [PrinterConfig.hideWebcam].

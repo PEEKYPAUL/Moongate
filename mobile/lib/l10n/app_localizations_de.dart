@@ -1358,6 +1358,25 @@ class AppLocalizationsDe extends AppLocalizations {
       'Für diesen Drucker ist keine Kamera konfiguriert.';
 
   @override
+  String get cameraSwitchTooltip => 'Kamera wechseln';
+
+  @override
+  String get cameraPickerTitle => 'Kameras';
+
+  @override
+  String get cameraPickerIntro =>
+      'Wähle, welche Kamera für diesen Drucker angezeigt wird.';
+
+  @override
+  String get cameraPickerHint =>
+      'Kameras werden in der Weboberfläche des Druckers verwaltet.';
+
+  @override
+  String cameraFallbackName(int number) {
+    return 'Kamera $number';
+  }
+
+  @override
   String get cameraHintBody =>
       'Webcam lädt hier aus der Ferne nicht - Moongate-Kamera öffnen.';
 

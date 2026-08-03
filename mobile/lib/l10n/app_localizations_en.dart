@@ -1339,6 +1339,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cameraNoCamera => 'No camera configured for this printer.';
 
   @override
+  String get cameraSwitchTooltip => 'Switch camera';
+
+  @override
+  String get cameraPickerTitle => 'Cameras';
+
+  @override
+  String get cameraPickerIntro => 'Pick which camera to show for this printer.';
+
+  @override
+  String get cameraPickerHint =>
+      'Cameras are managed in your printer\'s web interface.';
+
+  @override
+  String cameraFallbackName(int number) {
+    return 'Camera $number';
+  }
+
+  @override
   String get cameraHintBody =>
       'Webcam won\'t load here remotely - open the Moongate camera.';
 

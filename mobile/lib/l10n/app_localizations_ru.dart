@@ -1356,6 +1356,25 @@ class AppLocalizationsRu extends AppLocalizations {
   String get cameraNoCamera => 'Для этого принтера камера не настроена.';
 
   @override
+  String get cameraSwitchTooltip => 'Сменить камеру';
+
+  @override
+  String get cameraPickerTitle => 'Камеры';
+
+  @override
+  String get cameraPickerIntro =>
+      'Выберите, какую камеру показывать для этого принтера.';
+
+  @override
+  String get cameraPickerHint =>
+      'Камеры настраиваются в веб-интерфейсе принтера.';
+
+  @override
+  String cameraFallbackName(int number) {
+    return 'Камера $number';
+  }
+
+  @override
   String get cameraHintBody =>
       'Веб-камера не загружается здесь удалённо - откройте камеру Moongate.';
 

@@ -165,6 +165,17 @@ class PrinterStatusService {
     return config.customCameraUrl;
   }
 
+  /// The camera the user picked from the tile's switcher (uid/name key),
+  /// read LIVE from the registry each poll like [_liveCustomCameraUrl] so a
+  /// switch takes effect on the very next poll without recreating the
+  /// service. Null = first camera.
+  String? get _liveSelectedWebcam {
+    for (final p in PrinterRegistry.instance.printers) {
+      if (p.id == config.id) return p.selectedWebcam;
+    }
+    return config.selectedWebcam;
+  }
+
   /// The user's configured light status object for this printer (e.g.
   /// `output_pin caselight`), read LIVE from the registry each poll like
   /// [_liveCustomCameraUrl] so an edit in the lighting overlay takes effect on
@@ -1027,6 +1038,69 @@ class PrinterStatusService {
     ).toString();
   }
 
+  /// Parse the plugin's `webcams` list (0.6.22+) into [PrinterWebcam]s,
+  /// falling back to ONE entry synthesised from the legacy flat webcam_*
+  /// fields when the list is absent or empty (older plugin) - downstream
+  /// code then has a single shape either way. Empty only when the poll
+  /// carried no webcam info at all (e.g. no plugin path).
+  @visibleForTesting
+  static List<PrinterWebcam> parseWebcamList(
+      Map<String, dynamic>? moongateResult) {
+    if (moongateResult == null) return const [];
+    final raw  = moongateResult['webcams'];
+    final cams = <PrinterWebcam>[];
+    if (raw is List) {
+      for (final e in raw) {
+        if (e is! Map) continue;
+        cams.add(PrinterWebcam(
+          name:             (e['name'] as String?)?.trim() ?? '',
+          uid:              (e['uid']  as String?)?.trim(),
+          snapshotPath:     e['snapshot_path'] as String?,
+          flipH:            (e['flip_horizontal'] as bool?) ?? false,
+          flipV:            (e['flip_vertical']   as bool?) ?? false,
+          rotation:         (e['rotation']        as num?)?.toInt() ?? 0,
+          targetFps:        (e['target_fps']      as num?)?.toInt() ?? 15,
+          streamExternal:   (e['stream_external']   as String?)?.trim(),
+          snapshotExternal: (e['snapshot_external'] as String?)?.trim(),
+        ));
+      }
+    }
+    if (cams.isNotEmpty) return cams;
+    final snapshotPath = moongateResult['webcam_snapshot_path'] as String?;
+    final streamExt    = (moongateResult['webcam_stream_external']   as String?)?.trim();
+    final snapExt      = (moongateResult['webcam_snapshot_external'] as String?)?.trim();
+    final hasAny = (snapshotPath != null && snapshotPath.isNotEmpty) ||
+        (streamExt != null && streamExt.isNotEmpty) ||
+        (snapExt   != null && snapExt.isNotEmpty);
+    if (!hasAny) return const [];
+    return [
+      PrinterWebcam(
+        name:             '',
+        snapshotPath:     snapshotPath,
+        flipH:            (moongateResult['webcam_flip_horizontal'] as bool?) ?? false,
+        flipV:            (moongateResult['webcam_flip_vertical']   as bool?) ?? false,
+        rotation:         (moongateResult['webcam_rotation']    as num?)?.toInt() ?? 0,
+        targetFps:        (moongateResult['webcam_target_fps']  as num?)?.toInt() ?? 15,
+        streamExternal:   streamExt,
+        snapshotExternal: snapExt,
+      ),
+    ];
+  }
+
+  /// The camera [key] names, else the first (a deleted/renamed pick must
+  /// fall back to camera 1 rather than blank the tile). Null only when
+  /// [cams] is empty. Also used by the camera picker sheet to mark the
+  /// active row, so sheet and poll can never disagree on the fallback.
+  static PrinterWebcam? selectWebcam(List<PrinterWebcam> cams, String? key) {
+    if (cams.isEmpty) return null;
+    if (key != null && key.isNotEmpty) {
+      for (final c in cams) {
+        if (c.key == key) return c;
+      }
+    }
+    return cams.first;
+  }
+
   // ── Shared status parser (unchanged from v0.2.x logic) ───────────────────
 
   PrinterStatus _parseStatus({
@@ -1084,14 +1158,22 @@ class PrinterStatusService {
       sdcardProgress:  sdcardProg,
     );
 
-    // Persist webcam transform info - keeps the tile correct on next launch.
-    // Also pick up the Pi's local_ip if it surfaced, so future polls can
-    // try LAN first.
+    // v0.9.59 multicam: every camera the plugin reports (0.6.22+ sends the
+    // full list; older plugins yield one synthesised entry) plus the one the
+    // user picked from the tile's switcher. Everything below - the persisted
+    // transforms, the snapshot URL, the external-camera routing - runs on
+    // the SELECTED camera, so a switch simply re-runs this path next poll.
+    final webcams  = parseWebcamList(moongateResult);
+    final selected = selectWebcam(webcams, _liveSelectedWebcam);
+
+    // Persist the selected camera's transform info - keeps the tile correct
+    // on next launch. Also pick up the Pi's local_ip if it surfaced, so
+    // future polls can try LAN first.
     if (moongateResult != null) {
-      final flipH    = (moongateResult['webcam_flip_horizontal'] as bool?) ?? false;
-      final flipV    = (moongateResult['webcam_flip_vertical']   as bool?) ?? false;
-      final rotation = (moongateResult['webcam_rotation']    as num?)?.toInt() ?? 0;
-      final fps      = (moongateResult['webcam_target_fps']  as num?)?.toInt() ?? 15;
+      final flipH    = selected?.flipH     ?? false;
+      final flipV    = selected?.flipV     ?? false;
+      final rotation = selected?.rotation  ?? 0;
+      final fps      = selected?.targetFps ?? 15;
       PrinterRegistry.instance.updateWebcamInfo(
         config.id,
         flipH:     flipH,
@@ -1125,7 +1207,7 @@ class PrinterStatusService {
     // headers or cookies - the auth proxy accepts mg_token via query as a
     // documented fallback (see klipper-plugin/moongate_authproxy.py).
     // LAN-side needs no auth because Moonraker / nginx trust the subnet.
-    final snapshotPath = moongateResult?['webcam_snapshot_path'] as String?;
+    final snapshotPath = selected?.snapshotPath;
     String? webcamSnapshotUrl;
     if (snapshotPath != null && snapshotPath.isNotEmpty) {
       if (isLan) {
@@ -1146,8 +1228,8 @@ class PrinterStatusService {
     // Pi's /mg-extcam proxy, which only ever forwards to private LAN IPs (see
     // klipper-plugin/moongate_authproxy.py).
     final customUrl    = _liveCustomCameraUrl?.trim();
-    final autoSnapshot = (moongateResult?['webcam_snapshot_external'] as String?)?.trim();
-    final autoStream   = (moongateResult?['webcam_stream_external']   as String?)?.trim();
+    final autoSnapshot = selected?.snapshotExternal?.trim();
+    final autoStream   = selected?.streamExternal?.trim();
     var externalUrl = (customUrl != null && customUrl.isNotEmpty)
         ? customUrl
         : (autoSnapshot != null && autoSnapshot.isNotEmpty)
@@ -1237,11 +1319,12 @@ class PrinterStatusService {
       connection:         isLan ? PrinterConnection.local : PrinterConnection.remote,
       tunnelReady:        tunnelReady,
       webcamSnapshotUrl:  webcamSnapshotUrl,
-      webcamFlipH:     (moongateResult?['webcam_flip_horizontal'] as bool?) ?? false,
-      webcamFlipV:     (moongateResult?['webcam_flip_vertical']   as bool?) ?? false,
-      webcamRotation:  (moongateResult?['webcam_rotation']        as num?)?.toInt() ?? 0,
-      webcamTargetFps: (moongateResult?['webcam_target_fps']      as num?)?.toInt() ?? 15,
+      webcamFlipH:     selected?.flipH     ?? false,
+      webcamFlipV:     selected?.flipV     ?? false,
+      webcamRotation:  selected?.rotation  ?? 0,
+      webcamTargetFps: selected?.targetFps ?? 15,
       webcamIsExternal: webcamIsExternal,
+      webcams:          webcams,
       lightOn:          lightOn,
       klippyShutdown:   klippyShutdown,
       pluginVersion:    moongateResult?['plugin_version'] as String?,
