@@ -67,6 +67,17 @@ class PrinterConfig {
   /// camera from Mainsail's webcam config).
   final String? customCameraUrl;
 
+  /// Which of the printer's cameras the dashboard tile (and the full-screen
+  /// camera) shows, picked from the tile's camera switcher when the plugin
+  /// reports more than one (plugin 0.6.22+). Stores the camera's Moonraker
+  /// uid (name as the fallback key on older Moonrakers without uids) - never
+  /// its list position, so renaming or reordering cameras in Mainsail can't
+  /// silently swap the feed. Null = the printer's first camera, exactly the
+  /// pre-multicam behaviour; a key that stops matching (camera deleted) also
+  /// falls back to the first camera rather than blanking the tile. Additive +
+  /// optional → rides the v3 backup envelope without a schema bump.
+  final String? selectedWebcam;
+
   /// Macro names the user has starred in the macro sheet to pin them to the
   /// top of the list (per-printer - some machines have dozens of macros and
   /// only a handful are run often). Stored as the raw Klipper macro names.
@@ -117,6 +128,7 @@ class PrinterConfig {
     this.webcamTargetFps = 15,
     this.uiType,
     this.customCameraUrl,
+    this.selectedWebcam,
     this.favouriteMacros = const [],
     this.lightingEnabled   = false,
     this.lightOnMacro,
@@ -140,6 +152,7 @@ class PrinterConfig {
     int?    webcamTargetFps,
     String? uiType,
     Object? customCameraUrl = _sentinel,
+    Object? selectedWebcam  = _sentinel,
     List<String>? favouriteMacros,
     bool?   lightingEnabled,
     Object? lightOnMacro      = _sentinel,
@@ -165,6 +178,9 @@ class PrinterConfig {
         customCameraUrl: identical(customCameraUrl, _sentinel)
             ? this.customCameraUrl
             : customCameraUrl as String?,
+        selectedWebcam: identical(selectedWebcam, _sentinel)
+            ? this.selectedWebcam
+            : selectedWebcam as String?,
         favouriteMacros: favouriteMacros ?? this.favouriteMacros,
         lightingEnabled: lightingEnabled ?? this.lightingEnabled,
         lightOnMacro: identical(lightOnMacro, _sentinel)
@@ -260,6 +276,7 @@ class PrinterConfig {
         'webcamTargetFps': webcamTargetFps,
         if (uiType != null) 'uiType': uiType,
         if (customCameraUrl != null) 'customCameraUrl': customCameraUrl,
+        if (selectedWebcam != null) 'selectedWebcam': selectedWebcam,
         if (favouriteMacros.isNotEmpty) 'favouriteMacros': favouriteMacros,
         if (lightingEnabled) 'lightingEnabled': lightingEnabled,
         if (lightOnMacro != null) 'lightOnMacro': lightOnMacro,
@@ -289,6 +306,7 @@ class PrinterConfig {
       webcamTargetFps: j['webcamTargetFps'] as int?  ?? 15,
       uiType:          j['uiType']          as String?,
       customCameraUrl: j['customCameraUrl'] as String?,
+      selectedWebcam:  j['selectedWebcam']  as String?,
       favouriteMacros: (j['favouriteMacros'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
@@ -371,6 +389,44 @@ class ToolheadTemp {
   });
 }
 
+/// One camera as the plugin reports it in /status `webcams` (0.6.22+), in
+/// Moonraker's order. On older plugins PrinterStatusService synthesises a
+/// single entry from the legacy flat webcam_* fields, so downstream code has
+/// one shape either way. The tile's camera switcher appears only when a
+/// status carries more than one of these; [key] (uid, else name) is what
+/// [PrinterConfig.selectedWebcam] persists.
+class PrinterWebcam {
+  final String  name;
+  final String? uid;
+  /// Pi-served relative snapshot path (`/webcam/?action=snapshot`); the
+  /// service appends it to whichever base URL the poll is winning on.
+  final String? snapshotPath;
+  final bool    flipH;
+  final bool    flipV;
+  final int     rotation;  // 0 | 90 | 180 | 270
+  final int     targetFps;
+  /// Absolute URL of a camera living on ANOTHER LAN device (phone webcam,
+  /// IP cam) - fetched directly on LAN, via /mg-extcam when remote.
+  final String? streamExternal;
+  final String? snapshotExternal;
+
+  const PrinterWebcam({
+    required this.name,
+    this.uid,
+    this.snapshotPath,
+    this.flipH     = false,
+    this.flipV     = false,
+    this.rotation  = 0,
+    this.targetFps = 15,
+    this.streamExternal,
+    this.snapshotExternal,
+  });
+
+  /// Stable identity for persistence + matching: Moonraker's uid when it has
+  /// one, else the (user-visible, user-chosen) name.
+  String get key => (uid != null && uid!.isNotEmpty) ? uid! : name;
+}
+
 class PrinterStatus {
   /// Klipper print_stats state plus our synthetic states:
   ///   'printing' | 'paused' | 'standby' | 'complete' | 'cancelled' | 'error'
@@ -442,6 +498,12 @@ class PrinterStatus {
   /// cameras usually expose only a stream (e.g. .../video), not a snapshot.
   final bool webcamIsExternal;
 
+  /// Every camera this printer reports (plugin 0.6.22+ sends the full list;
+  /// older plugins yield one synthesised entry). The webcam* fields above are
+  /// always the SELECTED camera's, resolved by the service - the tile shows
+  /// its switcher when this has more than one entry.
+  final List<PrinterWebcam> webcams;
+
   /// Live light state from the configured [PrinterConfig.lightStatusObject]
   /// (v0.9.8): true = on, false = off, null = no status object configured or
   /// not yet known. Drives the lit/dark bulb on the tile.
@@ -486,6 +548,7 @@ class PrinterStatus {
     this.webcamRotation = 0,
     this.webcamTargetFps = 15,
     this.webcamIsExternal = false,
+    this.webcams = const [],
     this.lightOn,
     this.klippyShutdown = false,
     this.pluginVersion,
@@ -521,6 +584,7 @@ class PrinterStatus {
     int? webcamRotation,
     int? webcamTargetFps,
     bool? webcamIsExternal,
+    List<PrinterWebcam>? webcams,
     bool? lightOn,
     bool? klippyShutdown,
     String? pluginVersion,
@@ -549,6 +613,7 @@ class PrinterStatus {
       webcamRotation:   webcamRotation ?? this.webcamRotation,
       webcamTargetFps:  webcamTargetFps ?? this.webcamTargetFps,
       webcamIsExternal: webcamIsExternal ?? this.webcamIsExternal,
+      webcams:          webcams ?? this.webcams,
       lightOn:          lightOn ?? this.lightOn,
       klippyShutdown:   klippyShutdown ?? this.klippyShutdown,
       pluginVersion:    pluginVersion ?? this.pluginVersion,
