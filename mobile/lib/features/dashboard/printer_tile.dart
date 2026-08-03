@@ -19,6 +19,7 @@ import '../../widgets/webcam_view.dart';
 import '../printer/printer_camera_screen.dart';
 import '../tutorial/tutorial_anchors.dart';
 import '../tutorial/tutorial_controller.dart';
+import 'camera_picker_overlay.dart';
 import 'gcode_files_overlay.dart';
 import 'macros_overlay.dart';
 import 'preheat_overlay.dart';
@@ -688,6 +689,19 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        // Camera switcher - only when this printer reports
+                        // 2+ cameras (plugin 0.6.22+) and no gear override is
+                        // active. Functional like the bulb, so it ignores the
+                        // "show camera icons" decluttering setting that hides
+                        // the config gear.
+                        if (cameraSwitchAvailable(widget.printer, _status)) ...[
+                          _CameraSwitchButton(
+                            printer:    widget.printer,
+                            status:     _status,
+                            onSwitched: _statusService.pollNow,
+                          ),
+                          const SizedBox(width: 6),
+                        ],
                         _CameraConfigButton(
                           printer: widget.printer,
                           onApplied: _statusService.pollNow,
@@ -1874,6 +1888,55 @@ class _CameraConfigButton extends ConsumerWidget {
             padding: const EdgeInsets.all(5),
             child: Icon(
               Icons.settings,
+              size: 17,
+              color: Colors.white.withValues(alpha: 0.85),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Camera-switch button ──────────────────────────────────────────────────────
+//
+// Shown in the webcam square's top-right cluster ONLY when this printer
+// reports more than one camera (plugin 0.6.22+) and no custom-URL override is
+// in force ([cameraSwitchAvailable]). Tapping opens the camera picker sheet;
+// the pick persists per printer and pollNow re-resolves the feed immediately.
+// Same dark-chip chrome as the neighbouring gear.
+
+class _CameraSwitchButton extends StatelessWidget {
+  final PrinterConfig printer;
+  final PrinterStatus status;
+  final VoidCallback onSwitched;
+
+  const _CameraSwitchButton({
+    required this.printer,
+    required this.status,
+    required this.onSwitched,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    return Tooltip(
+      message: l.cameraSwitchTooltip,
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.35),
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => showCameraPickerSheet(
+            context,
+            printer:    printer,
+            cams:       status.webcams,
+            onSwitched: onSwitched,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(5),
+            child: Icon(
+              Icons.cameraswitch_outlined,
               size: 17,
               color: Colors.white.withValues(alpha: 0.85),
             ),

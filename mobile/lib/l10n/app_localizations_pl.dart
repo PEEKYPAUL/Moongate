@@ -1356,6 +1356,25 @@ class AppLocalizationsPl extends AppLocalizations {
   String get cameraNoCamera => 'Brak skonfigurowanej kamery dla tej drukarki.';
 
   @override
+  String get cameraSwitchTooltip => 'Przełącz kamerę';
+
+  @override
+  String get cameraPickerTitle => 'Kamery';
+
+  @override
+  String get cameraPickerIntro =>
+      'Wybierz, którą kamerę pokazywać dla tej drukarki.';
+
+  @override
+  String get cameraPickerHint =>
+      'Kamerami zarządza się w interfejsie WWW drukarki.';
+
+  @override
+  String cameraFallbackName(int number) {
+    return 'Kamera $number';
+  }
+
+  @override
   String get cameraHintBody =>
       'Kamera nie ładuje się tutaj zdalnie - otwórz kamerę Moongate.';
 

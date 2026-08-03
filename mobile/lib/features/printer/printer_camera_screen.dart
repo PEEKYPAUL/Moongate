@@ -7,6 +7,7 @@ import '../../models/printer_config.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/printer_status_service.dart';
 import '../../widgets/webcam_view.dart';
+import '../dashboard/camera_picker_overlay.dart';
 
 /// Opens the Moongate-native camera view for one printer as a full-screen
 /// **overlay** - a faded dialog over the current screen (no app-bar chrome), the
@@ -177,6 +178,24 @@ class _PrinterCameraOverlayState extends ConsumerState<_PrinterCameraOverlay> {
                       ],
                     ),
                   ),
+                  // Camera switcher, mirroring the dashboard tile's - only
+                  // when this printer reports 2+ cameras and no gear
+                  // override is active. The pick persists per printer, so
+                  // tile and full-screen always show the same camera.
+                  if (s != null && cameraSwitchAvailable(widget.printer, s))
+                    IconButton(
+                      icon: const Icon(
+                        Icons.cameraswitch_outlined,
+                        color: Colors.white,
+                      ),
+                      tooltip: l.cameraSwitchTooltip,
+                      onPressed: () => showCameraPickerSheet(
+                        context,
+                        printer:    widget.printer,
+                        cams:       s.webcams,
+                        onSwitched: _service.pollNow,
+                      ),
+                    ),
                 ],
               ),
             ),

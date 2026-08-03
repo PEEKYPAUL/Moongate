@@ -1362,6 +1362,25 @@ class AppLocalizationsIt extends AppLocalizations {
       'Nessuna telecamera configurata per questa stampante.';
 
   @override
+  String get cameraSwitchTooltip => 'Cambia telecamera';
+
+  @override
+  String get cameraPickerTitle => 'Telecamere';
+
+  @override
+  String get cameraPickerIntro =>
+      'Scegli quale telecamera mostrare per questa stampante.';
+
+  @override
+  String get cameraPickerHint =>
+      'Le telecamere si gestiscono nell\'interfaccia web della stampante.';
+
+  @override
+  String cameraFallbackName(int number) {
+    return 'Telecamera $number';
+  }
+
+  @override
   String get cameraHintBody =>
       'La webcam non si carica qui da remoto - apri la telecamera Moongate.';
 

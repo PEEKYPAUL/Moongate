@@ -2482,6 +2482,36 @@ abstract class AppLocalizations {
   /// **'No camera configured for this printer.'**
   String get cameraNoCamera;
 
+  /// Tooltip on the tile / full-screen button that opens the camera picker sheet - shown only when the printer reports more than one camera.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch camera'**
+  String get cameraSwitchTooltip;
+
+  /// Title of the camera picker bottom sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Cameras'**
+  String get cameraPickerTitle;
+
+  /// Intro line under the camera picker sheet's title.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick which camera to show for this printer.'**
+  String get cameraPickerIntro;
+
+  /// Footnote at the bottom of the camera picker sheet - cameras are added/renamed in Mainsail/Fluidd, not in the app.
+  ///
+  /// In en, this message translates to:
+  /// **'Cameras are managed in your printer\'s web interface.'**
+  String get cameraPickerHint;
+
+  /// Fallback label in the camera picker for a camera whose Moonraker entry has no name; {number} is its 1-based position.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera {number}'**
+  String cameraFallbackName(int number);
+
   /// Dismissible hint on the printer page, shown only over the tunnel for an external camera, pointing the user to the native full-screen camera view.
   ///
   /// In en, this message translates to:
