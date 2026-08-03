@@ -140,6 +140,44 @@ def test_lan_only_with_real_deps_does_not_import_them():
         "lan_only construction imported PyJWT as a side effect"
 
 
+AUTHPROXY_PATH = Path(__file__).resolve().parents[1] / "moongate_authproxy.py"
+
+
+def test_authproxy_startup_contract():
+    """v0.6.21 regression (the 0.6.20 field failure): the auth proxy is a
+    SEPARATE process that imports JwksCache/AccessTokenVerifier from this
+    module and never constructs MoongatePlugin - the only place the lazy
+    cloud-deps probe ran. Without its own probe, pyjwt stays None and every
+    tunnel request raises AttributeError -> aiohttp's stock 500 page, while
+    LAN (which bypasses the proxy) and heartbeats (the component's process,
+    where the probe DID run) look healthy. Two guards:
+      a) the proxy source probes + exits loud at startup;
+      b) after a successful probe, verify() on garbage tokens returns None
+         (the constant-401 path) instead of raising.
+
+    NOTE this test must stay LAST: on a deps-present box it really imports
+    PyJWT into the process, which would trip test_lan_only_with_real_deps's
+    "jwt not in sys.modules" assert if it ran before it."""
+    src = AUTHPROXY_PATH.read_text(encoding="utf-8")
+    assert "_import_cloud_deps" in src, \
+        "auth proxy no longer probes the lazy cloud deps at startup"
+
+    mod = _load("moongate_authproxy_pattern")
+    err = mod._import_cloud_deps()
+    if err is not None:
+        print("  (PyJWT/cryptography absent on this box - probe reported the "
+              "gap; the verify half needs a deps-present run)")
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        jwks     = mod.JwksCache("https://unused.invalid", "anon-key",
+                                 Path(tmp) / "jwks.json", 3600)
+        verifier = mod.AccessTokenVerifier(jwks)
+        # Garbage tokens fail the header parse long before any JWKS/network
+        # touch - the contract is they 401 (None), never raise.
+        assert verifier.verify("not-a-jwt", None) is None
+        assert verifier.verify("aaaa.bbbb.cccc", None) is None
+
+
 if __name__ == "__main__":
     mod = test_import_without_deps()
     print("PASS import with jwt/cryptography blocked (no probe, no error)")
@@ -149,4 +187,6 @@ if __name__ == "__main__":
     print("PASS cloud construction without deps fails loud but keeps running")
     test_lan_only_with_real_deps_does_not_import_them()
     print("PASS lan_only never imports the cloud deps even when installed")
+    test_authproxy_startup_contract()
+    print("PASS auth proxy probes the lazy deps; verify never raises on garbage")
     print("All good.")

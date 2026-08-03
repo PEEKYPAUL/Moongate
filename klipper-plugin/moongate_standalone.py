@@ -66,6 +66,13 @@ from typing import Any, Dict, Optional
 # _CLOUD_DEPS_ERROR doubles as the "why" surfaced in the log, the
 # MOONGATE_PAIR console output and error responses when a CLOUD-mode box is
 # missing them; it stays None until cloud construction first probes.
+#
+# v0.6.21: the auth proxy is a SEPARATE process that imports this module's
+# verifier classes without ever constructing MoongatePlugin (the one place
+# the probe ran), so it must call _import_cloud_deps() itself at startup.
+# 0.6.20 shipped without that: pyjwt stayed None there and every tunnel
+# request died as an unhandled 500 while LAN and heartbeats stayed healthy
+# (first field report 2026-08-03).
 pyjwt             = None  # type: ignore[assignment]
 serialization     = None  # type: ignore[assignment]
 Ed25519PrivateKey = None  # type: ignore[assignment]
@@ -108,7 +115,7 @@ logger = logging.getLogger("moonraker.moongate")
 # Bumped on each release; surfaced in the /status response so the app's bug
 # reports show which plugin a Pi is actually running - the #1 triage blind spot
 # (an old plugin explains most "works on LAN / fails over tunnel" reports).
-MOONGATE_PLUGIN_VERSION = "0.6.20"
+MOONGATE_PLUGIN_VERSION = "0.6.21"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
