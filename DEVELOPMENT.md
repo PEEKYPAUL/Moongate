@@ -263,7 +263,7 @@ The plugin logs under the `moonraker.moongate` logger - its messages are prefixe
 journalctl -u moongate-authproxy -f
 ```
 
-The proxy logs every request at INFO with the verdict (forwarded / 401), the path, and the cause when 401. Useful for distinguishing "the token is bad" from "the path doesn't match anything".
+The proxy is quiet on the happy path (the per-request access lines were removed in plugin 0.6.14 - they were filling `/run`). Token rejections log at DEBUG - set `MG_LOG_LEVEL=DEBUG` in the unit to see per-request verdicts and distinguish "the token is bad" from "the path doesn't match anything". Since 0.6.21 any unexpected internal error writes a full traceback to the journal before answering a terse 500, so an empty journal means healthy and a traceback names the failing hop.
 
 ### Tunnel-side: cloudflared logs
 

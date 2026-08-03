@@ -330,7 +330,7 @@ It costs N parallel HTTP loops where N is the number of printers, but that's fin
 
 The Moongate plugin runs inside Moonraker's process and has access to anything Moonraker depends on. Staying within that surface (stdlib + Moonraker's existing deps) reduces installation to "copy one file and restart Moonraker". No virtualenvs, no `pip install`, no breakage when Moonraker updates.
 
-The auth proxy is the one exception - it pulls in `aiohttp` (`pip install` inside Moonraker's venv) because there's no Moonraker-native way to intercept everything *before* Moonraker. The verifier classes (token-signature checks, owner state) are imported from the plugin file rather than duplicated, so signature semantics stay single-source.
+The auth proxy is the one exception - it pulls in `aiohttp` (`pip install` inside Moonraker's venv) because there's no Moonraker-native way to intercept everything *before* Moonraker. The verifier classes (token-signature checks, owner state) are imported from the plugin file rather than duplicated, so signature semantics stay single-source. One consequence of that sharing: the plugin file loads its signing/verification libraries lazily (v0.6.20, so LAN-only installs never pay their memory cost), and the proxy - a separate process - therefore runs that load itself at startup and refuses to start if the libraries are missing (v0.6.21). A proxy that can't verify tokens must fail loudly at boot, not crash on every request.
 
 ### Cloud middleman, not a Moongate-operated print server
 

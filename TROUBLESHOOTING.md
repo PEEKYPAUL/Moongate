@@ -252,6 +252,12 @@ curl -fsSL https://raw.githubusercontent.com/PEEKYPAUL/Moongate/master/klipper-p
 
 A bug report (see above) now shows the **Pi's plugin version**, so you can confirm the Pi is on v0.6.4+ afterwards.
 
+## Remote shows "500 Internal Server Error" but LAN works (plugin 0.6.20)
+
+If every **remote (tunnel)** request answers a plain "500 Internal Server Error / Server got itself in trouble" page while home-WiFi access, pairing and the tunnel indicator all look healthy, the Pi is on **plugin 0.6.20** (installed or updated between 29 Jul and 3 Aug 2026). A memory-saving change in 0.6.20 left the tunnel gatekeeper without the signature-checking library it needs, so it crashed on every remote request instead of answering. Nothing was lost or exposed: it failed *closed*, and local access never goes through that gatekeeper, which is why everything else kept working.
+
+**Fix:** update the plugin to **0.6.21 or newer** (*Mainsail → Machine → Update Manager* - refresh, then update **moongate**; or re-run the installer). Remote access returns as soon as the services restart - no re-pairing and no app update needed.
+
 ## Webcam not showing
 
 - The app uses the snapshot path Moonraker reports for your webcam - typically `/webcam/?action=snapshot` for mjpg-streamer setups.
