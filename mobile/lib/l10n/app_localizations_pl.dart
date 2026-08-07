@@ -1388,6 +1388,13 @@ class AppLocalizationsPl extends AppLocalizations {
   String get webcamUnreachable => 'Kamera nieosiągalna, sprawdź jej adres';
 
   @override
+  String get webcamUnreachableOldPlugin =>
+      'Kamera nieosiągalna. Wtyczka drukarki jest nieaktualna, aktualizacja może naprawić kamerę.';
+
+  @override
+  String get customCameraDownNotice => 'Kamera niestandardowa nieosiągalna';
+
+  @override
   String get printerUnreachable => 'Drukarka nieosiągalna';
 
   @override

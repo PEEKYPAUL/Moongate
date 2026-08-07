@@ -15,6 +15,7 @@ import 'printer_liveness_service.dart';
 import 'printer_registry.dart';
 import 'printer_status_registry.dart';
 import 'supabase_service.dart';
+import 'webcam_fetch_diag.dart';
 
 /// Polls the Moongate plugin's /server/moongate/status endpoint for one
 /// printer.
@@ -200,6 +201,15 @@ class PrinterStatusService {
   bool get _withinStartupGrace =>
       _firstPollAt != null &&
       DateTime.now().difference(_firstPollAt!) < _startupGrace;
+
+  /// The custom-camera override value the webcam selection has set aside as
+  /// dead this session (see [resolveWebcamSource]). Latched on the VALUE
+  /// rather than a bool: the fallback's own first successful fetch resets
+  /// the failure counters, which would otherwise re-arm the dead override on
+  /// the next poll and flap the tile between two cameras - while any edit or
+  /// clear in the gear dialog changes the value and so re-arms the override
+  /// immediately. Session-only by design.
+  String? _customDownForUrl;
 
   PrinterStatusService(this.config)
       : _currentLanUrl = config.lanUrl,
@@ -1201,61 +1211,40 @@ class PrinterStatusService {
       }
     }
 
-    // Build the absolute snapshot URL from the path the Pi reported plus
-    // the base URL we're currently winning the poll on. Tunnel-side needs
-    // the EdDSA token in the query string because Image.network can't set
-    // headers or cookies - the auth proxy accepts mg_token via query as a
-    // documented fallback (see klipper-plugin/moongate_authproxy.py).
-    // LAN-side needs no auth because Moonraker / nginx trust the subnet.
-    final snapshotPath = selected?.snapshotPath;
-    String? webcamSnapshotUrl;
-    if (snapshotPath != null && snapshotPath.isNotEmpty) {
-      if (isLan) {
-        webcamSnapshotUrl = '$baseUrl$snapshotPath';
-      } else {
-        final sep = snapshotPath.contains('?') ? '&' : '?';
-        webcamSnapshotUrl =
-            '$baseUrl$snapshotPath${sep}mg_token=${Uri.encodeComponent(accessToken)}';
-      }
-    }
-
-    // External / custom camera override.
-    // Precedence: user override (the tile gear) > a camera auto-detected from
-    // Mainsail's webcam config (the plugin reports its absolute URL because
-    // Moonraker can't snapshot it for us) > the normal Pi snapshot built
-    // above. These are absolute LAN URLs - typically an MJPEG stream from a
-    // phone webcam. On LAN we fetch them directly; remote we route through the
-    // Pi's /mg-extcam proxy, which only ever forwards to private LAN IPs (see
-    // klipper-plugin/moongate_authproxy.py).
-    final customUrl    = _liveCustomCameraUrl?.trim();
-    final autoSnapshot = selected?.snapshotExternal?.trim();
-    final autoStream   = selected?.streamExternal?.trim();
-    var externalUrl = (customUrl != null && customUrl.isNotEmpty)
-        ? customUrl
-        : (autoSnapshot != null && autoSnapshot.isNotEmpty)
-            ? autoSnapshot
-            : (autoStream != null && autoStream.isNotEmpty)
-                ? autoStream
-                : null;
-
-    // A go2rtc player-page URL (from Mainsail's webcam config or pasted as a
-    // custom URL) is HTML, not an image - swap it for go2rtc's single-frame
-    // endpoint so the tile and the full-screen camera actually get frames.
-    if (externalUrl != null) {
-      externalUrl = go2rtcFrameUrl(externalUrl) ?? externalUrl;
-    }
-
-    bool webcamIsExternal = false;
-    if (externalUrl != null && externalUrl.isNotEmpty) {
-      webcamIsExternal = true;
-      if (isLan) {
-        webcamSnapshotUrl = externalUrl;
-      } else {
-        webcamSnapshotUrl =
-            '$baseUrl/mg-extcam?u=${Uri.encodeComponent(externalUrl)}'
-            '&mg_token=${Uri.encodeComponent(accessToken)}';
-      }
-    }
+    // Which camera does this tile fetch? Precedence (override > auto-detected
+    // > Pi snapshot path), URL building for both transport paths, and the
+    // dead-override fallback all live in [resolveWebcamSource] (pure,
+    // unit-tested). This block only supplies the live inputs: the override
+    // value, its hard-failure verdict from the session's fetch history, and
+    // the per-value latch that keeps the fallback from flapping (the
+    // fallback's own first success resets the counters - see
+    // [_customDownForUrl]). The probe URL mirrors what WebcamView actually
+    // fetched for the override: on LAN the (go2rtc-normalised) URL itself,
+    // tunnelled the Pi's /mg-extcam relay path (queries are redacted in the
+    // diag, so the relay path stands in for whatever it forwarded to).
+    final customUrl = _liveCustomCameraUrl?.trim();
+    final customFetchProbe = customUrl == null || customUrl.isEmpty
+        ? null
+        : isLan
+            ? (go2rtcFrameUrl(customUrl) ?? customUrl)
+            : '$baseUrl/mg-extcam';
+    final customDead = customFetchProbe != null &&
+        WebcamFetchDiag.consecutiveHardFailures(config.id, customFetchProbe) >=
+            kDeadCameraThreshold;
+    final source = resolveWebcamSource(
+      customUrl:     customUrl,
+      autoSnapshot:  selected?.snapshotExternal,
+      autoStream:    selected?.streamExternal,
+      snapshotPath:  selected?.snapshotPath,
+      baseUrl:       baseUrl,
+      isLan:         isLan,
+      accessToken:   accessToken,
+      customDead:    customDead,
+      customLatched: _customDownForUrl != null && _customDownForUrl == customUrl,
+    );
+    _customDownForUrl = source.customCameraDown ? customUrl : null;
+    final webcamSnapshotUrl = source.url;
+    final webcamIsExternal  = source.isExternal;
 
     final lightObj = _liveLightStatusObject;
     final bool? lightOn =
@@ -1330,6 +1319,105 @@ class PrinterStatusService {
       pluginVersion:    moongateResult?['plugin_version'] as String?,
       pluginCanSelfUpdate:
           (moongateResult?['plugin_can_self_update'] as bool?) ?? false,
+      customCameraDown: source.customCameraDown,
     );
   }
+}
+
+// ── Webcam source selection ───────────────────────────────────────────────────
+//
+// Which camera should the tile fetch this poll? Pure and top-level so the
+// precedence - and especially the dead-override fallback - is unit-testable
+// without a service or network. Precedence: a healthy user override (the tile
+// gear) > a camera auto-detected from Mainsail's webcam config > the plain Pi
+// snapshot path. A custom override whose address keeps hard-failing
+// ([customDead], measured against the shared [kDeadCameraThreshold]) is set
+// aside in favour of the printer's own camera when one exists - visibly, via
+// [PrinterStatus.customCameraDown] - because a pinned-but-dead address
+// otherwise masks a perfectly good camera forever (the field case: a
+// forgotten phone-webcam experiment left in the gear dialog). With nothing to
+// fall back to, the override stays and the tile's plain unreachable state
+// tells the truth as before. The override itself is never modified.
+
+class WebcamSource {
+  /// Absolute, ready-to-fetch URL (mg_token included when tunnelled), or
+  /// null when this printer has no camera at all.
+  final String? url;
+
+  /// True when [url] is an external camera (override or auto-detected) - the
+  /// widget then uses the MJPEG-aware single-frame fetcher.
+  final bool isExternal;
+
+  /// True when a set-aside dead override is why [url] is the printer's own
+  /// camera - drives the tile's tappable notice.
+  final bool customCameraDown;
+
+  const WebcamSource(
+      {this.url, this.isExternal = false, this.customCameraDown = false});
+}
+
+WebcamSource resolveWebcamSource({
+  required String? customUrl,
+  required String? autoSnapshot,
+  required String? autoStream,
+  required String? snapshotPath,
+  required String  baseUrl,
+  required bool    isLan,
+  required String  accessToken,
+  required bool    customDead,
+  required bool    customLatched,
+}) {
+  // The plain Pi snapshot URL from the path the Pi reported. Tunnel-side
+  // carries the EdDSA token in the query string because Image.network can't
+  // set headers or cookies - the auth proxy accepts mg_token via query as a
+  // documented fallback (see klipper-plugin/moongate_authproxy.py). LAN-side
+  // needs no auth because Moonraker / nginx trust the subnet.
+  String? pathUrl;
+  final path = snapshotPath;
+  if (path != null && path.isNotEmpty) {
+    if (isLan) {
+      pathUrl = '$baseUrl$path';
+    } else {
+      final sep = path.contains('?') ? '&' : '?';
+      pathUrl =
+          '$baseUrl$path${sep}mg_token=${Uri.encodeComponent(accessToken)}';
+    }
+  }
+
+  // Candidate external URLs, each normalised through the go2rtc player-page
+  // rewrite (a pasted player URL is HTML, not an image - swap it for the
+  // single-frame endpoint so the tile actually gets frames).
+  String? normalise(String? u) {
+    final t = u?.trim();
+    if (t == null || t.isEmpty) return null;
+    return PrinterStatusService.go2rtcFrameUrl(t) ?? t;
+  }
+
+  var   custom = normalise(customUrl);
+  final auto   = normalise(autoSnapshot) ?? normalise(autoStream);
+
+  // A dead (or already set-aside) override yields to the printer's own
+  // camera - but only when there IS one to yield to.
+  var customCameraDown = false;
+  if (custom != null &&
+      (customDead || customLatched) &&
+      (auto != null || pathUrl != null)) {
+    custom = null;
+    customCameraDown = true;
+  }
+
+  // External cameras are absolute LAN URLs - typically an MJPEG stream from
+  // a phone webcam. On LAN we fetch them directly; remote we route through
+  // the Pi's /mg-extcam proxy, which only ever forwards to private LAN IPs
+  // (see klipper-plugin/moongate_authproxy.py).
+  final external = custom ?? auto;
+  if (external != null) {
+    final url = isLan
+        ? external
+        : '$baseUrl/mg-extcam?u=${Uri.encodeComponent(external)}'
+            '&mg_token=${Uri.encodeComponent(accessToken)}';
+    return WebcamSource(
+        url: url, isExternal: true, customCameraDown: customCameraDown);
+  }
+  return WebcamSource(url: pathUrl, customCameraDown: customCameraDown);
 }

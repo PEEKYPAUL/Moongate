@@ -431,6 +431,8 @@
   "cameraHintOpen": "打开",
   "webcamWakingUp": "摄像头唤醒中…",
   "webcamUnreachable": "无法连接摄像头，请检查其地址",
+  "webcamUnreachableOldPlugin": "无法连接摄像头。打印机插件已过时，更新插件可能可以修复。",
+  "customCameraDownNotice": "无法连接自定义摄像头",
   "printerUnreachable": "无法连接打印机",
   "printerUseTunnel": "使用隧道",
   "printerAddressInvalid": "请尝试例如 192.168.1.50:7125",

@@ -431,6 +431,8 @@
   "cameraHintOpen": "Открыть",
   "webcamWakingUp": "Камера просыпается…",
   "webcamUnreachable": "Камера недоступна, проверьте её адрес",
+  "webcamUnreachableOldPlugin": "Камера недоступна. Плагин принтера устарел, обновление может исправить камеру.",
+  "customCameraDownNotice": "Пользовательская камера недоступна",
   "printerUnreachable": "Принтер недоступен",
   "printerUseTunnel": "Использовать туннель",
   "printerAddressInvalid": "Попробуйте, например, 192.168.1.50:7125",

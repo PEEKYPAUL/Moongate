@@ -431,6 +431,8 @@
   "cameraHintOpen": "Otwórz",
   "webcamWakingUp": "Kamera się budzi…",
   "webcamUnreachable": "Kamera nieosiągalna, sprawdź jej adres",
+  "webcamUnreachableOldPlugin": "Kamera nieosiągalna. Wtyczka drukarki jest nieaktualna, aktualizacja może naprawić kamerę.",
+  "customCameraDownNotice": "Kamera niestandardowa nieosiągalna",
   "printerUnreachable": "Drukarka nieosiągalna",
   "printerUseTunnel": "Użyj tunelu",
   "printerAddressInvalid": "Spróbuj np. 192.168.1.50:7125",

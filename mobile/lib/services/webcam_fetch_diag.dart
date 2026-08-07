@@ -1,3 +1,10 @@
+/// Consecutive HARD failures after which a camera is treated as dead rather
+/// than still waking: the wake window skips its optimistic spinner
+/// (WebcamView) and the status service sets a failing custom override aside
+/// in favour of the printer's own camera (resolveWebcamSource). One shared
+/// number so the two layers can never disagree about what "dead" means.
+const int kDeadCameraThreshold = 6;
+
 /// In-memory per-printer record of how the webcam fetch loop is doing, for
 /// the in-app bug report. A camera that silently never produces a frame (the
 /// "eternal logo" class of report) is invisible in every other diagnostic -

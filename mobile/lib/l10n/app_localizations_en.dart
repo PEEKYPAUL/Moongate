@@ -1370,6 +1370,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get webcamUnreachable => 'Camera unreachable, check its address';
 
   @override
+  String get webcamUnreachableOldPlugin =>
+      'Camera unreachable. The printer\'s plugin is out of date, updating it may fix the camera.';
+
+  @override
+  String get customCameraDownNotice => 'Custom camera unreachable';
+
+  @override
   String get printerUnreachable => 'Printer unreachable';
 
   @override

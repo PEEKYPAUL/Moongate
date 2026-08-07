@@ -431,6 +431,8 @@
   "cameraHintOpen": "Apri",
   "webcamWakingUp": "La telecamera si sta attivando…",
   "webcamUnreachable": "Telecamera irraggiungibile, controlla l'indirizzo",
+  "webcamUnreachableOldPlugin": "Telecamera irraggiungibile. Il plugin della stampante non è aggiornato, aggiornarlo può risolvere il problema.",
+  "customCameraDownNotice": "Telecamera personalizzata irraggiungibile",
   "printerUnreachable": "Stampante irraggiungibile",
   "printerUseTunnel": "Usa il tunnel",
   "printerAddressInvalid": "Prova ad es. 192.168.1.50:7125",

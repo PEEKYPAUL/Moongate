@@ -1402,6 +1402,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String get webcamUnreachable => 'Caméra injoignable, vérifiez son adresse';
 
   @override
+  String get webcamUnreachableOldPlugin =>
+      'Caméra injoignable. Le plugin de l\'imprimante est obsolète, le mettre à jour peut réparer la caméra.';
+
+  @override
+  String get customCameraDownNotice => 'Caméra personnalisée injoignable';
+
+  @override
   String get printerUnreachable => 'Imprimante injoignable';
 
   @override

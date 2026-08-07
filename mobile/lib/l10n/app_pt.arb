@@ -419,6 +419,8 @@
   "cameraHintOpen": "Abrir",
   "webcamWakingUp": "A câmera está acordando…",
   "webcamUnreachable": "Câmera inacessível, verifique o endereço",
+  "webcamUnreachableOldPlugin": "Câmera inacessível. O plugin da impressora está desatualizado, atualizá-lo pode corrigir a câmera.",
+  "customCameraDownNotice": "Câmera personalizada inacessível",
   "printerUnreachable": "Impressora inacessível",
   "printerUseTunnel": "Usar túnel",
   "printerAddressInvalid": "Tente p. ex., 192.168.1.50:7125",
