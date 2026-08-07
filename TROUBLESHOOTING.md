@@ -164,6 +164,10 @@ The opposite mismatch: the dashboard tile shows **Local**, but opening the print
 - **v0.9.57 and newer fix this automatically**: opening a printer checks the dashboard's live connection first, and a tunnel-riding page is rebuilt on the local network on the spot.
 - **On older versions**, tap the **refresh** button (top right of the printer page) - it reloads the page from scratch and picks the local network when it's reachable.
 
+## iPhone: the printer page says "Cannot connect to Moonraker (yourprinter.local.)" on home WiFi
+
+The dashboard tile sits happily on **Local**, but the first open of the printer page shows Mainsail's "Connection failed" with the printer's *name* (ending `.local.`) in the message. This happens on iPhones that discovered the printer by name: the page's connection to Moonraker tries the printer's IPv6 address first, and most Pi web stacks listen only on IPv4. **Tap Try Again, or the refresh icon in the page's top-right - the retry connects.** Tracked as [issue #268](https://github.com/PEEKYPAUL/Moongate/issues/268) with a proper fix planned; Android is unaffected.
+
 ## Every printer away from home shows offline (orange crossed-out cloud in the top bar)
 
 That's the **Local only** switch (v0.9.48): while it's on, Moongate deliberately makes no remote connections, so only printers on your current network connect and everything else settles to offline. Tap the orange crossed-out cloud in the top bar to turn remote back on (a snackbar confirms), or turn the whole button off under the menu's **Local-only button** switch - switching the menu entry off also turns the mode off. The state survives app restarts, so a toggle you flipped days ago is the usual culprit.
@@ -262,6 +266,7 @@ If every **remote (tunnel)** request answers a plain "500 Internal Server Error 
 
 - The app uses the snapshot path Moonraker reports for your webcam - typically `/webcam/?action=snapshot` for mjpg-streamer setups.
 - Make sure your webcam is configured in Mainsail / Fluidd under Settings → Webcams, and the snapshot URL works in a browser on your LAN.
+- **Says "Camera unreachable" while the same camera works in a browser?** Check the tile for the **amber update icon** first: a printer on an old plugin can mis-report its camera's address to the app even though Mainsail itself is fine (plugins before **0.6.17** had exactly that bug). Update via *Mainsail → Software Updates*, and the tile heals by itself within seconds of Moonraker restarting - nothing to clear or re-pair. From **v0.9.61** the message itself tells you when the printer's plugin is the likely cause.
 - If you don't have a webcam, the tile falls back to the **Mainsail or Fluidd logo** (whichever you run). That's the expected v0.4 behaviour - it's not an error.
 
 ## A custom / external camera isn't showing (v0.9.0+)
@@ -272,6 +277,7 @@ You can point a tile at a camera that isn't connected to Klipper (e.g. an old ph
 - **On Wi-Fi but blank?** Confirm the URL opens in your phone's browser while on the same network. The app fetches the camera directly on the LAN, so if the browser can't reach it, neither can the tile.
 - **Works on Wi-Fi but not remotely (cellular)?** Remote cameras go through the Pi, which needs the **v0.9.0 / plugin 0.6.8+** update - re-run the Pi installer (or *Mainsail → Software Updates*) and let it restart. Also note: only **home-network (private) cameras** can be reached remotely; a camera on a public address won't relay through the tunnel, by design. The URL must also be a **numeric LAN address** over plain `http` (like `http://192.168.1.20:8080/video`) - a name like `http://mypi.local/...` or an `https://` address works on your Wi-Fi, where the phone fetches the camera directly, but won't relay remotely, so the tile sits on the logo away from home.
 - **Auto-detected camera wrong or missing?** With **app v0.9.59+ and plugin 0.6.22+**, a printer with several webcams gets a **switch button** on its tile's camera - pick the one you want and it sticks. On older plugins Moongate reads the *first* webcam from Mainsail's webcam list: set the one you want by hand with the gear, or reorder them in Mainsail. A gear-set camera always beats the picker.
+- **(v0.9.61+) A dead custom URL steps aside instead of blanking the tile.** When a hand-set address keeps failing and the printer reports a camera of its own, the tile shows the printer's camera with a tappable **"Custom camera unreachable"** notice - tap it to fix or clear the URL (the override is never deleted behind your back, and editing it puts it back in charge). While any custom URL is active the tile's gear also wears a small **amber dot**, so a forgotten override can't silently hide a printer's real camera.
 - **Gears in the way?** Turn them off under **Menu → Camera config icons** - that hides every tile's gear without affecting the camera feed.
 
 ## Only one of a printer's several cameras shows (v0.9.59+)
