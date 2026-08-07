@@ -18,14 +18,9 @@ import '../services/webcam_fetch_diag.dart';
 /// window has to survive several slow attempts before giving up.
 const _kWakeWindow = Duration(seconds: 25);
 
-/// Consecutive HARD failures (HTTP errors, refused connections) in the
-/// session-wide fetch history at which a remounting widget skips the
-/// optimistic spinner and starts in the honest expired state. A genuinely
-/// waking on-demand camera produces timeouts and empty bodies - soft results
-/// that never count toward this - so mid-wake remounts still get a spinner,
-/// while a dead address stops getting a fresh 25 s of pretending on every
-/// grid scroll or app reopen.
-const _kDeadCameraThreshold = 6;
+// The dead-camera threshold lives in webcam_fetch_diag.dart
+// (kDeadCameraThreshold), shared with the status service's custom-override
+// fallback so both layers agree on what "dead" means.
 
 // ── Shared webcam renderer ────────────────────────────────────────────────────
 //
@@ -68,6 +63,12 @@ class WebcamView extends ConsumerStatefulWidget {
   /// ([WebcamFetchDiag]). Null skips recording (nothing else changes).
   final String? printerId;
 
+  /// True when this printer reports a Moongate plugin older than the one the
+  /// app shipped with. The unreachable state then names the outdated plugin
+  /// as a likely cause (old plugins have served broken camera info - the
+  /// 0.6.16 `_get_webcam_info` bug) instead of only blaming the address.
+  final bool pluginOutdated;
+
   /// How a frame fills its box. The dashboard tile crops to fill
   /// ([BoxFit.cover]); the full-screen camera letterboxes the whole frame
   /// ([BoxFit.contain]).
@@ -89,6 +90,7 @@ class WebcamView extends ConsumerStatefulWidget {
     this.webcamIsExternal = false,
     this.uiType,
     this.printerId,
+    this.pluginOutdated = false,
     this.fit = BoxFit.cover,
     this.respectDashboardThrottle = true,
   });
@@ -189,7 +191,7 @@ class _WebcamViewState extends ConsumerState<WebcamView>
     // scroll or app reopen must not restart the spinner for a dead address.
     // The loop still fetches; a later success lands frames as ever.
     if (WebcamFetchDiag.consecutiveHardFailures(widget.printerId, url) >=
-        _kDeadCameraThreshold) {
+        kDeadCameraThreshold) {
       setExpired(true);
       return;
     }
@@ -419,7 +421,8 @@ class _WebcamViewState extends ConsumerState<WebcamView>
                 child: waking
                     ? const _WebcamWaking()
                     : unreachable
-                        ? const _WebcamUnreachable()
+                        ? _WebcamUnreachable(
+                            pluginOutdated: widget.pluginOutdated)
                         : _WebcamPlaceholder(uiType: widget.uiType)),
           );
 
@@ -495,9 +498,14 @@ class _WebcamWaking extends StatelessWidget {
 // beats both an eternal spinner and a logo that reads as "still loading". The
 // fetch loop keeps trying behind it, so a camera that comes back (or a fixed
 // gear override) replaces this with frames on the next successful fetch.
+// When the printer's plugin is outdated the message names it as a likely
+// cause instead - old plugins have served broken camera info (0.6.16's
+// _get_webcam_info bug), and "check its address" sends that user hunting in
+// exactly the wrong place.
 
 class _WebcamUnreachable extends StatelessWidget {
-  const _WebcamUnreachable();
+  final bool pluginOutdated;
+  const _WebcamUnreachable({this.pluginOutdated = false});
 
   @override
   Widget build(BuildContext context) {
@@ -511,7 +519,9 @@ class _WebcamUnreachable extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Text(
-            l.webcamUnreachable,
+            pluginOutdated
+                ? l.webcamUnreachableOldPlugin
+                : l.webcamUnreachable,
             style: const TextStyle(color: Colors.white54, fontSize: 12),
             textAlign: TextAlign.center,
           ),

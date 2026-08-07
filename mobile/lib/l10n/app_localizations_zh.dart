@@ -1313,6 +1313,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get webcamUnreachable => '无法连接摄像头，请检查其地址';
 
   @override
+  String get webcamUnreachableOldPlugin => '无法连接摄像头。打印机插件已过时，更新插件可能可以修复。';
+
+  @override
+  String get customCameraDownNotice => '无法连接自定义摄像头';
+
+  @override
   String get printerUnreachable => '无法连接打印机';
 
   @override

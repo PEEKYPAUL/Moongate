@@ -2536,6 +2536,18 @@ abstract class AppLocalizations {
   /// **'Camera unreachable, check its address'**
   String get webcamUnreachable;
 
+  /// Unreachable-camera message when the printer also reports an outdated Moongate plugin - old plugins have served broken camera info, so the plugin is the first thing to try.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera unreachable. The printer\'s plugin is out of date, updating it may fix the camera.'**
+  String get webcamUnreachableOldPlugin;
+
+  /// Tappable notice on the webcam tile while a dead custom camera override has been set aside and the printer's own camera is shown instead - tapping opens the camera dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom camera unreachable'**
+  String get customCameraDownNotice;
+
   /// Heading on the full-screen error overlay when the printer cannot be loaded.
   ///
   /// In en, this message translates to:

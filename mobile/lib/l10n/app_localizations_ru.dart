@@ -1388,6 +1388,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get webcamUnreachable => 'Камера недоступна, проверьте её адрес';
 
   @override
+  String get webcamUnreachableOldPlugin =>
+      'Камера недоступна. Плагин принтера устарел, обновление может исправить камеру.';
+
+  @override
+  String get customCameraDownNotice => 'Пользовательская камера недоступна';
+
+  @override
   String get printerUnreachable => 'Принтер недоступен';
 
   @override

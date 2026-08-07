@@ -651,6 +651,9 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                     webcamIsExternal: _status.webcamIsExternal,
                     uiType: _uiType,
                     printerId: widget.printer.id,
+                    pluginOutdated: _status.connection !=
+                            PrinterConnection.offline &&
+                        pluginVersionIsOutdated(_status.pluginVersion),
                   ),
                   // Overlay shown while we don't yet have a usable
                   // status (first poll in flight, Pi waiting for its first
@@ -672,6 +675,22 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                         printer: widget.printer,
                         status: _status,
                         onCleared: _statusService.pollNow,
+                      ),
+                    ),
+                  // Dead-override notice: the status service has set a
+                  // hard-failing custom camera aside and this feed is the
+                  // printer's own (PrinterStatus.customCameraDown). The swap
+                  // must never be silent - on a fleet dashboard a quietly
+                  // substituted feed is how someone watches the wrong
+                  // camera. Sits under the status badge; a tap opens the
+                  // same gear dialog where the override is fixed or cleared.
+                  if (_status.customCameraDown)
+                    Positioned(
+                      top: 36,
+                      left: 8,
+                      child: _CustomCameraDownNotice(
+                        printer: widget.printer,
+                        onApplied: _statusService.pollNow,
                       ),
                     ),
                   // Camera config gear (top-right). Lets the user point this
@@ -1865,24 +1884,89 @@ class _CameraConfigButton extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     final l = AppLocalizations.of(context);
+    // The amber dot marks an active custom-URL override - a healthy override
+    // silently replaces the printer's own camera, and this is the only
+    // always-visible hint that the feed is a hand-picked address rather than
+    // what Mainsail reports (the dead-override case gets its own notice).
+    final hasOverride = (printer.customCameraUrl ?? '').trim().isNotEmpty;
     return Tooltip(
       message: l.cameraConfigTooltip,
-      child: Material(
-        color: Colors.black.withValues(alpha: 0.35),
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () async {
-            final changed = await showCameraConfigDialog(context, printer);
-            if (changed == true) onApplied();
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(5),
-            child: Icon(
-              Icons.settings,
-              size: 17,
-              color: Colors.white.withValues(alpha: 0.85),
+      child: Badge(
+        isLabelVisible: hasOverride,
+        smallSize: 7,
+        backgroundColor: Colors.amber.shade600,
+        child: Material(
+          color: Colors.black.withValues(alpha: 0.35),
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () async {
+              final changed = await showCameraConfigDialog(context, printer);
+              if (changed == true) onApplied();
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(5),
+              child: Icon(
+                Icons.settings,
+                size: 17,
+                color: Colors.white.withValues(alpha: 0.85),
+              ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Custom-camera-down notice ─────────────────────────────────────────────────
+//
+// Shown on the webcam square while the status service has a dead custom
+// override set aside in favour of the printer's own camera
+// ([PrinterStatus.customCameraDown]). Names the swap and opens the gear
+// dialog on tap - the override is the user's to fix or clear, never
+// auto-deleted.
+
+class _CustomCameraDownNotice extends StatelessWidget {
+  final PrinterConfig printer;
+  final VoidCallback onApplied;
+  const _CustomCameraDownNotice(
+      {required this.printer, required this.onApplied});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    return Material(
+      color: Colors.black.withValues(alpha: 0.45),
+      shape: const StadiumBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () async {
+          final changed = await showCameraConfigDialog(context, printer);
+          if (changed == true) onApplied();
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.videocam_off_outlined,
+                  size: 12, color: Colors.amber.shade400),
+              const SizedBox(width: 4),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 110),
+                child: Text(
+                  l.customCameraDownNotice,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.amber.shade400,
+                    fontSize: 10,
+                    height: 1.1,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

@@ -525,6 +525,14 @@ class PrinterStatus {
   /// then offers one-tap "Update now" instead of Mainsail instructions.
   final bool pluginCanSelfUpdate;
 
+  /// True when this poll set the tile's custom camera override aside because
+  /// its address kept hard-failing while the printer reports a camera of its
+  /// own ([webcamSnapshotUrl] is then the printer's camera, not the
+  /// override). The tile shows a tappable notice so the swap is never
+  /// silent; the override itself is untouched and comes back the moment the
+  /// user edits it (see resolveWebcamSource in PrinterStatusService).
+  final bool customCameraDown;
+
   const PrinterStatus({
     required this.state,
     required this.progress,
@@ -553,6 +561,7 @@ class PrinterStatus {
     this.klippyShutdown = false,
     this.pluginVersion,
     this.pluginCanSelfUpdate = false,
+    this.customCameraDown = false,
   });
 
   bool get isPrinting => state == 'printing' || state == 'paused';
@@ -589,6 +598,7 @@ class PrinterStatus {
     bool? klippyShutdown,
     String? pluginVersion,
     bool? pluginCanSelfUpdate,
+    bool? customCameraDown,
   }) {
     return PrinterStatus(
       state:            state ?? this.state,
@@ -618,6 +628,7 @@ class PrinterStatus {
       klippyShutdown:   klippyShutdown ?? this.klippyShutdown,
       pluginVersion:    pluginVersion ?? this.pluginVersion,
       pluginCanSelfUpdate: pluginCanSelfUpdate ?? this.pluginCanSelfUpdate,
+      customCameraDown: customCameraDown ?? this.customCameraDown,
     );
   }
 

@@ -135,6 +135,35 @@ void main() {
     await _teardown(tester);
   });
 
+  testWidgets(
+      'an outdated plugin turns the unreachable message into the update hint',
+      (tester) async {
+    // Old plugins have served broken camera info (0.6.16's _get_webcam_info
+    // bug) - "check its address" sends that user hunting in exactly the
+    // wrong place, so the message must name the plugin instead.
+    const url = 'http://192.0.2.9/snapshot';
+    for (var i = 0; i < 6; i++) {
+      WebcamFetchDiag.record('oldplugincam',
+          url: url, external: true, result: 'http 502');
+    }
+
+    await tester.pumpWidget(_host(const WebcamView(
+      webcamSnapshotUrl: url,
+      printerId: 'oldplugincam',
+      pluginOutdated: true,
+      uiType: 'mainsail',
+    )));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+        find.text("Camera unreachable. The printer's plugin is out of date, "
+            'updating it may fix the camera.'),
+        findsOneWidget);
+    expect(find.text('Camera unreachable, check its address'), findsNothing);
+
+    await _teardown(tester);
+  });
+
   testWidgets('soft failures (a genuinely waking camera) still get a spinner',
       (tester) async {
     const url = 'http://192.0.2.8/snapshot';

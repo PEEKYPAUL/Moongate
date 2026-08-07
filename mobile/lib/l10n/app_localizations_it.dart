@@ -1395,6 +1395,14 @@ class AppLocalizationsIt extends AppLocalizations {
       'Telecamera irraggiungibile, controlla l\'indirizzo';
 
   @override
+  String get webcamUnreachableOldPlugin =>
+      'Telecamera irraggiungibile. Il plugin della stampante non è aggiornato, aggiornarlo può risolvere il problema.';
+
+  @override
+  String get customCameraDownNotice =>
+      'Telecamera personalizzata irraggiungibile';
+
+  @override
   String get printerUnreachable => 'Stampante irraggiungibile';
 
   @override
