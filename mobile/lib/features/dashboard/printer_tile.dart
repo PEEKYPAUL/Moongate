@@ -889,12 +889,13 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
 
   /// Compact dashboard tile for a printer whose webcam is hidden
   /// ([PrinterConfig.hideWebcam]). Drops the 1:1 webcam square entirely and
-  /// shows just the name plus a single status line - live print progress, live
-  /// temperatures, or a connection-state label - so the tile collapses to about
-  /// the slim band a full tile carries beneath its square. The masonry grid then
-  /// packs these tightly (two compact tiles fit under one full one). A settings
-  /// gear stays in reach so the webcam can always be switched back on from here,
-  /// even when the global camera-config icons are off.
+  /// keeps the slim bands: the full tile's action row (progress or status
+  /// label + pause/files/macros buttons, with the lighting bulb joining it
+  /// here since there is no webcam corner to host it), then the name row and
+  /// live temperatures or a connection-state label. The masonry grid packs
+  /// these tightly (two compact tiles fit under one full one). A settings
+  /// gear stays in reach so the webcam can always be switched back on from
+  /// here, even when the global camera-config icons are off.
   Widget _buildCompactTile(
     ThemeData theme,
     AppLocalizations l,
@@ -902,7 +903,6 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
     bool noLiveReading,
     double op,
   ) {
-    final printing = _status.state == 'printing' || _status.state == 'paused';
     return Card(
       clipBehavior: Clip.antiAlias,
       color: op < 1.0
@@ -924,6 +924,32 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
               height: 3,
               color: connColor,
             ),
+            // ── Progress / status + buttons row (same as the full tile) ──
+            // The full tile's action row, hosted above the name row so a
+            // compact tile keeps pause/resume/stop, the file browser and
+            // macros in reach - plus the lighting bulb, which has no webcam
+            // corner to live in here. Hidden in the same dead states as the
+            // full tile's row.
+            if (_status.state != 'offline' &&
+                _status.state != 'connecting' &&
+                _status.state != 'starting_up' &&
+                _status.state != 'waiting' &&
+                _status.state != 'startup')
+              GestureDetector(
+                onTap: () {}, // absorb - don't navigate when tapping controls
+                behavior: HitTestBehavior.opaque,
+                child: _ActionRow(
+                  status: _status,
+                  stopConfirmPending: _stopConfirmPending,
+                  onPause: _handlePause,
+                  onResume: _handleResume,
+                  onStop: _handleStop,
+                  onOpenFiles: () =>
+                      showGcodeFilesSheet(context, widget.printer),
+                  onOpenMacros: () => showMacrosSheet(context, widget.printer),
+                  lightPrinter: widget.printer,
+                ),
+              ),
             Padding(
               // Right inset matches the full tile (10) so the connection icons
               // and the E-STOP line up with a full tile stacked above/below.
@@ -996,12 +1022,6 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                           ],
                         ],
                       ),
-                      // Print progress - kept so a compact tile still shows it.
-                      if (printing)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: _CompactProgress(status: _status),
-                        ),
                       // Live temperatures + E-STOP on the SAME row (same as the
                       // full tile) - shown whenever there's a live reading,
                       // including mid-print, so the E-STOP stays reachable.
@@ -1041,6 +1061,12 @@ class _ActionRow extends StatelessWidget {
   final VoidCallback onOpenFiles;
   final VoidCallback onOpenMacros;
 
+  /// Compact (webcam-hidden) tiles have no camera corner to host the lighting
+  /// bulb, so they pass their printer here and the bulb leads this row's
+  /// buttons instead - same [_hasLighting] rule as the full tile's overlay.
+  /// The full tile leaves this null and keeps its bulb on the webcam.
+  final PrinterConfig? lightPrinter;
+
   const _ActionRow({
     required this.status,
     required this.stopConfirmPending,
@@ -1049,6 +1075,7 @@ class _ActionRow extends StatelessWidget {
     required this.onStop,
     required this.onOpenFiles,
     required this.onOpenMacros,
+    this.lightPrinter,
   });
 
   @override
@@ -1121,6 +1148,16 @@ class _ActionRow extends StatelessWidget {
           const SizedBox(width: 8),
 
           // ── Right: icon buttons ────────────────────────────────────────
+          // Lighting bulb (compact tiles only - see [lightPrinter]). Leads
+          // the cluster so pause/stop keep their accustomed spot at the end.
+          if (lightPrinter != null && _hasLighting(lightPrinter!)) ...[
+            _LightBulbButton(
+              printer: lightPrinter!,
+              status: status,
+              onSurface: true,
+            ),
+            const SizedBox(width: 4),
+          ],
           if (paused)
             _Btn(
               icon: Icons.play_arrow_rounded,
@@ -1217,51 +1254,6 @@ class _IdleLabel extends StatelessWidget {
 }
 
 // ── Compact-tile pieces (webcam-hidden printers) ──────────────────────────────
-
-/// Slim print-progress readout for a compact tile: "Printing"/"Paused" + the
-/// percentage above a thin bar. Mirrors the full tile's action-row progress.
-class _CompactProgress extends StatelessWidget {
-  final PrinterStatus status;
-  const _CompactProgress({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme  = Theme.of(context);
-    final l      = AppLocalizations.of(context);
-    final paused = status.state == 'paused';
-    final color  = paused ? Colors.orange : theme.colorScheme.primary;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              paused ? l.tilePaused : l.tilePrinting,
-              style: theme.textTheme.labelSmall?.copyWith(color: color),
-            ),
-            Text(
-              '${(status.progress * 100).round()}%',
-              style: theme.textTheme.labelSmall
-                  ?.copyWith(color: color, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(3),
-          child: LinearProgressIndicator(
-            value: status.progress,
-            minHeight: 6,
-            backgroundColor: Colors.black26,
-            color: color,
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 /// Connection-state label for a compact tile with no live reading (offline /
 /// connecting / starting up / waiting). Reuses the same strings the full tile's
@@ -2144,7 +2136,16 @@ bool _hasLighting(PrinterConfig p) {
 class _LightBulbButton extends StatefulWidget {
   final PrinterConfig printer;
   final PrinterStatus status;
-  const _LightBulbButton({required this.printer, required this.status});
+
+  /// When true, render for the compact tile's action row: the same tinted
+  /// rounded-square chrome as [_Btn] (folder/macros), instead of the dark
+  /// webcam-overlay chip. Same convention as [_PowerButton.onSurface].
+  final bool onSurface;
+  const _LightBulbButton({
+    required this.printer,
+    required this.status,
+    this.onSurface = false,
+  });
 
   @override
   State<_LightBulbButton> createState() => _LightBulbButtonState();
@@ -2253,6 +2254,43 @@ class _LightBulbButtonState extends State<_LightBulbButton> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final on = _displayOn;
+    if (widget.onSurface) {
+      // Compact tile's action row: the same tinted rounded-square chrome as
+      // the folder/macros [_Btn]s beside it. Amber deepens a shade so the lit
+      // state stays readable on the Light theme's near-white card.
+      final cs = Theme.of(context).colorScheme;
+      final color = !_online
+          ? cs.onSurface.withValues(alpha: 0.3)
+          : on
+              ? Colors.amber.shade700
+              : cs.onSurfaceVariant;
+      return Tooltip(
+        message: on ? l.lightTurnOff : l.lightTurnOn,
+        child: InkWell(
+          onTap: _online && !_busy ? _tap : null,
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            padding: const EdgeInsets.all(6),
+            child: _busy
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: cs.primary),
+                  )
+                : Icon(
+                    on ? Icons.lightbulb : Icons.lightbulb_outline,
+                    size: 20,
+                    color: color,
+                  ),
+          ),
+        ),
+      );
+    }
     return Tooltip(
       message: on ? l.lightTurnOff : l.lightTurnOn,
       child: Material(

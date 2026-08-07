@@ -7,7 +7,12 @@
 /// plugin that existed at its own release time. An app can only ever be
 /// behind reality here (never ahead), so the badge can be late but never
 /// false.
-const String kCurrentPluginVersion = '0.6.16';
+///
+/// 0.6.22 catches up the 0.6.17-0.6.22 run of plugin-only releases: 0.6.17
+/// and 0.6.18 were deliberate no-badge holds (no-ops on a stock Pi), and the
+/// 0.6.19-0.6.22 fixes + multicam shipped while no app release was in
+/// flight, so this is the first build that can badge for them.
+const String kCurrentPluginVersion = '0.6.22';
 
 /// True when [reported] is an older plugin version than
 /// [kCurrentPluginVersion]. A null/empty [reported] is a pre-v0.6.4 plugin

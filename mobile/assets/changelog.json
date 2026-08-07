@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.9.60",
+    "bullets": [
+      "Compact tiles get the full set of quick actions. A tile with its webcam hidden used to lose every button the full tile offers: no pause or stop, no file browser, no macros, and no light control, because all of those lived on or around the camera square. The same action row the full tile shows beneath its camera now sits at the top of each compact tile, with the printer's status or live print progress on the left and the buttons on the right, including the light toggle for printers with lighting configured. Mid-print a compact tile can now pause, resume or cancel the job directly, and a printer in an error state offers its firmware-restart button, exactly like the full tile.",
+      "The plugin-update badge catches up to plugin 0.6.22. The multi-camera plugin shipped alongside v0.9.59, but no app build knew it existed yet, so tiles never nudged for it. This update teaches the badge that 0.6.22 is current: printers still on an older plugin show the amber badge again, with the usual one-tap update on plugins 0.6.16 and newer. If your printers already run 0.6.22, nothing changes."
+    ]
+  },
+  {
     "version": "v0.9.59",
     "bullets": [
       "Printers with more than one camera can now switch between them in the app. When a printer reports two or more webcams, a switch button appears on its tile's camera; tap it to pick which camera to show, on the tile and in the full-screen view alike. The choice is remembered for each printer and travels in your backups. Cameras themselves are still added, named, enabled and ordered in Mainsail or Fluidd; the app simply follows that list. Needs plugin 0.6.22 or newer on the printer (Mainsail -> Software Updates); on an older plugin the app keeps showing the first camera exactly as before, and a camera set by hand with the tile's gear always wins over the picker. Thanks to the field report that asked for it.",
