@@ -910,6 +910,12 @@ def describe_db_check(
     ]
 
 
+# The full-blackout easter egg (2026-08-08): when neither the cloud nor the
+# tunnel answers, the report closes with the words of the community member
+# whose router outage inspired MOONGATE_STATUS.
+COOKED_LINE = '"Yeah, it\'s cooked mate" - Schlonky'
+
+
 def describe_tunnel_check(
     tunnel_url: Optional[str],
     status: Optional[int],
@@ -1978,6 +1984,7 @@ class MoongatePlugin:
                 f"moongate-heartbeat\n{pk_b64}\n{tunnel}\n{ts}".encode())
             hb_status, hb_body = self.sb.heartbeat(
                 pk_b64, tunnel, ts, self.device.sign_b64(canonical))
+            db_dead  = hb_status == 0
             db_lines = describe_db_check(
                 hb_status, hb_body, self.sb.clock_skew_seconds(),
                 paired=self.owner is not None)
@@ -1989,7 +1996,8 @@ class MoongatePlugin:
                 self.heartbeat.request_immediate_send()
         else:
             probe_status, probe_body = self.sb._post("/printer-heartbeat", {})
-            if probe_status == 0:
+            db_dead = probe_status == 0
+            if db_dead:
                 err = probe_body.get("error", "network error")
                 db_lines = [f"Cloud database: UNREACHABLE - {err}"]
             else:
@@ -2015,6 +2023,10 @@ class MoongatePlugin:
         report = [banner, title, mode]
         report += [f"M118 {ln}" for ln in db_lines]
         report += [f"M118 {ln}" for ln in tunnel_lines]
+        tunnel_dead = (not tunnel
+                       or classify_probe(t_status, t_error) == "dead")
+        if db_dead and tunnel_dead:
+            report.append(f"M118 {COOKED_LINE}")
         report.append(banner)
         await _say("\n".join(report))
 

@@ -101,9 +101,16 @@ def test_tunnel_wording():
     assert "2 self-heal(s)" in healed and "12 min ago" in healed
 
 
+def test_cooked_easter_egg():
+    # The community-donated blackout sign-off must never silently vanish.
+    assert MOD.COOKED_LINE == '"Yeah, it\'s cooked mate" - Schlonky'
+
+
 if __name__ == "__main__":
     test_db_wording()
     print("PASS database wording: ok/gone/unpaired/released/clock/refused/down")
     test_tunnel_wording()
     print("PASS tunnel wording: off/active/broken/530/no-watchdog/throttled/authproxy/heals")
+    test_cooked_easter_egg()
+    print("PASS the blackout sign-off is word-for-word Schlonky's")
     print("All good.")
