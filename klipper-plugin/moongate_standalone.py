@@ -860,6 +860,108 @@ class TunnelWatchdog:
         }
 
 
+# ── MOONGATE_STATUS wording (v0.6.23) ─────────────────────────────────────────
+# The console macro answers the two questions support always asks first: can
+# this printer talk to the cloud database, and does its public tunnel actually
+# answer? Both checks are LIVE (a real signed heartbeat; the watchdog's own
+# probe) - these two pure functions turn the raw results into console wording,
+# so the whole diagnosis matrix is unit-testable without a network. Plain
+# text; the macro handler adds the M118 prefixes.
+
+def describe_db_check(
+    status: int, body: dict, skew: Optional[float], paired: bool,
+) -> list[str]:
+    if status in (200, 204):
+        line = "Cloud database: OK - heartbeat accepted"
+        if skew is not None:
+            line += f" (clock offset {skew:+.0f}s)"
+        return [line]
+    if status == 404:
+        if paired:
+            return [
+                "Cloud database: reachable - but this printer's",
+                "registration is GONE (removed in the app?).",
+                "Run MOONGATE_PAIR to re-pair.",
+            ]
+        return [
+            "Cloud database: reachable - printer not registered",
+            "yet. Run MOONGATE_PAIR to pair.",
+        ]
+    if status == 410:
+        return [
+            "Cloud database: reachable - the owner released",
+            "this printer. Run MOONGATE_PAIR to pair again.",
+        ]
+    if status == 401:
+        if skew is not None and abs(skew) > 60:
+            return [
+                f"Cloud database: REFUSED - Pi clock is ~{skew:+.0f}s",
+                "vs server time (limit 60s). Remote access fails",
+                "until the clock syncs: timedatectl, or htpdate",
+                "if your network blocks NTP.",
+            ]
+        return ["Cloud database: REFUSED - signature rejected."]
+    if status == 0:
+        err = body.get("error", "network error")
+        return [f"Cloud database: UNREACHABLE - {err}"]
+    return [
+        f"Cloud database: HTTP {status} - a platform blip?",
+        "Try MOONGATE_STATUS again in a minute.",
+    ]
+
+
+def describe_tunnel_check(
+    tunnel_url: Optional[str],
+    status: Optional[int],
+    error: Optional[str],
+    watchdog: Optional[dict],
+    now: float,
+) -> list[str]:
+    if not tunnel_url:
+        return [
+            "Tunnel: NOT RUNNING - no URL published.",
+            "Check: sudo systemctl status moongate-tunnel",
+        ]
+    if classify_probe(status, error) == "dead":
+        why   = error if error is not None else f"HTTP {status}"
+        lines = [
+            "Tunnel: BROKEN - published but unreachable",
+            f"from the internet ({why}).",
+        ]
+        if watchdog is None:
+            lines.append("Tunnel watchdog is OFF (config).")
+        elif watchdog.get("state") == "throttled":
+            lines += [
+                "Watchdog STOOD DOWN (restarts didn't fix it).",
+                "Check: sudo journalctl -u moongate-tunnel -n 50",
+            ]
+        else:
+            lines.append("The watchdog restarts it within ~15 min.")
+    elif status == 401:
+        lines = [
+            "Tunnel: ACTIVE - answers correctly from the",
+            f"internet: {tunnel_url}",
+        ]
+    elif status == 502:
+        lines = [
+            "Tunnel: delivers, but the auth layer is DOWN",
+            "(HTTP 502). Check:",
+            "sudo journalctl -u moongate-authproxy -n 50",
+        ]
+    else:
+        lines = [f"Tunnel: delivers, unexpected answer HTTP {status}."]
+    if watchdog and watchdog.get("heals"):
+        last = watchdog.get("last_heal")
+        if last:
+            mins = max(0, int((now - last) // 60))
+            lines.append(
+                f"Watchdog: {watchdog['heals']} self-heal(s), "
+                f"last {mins} min ago.")
+        else:
+            lines.append(f"Watchdog: {watchdog['heals']} self-heal(s).")
+    return lines
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # HeartbeatLoop
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1475,6 +1577,7 @@ class MoongatePlugin:
         # Klipper macros
         self.server.register_remote_method("moongate_generate_pair_code", self._klipper_pair)
         self.server.register_remote_method("moongate_reset_owner",        self._klipper_reset_owner)
+        self.server.register_remote_method("moongate_status",             self._klipper_status)
 
         # Bootstrap JWKS (best effort) and start the heartbeat + print-watch loops.
         # LAN-only mode has no cloud: skip all of it so the plugin makes zero
@@ -1822,6 +1925,98 @@ class MoongatePlugin:
             await klippy_apis.run_gcode(script)
         except Exception as exc:
             logger.error("run_gcode failed: %s", exc)
+
+    async def _klipper_status(self) -> None:
+        """MOONGATE_STATUS macro entry point (v0.6.23, a user ask): the two
+        questions support always asks first - can this printer talk to the
+        cloud database, and does its public tunnel actually answer? - checked
+        LIVE and printed to the console. The tunnel check is the watchdog's
+        own probe; the database check is a real signed heartbeat, which also
+        freshens the cloud row - a diagnosis that heals staleness for free."""
+        klippy_apis: Any = self.server.lookup_component("klippy_apis")
+
+        async def _say(script: str) -> None:
+            try:
+                await klippy_apis.run_gcode(script)
+            except Exception as exc:
+                logger.error("run_gcode failed: %s", exc)
+
+        banner = "M118 ============================================"
+        title  = f"M118 Moongate status (plugin {MOONGATE_PLUGIN_VERSION})"
+        if self.lan_only:
+            port_sfx = "" if self.http_port == 80 else f":{self.http_port}"
+            await _say("\n".join([
+                banner, title,
+                "M118 Mode: LAN-only - no cloud, no tunnel,",
+                "M118 by design. The app connects directly:",
+                f"M118   http://{_get_local_ip()}{port_sfx}",
+                banner,
+            ]))
+            return
+        if self._plugin_error is not None:
+            await _say("\n".join([
+                banner, title,
+                "M118 Mode: cloud - BROKEN: missing Python deps.",
+                f"M118 {self._plugin_error}",
+                banner,
+            ]))
+            return
+
+        await _say("M118 Moongate: checking cloud + tunnel (a few seconds)...")
+
+        tunnel = _get_tunnel_url()
+        # Database half. With a tunnel URL: a real signed heartbeat - the
+        # authoritative answer (row state, clock skew, and it freshens
+        # last_seen). Without one there is nothing safe to send (a
+        # placeholder URL would overwrite the row's stored URL), so just
+        # prove the Edge Function answers at all: an empty POST is rejected
+        # with a 4xx by validation, which is exactly "reachable".
+        if tunnel:
+            ts        = int(time.time())
+            pk_b64    = self.device.public_key_b64
+            canonical = (
+                f"moongate-heartbeat\n{pk_b64}\n{tunnel}\n{ts}".encode())
+            hb_status, hb_body = self.sb.heartbeat(
+                pk_b64, tunnel, ts, self.device.sign_b64(canonical))
+            db_lines = describe_db_check(
+                hb_status, hb_body, self.sb.clock_skew_seconds(),
+                paired=self.owner is not None)
+            if hb_status in (200, 204) and self.heartbeat is not None \
+                    and self.heartbeat.dormant:
+                # The row is back but the loop sits on the 6-hourly dormant
+                # pulse - wake it through the public poke so its own
+                # bookkeeping (not ours) clears the orphan state.
+                self.heartbeat.request_immediate_send()
+        else:
+            probe_status, probe_body = self.sb._post("/printer-heartbeat", {})
+            if probe_status == 0:
+                err = probe_body.get("error", "network error")
+                db_lines = [f"Cloud database: UNREACHABLE - {err}"]
+            else:
+                db_lines = [
+                    "Cloud database: reachable (function answered",
+                    f"HTTP {probe_status}) - but no heartbeat is possible",
+                    "until the tunnel publishes a URL.",
+                ]
+
+        # Tunnel half - the watchdog's own probe, read-only. Its verdict is
+        # deliberately NOT fed into the watchdog's state machine: diagnosis
+        # observes; only the heartbeat-success anchor decides.
+        t_status, t_error = (None, None)
+        if tunnel:
+            t_status, t_error = _probe_tunnel(tunnel)
+        wd_snapshot = (self.tunnel_watchdog.snapshot()
+                       if self.tunnel_watchdog else None)
+        tunnel_lines = describe_tunnel_check(
+            tunnel, t_status, t_error, wd_snapshot, time.time())
+
+        mode = "M118 Mode: cloud" + (
+            " (paired)" if self.owner else " (NOT PAIRED)")
+        report = [banner, title, mode]
+        report += [f"M118 {ln}" for ln in db_lines]
+        report += [f"M118 {ln}" for ln in tunnel_lines]
+        report.append(banner)
+        await _say("\n".join(report))
 
     async def _do_factory_reset(self) -> tuple[bool, int]:
         """Shared reset path used by the macro and the HTTP endpoint:

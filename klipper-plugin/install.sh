@@ -605,6 +605,11 @@ gcode:
 description: Wipe local Moongate owner binding so the printer can be re-paired
 gcode:
     {action_call_remote_method("moongate_reset_owner")}
+
+[gcode_macro MOONGATE_STATUS]
+description: Report Moongate cloud + tunnel health in the console
+gcode:
+    {action_call_remote_method("moongate_status")}
 MACROS
 } > "$MOONGATE_CFG"
 
