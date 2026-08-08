@@ -89,6 +89,10 @@ PRINTER_DATA="${PRINTER_DATA:-$HOME/printer_data}"
 ASVC_FILE="$PRINTER_DATA/moonraker.asvc"
 if [[ -f /etc/systemd/system/moongate-tunnel.service ]] \
    && ! grep -qxs 'moongate-tunnel' "$ASVC_FILE"; then
+    # Another tool's installer may have left the file without a trailing
+    # newline (seen in the field with mobileraker's entry) - a bare append
+    # would glue our name onto that last entry, corrupting both.
+    [[ -s "$ASVC_FILE" && -n "$(tail -c1 "$ASVC_FILE")" ]] && echo >> "$ASVC_FILE"
     echo 'moongate-tunnel' >> "$ASVC_FILE"
     ok "moongate-tunnel added to moonraker.asvc (tunnel watchdog active from this update)"
 fi

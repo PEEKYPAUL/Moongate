@@ -861,6 +861,10 @@ ASVC_FILE="$PRINTER_DATA/moonraker.asvc"
 if grep -qxs 'moongate-tunnel' "$ASVC_FILE"; then
     info "moongate-tunnel already in moonraker.asvc"
 else
+    # Another tool's installer may have left the file without a trailing
+    # newline (seen in the field with mobileraker's entry) - a bare append
+    # would glue our name onto that last entry, corrupting both.
+    [[ -s "$ASVC_FILE" && -n "$(tail -c1 "$ASVC_FILE")" ]] && echo >> "$ASVC_FILE"
     echo 'moongate-tunnel' >> "$ASVC_FILE"
     success "moongate-tunnel added to moonraker.asvc (tunnel watchdog can self-heal)"
 fi
