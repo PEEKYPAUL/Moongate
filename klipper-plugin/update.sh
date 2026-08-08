@@ -78,4 +78,19 @@ fi
 # cloudflared tunnel URL out of it, and cloudflared only writes a banner plus
 # occasional reconnect lines (KBs over weeks, cleared on every boot).
 
+# ── 4. Migration: let Moonraker manage the tunnel service (tunnel watchdog) ──
+# The tunnel watchdog (plugin 0.6.23) heals a wedged cloudflared by asking
+# Moonraker's machine API for a restart, which Moonraker only permits for
+# units listed in moonraker.asvc. Tunnel-mode boxes get the entry here;
+# LAN-only boxes have no tunnel unit and are skipped. No sudo needed (the
+# file lives in printer_data), and Moonraker's own post-update restart makes
+# it take effect immediately.
+PRINTER_DATA="${PRINTER_DATA:-$HOME/printer_data}"
+ASVC_FILE="$PRINTER_DATA/moonraker.asvc"
+if [[ -f /etc/systemd/system/moongate-tunnel.service ]] \
+   && ! grep -qxs 'moongate-tunnel' "$ASVC_FILE"; then
+    echo 'moongate-tunnel' >> "$ASVC_FILE"
+    ok "moongate-tunnel added to moonraker.asvc (tunnel watchdog active from this update)"
+fi
+
 ok "Update complete."

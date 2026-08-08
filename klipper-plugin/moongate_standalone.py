@@ -115,7 +115,7 @@ logger = logging.getLogger("moonraker.moongate")
 # Bumped on each release; surfaced in the /status response so the app's bug
 # reports show which plugin a Pi is actually running - the #1 triage blind spot
 # (an old plugin explains most "works on LAN / fails over tunnel" reports).
-MOONGATE_PLUGIN_VERSION = "0.6.22"
+MOONGATE_PLUGIN_VERSION = "0.6.23"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -172,6 +172,10 @@ DEFAULT_CONFIG = {
     # /control skip the EdDSA token (LAN is trusted by subnet, exactly as
     # Moonraker's own trusted_clients treats it). See _authenticate + _handle_qr.
     "lan_only":                   False,
+    # v0.6.23 tunnel watchdog: self-heal a wedged cloudflared (see the
+    # TunnelWatchdog block comment). On by default; [moongate]
+    # tunnel_watchdog in moonraker.conf overrides, same as lan_only.
+    "tunnel_watchdog":            True,
 }
 
 ACCESS_TOKEN_AUDIENCE = "moongate-printer"
@@ -731,6 +735,132 @@ class SupabaseClient:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Tunnel watchdog (v0.6.23)
+# ═══════════════════════════════════════════════════════════════════════════════
+# The one hole in the self-healing story used to be the tunnel itself:
+# heartbeats retry forever and cloudflared reconnects after network loss, but a
+# cloudflared whose connection is gone for good (a stale path after an ISP
+# flap, a router that silently dropped the long-lived link) just sits there -
+# the tile reads offline remotely while everything on the Pi looks healthy,
+# and the only fix was a human restarting something. Field case 2026-08-08:
+# one printer of a four-printer household unreachable remotely for exactly
+# this reason while its heartbeats kept landing.
+#
+# The cure is a self-probe through the front door: right after a heartbeat
+# SUCCEEDS (which proves DNS + outbound internet at that moment), fetch our
+# own public tunnel URL with a deliberately-bogus token and expect the
+# authproxy's 401. That one request exercises the whole remote path:
+# Cloudflare edge -> tunnel -> cloudflared -> authproxy. Enough consecutive
+# failures while the internet is provably fine means the tunnel side is
+# wedged, and restarting moongate-tunnel mints a fresh URL that the very next
+# heartbeat reports - the app follows within a poll, nobody has to know.
+#
+# Deliberate non-goals:
+#  - No probe without a fresh heartbeat success. A WAN outage fails both
+#    paths, and restarting the tunnel then only churns - or kills a link that
+#    was about to survive. In the field case above, a sibling printer's tunnel
+#    outlived the router flap precisely because nothing touched it.
+#  - Only transport-level failures and Cloudflare's own tunnel-down answer
+#    (HTTP 530 / error 1033) count as strikes. Any DELIVERED response - the
+#    expected 401 gate, even a 502 - proves the tunnel path works; what is
+#    behind it is not a problem a tunnel restart can fix.
+#  - A heal budget with a loud stand-down: a tunnel that stays dead through
+#    fresh URLs has a problem that deserves a human, not an infinite URL
+#    rotation.
+# Probes cost nothing cloud-side (the bogus token dies inside the authproxy,
+# logged there at debug level) and run at most once per PROBE_GAP_SECONDS
+# even during the heartbeat's fast cadences.
+
+_WATCHDOG_PROBE_PATH = "/server/moongate/status?mg_token=mg-watchdog-probe"
+
+
+def _probe_tunnel(
+    tunnel_url: str, timeout: float = 6.0,
+) -> tuple[Optional[int], Optional[str]]:
+    """GET our own public tunnel URL. Returns (http_status, None) when any
+    HTTP answer came back, (None, error_string) when the transport failed."""
+    req = urllib.request.Request(
+        tunnel_url.rstrip("/") + _WATCHDOG_PROBE_PATH,
+        headers={"User-Agent": f"moongate-watchdog/{MOONGATE_PLUGIN_VERSION}"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status, None
+    except urllib.error.HTTPError as exc:
+        return exc.code, None
+    except Exception as exc:
+        return None, str(exc) or exc.__class__.__name__
+
+
+def classify_probe(status: Optional[int], error: Optional[str]) -> str:
+    """'dead' only when nothing came back at all (transport failure) or
+    Cloudflare itself said the tunnel is down (530, error 1033). Any other
+    answer was DELIVERED through the tunnel - the only question the watchdog
+    asks. The healthy answer is specifically the authproxy's 401, but a 502
+    (authproxy down) still proves the tunnel works, and restarting the tunnel
+    for it would thrash without fixing anything."""
+    if error is not None or status == 530:
+        return "dead"
+    return "alive"
+
+
+class TunnelWatchdog:
+    """Pure decision state for the tunnel self-heal - no I/O, unit-tested in
+    tests/test_tunnel_watchdog.py. The HeartbeatLoop feeds it probe verdicts;
+    it answers with the action to take."""
+
+    PROBE_GAP_SECONDS     = 240       # at most one probe per steady heartbeat
+    STRIKES_TO_HEAL       = 3         # ~15 min of confirmed tunnel-dead
+    HEAL_BUDGET           = 3         # restarts allowed per rolling window -
+    BUDGET_WINDOW_SECONDS = 6 * 3600  # beyond that, stand down until it heals
+
+    def __init__(self) -> None:
+        self._strikes:    int             = 0
+        self._last_probe: float           = 0.0
+        self._heal_times: list[float]     = []
+        self._throttled:  bool            = False
+        self.heal_count:  int             = 0
+        self.last_heal:   Optional[int]   = None
+
+    def should_probe(self, now: float) -> bool:
+        return (now - self._last_probe) >= self.PROBE_GAP_SECONDS
+
+    def note_probe(self, verdict: str, now: float) -> Optional[str]:
+        """Feed one probe verdict ('alive' / 'dead'). Returns "heal" (restart
+        the tunnel now), "throttle" (budget exhausted - returned once, on the
+        transition, for a single loud log line), or None."""
+        self._last_probe = now
+        if verdict != "dead":
+            self._strikes   = 0
+            self._throttled = False
+            return None
+        self._strikes += 1
+        if self._strikes < self.STRIKES_TO_HEAL:
+            return None
+        self._strikes = 0
+        cutoff = now - self.BUDGET_WINDOW_SECONDS
+        self._heal_times = [t for t in self._heal_times if t > cutoff]
+        if len(self._heal_times) >= self.HEAL_BUDGET:
+            first = not self._throttled
+            self._throttled = True
+            return "throttle" if first else None
+        self._throttled = False
+        self._heal_times.append(now)
+        self.heal_count += 1
+        self.last_heal   = int(now)
+        return "heal"
+
+    def snapshot(self) -> dict:
+        """Tiny (three keys) - rides every /status answer so support can read
+        the heal history from the app's diagnostics without SSH."""
+        return {
+            "heals":     self.heal_count,
+            "last_heal": self.last_heal,
+            "state":     "throttled" if self._throttled else "ok",
+        }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # HeartbeatLoop
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -747,12 +877,19 @@ class HeartbeatLoop:
         on_unpaired_cb=None,
         on_dormant_cb=None,
         pending_pair_cb=None,
+        watchdog=None,
+        restart_tunnel_cb=None,
     ) -> None:
         self.device      = device
         self.sb          = sb
         self.interval    = interval
         self.on_unpaired = on_unpaired_cb
         self.on_dormant  = on_dormant_cb
+        # Tunnel watchdog (v0.6.23): fed a probe verdict after each heartbeat
+        # SUCCESS; restart_tunnel_cb fires when it decides the tunnel needs a
+        # fresh start. Both None when disabled (config) or impossible (LAN-only).
+        self.watchdog       = watchdog
+        self.restart_tunnel = restart_tunnel_cb
         # Answers "is a pairing session open right now?" (an un-redeemed,
         # un-expired GATE code). Consulted by the 404/410 handlers: while a
         # user is mid-pair the row's absence is EXPECTED (reset-owner released
@@ -912,6 +1049,9 @@ class HeartbeatLoop:
             if tunnel != self._last_url_reported:
                 logger.info("Heartbeat: reported tunnel URL %s", tunnel)
                 self._last_url_reported = tunnel
+            # A landed heartbeat is the watchdog's anchor: the internet works
+            # RIGHT NOW, so a failing tunnel probe indicts the tunnel alone.
+            self._check_tunnel_health(tunnel)
             return
         if status == 404:
             logger.warning("Heartbeat 404 - printer record gone server-side")
@@ -990,6 +1130,45 @@ class HeartbeatLoop:
                 logger.warning("Heartbeat 401 - signature or replay window failure")
             return
         logger.warning("Heartbeat HTTP %s: %s", status, body)
+
+    # ── Tunnel watchdog (v0.6.23) ────────────────────────────────────────────
+
+    def _check_tunnel_health(self, tunnel: str) -> None:
+        """Runs only right after a heartbeat SUCCESS (the internet anchor -
+        see the TunnelWatchdog block comment). Sync like the heartbeat itself:
+        a healthy tunnel answers in well under a second; a dead one costs the
+        probe timeout a handful of times per heal, the same class of stall as
+        the heartbeat's own timeout on a bad network."""
+        wd = self.watchdog
+        if wd is None:
+            return
+        now = time.time()
+        if not wd.should_probe(now):
+            return
+        status, error = _probe_tunnel(tunnel)
+        verdict = classify_probe(status, error)
+        action  = wd.note_probe(verdict, now)
+        if verdict == "dead":
+            logger.warning(
+                "Tunnel self-probe failed (%s) while heartbeats succeed - the "
+                "tunnel is unreachable from the internet",
+                error if error is not None else f"HTTP {status}")
+        if action == "heal" and self.restart_tunnel is not None:
+            logger.warning(
+                "Tunnel watchdog: restarting moongate-tunnel for a fresh URL "
+                "(heal #%d)", wd.heal_count)
+            try:
+                self.restart_tunnel()
+            except Exception as exc:
+                logger.warning(
+                    "Tunnel watchdog: restart request failed: %s", exc)
+        elif action == "throttle":
+            logger.error(
+                "Tunnel watchdog: %d restarts inside %d h did not produce a "
+                "working tunnel - standing down until it answers again. The "
+                "tunnel has a problem a restart does not fix (check: sudo "
+                "journalctl -u moongate-tunnel -n 50).",
+                wd.HEAL_BUDGET, wd.BUDGET_WINDOW_SECONDS // 3600)
 
     # ── Orphan dormancy (v0.6.15) ────────────────────────────────────────────
 
@@ -1185,10 +1364,12 @@ class MoongatePlugin:
         conf_lan_only  = None
         conf_data_path = None
         conf_mr_port   = None
+        conf_watchdog  = None
         try:
             conf_lan_only  = config.getboolean("lan_only", None)
             conf_data_path = config.get("data_path", None)
             conf_mr_port   = config.getint("moonraker_port", None)
+            conf_watchdog  = config.getboolean("tunnel_watchdog", None)
         except Exception:
             pass  # duck-typed/legacy config objects: historic defaults
 
@@ -1208,8 +1389,9 @@ class MoongatePlugin:
                 self._data_dir, exc)
             raise
 
-        self._config            = self._load_config()
-        self._lan_only_override = conf_lan_only
+        self._config                  = self._load_config()
+        self._lan_only_override       = conf_lan_only
+        self._tunnel_watchdog_override = conf_watchdog
 
         # Where Moonraker itself listens: an explicit moonraker_port wins,
         # else ask the server (embedded builds bind :80, not :7125), else the
@@ -1248,6 +1430,8 @@ class MoongatePlugin:
                 self._config["supabase_url"],
                 self._config["supabase_anon_key"],
             )
+            self.tunnel_watchdog = (
+                TunnelWatchdog() if self.tunnel_watchdog_enabled else None)
             self.heartbeat = HeartbeatLoop(
                 self.device, self.sb,
                 int(self._config["heartbeat_interval_seconds"]),
@@ -1257,6 +1441,8 @@ class MoongatePlugin:
                     self._pending is not None
                     and time.time() < self._pending.expires_at
                 ),
+                watchdog=self.tunnel_watchdog,
+                restart_tunnel_cb=self._restart_tunnel_service,
             )
             self.watcher   = PrintEventWatcher(
                 self.device, self.sb,
@@ -1264,12 +1450,13 @@ class MoongatePlugin:
                 is_dormant=lambda: self.heartbeat.dormant,
             )
         else:
-            self.device    = None
-            self.jwks      = None
-            self.verifier  = None
-            self.sb        = None
-            self.heartbeat = None
-            self.watcher   = None
+            self.device          = None
+            self.jwks            = None
+            self.verifier        = None
+            self.sb              = None
+            self.heartbeat       = None
+            self.watcher         = None
+            self.tunnel_watchdog = None
 
         self._pending: Optional[PendingPair]   = None
         self._chamber_key: Optional[str]       = None
@@ -1346,6 +1533,58 @@ class MoongatePlugin:
         if self._lan_only_override is not None:
             return bool(self._lan_only_override)
         return bool(self._config.get("lan_only", False))
+
+    @property
+    def tunnel_watchdog_enabled(self) -> bool:
+        # Same precedence as lan_only: [moongate] tunnel_watchdog beats
+        # config.json, default on. The off switch exists for setups where the
+        # tunnel is deliberately managed by hand (or a URL rotation mid-print
+        # watch is unacceptable) - everything else should want self-healing.
+        if self._tunnel_watchdog_override is not None:
+            return bool(self._tunnel_watchdog_override)
+        return bool(self._config.get("tunnel_watchdog", True))
+
+    # ── Tunnel watchdog plumbing (v0.6.23) ───────────────────────────────────
+
+    def _restart_tunnel_service(self) -> None:
+        """Restart moongate-tunnel through Moonraker's machine component - the
+        same allowed-services path the web UIs use for service buttons, so no
+        sudoers of our own. Needs `moongate-tunnel` in moonraker.asvc
+        (install.sh writes it; update.sh migrates existing installs). Called
+        sync from the heartbeat loop; the real work runs on the event loop."""
+
+        async def _do() -> None:
+            try:
+                machine: Any = self.server.lookup_component("machine")
+                await machine.do_service_action("restart", "moongate-tunnel")
+                logger.info(
+                    "Tunnel watchdog: moongate-tunnel restarted - the fresh "
+                    "URL reaches the cloud with the next heartbeat")
+            except Exception as exc:
+                if "not allowed" in str(exc).lower():
+                    # Moonraker refused: moonraker.asvc lacks our entry (an
+                    # install that predates the watchdog and has not run
+                    # update.sh). Permanent for this session - disable, so the
+                    # loop does not strike/heal forever without being able to
+                    # act.
+                    logger.error(
+                        "Tunnel watchdog: Moonraker refused to manage "
+                        "moongate-tunnel (%s). Add a 'moongate-tunnel' line "
+                        "to ~/printer_data/moonraker.asvc and restart "
+                        "Moonraker, or update via Mainsail's Software "
+                        "Updates (which runs the migration). Watchdog "
+                        "disabled until then.", exc)
+                    self.tunnel_watchdog = None
+                    if self.heartbeat is not None:
+                        self.heartbeat.watchdog = None
+                else:
+                    logger.warning(
+                        "Tunnel watchdog: restart attempt failed: %s", exc)
+
+        try:
+            asyncio.get_event_loop().create_task(_do())
+        except RuntimeError:
+            logger.warning("Tunnel watchdog: no running event loop for the restart")
 
     # ── Pairing ───────────────────────────────────────────────────────────────
 
@@ -1968,6 +2207,11 @@ class MoongatePlugin:
         # update dialog knows to offer one-tap "Update now" instead of the
         # Mainsail instructions it shows for older plugins.
         result["plugin_can_self_update"] = True
+        # v0.6.23: tunnel-watchdog heal history, so support can read "has this
+        # tunnel been self-healing?" from the app's diagnostics without SSH.
+        # None when disabled or LAN-only (no tunnel to watch).
+        result["tunnel_watchdog"] = (
+            self.tunnel_watchdog.snapshot() if self.tunnel_watchdog else None)
 
         webcam = await self._get_webcam_info(client)
         result["webcam_snapshot_path"]   = webcam["snapshot_path"]

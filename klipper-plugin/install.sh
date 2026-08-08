@@ -846,6 +846,20 @@ sleep 1
 sudo systemctl restart moongate-tunnel
 success "moongate-tunnel service started"
 
+# ── 7b. Let Moonraker manage the tunnel service (tunnel watchdog) ─────────────
+# The plugin's tunnel watchdog (0.6.23+) self-heals a wedged tunnel by asking
+# Moonraker's machine API to restart moongate-tunnel. Moonraker only touches
+# units listed in moonraker.asvc, so add ours (idempotent; the file is
+# user-owned, and Moonraker re-reads it on the restart at the end of this
+# install).
+ASVC_FILE="$PRINTER_DATA/moonraker.asvc"
+if grep -qxs 'moongate-tunnel' "$ASVC_FILE"; then
+    info "moongate-tunnel already in moonraker.asvc"
+else
+    echo 'moongate-tunnel' >> "$ASVC_FILE"
+    success "moongate-tunnel added to moonraker.asvc (tunnel watchdog can self-heal)"
+fi
+
 else
     # ── LAN-only: retire any tunnel stack from a prior full install ──────────
     # Converts an existing tunnel-mode box to LAN-only: stop + disable the
