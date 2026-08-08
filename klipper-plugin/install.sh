@@ -605,6 +605,11 @@ gcode:
 description: Wipe local Moongate owner binding so the printer can be re-paired
 gcode:
     {action_call_remote_method("moongate_reset_owner")}
+
+[gcode_macro MOONGATE_STATUS]
+description: Report Moongate cloud + tunnel health in the console
+gcode:
+    {action_call_remote_method("moongate_status")}
 MACROS
 } > "$MOONGATE_CFG"
 
@@ -845,6 +850,24 @@ pkill -f "cloudflared tunnel" 2>/dev/null || true
 sleep 1
 sudo systemctl restart moongate-tunnel
 success "moongate-tunnel service started"
+
+# ── 7b. Let Moonraker manage the tunnel service (tunnel watchdog) ─────────────
+# The plugin's tunnel watchdog (0.6.23+) self-heals a wedged tunnel by asking
+# Moonraker's machine API to restart moongate-tunnel. Moonraker only touches
+# units listed in moonraker.asvc, so add ours (idempotent; the file is
+# user-owned, and Moonraker re-reads it on the restart at the end of this
+# install).
+ASVC_FILE="$PRINTER_DATA/moonraker.asvc"
+if grep -qxs 'moongate-tunnel' "$ASVC_FILE"; then
+    info "moongate-tunnel already in moonraker.asvc"
+else
+    # Another tool's installer may have left the file without a trailing
+    # newline (seen in the field with mobileraker's entry) - a bare append
+    # would glue our name onto that last entry, corrupting both.
+    [[ -s "$ASVC_FILE" && -n "$(tail -c1 "$ASVC_FILE")" ]] && echo >> "$ASVC_FILE"
+    echo 'moongate-tunnel' >> "$ASVC_FILE"
+    success "moongate-tunnel added to moonraker.asvc (tunnel watchdog can self-heal)"
+fi
 
 else
     # ── LAN-only: retire any tunnel stack from a prior full install ──────────
