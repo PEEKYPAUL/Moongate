@@ -225,6 +225,8 @@ From v0.9.48 this friendly message (with an automatic retry every few seconds) r
   cat /run/moongate-tunnel.log
   ```
 - The Cloudflare Quick Tunnel URL changes on **every** restart of `cloudflared`. The app fetches the latest URL automatically - you do not need to re-pair when this happens.
+- **Plugin 0.6.23+ tells you what's wrong, in plain English.** Run **`MOONGATE_STATUS`** in the Klipper console (Mainsail/Fluidd → Console). It checks both halves of remote access live - can the Pi reach the cloud, and does its public tunnel actually answer from the internet - and prints each verdict with its fix (re-pair, sync the Pi's clock, which service to check). It also refreshes the printer's cloud check-in as a side effect.
+- **Plugin 0.6.23+ also heals a dropped tunnel by itself.** If the tunnel goes unreachable from the internet while the Pi's own connection is fine (a common outcome of an ISP or router hiccup that `cloudflared` doesn't notice), the plugin spots it after its next check-in and **restarts the tunnel within ~15 minutes**, publishing a fresh URL with nothing for you to do. If a printer keeps needing this, that points at the Pi's network (Wi-Fi signal, a router evicting the connection), not at Moongate - `MOONGATE_STATUS` shows the self-heal count so you can tell.
 
 ## Re-pairing takes minutes to show online
 
