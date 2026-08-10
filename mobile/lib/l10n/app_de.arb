@@ -433,6 +433,7 @@
   "webcamUnreachable": "Kamera nicht erreichbar, Adresse prüfen",
   "webcamUnreachableOldPlugin": "Kamera nicht erreichbar. Das Drucker-Plugin ist veraltet, ein Update kann die Kamera reparieren.",
   "customCameraDownNotice": "Eigene Kamera nicht erreichbar",
+  "configuredCameraDownNotice": "Konfigurierte Kamera nicht erreichbar",
   "printerUnreachable": "Drucker nicht erreichbar",
   "printerUseTunnel": "Tunnel verwenden",
   "printerAddressInvalid": "Versuche z. B. 192.168.1.50:7125",

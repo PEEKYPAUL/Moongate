@@ -433,6 +433,7 @@
   "webcamUnreachable": "Cámara inaccesible, comprueba su dirección",
   "webcamUnreachableOldPlugin": "Cámara inaccesible. El plugin de la impresora está desactualizado, actualizarlo puede arreglar la cámara.",
   "customCameraDownNotice": "Cámara personalizada inaccesible",
+  "configuredCameraDownNotice": "Cámara configurada inaccesible",
   "printerUnreachable": "Impresora inaccesible",
   "printerUseTunnel": "Usar túnel",
   "printerAddressInvalid": "Prueba p. ej. 192.168.1.50:7125",

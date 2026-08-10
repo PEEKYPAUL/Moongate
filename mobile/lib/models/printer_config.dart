@@ -533,6 +533,15 @@ class PrinterStatus {
   /// user edits it (see resolveWebcamSource in PrinterStatusService).
   final bool customCameraDown;
 
+  /// True when this poll set the printer's own reported camera aside because
+  /// its address kept hard-failing - a webcam entry left pointing at a
+  /// dismantled camera service - and [webcamSnapshotUrl] is the default
+  /// snapshot path instead. Same tappable-notice contract as
+  /// [customCameraDown]; the entry itself stays Mainsail's to fix, and
+  /// fixing it re-arms the selection on the next poll (see
+  /// resolveWebcamSource in PrinterStatusService).
+  final bool configuredCameraDown;
+
   const PrinterStatus({
     required this.state,
     required this.progress,
@@ -562,6 +571,7 @@ class PrinterStatus {
     this.pluginVersion,
     this.pluginCanSelfUpdate = false,
     this.customCameraDown = false,
+    this.configuredCameraDown = false,
   });
 
   bool get isPrinting => state == 'printing' || state == 'paused';
@@ -599,6 +609,7 @@ class PrinterStatus {
     String? pluginVersion,
     bool? pluginCanSelfUpdate,
     bool? customCameraDown,
+    bool? configuredCameraDown,
   }) {
     return PrinterStatus(
       state:            state ?? this.state,
@@ -629,6 +640,7 @@ class PrinterStatus {
       pluginVersion:    pluginVersion ?? this.pluginVersion,
       pluginCanSelfUpdate: pluginCanSelfUpdate ?? this.pluginCanSelfUpdate,
       customCameraDown: customCameraDown ?? this.customCameraDown,
+      configuredCameraDown: configuredCameraDown ?? this.configuredCameraDown,
     );
   }
 

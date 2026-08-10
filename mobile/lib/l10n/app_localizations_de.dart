@@ -1397,6 +1397,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get customCameraDownNotice => 'Eigene Kamera nicht erreichbar';
 
   @override
+  String get configuredCameraDownNotice =>
+      'Konfigurierte Kamera nicht erreichbar';
+
+  @override
   String get printerUnreachable => 'Drucker nicht erreichbar';
 
   @override

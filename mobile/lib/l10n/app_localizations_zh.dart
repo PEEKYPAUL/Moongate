@@ -1319,6 +1319,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get customCameraDownNotice => '无法连接自定义摄像头';
 
   @override
+  String get configuredCameraDownNotice => '无法连接已配置的摄像头';
+
+  @override
   String get printerUnreachable => '无法连接打印机';
 
   @override

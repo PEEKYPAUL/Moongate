@@ -1403,6 +1403,10 @@ class AppLocalizationsIt extends AppLocalizations {
       'Telecamera personalizzata irraggiungibile';
 
   @override
+  String get configuredCameraDownNotice =>
+      'Telecamera configurata irraggiungibile';
+
+  @override
   String get printerUnreachable => 'Stampante irraggiungibile';
 
   @override
