@@ -3,10 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:moongate/services/printer_status_service.dart';
 
 // resolveWebcamSource: the per-poll camera pick - override > auto-detected >
-// Pi snapshot path - and the dead-override fallback that sets a hard-failing
-// custom URL aside in favour of the printer's own camera (the field case: a
-// forgotten phone-webcam experiment masking a perfectly good camera). Pure
-// function, so the whole matrix runs without a service, registry, or network.
+// Pi snapshot path - and the dead-camera fallbacks: a hard-failing custom
+// URL set aside in favour of the printer's own camera (the field case: a
+// forgotten phone-webcam experiment masking a perfectly good camera), and a
+// hard-failing printer camera set aside for the default snapshot path (the
+// field case: a Mainsail webcam entry still pointing at go2rtc after a
+// switch to Crowsnest). Pure function, so the whole matrix runs without a
+// service, registry, or network.
 
 void main() {
   WebcamSource pick({
@@ -17,6 +20,8 @@ void main() {
     bool isLan = true,
     bool dead = false,
     bool latched = false,
+    bool nativeDead = false,
+    bool nativeLatched = false,
   }) =>
       resolveWebcamSource(
         customUrl:     custom,
@@ -28,6 +33,8 @@ void main() {
         accessToken:   'tok en', // space keeps the encoding visible
         customDead:    dead,
         customLatched: latched,
+        nativeDead:    nativeDead,
+        nativeLatched: nativeLatched,
       );
 
   test('healthy override outranks the auto camera and the snapshot path', () {
@@ -118,5 +125,84 @@ void main() {
         'http://h:1984/api/frame.jpeg?src=cam');
     expect(pick(autoStream: 'http://h:1984/stream.html?src=cam').url,
         'http://h:1984/api/frame.jpeg?src=cam');
+  });
+
+  // ── The stale-entry fallback (dead printer camera → default path) ──────────
+
+  test('dead auto camera falls back to the snapshot path, visibly', () {
+    // The Schlonky case: the entry's go2rtc URL outlived go2rtc itself; the
+    // plugin fills snapshot_path with the default for external-only entries.
+    final s = pick(
+        autoSnapshot: 'http://192.168.1.50:1984/api/frame.jpeg?src=cam',
+        path: '/webcam/?action=snapshot',
+        nativeDead: true);
+    expect(s.url, 'http://192.168.1.50/webcam/?action=snapshot');
+    expect(s.isExternal, isFalse);
+    expect(s.configuredCameraDown, isTrue);
+    expect(s.customCameraDown, isFalse);
+  });
+
+  test('the native latch keeps that fallback after the counters reset', () {
+    final s = pick(
+        autoSnapshot: 'http://192.168.1.50:1984/api/frame.jpeg?src=cam',
+        path: '/webcam/?action=snapshot',
+        nativeLatched: true);
+    expect(s.url, 'http://192.168.1.50/webcam/?action=snapshot');
+    expect(s.configuredCameraDown, isTrue);
+  });
+
+  test('dead non-default snapshot path falls back to the default path', () {
+    final s = pick(path: '/webcam2/?action=snapshot', nativeDead: true);
+    expect(s.url, 'http://192.168.1.50/webcam/?action=snapshot');
+    expect(s.configuredCameraDown, isTrue);
+  });
+
+  test('dead DEFAULT snapshot path has nowhere to hop and stays put', () {
+    final s = pick(path: '/webcam/?action=snapshot', nativeDead: true);
+    expect(s.url, 'http://192.168.1.50/webcam/?action=snapshot');
+    expect(s.configuredCameraDown, isFalse);
+  });
+
+  test('dead auto camera with no snapshot path stays put', () {
+    final s = pick(
+        autoSnapshot: 'http://192.168.1.50:1984/api/frame.jpeg?src=cam',
+        nativeDead: true);
+    expect(s.url, 'http://192.168.1.50:1984/api/frame.jpeg?src=cam');
+    expect(s.configuredCameraDown, isFalse);
+  });
+
+  test('a healthy override stays in charge whatever the native verdict', () {
+    final s = pick(
+        custom: 'http://192.168.1.84:8080/video',
+        autoSnapshot: 'http://192.168.1.50:1984/api/frame.jpeg?src=cam',
+        path: '/webcam/?action=snapshot',
+        nativeDead: true);
+    expect(s.url, 'http://192.168.1.84:8080/video');
+    expect(s.customCameraDown, isFalse);
+    expect(s.configuredCameraDown, isFalse);
+  });
+
+  test('dead override then dead auto cascade down to the snapshot path', () {
+    final s = pick(
+        custom: 'http://192.168.1.84:8080/video',
+        autoSnapshot: 'http://192.168.1.50:1984/api/frame.jpeg?src=cam',
+        path: '/webcam/?action=snapshot',
+        dead: true,
+        nativeDead: true);
+    expect(s.url, 'http://192.168.1.50/webcam/?action=snapshot');
+    expect(s.isExternal, isFalse);
+    expect(s.customCameraDown, isTrue);
+    expect(s.configuredCameraDown, isTrue);
+  });
+
+  test('tunnel mode: the stale-entry fallback carries the token', () {
+    final s = pick(
+        autoSnapshot: 'http://192.168.1.85:1984/api/frame.jpeg?src=cam',
+        path: '/webcam/?action=snapshot',
+        isLan: false,
+        nativeDead: true);
+    expect(s.url,
+        'https://pi.example/webcam/?action=snapshot&mg_token=tok%20en');
+    expect(s.configuredCameraDown, isTrue);
   });
 }

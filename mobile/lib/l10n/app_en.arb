@@ -830,6 +830,8 @@
   "@webcamUnreachableOldPlugin": {"description": "Unreachable-camera message when the printer also reports an outdated Moongate plugin - old plugins have served broken camera info, so the plugin is the first thing to try."},
   "customCameraDownNotice": "Custom camera unreachable",
   "@customCameraDownNotice": {"description": "Tappable notice on the webcam tile while a dead custom camera override has been set aside and the printer's own camera is shown instead - tapping opens the camera dialog."},
+  "configuredCameraDownNotice": "Configured camera unreachable",
+  "@configuredCameraDownNotice": {"description": "Tappable notice on the webcam tile while the camera address from the printer's own webcam config keeps failing and the default camera path is shown instead - tapping opens the camera dialog."},
   "printerUnreachable": "Printer unreachable",
   "@printerUnreachable": {"description": "Heading on the full-screen error overlay when the printer cannot be loaded."},
   "printerUseTunnel": "Use tunnel",

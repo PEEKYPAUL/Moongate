@@ -677,19 +677,24 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                         onCleared: _statusService.pollNow,
                       ),
                     ),
-                  // Dead-override notice: the status service has set a
-                  // hard-failing custom camera aside and this feed is the
-                  // printer's own (PrinterStatus.customCameraDown). The swap
+                  // Dead-camera notice: the status service has set a
+                  // hard-failing camera aside - a custom override yielding
+                  // to the printer's own camera (customCameraDown), or the
+                  // printer's own configured camera yielding to the default
+                  // snapshot path (configuredCameraDown, a webcam entry
+                  // left pointing at a dismantled camera service). The swap
                   // must never be silent - on a fleet dashboard a quietly
                   // substituted feed is how someone watches the wrong
                   // camera. Sits under the status badge; a tap opens the
-                  // same gear dialog where the override is fixed or cleared.
-                  if (_status.customCameraDown)
+                  // gear dialog, where an override is fixed or cleared and
+                  // a stale-entry victim can pin a working address.
+                  if (_status.customCameraDown || _status.configuredCameraDown)
                     Positioned(
                       top: 36,
                       left: 8,
-                      child: _CustomCameraDownNotice(
+                      child: _CameraDownNotice(
                         printer: widget.printer,
+                        configured: !_status.customCameraDown,
                         onApplied: _statusService.pollNow,
                       ),
                     ),
@@ -1919,19 +1924,24 @@ class _CameraConfigButton extends ConsumerWidget {
   }
 }
 
-// ── Custom-camera-down notice ─────────────────────────────────────────────────
+// ── Dead-camera notice ────────────────────────────────────────────────────────
 //
-// Shown on the webcam square while the status service has a dead custom
-// override set aside in favour of the printer's own camera
-// ([PrinterStatus.customCameraDown]). Names the swap and opens the gear
-// dialog on tap - the override is the user's to fix or clear, never
-// auto-deleted.
+// Shown on the webcam square while the status service has a dead camera set
+// aside: a custom override yielding to the printer's own camera
+// ([PrinterStatus.customCameraDown]), or the printer's configured camera
+// yielding to the default snapshot path
+// ([PrinterStatus.configuredCameraDown]). Names the swap and opens the gear
+// dialog on tap - the override (or Mainsail's webcam entry) is the user's to
+// fix, never auto-edited.
 
-class _CustomCameraDownNotice extends StatelessWidget {
+class _CameraDownNotice extends StatelessWidget {
   final PrinterConfig printer;
+  final bool configured;
   final VoidCallback onApplied;
-  const _CustomCameraDownNotice(
-      {required this.printer, required this.onApplied});
+  const _CameraDownNotice(
+      {required this.printer,
+      required this.configured,
+      required this.onApplied});
 
   @override
   Widget build(BuildContext context) {
@@ -1956,7 +1966,9 @@ class _CustomCameraDownNotice extends StatelessWidget {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 110),
                 child: Text(
-                  l.customCameraDownNotice,
+                  configured
+                      ? l.configuredCameraDownNotice
+                      : l.customCameraDownNotice,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

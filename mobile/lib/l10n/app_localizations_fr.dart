@@ -1409,6 +1409,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get customCameraDownNotice => 'Caméra personnalisée injoignable';
 
   @override
+  String get configuredCameraDownNotice => 'Caméra configurée injoignable';
+
+  @override
   String get printerUnreachable => 'Imprimante injoignable';
 
   @override

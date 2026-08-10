@@ -2548,6 +2548,12 @@ abstract class AppLocalizations {
   /// **'Custom camera unreachable'**
   String get customCameraDownNotice;
 
+  /// Tappable notice on the webcam tile while the camera address from the printer's own webcam config keeps failing and the default camera path is shown instead - tapping opens the camera dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Configured camera unreachable'**
+  String get configuredCameraDownNotice;
+
   /// Heading on the full-screen error overlay when the printer cannot be loaded.
   ///
   /// In en, this message translates to:

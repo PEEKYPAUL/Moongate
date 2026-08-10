@@ -211,6 +211,14 @@ class PrinterStatusService {
   /// immediately. Session-only by design.
   String? _customDownForUrl;
 
+  /// The same latch for the printer's own reported camera: the webcam-entry
+  /// value (external URL, else snapshot path) the selection has set aside as
+  /// dead this session in favour of the default snapshot path (see
+  /// [resolveWebcamSource]). Fixing the entry in Mainsail changes the value
+  /// the very next poll reports, which re-arms it immediately. Session-only
+  /// by design.
+  String? _nativeDownForUrl;
+
   PrinterStatusService(this.config)
       : _currentLanUrl = config.lanUrl,
         _uiType        = config.uiType,
@@ -1231,6 +1239,32 @@ class PrinterStatusService {
     final customDead = customFetchProbe != null &&
         WebcamFetchDiag.consecutiveHardFailures(config.id, customFetchProbe) >=
             kDeadCameraThreshold;
+
+    // The same verdict for the printer's own reported camera (the external
+    // auto-detect if present, else its snapshot path). A webcam entry can
+    // outlive the camera service it points at - the field case: go2rtc
+    // swapped for Crowsnest, the Mainsail entry never updated - and the
+    // plugin faithfully reports the dead address forever. The probe mirrors
+    // what WebcamView actually fetches for that camera on this transport.
+    String? nonEmpty(String? s) {
+      final t = s?.trim();
+      return (t == null || t.isEmpty) ? null : t;
+    }
+    final nativeExternal = nonEmpty(selected?.snapshotExternal) ??
+        nonEmpty(selected?.streamExternal);
+    final nativePath  = nonEmpty(selected?.snapshotPath);
+    final nativeValue = nativeExternal ?? nativePath;
+    final nativeFetchProbe = nativeExternal != null
+        ? (isLan
+            ? (go2rtcFrameUrl(nativeExternal) ?? nativeExternal)
+            : '$baseUrl/mg-extcam')
+        : nativePath != null
+            ? '$baseUrl$nativePath'
+            : null;
+    final nativeDead = nativeFetchProbe != null &&
+        WebcamFetchDiag.consecutiveHardFailures(config.id, nativeFetchProbe) >=
+            kDeadCameraThreshold;
+
     final source = resolveWebcamSource(
       customUrl:     customUrl,
       autoSnapshot:  selected?.snapshotExternal,
@@ -1241,8 +1275,11 @@ class PrinterStatusService {
       accessToken:   accessToken,
       customDead:    customDead,
       customLatched: _customDownForUrl != null && _customDownForUrl == customUrl,
+      nativeDead:    nativeDead,
+      nativeLatched: _nativeDownForUrl != null && _nativeDownForUrl == nativeValue,
     );
-    _customDownForUrl = source.customCameraDown ? customUrl : null;
+    _customDownForUrl = source.customCameraDown     ? customUrl   : null;
+    _nativeDownForUrl = source.configuredCameraDown ? nativeValue : null;
     final webcamSnapshotUrl = source.url;
     final webcamIsExternal  = source.isExternal;
 
@@ -1320,6 +1357,7 @@ class PrinterStatusService {
       pluginCanSelfUpdate:
           (moongateResult?['plugin_can_self_update'] as bool?) ?? false,
       customCameraDown: source.customCameraDown,
+      configuredCameraDown: source.configuredCameraDown,
     );
   }
 }
@@ -1327,7 +1365,7 @@ class PrinterStatusService {
 // ── Webcam source selection ───────────────────────────────────────────────────
 //
 // Which camera should the tile fetch this poll? Pure and top-level so the
-// precedence - and especially the dead-override fallback - is unit-testable
+// precedence - and especially the dead-camera fallbacks - is unit-testable
 // without a service or network. Precedence: a healthy user override (the tile
 // gear) > a camera auto-detected from Mainsail's webcam config > the plain Pi
 // snapshot path. A custom override whose address keeps hard-failing
@@ -1338,6 +1376,26 @@ class PrinterStatusService {
 // forgotten phone-webcam experiment left in the gear dialog). With nothing to
 // fall back to, the override stays and the tile's plain unreachable state
 // tells the truth as before. The override itself is never modified.
+//
+// The printer's own reported camera gets the same treatment ([nativeDead] /
+// [nativeLatched]): a webcam entry can outlive the camera service it points
+// at (the field case: go2rtc swapped for Crowsnest, the Mainsail entry never
+// updated - both broke identically because Mainsail honours the same entry),
+// and the plugin faithfully reports the dead address forever. Once hard-dead
+// it yields ONE hop toward the default snapshot path - a dead auto-detect
+// falls to the Pi snapshot path (for an external-only entry the plugin
+// already fills that with the default), a dead non-default path falls to
+// [kDefaultWebcamPath] itself - and never further: when the hop lands on
+// another dead address the unreachable state tells the truth as before.
+// Visible via [PrinterStatus.configuredCameraDown]; the entry stays the
+// user's (Mainsail's) to fix, and fixing it re-arms the selection on the
+// next poll because the reported value changes.
+
+/// The snapshot path every standard Crowsnest / mjpg-streamer install
+/// answers on - the plugin's own no-entry default (`_default_path` in
+/// klipper-plugin/moongate_standalone.py), used here as the one-hop fallback
+/// guess when the configured camera is dead.
+const String kDefaultWebcamPath = '/webcam/?action=snapshot';
 
 class WebcamSource {
   /// Absolute, ready-to-fetch URL (mg_token included when tunnelled), or
@@ -1352,8 +1410,15 @@ class WebcamSource {
   /// camera - drives the tile's tappable notice.
   final bool customCameraDown;
 
+  /// True when the printer's own reported camera was set aside as dead and
+  /// [url] is the default-path fallback - drives the tile's sibling notice.
+  final bool configuredCameraDown;
+
   const WebcamSource(
-      {this.url, this.isExternal = false, this.customCameraDown = false});
+      {this.url,
+      this.isExternal = false,
+      this.customCameraDown = false,
+      this.configuredCameraDown = false});
 }
 
 WebcamSource resolveWebcamSource({
@@ -1366,22 +1431,24 @@ WebcamSource resolveWebcamSource({
   required String  accessToken,
   required bool    customDead,
   required bool    customLatched,
+  required bool    nativeDead,
+  required bool    nativeLatched,
 }) {
-  // The plain Pi snapshot URL from the path the Pi reported. Tunnel-side
-  // carries the EdDSA token in the query string because Image.network can't
-  // set headers or cookies - the auth proxy accepts mg_token via query as a
-  // documented fallback (see klipper-plugin/moongate_authproxy.py). LAN-side
-  // needs no auth because Moonraker / nginx trust the subnet.
+  // A Pi-served snapshot URL from a relative path. Tunnel-side carries the
+  // EdDSA token in the query string because Image.network can't set headers
+  // or cookies - the auth proxy accepts mg_token via query as a documented
+  // fallback (see klipper-plugin/moongate_authproxy.py). LAN-side needs no
+  // auth because Moonraker / nginx trust the subnet.
+  String buildPathUrl(String path) {
+    if (isLan) return '$baseUrl$path';
+    final sep = path.contains('?') ? '&' : '?';
+    return '$baseUrl$path${sep}mg_token=${Uri.encodeComponent(accessToken)}';
+  }
+
   String? pathUrl;
   final path = snapshotPath;
   if (path != null && path.isNotEmpty) {
-    if (isLan) {
-      pathUrl = '$baseUrl$path';
-    } else {
-      final sep = path.contains('?') ? '&' : '?';
-      pathUrl =
-          '$baseUrl$path${sep}mg_token=${Uri.encodeComponent(accessToken)}';
-    }
+    pathUrl = buildPathUrl(path);
   }
 
   // Candidate external URLs, each normalised through the go2rtc player-page
@@ -1393,8 +1460,8 @@ WebcamSource resolveWebcamSource({
     return PrinterStatusService.go2rtcFrameUrl(t) ?? t;
   }
 
-  var   custom = normalise(customUrl);
-  final auto   = normalise(autoSnapshot) ?? normalise(autoStream);
+  var custom = normalise(customUrl);
+  var auto   = normalise(autoSnapshot) ?? normalise(autoStream);
 
   // A dead (or already set-aside) override yields to the printer's own
   // camera - but only when there IS one to yield to.
@@ -1404,6 +1471,21 @@ WebcamSource resolveWebcamSource({
       (auto != null || pathUrl != null)) {
     custom = null;
     customCameraDown = true;
+  }
+
+  // With no healthy override in charge, a dead (or already set-aside)
+  // printer camera takes its one hop toward the default snapshot path.
+  var configuredCameraDown = false;
+  if (custom == null && (nativeDead || nativeLatched)) {
+    if (auto != null) {
+      if (pathUrl != null) {
+        auto = null;
+        configuredCameraDown = true;
+      }
+    } else if (path != null && path.isNotEmpty && path != kDefaultWebcamPath) {
+      pathUrl = buildPathUrl(kDefaultWebcamPath);
+      configuredCameraDown = true;
+    }
   }
 
   // External cameras are absolute LAN URLs - typically an MJPEG stream from
@@ -1417,7 +1499,13 @@ WebcamSource resolveWebcamSource({
         : '$baseUrl/mg-extcam?u=${Uri.encodeComponent(external)}'
             '&mg_token=${Uri.encodeComponent(accessToken)}';
     return WebcamSource(
-        url: url, isExternal: true, customCameraDown: customCameraDown);
+        url: url,
+        isExternal: true,
+        customCameraDown: customCameraDown,
+        configuredCameraDown: configuredCameraDown);
   }
-  return WebcamSource(url: pathUrl, customCameraDown: customCameraDown);
+  return WebcamSource(
+      url: pathUrl,
+      customCameraDown: customCameraDown,
+      configuredCameraDown: configuredCameraDown);
 }

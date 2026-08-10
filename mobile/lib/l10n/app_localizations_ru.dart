@@ -1395,6 +1395,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get customCameraDownNotice => 'Пользовательская камера недоступна';
 
   @override
+  String get configuredCameraDownNotice => 'Настроенная камера недоступна';
+
+  @override
   String get printerUnreachable => 'Принтер недоступен';
 
   @override

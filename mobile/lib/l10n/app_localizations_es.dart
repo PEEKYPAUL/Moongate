@@ -1407,6 +1407,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get customCameraDownNotice => 'Cámara personalizada inaccesible';
 
   @override
+  String get configuredCameraDownNotice => 'Cámara configurada inaccesible';
+
+  @override
   String get printerUnreachable => 'Impresora inaccesible';
 
   @override

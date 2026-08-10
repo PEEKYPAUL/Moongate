@@ -1400,6 +1400,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get customCameraDownNotice => 'Câmera personalizada inacessível';
 
   @override
+  String get configuredCameraDownNotice => 'Câmera configurada inacessível';
+
+  @override
   String get printerUnreachable => 'Impressora inacessível';
 
   @override

@@ -1395,6 +1395,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get customCameraDownNotice => 'Kamera niestandardowa nieosiągalna';
 
   @override
+  String get configuredCameraDownNotice => 'Skonfigurowana kamera nieosiągalna';
+
+  @override
   String get printerUnreachable => 'Drukarka nieosiągalna';
 
   @override
