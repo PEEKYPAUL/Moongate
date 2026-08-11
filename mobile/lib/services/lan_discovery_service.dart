@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer' as dev;
+import 'dart:io';
 
 import 'package:bonsoir/bonsoir.dart';
 
@@ -30,6 +31,12 @@ class LanDiscoveryService {
   /// the longer window covers stale Avahi caches, congested WiFi, and
   /// the bonsoir-on-Android cold-start delay.
   static const _browseDuration = Duration(seconds: 5);
+
+  /// How long to wait for the OS resolver when a browse answers with a
+  /// hostname instead of an address (the iOS/bonsoir behaviour). The name
+  /// was just advertised so it is almost always in the mDNS cache; a hung
+  /// lookup must not outlive the browse window it runs inside.
+  static const _lookupTimeout = Duration(seconds: 2);
 
   /// printer_id → discovered LAN URL.
   final Map<String, String> _discovered = {};
@@ -107,7 +114,7 @@ class LanDiscoveryService {
         break;
       case BonsoirDiscoveryEventType.discoveryServiceResolved:
         if (service is ResolvedBonsoirService) {
-          _onResolved(service);
+          await _onResolved(service);
         }
         break;
       // Lost / started / stopped / resolve-failed all no-op per §7.5 -
@@ -120,7 +127,7 @@ class LanDiscoveryService {
     }
   }
 
-  void _onResolved(ResolvedBonsoirService service) {
+  Future<void> _onResolved(ResolvedBonsoirService service) async {
     final attrs = service.attributes;
     final printerId = attrs['printer_id'];
     if (printerId == null || printerId.isEmpty) {
@@ -136,7 +143,7 @@ class LanDiscoveryService {
       _log('Resolved service has no host, ignoring: ${service.name}');
       return;
     }
-    final url = urlForHost(host, port);
+    final url = urlForHost(await _numericHostFor(host), port);
     if (url == null) {
       // Never store it: everything that consults this map treats a hit as
       // better than the persisted lanUrl, so one bad answer would strand the
@@ -150,6 +157,48 @@ class LanDiscoveryService {
       _log('Discovered ${printerId.substring(0, 8)}... → $url');
       _discovered[printerId] = url;
     }
+  }
+
+  /// Numeric host for a resolved mDNS answer. Android's resolver hands back
+  /// addresses already (they pass through untouched via the tryParse gate);
+  /// iOS/bonsoir hands back the advertised *hostname* (`voron24.local.`),
+  /// which must not enter the map as-is: inside WKWebView, Mainsail's
+  /// Moonraker websocket resolves such names AAAA-first with no IPv4
+  /// fallback, and MainsailOS nginx listens on IPv4 only, so the first
+  /// printer-page open dies on a perfectly healthy LAN (#268). Resolving
+  /// here - the single point where discovered hosts enter the map - fixes
+  /// every consumer at once. On lookup failure or timeout the hostname is
+  /// kept: the pre-fix behaviour, and still the right last resort on
+  /// networks where names do work end to end.
+  Future<String> _numericHostFor(String host) async {
+    if (InternetAddress.tryParse(host) != null) return host;
+    try {
+      final addresses =
+          await InternetAddress.lookup(host).timeout(_lookupTimeout);
+      return pickResolvedHost(host, addresses);
+    } catch (_) {
+      return host;
+    }
+  }
+
+  /// Address pick order for a hostname the OS resolver expanded: the first
+  /// IPv4, else the first IPv6 that would survive [urlForHost]'s gates
+  /// (zone-indexed and fe80::/10 link-local never win), else the hostname
+  /// itself. IPv4 outranks IPv6 because Pi-class rigs serve nginx on
+  /// `0.0.0.0` only - a routable AAAA that beats the A record is exactly
+  /// the #268 failure. Static and pure for tests.
+  static String pickResolvedHost(
+      String host, List<InternetAddress> addresses) {
+    for (final a in addresses) {
+      if (a.type == InternetAddressType.IPv4) return a.address;
+    }
+    for (final a in addresses) {
+      if (a.type == InternetAddressType.IPv6 &&
+          urlForHost(a.address, 80) != null) {
+        return a.address;
+      }
+    }
+    return host;
   }
 
   /// LAN URL for a resolved mDNS host, or null when the host can never work
