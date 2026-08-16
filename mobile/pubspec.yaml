@@ -53,7 +53,7 @@ dependencies:
   # go2rtc/WebRTC webcams render as muted autoplaying <video> elements that
   # both platforms otherwise block.
   webview_flutter: ^4.14.1
-  webview_flutter_android: ^4.13.0
+  webview_flutter_android: ^4.14.0
   webview_flutter_wkwebview: ^3.26.0
 
   # Persistent settings
@@ -63,7 +63,7 @@ dependencies:
   # Android 12+ for the optional "Phone colours" theme. The builder returns
   # null schemes on older Android / iOS, where the app falls back to its seeded
   # theme; the option itself is only shown where the palette is available.
-  dynamic_color: ^1.7.0
+  dynamic_color: ^1.9.0
 
   # App version info (reads version from the installed package manifest)
   package_info_plus: ^9.0.1
