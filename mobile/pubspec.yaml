@@ -18,7 +18,7 @@ dependencies:
   # `flutter: generate: true` further down.
   flutter_localizations:
     sdk: flutter
-  intl: any
+  intl: 0.20.3
 
   # Networking
   http: ^1.2.0
@@ -33,7 +33,7 @@ dependencies:
   # v0.3.0 routes every printer call through Supabase: app signs in
   # anonymously, gets a JWT, calls /printer-access to fetch the current
   # tunnel URL + a short-lived EdDSA access token, then hits the Pi.
-  supabase_flutter: ^2.16.0
+  supabase_flutter: ^2.17.2
 
   # Secure storage (token / pairing data)
   flutter_secure_storage: ^9.0.0
@@ -53,7 +53,7 @@ dependencies:
   # go2rtc/WebRTC webcams render as muted autoplaying <video> elements that
   # both platforms otherwise block.
   webview_flutter: ^4.14.1
-  webview_flutter_android: ^4.13.0
+  webview_flutter_android: ^4.14.0
   webview_flutter_wkwebview: ^3.26.0
 
   # Persistent settings
