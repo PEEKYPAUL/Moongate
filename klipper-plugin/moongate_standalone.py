@@ -115,7 +115,7 @@ logger = logging.getLogger("moonraker.moongate")
 # Bumped on each release; surfaced in the /status response so the app's bug
 # reports show which plugin a Pi is actually running - the #1 triage blind spot
 # (an old plugin explains most "works on LAN / fails over tunnel" reports).
-MOONGATE_PLUGIN_VERSION = "0.6.24"
+MOONGATE_PLUGIN_VERSION = "0.6.25"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1332,11 +1332,37 @@ class HeartbeatLoop:
 # PrintEventWatcher - local print-state watch → push notifications
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# ── Notification text helpers (v0.6.25) ─────────────────────────────────────
+#
+# Pure so the stdlib tests can pin them; both feed the send-push "detail"
+# field, whose server cap is 200 chars.
+
+def _error_detail(state_message: Any) -> str:
+    """Reduce Klipper's multi-line shutdown message to its useful first line.
+    The boilerplate tail ("Once the underlying issue is corrected...") never
+    says anything the first line doesn't, and a push body wants one line."""
+    for line in str(state_message or "").splitlines():
+        line = re.sub(r"[\x00-\x1f\x7f]", " ", line).strip()
+        if line:
+            return line[:180]
+    return ""
+
+
+def _notify_text(raw: Any) -> str:
+    """Sanitise a MOONGATE_NOTIFY message: control chars become spaces,
+    whitespace collapses, and the result is capped at the server's detail
+    limit. Returns "" when nothing displayable is left."""
+    text = re.sub(r"[\x00-\x1f\x7f]", " ", str(raw or ""))
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:200]
+
+
 class PrintEventWatcher:
-    """Polls Moonraker's print_stats locally and, on a meaningful state change
-    (a print starting, finishing, or failing), sends a Pi-signed event to the
-    send-push Edge Function so the printer owner's iPhone gets a background
-    alert.
+    """Polls Moonraker's print_stats AND klippy_state locally and, on a
+    meaningful state change (a print starting, finishing, or failing; the
+    machine erroring out or shutting down - v0.6.25), sends a Pi-signed event
+    to the send-push Edge Function so the printer owner's iPhone gets a
+    background alert.
 
     Detection is entirely local - we poll our own Moonraker, never the cloud -
     so the only Supabase call is the one-shot send when an event actually fires
@@ -1364,6 +1390,12 @@ class PrintEventWatcher:
         # establishes a baseline - we never fire an event for whatever state
         # the printer happens to be in when the plugin loads.
         self._last_state: Optional[str] = None
+        # Ditto for klippy_state (v0.6.25 - machine errors).
+        self._last_klippy: Optional[str] = None
+        # monotonic of the last klippy-error push: the same incident often
+        # also drives print_stats to 'error', and one alert per disaster is
+        # enough (the klippy one carries the reason).
+        self._error_sent_at: Optional[float] = None
 
     def start(self) -> None:
         try:
@@ -1377,11 +1409,32 @@ class PrintEventWatcher:
         loop = asyncio.get_event_loop()
         while True:
             try:
+                # Klippy state first (v0.6.25): /server/info keeps answering
+                # while Klipper itself is down, so machine errors are seen
+                # exactly when the print_stats poll below goes blind.
+                k_state = await loop.run_in_executor(None, self._poll_klippy_state)
+                if k_state is not None and k_state != self._last_klippy:
+                    k_event = self._klippy_event_for(self._last_klippy, k_state)
+                    self._last_klippy = k_state
+                    if k_event and self._is_dormant is not None and self._is_dormant():
+                        logger.debug(
+                            "Push event '%s' skipped - cloud contact dormant", k_event)
+                    elif k_event:
+                        reason = await loop.run_in_executor(None, self._shutdown_reason)
+                        self._error_sent_at = time.monotonic()
+                        await loop.run_in_executor(None, self._send_event, k_event, reason)
+
                 state, filename = await loop.run_in_executor(None, self._poll_print_state)
                 if state is not None and state != self._last_state:
                     event = self._event_for(self._last_state, state)
                     self._last_state = state
-                    if event and self._is_dormant is not None and self._is_dormant():
+                    if event == "failed" and self._error_sent_at is not None \
+                            and time.monotonic() - self._error_sent_at < 60.0:
+                        # The klippy watcher already reported this incident,
+                        # with the richer reason - one alert per disaster.
+                        logger.debug(
+                            "Push event 'failed' suppressed - klippy error already reported")
+                    elif event and self._is_dormant is not None and self._is_dormant():
                         logger.debug(
                             "Push event '%s' skipped - cloud contact dormant", event)
                     elif event:
@@ -1411,6 +1464,50 @@ class PrintEventWatcher:
             return "failed"
         return None
 
+    @staticmethod
+    def _klippy_event_for(prev: Optional[str], state: str) -> Optional[str]:
+        """Map a klippy_state transition to a push event (v0.6.25). Fires on
+        ARRIVAL in an error state only - shutdown<->error shuffles don't
+        refire, and recovery back to ready is deliberately silent in v1.
+        prev is None on the first poll (baseline: never alert for whatever
+        state the printer was already in when the plugin loaded)."""
+        bad = ("shutdown", "error")
+        if prev is None:
+            return None
+        if state in bad and prev not in bad:
+            return "error"
+        return None
+
+    def _poll_klippy_state(self) -> Optional[str]:
+        """Read klippy_state from the local Moonraker. /server/info keeps
+        answering while Klipper itself is shut down or disconnected - the
+        whole point: the print_stats poll goes blind exactly when the machine
+        errors out (field report 2026-08-24, a shutdown that mobileraker
+        caught and we missed). None on failure = skip the tick, baseline
+        undisturbed."""
+        try:
+            url = f"http://127.0.0.1:{self.port}/server/info"
+            with urllib.request.urlopen(url, timeout=5) as resp:
+                data = json.loads(resp.read().decode())
+            return data["result"].get("klippy_state") or None
+        except Exception as exc:
+            logger.debug("server/info poll failed: %s", exc)
+            return None
+
+    def _shutdown_reason(self) -> str:
+        """Best-effort fetch of Klipper's shutdown reason for the push body.
+        /printer/info still answers while klippy sits in shutdown (Moonraker
+        proxies its cached state); a failure just means a reason-less
+        notification, never a missed one."""
+        try:
+            url = f"http://127.0.0.1:{self.port}/printer/info"
+            with urllib.request.urlopen(url, timeout=5) as resp:
+                data = json.loads(resp.read().decode())
+            return _error_detail(data["result"].get("state_message"))
+        except Exception as exc:
+            logger.debug("printer/info poll failed: %s", exc)
+            return ""
+
     def _poll_print_state(self) -> tuple[Optional[str], str]:
         """Read print_stats.state and .filename from the local Moonraker.
         Returns (None, "") on any failure so the loop simply skips this tick
@@ -1425,20 +1522,24 @@ class PrintEventWatcher:
             logger.debug("print_stats poll failed: %s", exc)
             return None, ""
 
-    def _send_event(self, event: str, filename: str) -> None:
+    def _send_event(self, event: str, detail: str) -> bool:
+        """Sign + send one push event. Returns True when the server accepted
+        it (v0.6.25: MOONGATE_NOTIFY acks the outcome in the console)."""
         ts        = int(time.time())
         pk_b64    = self.device.public_key_b64
-        detail    = (filename or "")[:200]
+        detail    = (detail or "")[:200]
         canonical = f"moongate-push\n{pk_b64}\n{event}\n{detail}\n{ts}".encode()
         sig_b64   = self.device.sign_b64(canonical)
 
         status, body = self.sb.send_push(pk_b64, event, detail, ts, sig_b64)
         if status in (200, 204):
             logger.info("Push event '%s' sent", event)
+            return True
         elif status == 404:
             logger.debug("Push event '%s' skipped - printer not paired server-side", event)
         else:
             logger.warning("Push event '%s' failed: HTTP %s %s", event, status, body)
+        return False
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1604,6 +1705,7 @@ class MoongatePlugin:
         self._has_toolchanger                  = False  # klipper-toolchanger printer
         self._can_self_update: Optional[bool]  = None   # update_manager manages us? None = not probed yet
         self._self_update_probe_at             = 0.0    # monotonic; retry gap for indeterminate probes
+        self._notify_last: Optional[float]     = None   # monotonic; MOONGATE_NOTIFY rate limit
 
         # HTTP endpoints
         self.server.register_endpoint("/server/moongate/pair",        ["POST"], self._handle_pair)
@@ -1617,6 +1719,7 @@ class MoongatePlugin:
         self.server.register_remote_method("moongate_generate_pair_code", self._klipper_pair)
         self.server.register_remote_method("moongate_reset_owner",        self._klipper_reset_owner)
         self.server.register_remote_method("moongate_status",             self._klipper_status)
+        self.server.register_remote_method("moongate_notify",             self._klipper_notify)
 
         # Bootstrap JWKS (best effort) and start the heartbeat + print-watch loops.
         # LAN-only mode has no cloud: skip all of it so the plugin makes zero
@@ -2062,6 +2165,42 @@ class MoongatePlugin:
             report.append(f"M118 {COOKED_LINE}")
         report.append(banner)
         await _say("\n".join(report))
+
+    async def _klipper_notify(self, message: str = "") -> None:
+        """MOONGATE_NOTIFY macro entry point (v0.6.25, a user ask): push a
+        custom notification to the owner's phone(s) from any gcode - slicer
+        end-gcode, filament-runout handlers, timelapse hooks. The text is the
+        macro's MSG param, sanitised and capped; sends are rate-limited so a
+        macro stuck in a loop can't hose the phone (or the meter)."""
+        klippy_apis: Any = self.server.lookup_component("klippy_apis")
+
+        async def _say(line: str) -> None:
+            try:
+                await klippy_apis.run_gcode(f"M118 {line}")
+            except Exception as exc:
+                logger.error("run_gcode failed: %s", exc)
+
+        if self.watcher is None:
+            why = ("LAN-only mode has no cloud push path"
+                   if self.lan_only else
+                   "cloud machinery unavailable (see moonraker.log)")
+            await _say(f"Moongate: can't send - {why}.")
+            return
+        text = _notify_text(message)
+        if not text:
+            await _say('Moongate: nothing to send - use MOONGATE_NOTIFY MSG="your text".')
+            return
+        now = time.monotonic()
+        if self._notify_last is not None and now - self._notify_last < 10.0:
+            await _say("Moongate: notification skipped - at most one send per 10 s.")
+            return
+        self._notify_last = now
+        loop = asyncio.get_event_loop()
+        ok = await loop.run_in_executor(
+            None, self.watcher._send_event, "custom", text)
+        await _say("Moongate: notification sent."
+                   if ok else
+                   "Moongate: notification NOT sent - see moonraker.log.")
 
     async def _do_factory_reset(self) -> tuple[bool, int]:
         """Shared reset path used by the macro and the HTTP endpoint:

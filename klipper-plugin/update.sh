@@ -117,4 +117,21 @@ MACRO
     fi
 done
 
+# ── 6. Migration: add the MOONGATE_NOTIFY macro to existing installs ─────────
+# New in plugin 0.6.25 - same pattern (and same caveats) as MOONGATE_STATUS
+# above: appended once, loads on the box's next Klipper restart.
+for cfg in "$PRINTER_DATA/config/moongate.cfg" \
+           "$HOME/klipper_config/moongate.cfg"; do
+    if [[ -f "$cfg" ]] && ! grep -q 'MOONGATE_NOTIFY' "$cfg"; then
+        cat >> "$cfg" << 'MACRO'
+
+[gcode_macro MOONGATE_NOTIFY]
+description: Push a custom Moongate notification to your phone (MSG="text")
+gcode:
+    {action_call_remote_method("moongate_notify", message=params.MSG|default("")|string)}
+MACRO
+        ok "MOONGATE_NOTIFY macro added to $cfg (loads on the next Klipper restart)"
+    fi
+done
+
 ok "Update complete."
