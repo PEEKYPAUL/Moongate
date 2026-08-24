@@ -610,6 +610,11 @@ gcode:
 description: Report Moongate cloud + tunnel health in the console
 gcode:
     {action_call_remote_method("moongate_status")}
+
+[gcode_macro MOONGATE_NOTIFY]
+description: Push a custom Moongate notification to your phone (MSG="text")
+gcode:
+    {action_call_remote_method("moongate_notify", message=params.MSG|default("")|string)}
 MACROS
 } > "$MOONGATE_CFG"
 

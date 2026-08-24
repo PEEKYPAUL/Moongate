@@ -13,8 +13,9 @@
 // Request body:
 //   {
 //     "pi_public_key": "<base64 Ed25519 pubkey>",
-//     "event":         "started" | "completed" | "failed",
-//     "detail":        "<optional, e.g. the gcode filename>",
+//     "event":         "started" | "completed" | "failed" | "paused" | "error" | "custom",
+//     "detail":        "<optional - gcode filename, shutdown reason, or for
+//                       "custom" the whole message (plugin 0.6.25+)>",
 //     "timestamp":     <unix seconds>,
 //     "signature":     "<base64 Ed25519 signature over canonical payload>"
 //   }
@@ -36,15 +37,24 @@ import { sendApns, ApnsAlert } from "./apns.ts";
 
 const REPLAY_WINDOW_SECONDS = 60;
 const MAX_DETAIL = 200;
-const EVENTS = new Set(["started", "completed", "failed"]);
+const EVENTS = new Set(["started", "completed", "failed", "paused", "error", "custom"]);
 
 // Server-side message text. English for v1; APNs loc-keys can localise this
 // later against the app's iOS strings without changing the signed contract.
 function buildAlert(event: string, printerName: string, detail: string): ApnsAlert {
+  // "custom" (plugin 0.6.25+, the MOONGATE_NOTIFY macro): the detail IS the
+  // message, already sanitised and capped on the Pi (and re-capped here).
+  if (event === "custom") {
+    return { title: printerName, body: detail || "Notification" };
+  }
   const base = event === "started"
     ? "Print started"
     : event === "completed"
     ? "Print finished"
+    : event === "paused"
+    ? "Print paused"
+    : event === "error"
+    ? "Printer error"
     : "Print failed";
   return { title: printerName, body: detail ? `${base}: ${detail}` : base };
 }
@@ -72,12 +82,14 @@ Deno.serve(async (req) => {
   const timestamp = body.timestamp;
   const signature = body.signature;
   // detail is optional; normalise to a capped string (also part of the signed
-  // payload, so "" must be signed when absent).
-  const detail = typeof body.detail === "string" ? body.detail.slice(0, MAX_DETAIL) : "";
+  // payload, so "" must be signed when absent, and the signature must be
+  // checked over the text AS SIGNED - sanitising waits until after
+  // verification, for display only.
+  const detailRaw = typeof body.detail === "string" ? body.detail.slice(0, MAX_DETAIL) : "";
 
   if (typeof piPubKey !== "string") return badRequest("pi_public_key required");
   if (typeof event !== "string" || !EVENTS.has(event)) {
-    return badRequest("event must be started, completed, or failed");
+    return badRequest("event must be one of: started, completed, failed, paused, error, custom");
   }
   if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) {
     return badRequest("timestamp required (unix seconds)");
@@ -95,9 +107,13 @@ Deno.serve(async (req) => {
   const now = Math.floor(Date.now() / 1000);
   if (Math.abs(now - timestamp) > REPLAY_WINDOW_SECONDS) return unauthorized();
 
-  const canonical = `moongate-push\n${piPubKey}\n${event}\n${detail}\n${timestamp}`;
+  const canonical = `moongate-push\n${piPubKey}\n${event}\n${detailRaw}\n${timestamp}`;
   const message   = new TextEncoder().encode(canonical);
   if (!(await verifyEd25519(piPubKey, signature, message))) return unauthorized();
+
+  // Verified - now scrub control chars for display. The 0.6.25 Pi sanitises
+  // before signing anyway; this is the backstop for whatever else signs.
+  const detail = detailRaw.replace(/[\u0000-\u001f\u007f]/g, " ");
 
   const db = adminClient();
 
