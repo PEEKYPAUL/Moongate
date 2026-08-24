@@ -27,7 +27,7 @@ So the whole system, the trigger logic aside (which lives in the plugin we alrea
 
 ## Why the cost is fine
 
-The current Supabase cost is driven by things that happen every few seconds (heartbeats, and one orphaned Pi spinning). Push notifications fire only on **real events**: a print starts, finishes, or fails. A handful per print job, not a constant stream.
+The current Supabase cost is driven by things that happen every few seconds (heartbeats, and one orphaned Pi spinning). Push notifications fire only on **real events**: a print starts, finishes, fails (with the reason since plugin 0.6.25), or pauses; the machine errors out or shuts down; or a user macro calls `MOONGATE_NOTIFY`. A handful per print job, not a constant stream - and the custom macro path is rate-limited on the Pi to one send per 10 seconds.
 
 - New database writes: a tiny table of phone addresses, one row per device, updated rarely.
 - New function calls: a few per print job.

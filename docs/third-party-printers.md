@@ -229,6 +229,10 @@ range to `trusted_clients` in the writable moonraker.conf.
 
 - **No print notifications** - they're a cloud feature, and this is the
   cloud-free mode.
-- **No update badge / one-tap update** - these machines have no Moonraker
-  update_manager. Updating Moongate = re-copying the file.
+- **No one-tap plugin update** - these machines have no Moonraker
+  update_manager. The app's amber update arrow still appears when a newer
+  plugin exists (it's a version comparison), and since plugin 0.6.24 tapping
+  it shows manual instructions instead of an update button that couldn't
+  work. Updating Moongate = re-copying the file, same command as install
+  day (step 1 in your machine's section), then restarting Moonraker.
 - **No mDNS discovery** - the app uses the fixed address you gave it.
