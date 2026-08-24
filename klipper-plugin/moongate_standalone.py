@@ -115,7 +115,7 @@ logger = logging.getLogger("moonraker.moongate")
 # Bumped on each release; surfaced in the /status response so the app's bug
 # reports show which plugin a Pi is actually running - the #1 triage blind spot
 # (an old plugin explains most "works on LAN / fails over tunnel" reports).
-MOONGATE_PLUGIN_VERSION = "0.6.23"
+MOONGATE_PLUGIN_VERSION = "0.6.24"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1452,6 +1452,37 @@ class PendingPair:
     qr_payload: str
 
 
+# ── Self-update capability (v0.6.24) ────────────────────────────────────────
+#
+# 0.6.16's one-tap update advertised itself unconditionally, but it only works
+# where Moonraker's update manager actually manages a "moongate" client - the
+# installer writes that section, the manual installs of
+# docs/third-party-printers.md don't, and COSMOS has no update_manager at all.
+# There the app's "Update now" fired a background POST that died quietly on
+# the printer and the badge never cleared (field report: an Elegoo Centauri
+# Carbon, 2026-08-14). Decide from a real /machine/update/status answer
+# instead; pure so the stdlib tests can pin the matrix.
+
+def _self_update_decision(status: Optional[int], body: Any) -> Optional[bool]:
+    """True/False = definitive (cacheable: install kind can't change under a
+    running Moonraker); None = Moonraker wasn't ready to answer - probe again
+    on a later poll."""
+    if status == 404:
+        return False       # update_manager component not loaded at all
+    if status != 200:
+        return None        # startup 503, transport 599, ...
+    try:
+        data = json.loads(body)
+    except (ValueError, TypeError):
+        return None        # the COSMOS startup race: 200 with the UI's HTML
+    if not isinstance(data, dict):
+        return None
+    info = (data.get("result") or {}).get("version_info")
+    if not isinstance(info, dict):
+        return None        # 200 JSON but not update-manager shaped
+    return "moongate" in info
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Plugin entry point
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1571,6 +1602,8 @@ class MoongatePlugin:
         self._chamber_key_checked: bool        = False
         self._extra_extruders                  = []     # extruder1, extruder2, ... (multi-toolhead)
         self._has_toolchanger                  = False  # klipper-toolchanger printer
+        self._can_self_update: Optional[bool]  = None   # update_manager manages us? None = not probed yet
+        self._self_update_probe_at             = 0.0    # monotonic; retry gap for indeterminate probes
 
         # HTTP endpoints
         self.server.register_endpoint("/server/moongate/pair",        ["POST"], self._handle_pair)
@@ -2412,8 +2445,12 @@ class MoongatePlugin:
         result["plugin_version"] = MOONGATE_PLUGIN_VERSION
         # v0.6.16: advertises the remote self-update action, so the app's
         # update dialog knows to offer one-tap "Update now" instead of the
-        # Mainsail instructions it shows for older plugins.
-        result["plugin_can_self_update"] = True
+        # Mainsail instructions it shows for older plugins. v0.6.24: only
+        # advertised where Moonraker's update manager really manages us -
+        # a manual install used to get a button whose update died quietly
+        # on the printer.
+        await self._probe_self_update()
+        result["plugin_can_self_update"] = self._can_self_update is True
         # v0.6.23: tunnel-watchdog heal history, so support can read "has this
         # tunnel been self-healing?" from the app's diagnostics without SSH.
         # None when disabled or LAN-only (no tunnel to watch).
@@ -2481,6 +2518,35 @@ class MoongatePlugin:
             )
         return {"action": action, "ok": True}
 
+    async def _probe_self_update(self) -> None:
+        """Resolve _can_self_update once, from Moonraker's own answer.
+
+        A definitive answer is cached for the process lifetime; indeterminate
+        ones (Moonraker still starting, transport blip) retry on later polls,
+        at most once a minute, so a slow boot never wedges the field at a
+        guess. Runs on the /status path, so by the time a human opens the
+        update dialog the answer has long settled."""
+        if self._can_self_update is not None:
+            return
+        now = time.monotonic()
+        if now - self._self_update_probe_at < 60.0:
+            return
+        self._self_update_probe_at = now
+        from tornado.httpclient import AsyncHTTPClient, HTTPRequest
+        try:
+            resp = await AsyncHTTPClient().fetch(HTTPRequest(
+                f"http://127.0.0.1:{self._moonraker_port}/machine/update/status?refresh=false",
+                method="GET", request_timeout=3.0,
+            ), raise_error=False)
+            self._can_self_update = _self_update_decision(resp.code, resp.body)
+        except Exception as exc:
+            logger.debug("Self-update probe failed: %s", exc)
+        if self._can_self_update is False:
+            logger.info(
+                "Moongate is not managed by Moonraker's update manager - "
+                "one-tap update disabled. Manual installs update by "
+                "re-copying the plugin file (docs/third-party-printers.md).")
+
     async def _handle_update_plugin(self) -> dict:
         """One-tap plugin self-update (v0.6.16, driven by the app's dashboard
         update badge; caller already authenticated by _handle_control).
@@ -2495,8 +2561,21 @@ class MoongatePlugin:
         404s on Moonraker v0.10) - and returns immediately: waiting would be
         pointless because the restart kills the connection anyway. The app
         watches plugin_version on its normal /status polls to see the update
-        land, which is also what clears its badge."""
+        land, which is also what clears its badge.
+
+        v0.6.24: refuses cleanly when the update manager doesn't manage us
+        (manual install) - /status no longer advertises the action there, but
+        an app that cached an old answer deserves an honest error rather than
+        a fire-and-forget POST that dies quietly on the printer. An
+        indeterminate probe proceeds: the POST logs its own outcome and can't
+        hurt an idle stack."""
         from tornado.httpclient import AsyncHTTPClient, HTTPRequest
+
+        await self._probe_self_update()
+        if self._can_self_update is False:
+            raise self.server.error(
+                "This install isn't managed by Moonraker's update manager - "
+                "update it manually (docs/third-party-printers.md)", 409)
 
         state = None
         try:
