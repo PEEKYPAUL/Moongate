@@ -13,7 +13,7 @@
 // Request body:
 //   {
 //     "pi_public_key": "<base64 Ed25519 pubkey>",
-//     "event":         "started" | "completed" | "failed" | "error" | "custom",
+//     "event":         "started" | "completed" | "failed" | "paused" | "error" | "custom",
 //     "detail":        "<optional - gcode filename, shutdown reason, or for
 //                       "custom" the whole message (plugin 0.6.25+)>",
 //     "timestamp":     <unix seconds>,
@@ -37,7 +37,7 @@ import { sendApns, ApnsAlert } from "./apns.ts";
 
 const REPLAY_WINDOW_SECONDS = 60;
 const MAX_DETAIL = 200;
-const EVENTS = new Set(["started", "completed", "failed", "error", "custom"]);
+const EVENTS = new Set(["started", "completed", "failed", "paused", "error", "custom"]);
 
 // Server-side message text. English for v1; APNs loc-keys can localise this
 // later against the app's iOS strings without changing the signed contract.
@@ -51,6 +51,8 @@ function buildAlert(event: string, printerName: string, detail: string): ApnsAle
     ? "Print started"
     : event === "completed"
     ? "Print finished"
+    : event === "paused"
+    ? "Print paused"
     : event === "error"
     ? "Printer error"
     : "Print failed";
@@ -87,7 +89,7 @@ Deno.serve(async (req) => {
 
   if (typeof piPubKey !== "string") return badRequest("pi_public_key required");
   if (typeof event !== "string" || !EVENTS.has(event)) {
-    return badRequest("event must be started, completed, failed, error, or custom");
+    return badRequest("event must be one of: started, completed, failed, paused, error, custom");
   }
   if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) {
     return badRequest("timestamp required (unix seconds)");

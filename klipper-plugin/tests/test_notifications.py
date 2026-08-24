@@ -39,6 +39,7 @@ def _load(name):
 
 mod    = _load("moongate_notifications")
 kevent = mod.PrintEventWatcher._klippy_event_for
+pevent = mod.PrintEventWatcher._event_for
 
 PASS = 0
 FAIL = 0
@@ -77,6 +78,17 @@ check("shutdown -> ready silent",   kevent("shutdown", "ready"),   None)
 check("ready -> startup silent",    kevent("ready", "startup"),    None)
 check("startup -> ready silent",    kevent("startup", "ready"),    None)
 check("ready -> disconnected silent", kevent("ready", "disconnected"), None)
+
+# ── _event_for: the paused addition (v0.6.25) ───────────────────────────────
+
+# A pause wants eyes on it whether a filament-runout macro or a human caused
+# it; a resume is not a fresh start; cancelled stays deliberately silent.
+check("printing -> paused fires",   pevent("printing", "paused"),    "paused")
+check("paused -> printing silent (resume)", pevent("paused", "printing"), None)
+check("baseline into paused silent", pevent(None, "paused"),         None)
+check("printing -> cancelled silent", pevent("printing", "cancelled"), None)
+check("paused -> complete still completes", pevent("paused", "complete"), "completed")
+check("standby -> printing still starts", pevent("standby", "printing"), "started")
 
 # ── _error_detail: shutdown reason -> one push line ─────────────────────────
 

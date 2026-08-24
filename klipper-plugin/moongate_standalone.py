@@ -1424,10 +1424,15 @@ class PrintEventWatcher:
                         self._error_sent_at = time.monotonic()
                         await loop.run_in_executor(None, self._send_event, k_event, reason)
 
-                state, filename = await loop.run_in_executor(None, self._poll_print_state)
+                state, filename, message = await loop.run_in_executor(
+                    None, self._poll_print_state)
                 if state is not None and state != self._last_state:
                     event = self._event_for(self._last_state, state)
                     self._last_state = state
+                    # A failed print's push carries WHY when Klipper says
+                    # (print_stats.message), falling back to the filename.
+                    detail = (_error_detail(message) or filename
+                              if event == "failed" else filename)
                     if event == "failed" and self._error_sent_at is not None \
                             and time.monotonic() - self._error_sent_at < 60.0:
                         # The klippy watcher already reported this incident,
@@ -1438,7 +1443,7 @@ class PrintEventWatcher:
                         logger.debug(
                             "Push event '%s' skipped - cloud contact dormant", event)
                     elif event:
-                        await loop.run_in_executor(None, self._send_event, event, filename)
+                        await loop.run_in_executor(None, self._send_event, event, detail)
             except asyncio.CancelledError:
                 return
             except Exception as exc:
@@ -1458,6 +1463,10 @@ class PrintEventWatcher:
             return None
         if state == "printing" and prev != "paused":
             return "started"
+        if state == "paused" and prev == "printing":
+            # v0.6.25: filament-runout macros and manual pauses alike - a
+            # paused print wants eyes on it either way.
+            return "paused"
         if state == "complete":
             return "completed"
         if state == "error":
@@ -1508,19 +1517,23 @@ class PrintEventWatcher:
             logger.debug("printer/info poll failed: %s", exc)
             return ""
 
-    def _poll_print_state(self) -> tuple[Optional[str], str]:
-        """Read print_stats.state and .filename from the local Moonraker.
-        Returns (None, "") on any failure so the loop simply skips this tick
+    def _poll_print_state(self) -> tuple[Optional[str], str, str]:
+        """Read print_stats.state, .filename and .message from the local
+        Moonraker. message carries the gcode-level failure reason ("Move out
+        of range ...", "Must home axis first") when state is error - v0.6.25
+        surfaces it in the push instead of just the filename. Returns
+        (None, "", "") on any failure so the loop simply skips this tick
         without disturbing the baseline."""
         try:
             url = f"http://127.0.0.1:{self.port}/printer/objects/query?print_stats"
             with urllib.request.urlopen(url, timeout=5) as resp:
                 data = json.loads(resp.read().decode())
             ps = data["result"]["status"]["print_stats"]
-            return ps.get("state"), (ps.get("filename") or "")
+            return (ps.get("state"), (ps.get("filename") or ""),
+                    (ps.get("message") or ""))
         except Exception as exc:
             logger.debug("print_stats poll failed: %s", exc)
-            return None, ""
+            return None, "", ""
 
     def _send_event(self, event: str, detail: str) -> bool:
         """Sign + send one push event. Returns True when the server accepted
