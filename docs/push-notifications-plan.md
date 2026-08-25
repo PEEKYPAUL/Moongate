@@ -4,7 +4,7 @@ Status: DRAFT for review (2026-06-26). Goal: real background notifications on iP
 
 ## The plain-English version
 
-Today the phone does the watching: the app quietly keeps itself awake and polls each printer every few seconds for hours. Android allows that; iOS does not, which is why there are no background alerts on iPhone.
+Today the phone does the watching: the app quietly keeps itself awake and polls each printer every few seconds for hours. Android allows that; iOS does not, which is why there are no background alerts on iPhone. (Since v0.9.61 that Android watcher also raises the same loud event alerts locally - paused, failed and machine errors with their reasons - so both platforms hear about the same moments; only the delivery differs.)
 
 The iPhone-correct model flips it around. Instead of the phone watching, the **printer tells our Supabase backend when something happens**, and Supabase asks Apple (or Google) to deliver an alert straight to the phone. The phone does not need to be awake or have the app open.
 

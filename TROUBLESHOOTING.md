@@ -103,6 +103,16 @@ If print notifications were on but the ongoing status notification is gone and y
 
 If you were **inside the Moongate app** (or any app, with Moongate in the foreground) when the alert fired, that's normal iPhone behaviour: iOS doesn't show a banner for a push notification while the app it belongs to is on screen. The alert still exists - swipe down from the top of the screen (Notification Centre) and it's there. Lock the phone or switch apps and the next one will banner normally.
 
+## Android didn't alert when a print paused or failed, or the printer errored
+
+Loud Android alerts for these moments arrived in **v0.9.61** - older versions only re-labelled the quiet status bar. On v0.9.61+, three things have to be true, and each has an easy check:
+
+1. **Print notifications are on and not paused.** Unlike iPhone push, Android's alerts come from the app's own background monitoring, so the "Print notifications" toggle in the menu must be on and the top-bar pause button not engaged. No status bar in the shade = nothing is watching, and nothing can alert.
+2. **The "Printer alerts" category isn't muted.** Long-press any Moongate notification → notification settings, and check the **Printer alerts** category is allowed. It's separate from the quiet status/cards categories on purpose, so it can buzz (or be silenced) on its own.
+3. **The moment happened while Moongate was watching.** Alerts fire on changes the monitoring sees as they happen. Something that went wrong while notifications were off, paused, or the phone was without any connection to the printer won't alert retroactively - the tile still shows the state and the reason when you open the app.
+
+Direct (LAN/VPN) printers are the documented exception: no notifications in cloud-free mode.
+
 ## Chamber temperature missing on the dashboard
 
 If a printer's chamber temperature doesn't appear on its tile even though it shows in Mainsail, update to **v0.9.32 or newer**. That release made chamber detection robust for combined chamber sensors (`temperature_combined`) and sensors named with capital letters, especially over the remote tunnel.
