@@ -1721,6 +1721,15 @@ class AppLocalizationsFr extends AppLocalizations {
   String get printAlertReady => 'Imprimante prête';
 
   @override
+  String get printAlertPaused => 'Impression en pause';
+
+  @override
+  String get printAlertFailed => 'Échec de l\'impression';
+
+  @override
+  String get printAlertError => 'Erreur de l\'imprimante';
+
+  @override
   String get printStatusReady => 'Prête';
 
   @override
@@ -1766,16 +1775,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get printAlertResumed => 'Impression reprise';
 
   @override
-  String get printAlertPaused => 'Impression en pause';
-
-  @override
   String get printAlertComplete => 'Impression terminée';
 
   @override
   String get printAlertCancelled => 'Impression annulée';
-
-  @override
-  String get printAlertError => 'Erreur d\'imprimante';
 
   @override
   String get tileOpenFiles => 'Imprimer un fichier';

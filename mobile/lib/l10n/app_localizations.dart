@@ -3112,6 +3112,24 @@ abstract class AppLocalizations {
   /// **'Printer ready'**
   String get printAlertReady;
 
+  /// Loud alert when a running print pauses (filament-runout macro or a manual pause); the filename follows after a colon.
+  ///
+  /// In en, this message translates to:
+  /// **'Print paused'**
+  String get printAlertPaused;
+
+  /// Loud alert when a print fails; Klipper's reason (or the filename) follows after a colon.
+  ///
+  /// In en, this message translates to:
+  /// **'Print failed'**
+  String get printAlertFailed;
+
+  /// Loud alert when Klipper itself shuts down or errors out; the shutdown reason follows after a colon.
+  ///
+  /// In en, this message translates to:
+  /// **'Printer error'**
+  String get printAlertError;
+
   /// Printer status in the notification: idle and ready to print.
   ///
   /// In en, this message translates to:
@@ -3202,12 +3220,6 @@ abstract class AppLocalizations {
   /// **'Resumed printing'**
   String get printAlertResumed;
 
-  /// Pop-up alert when a print is paused.
-  ///
-  /// In en, this message translates to:
-  /// **'Print paused'**
-  String get printAlertPaused;
-
   /// Pop-up alert when a print finishes.
   ///
   /// In en, this message translates to:
@@ -3219,12 +3231,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Print cancelled'**
   String get printAlertCancelled;
-
-  /// Pop-up alert when the printer errors.
-  ///
-  /// In en, this message translates to:
-  /// **'Printer error'**
-  String get printAlertError;
 
   /// Tooltip for the folder button on a ready printer tile; opens the stored-G-code browser.
   ///

@@ -1702,6 +1702,15 @@ class AppLocalizationsPl extends AppLocalizations {
   String get printAlertReady => 'Drukarka gotowa';
 
   @override
+  String get printAlertPaused => 'Wydruk wstrzymany';
+
+  @override
+  String get printAlertFailed => 'Wydruk nieudany';
+
+  @override
+  String get printAlertError => 'Błąd drukarki';
+
+  @override
   String get printStatusReady => 'Gotowa';
 
   @override
@@ -1747,16 +1756,10 @@ class AppLocalizationsPl extends AppLocalizations {
   String get printAlertResumed => 'Wznowiono druk';
 
   @override
-  String get printAlertPaused => 'Druk wstrzymany';
-
-  @override
   String get printAlertComplete => 'Druk ukończony';
 
   @override
   String get printAlertCancelled => 'Druk anulowany';
-
-  @override
-  String get printAlertError => 'Błąd drukarki';
 
   @override
   String get tileOpenFiles => 'Drukuj plik';

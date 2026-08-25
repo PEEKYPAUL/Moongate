@@ -1604,6 +1604,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get printAlertReady => '打印机就绪';
 
   @override
+  String get printAlertPaused => '打印已暂停';
+
+  @override
+  String get printAlertFailed => '打印失败';
+
+  @override
+  String get printAlertError => '打印机错误';
+
+  @override
   String get printStatusReady => '就绪';
 
   @override
@@ -1649,16 +1658,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get printAlertResumed => '已恢复打印';
 
   @override
-  String get printAlertPaused => '打印已暂停';
-
-  @override
   String get printAlertComplete => '打印完成';
 
   @override
   String get printAlertCancelled => '打印已取消';
-
-  @override
-  String get printAlertError => '打印机错误';
 
   @override
   String get tileOpenFiles => '打印文件';

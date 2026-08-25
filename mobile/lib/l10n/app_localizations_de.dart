@@ -1707,6 +1707,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get printAlertReady => 'Drucker bereit';
 
   @override
+  String get printAlertPaused => 'Druck pausiert';
+
+  @override
+  String get printAlertFailed => 'Druck fehlgeschlagen';
+
+  @override
+  String get printAlertError => 'Druckerfehler';
+
+  @override
   String get printStatusReady => 'Bereit';
 
   @override
@@ -1752,16 +1761,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get printAlertResumed => 'Druck fortgesetzt';
 
   @override
-  String get printAlertPaused => 'Druck pausiert';
-
-  @override
   String get printAlertComplete => 'Druck fertig';
 
   @override
   String get printAlertCancelled => 'Druck abgebrochen';
-
-  @override
-  String get printAlertError => 'Druckerfehler';
 
   @override
   String get tileOpenFiles => 'Datei drucken';
