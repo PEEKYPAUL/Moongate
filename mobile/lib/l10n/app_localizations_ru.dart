@@ -1702,6 +1702,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get printAlertReady => 'Принтер готов';
 
   @override
+  String get printAlertPaused => 'Печать приостановлена';
+
+  @override
+  String get printAlertFailed => 'Печать не удалась';
+
+  @override
+  String get printAlertError => 'Ошибка принтера';
+
+  @override
   String get printStatusReady => 'Готов';
 
   @override
@@ -1747,16 +1756,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get printAlertResumed => 'Печать возобновлена';
 
   @override
-  String get printAlertPaused => 'Печать приостановлена';
-
-  @override
   String get printAlertComplete => 'Печать завершена';
 
   @override
   String get printAlertCancelled => 'Печать отменена';
-
-  @override
-  String get printAlertError => 'Ошибка принтера';
 
   @override
   String get tileOpenFiles => 'Печать файла';

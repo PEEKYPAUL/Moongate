@@ -1709,6 +1709,15 @@ class AppLocalizationsPt extends AppLocalizations {
   String get printAlertReady => 'Impressora pronta';
 
   @override
+  String get printAlertPaused => 'Impressão pausada';
+
+  @override
+  String get printAlertFailed => 'Falha na impressão';
+
+  @override
+  String get printAlertError => 'Erro da impressora';
+
+  @override
   String get printStatusReady => 'Pronto';
 
   @override
@@ -1754,16 +1763,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get printAlertResumed => 'Impressão retomada';
 
   @override
-  String get printAlertPaused => 'Impressão pausada';
-
-  @override
   String get printAlertComplete => 'Impressão concluída';
 
   @override
   String get printAlertCancelled => 'Impressão cancelada';
-
-  @override
-  String get printAlertError => 'Erro na impressora';
 
   @override
   String get tileOpenFiles => 'Imprimir um arquivo';

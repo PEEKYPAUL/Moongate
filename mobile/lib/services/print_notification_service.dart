@@ -12,6 +12,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../l10n/app_localizations.dart';
+import '../models/notif_events.dart';
 import '../models/notif_fields.dart';
 import '../models/printer_config.dart';
 import 'heatsoak_timers.dart';
@@ -66,6 +67,20 @@ const _heatsoakChannelDesc =
 // notifications were off across the deadline) is dropped without buzzing rather
 // than firing a confusing late alert.
 const _heatsoakStaleMs = 60 * 60 * 1000; // 1 hour
+
+// Loud one-shot channel for exceptional printer events - a print pausing, a
+// print failing (with Klipper's reason), the machine erroring out, or a
+// MOONGATE_NOTIFY message from a macro. HIGH (it buzzes): these are the
+// moments an iPhone gets an APNs push for (plugin 0.6.25), and Android's
+// poll-driven equivalent has to call the user back the same way - the silent
+// roster/cards deliberately never do. Its own channel so it can be muted on
+// its own. A FRESH id (not the retired 'moongate_print_alerts') so nobody's
+// years-old block of that channel silently swallows these.
+const _eventChannelId   = 'moongate_event_alerts';
+const _eventChannelName = 'Printer alerts';
+const _eventChannelDesc =
+    'Alerts when a print pauses or fails, a printer errors out, or a '
+    'printer macro sends a message.';
 
 // Default poll cadence, overridden by the user's "Update frequency" setting
 // (`notif_poll_interval`). The chosen interval is the ACTUAL poll rate - there
@@ -267,6 +282,16 @@ class _PrintTaskHandler extends TaskHandler {
   /// supplemented each tick. A cached empty list means "single hotend - never
   /// re-query"; a printer absent from the map hasn't been discovered yet.
   final Map<String, List<String>> _extraExtruders = {};
+
+  // Last state seen from a LIVE poll, per printer - the transition baseline
+  // for the loud event alerts (printEventFor). Absent until the first live
+  // observation after the service starts: that one only records, never buzzes,
+  // so a restart can't re-alert whatever state a printer was already in.
+  // Synthetic placeholders (live: false) and offline ticks leave it untouched.
+  final Map<String, String> _lastLiveState = {};
+  // Last MOONGATE_NOTIFY sequence number seen per printer (from /status
+  // `last_notify`, plugin 0.6.26+). Same baseline rule via shouldAlertCustom.
+  final Map<String, int> _lastNotifySeq = {};
   late AppLocalizations _l;
   // Which notification segments to show + their order - re-read from prefs each
   // tick (the user edits them on the main isolate). Defaults to all-on.
@@ -315,6 +340,17 @@ class _PrintTaskHandler extends TaskHandler {
         _heatsoakChannelId,
         _heatsoakChannelName,
         description: _heatsoakChannelDesc,
+        importance: Importance.high,
+      ),
+    );
+
+    // Loud HIGH channel for the exceptional-event alerts (paused / failed /
+    // printer error / MOONGATE_NOTIFY) - see _maybeFireEventAlerts. Idempotent.
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _eventChannelId,
+        _eventChannelName,
+        description: _eventChannelDesc,
         importance: Importance.high,
       ),
     );
@@ -417,7 +453,10 @@ class _PrintTaskHandler extends TaskHandler {
         // or an offline tick (s == null) must NOT touch the cards - otherwise a
         // transient network blip looks like the print ending and would wrongly
         // clear the card. Offline mid-print just leaves the existing card alone.
+        // The same rule guards the loud event alerts: only a live transition
+        // (or a fresh MOONGATE_NOTIFY seq) may buzz.
         if (s != null && s.live) {
+          await _maybeFireEventAlerts(p, s);
           await _updateCardFor(p, s, postedDoneThisTick);
         }
 
@@ -599,6 +638,30 @@ class _PrintTaskHandler extends TaskHandler {
     // the dashboard does. The synthetic Idle is marked live: false so it never
     // drives a state-change alert.
     if (await _isReachable(p, access)) {
+      // A hard machine error can take /status down with it: Moonraker's
+      // objects query dies when Klippy disconnects, so the plugin answers
+      // 502 exactly when there's the most to say. /server/info keeps
+      // answering then (the same trick the plugin's own push watcher uses),
+      // so ask it before settling for the Idle placeholder - a shutdown seen
+      // here is a REAL state and drives the machine-error alert.
+      for (final (base, isLan) in bases) {
+        final health =
+            await _fetchKlippyHealth(base, access.accessToken, isLan: isLan);
+        if (health == null) continue;
+        if (health.state == 'shutdown' || health.state == 'error') {
+          return _Poll(
+            state: 'shutdown',
+            progress: 0,
+            printDurationSec: 0,
+            reason: health.reason,
+            hotend: 0,
+            hotendTarget: 0,
+            bed: 0,
+            bedTarget: 0,
+          );
+        }
+        break; // Klippy is fine - the stack is just starting up / restarting
+      }
       return const _Poll(
         state: 'waiting',
         progress: 0,
@@ -654,6 +717,13 @@ class _PrintTaskHandler extends TaskHandler {
       final extruder   = status['extruder']     as Map<String, dynamic>? ?? const {};
       final bed        = status['heater_bed']   as Map<String, dynamic>? ?? const {};
 
+      // Last MOONGATE_NOTIFY message (plugin 0.6.26+, /status top level) -
+      // rides both return paths below so a macro message still alerts while
+      // Klipper is shut down. Absent on older plugins.
+      final lastNotify = result?['last_notify'] as Map<String, dynamic>?;
+      final notifySeq  = (lastNotify?['seq'] as num?)?.toInt();
+      final notifyText = lastNotify?['text'] as String?;
+
       // The plugin's /status returns ONLY print_stats / heater_bed / extruder -
       // progress lives in display_status & virtual_sdcard, which aren't in this
       // payload. Mirror PrinterStatusService and pull them from a supplementary
@@ -677,10 +747,15 @@ class _PrintTaskHandler extends TaskHandler {
       // the roster reads Offline and _updateCardFor clears the stuck card.
       final klippyState = webhooks?['state'] as String?;
       if (klippyState == 'shutdown' || klippyState == 'error') {
-        return const _Poll(
+        return _Poll(
           state:            'shutdown',
           progress:         0,
           printDurationSec: 0,
+          // Klipper's own explanation ("Shutdown due to M112 command", MCU
+          // errors...) - the machine-error alert's body, like the iOS push.
+          reason:     firstDetailLine(webhooks?['state_message'] as String?),
+          notifySeq:  notifySeq,
+          notifyText: notifyText,
           hotend:           0,
           hotendTarget:     0,
           bed:              0,
@@ -744,6 +819,12 @@ class _PrintTaskHandler extends TaskHandler {
         state:            state,
         progress:         progress,
         printDurationSec: (printStats['print_duration'] as num?)?.toDouble() ?? 0,
+        filename:         filename,
+        // The gcode-level failure reason when Klipper gives one ("Move out of
+        // range ...") - print_stats.message accompanies the 'error' state.
+        reason:     firstDetailLine(printStats['message'] as String?),
+        notifySeq:  notifySeq,
+        notifyText: notifyText,
         filamentUsedMm:   (printStats['filament_used']  as num?)?.toDouble(),
         filamentTotalMm:  offsets?.filamentTotalMm,
         slicerEstimateSec: offsets?.estimatedTimeSec,
@@ -774,6 +855,44 @@ class _PrintTaskHandler extends TaskHandler {
       if (resp.statusCode != 200) return null;
       final body = jsonDecode(resp.body) as Map<String, dynamic>;
       return body['result']?['status'] as Map<String, dynamic>?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Klippy's own health via Moonraker's /server/info - which keeps answering
+  /// while Klipper is shut down or disconnected, precisely when /status can't
+  /// (the plugin's push watcher leans on the same trick). When it reports a bad
+  /// state, best-effort /printer/info supplies Klipper's reason. Null when
+  /// Moonraker itself didn't answer (powered off / still starting up). Same
+  /// transports as _fetchProgress: LAN plain, tunnel through the auth proxy.
+  Future<({String state, String reason})?> _fetchKlippyHealth(
+      String base, String token,
+      {required bool isLan}) async {
+    final headers = isLan ? null : {'Authorization': 'Bearer $token'};
+    try {
+      final resp = await http
+          .get(Uri.parse('$base/server/info'), headers: headers)
+          .timeout(const Duration(seconds: 5));
+      if (resp.statusCode != 200) return null;
+      final body  = jsonDecode(resp.body) as Map<String, dynamic>;
+      final state = body['result']?['klippy_state'] as String?;
+      if (state == null || state.isEmpty) return null;
+      var reason = '';
+      if (state == 'shutdown' || state == 'error') {
+        try {
+          final r = await http
+              .get(Uri.parse('$base/printer/info'), headers: headers)
+              .timeout(const Duration(seconds: 5));
+          if (r.statusCode == 200) {
+            final b = jsonDecode(r.body) as Map<String, dynamic>;
+            reason = firstDetailLine(b['result']?['state_message'] as String?);
+          }
+        } catch (_) {
+          // A reason-less alert still beats a missed one.
+        }
+      }
+      return (state: state, reason: reason);
     } catch (_) {
       return null;
     }
@@ -1037,7 +1156,7 @@ class _PrintTaskHandler extends TaskHandler {
       if (phase == _CardPhase.active) {
         final startedMs =
             _cardStartedAt[p.id] ?? DateTime.now().millisecondsSinceEpoch;
-        await _postDoneCard(p, cur, startedMs);
+        await _postDoneCard(p, cur, startedMs, reason: s.reason);
         _cardPhase[p.id] = _CardPhase.done;
         postedDoneThisTick.add(p.id);
       }
@@ -1089,7 +1208,7 @@ class _PrintTaskHandler extends TaskHandler {
   /// own "Print jobs" channel, keeping [startedMs] as its `when` so it stays
   /// put under the roster (see _postActiveCard).
   Future<void> _postDoneCard(
-      PrinterConfig p, String state, int startedMs) async {
+      PrinterConfig p, String state, int startedMs, {String? reason}) async {
     final clock = _nowClock();
     final String body;
     switch (state) {
@@ -1099,7 +1218,11 @@ class _PrintTaskHandler extends TaskHandler {
             : '${_l.printStatusCancelled} · $clock';
         break;
       case 'error':
-        body = _l.printStatusError;
+        // Klipper's failure reason (print_stats.message) when it gave one -
+        // so the summary card answers "why" like the failed-print alert does.
+        body = (reason == null || reason.isEmpty)
+            ? _l.printStatusError
+            : '${_l.printStatusError} · $reason';
         break;
       default: // complete
         body = clock == null
@@ -1223,6 +1346,74 @@ class _PrintTaskHandler extends TaskHandler {
     }
   }
 
+  // ── Event alerts ────────────────────────────────────────────────────────────
+
+  /// Per-printer notification id for its loud event alert. High bit 0x40000000
+  /// keeps it clear of the service id (4711), the print cards (0x10000000) and
+  /// the heat-soak alerts (0x20000000) - and outside onStart's stale-card sweep
+  /// (`& 0x10000000`), so an alert the user hasn't seen yet survives a service
+  /// restart the way the heat-soak one does.
+  int _eventAlertId(String printerId) =>
+      0x40000000 | (printerId.hashCode & 0x0FFFFFFF);
+
+  /// Fire the loud one-shot alerts for [p]'s fresh live poll [s]: a state
+  /// transition worth buzzing about (printEventFor) and/or a fresh
+  /// MOONGATE_NOTIFY message. Mirrors the plugin's iOS push matrix (0.6.25) -
+  /// same events, same wording - so both platforms hear about the same moments;
+  /// resume / cancelled / completed stay silent here just like the pushes.
+  Future<void> _maybeFireEventAlerts(PrinterConfig p, _Poll s) async {
+    final event = printEventFor(_lastLiveState[p.id], s.state);
+    _lastLiveState[p.id] = s.state;
+    switch (event) {
+      case PrintEvent.paused:
+        await _postEventAlert(p, _l.printAlertPaused, s.filename ?? '');
+      case PrintEvent.failed:
+        // Klipper says WHY when it can (print_stats.message); fall back to the
+        // filename, exactly like the plugin's push detail.
+        final reason = s.reason ?? '';
+        await _postEventAlert(
+            p, _l.printAlertFailed, reason.isNotEmpty ? reason : (s.filename ?? ''));
+      case PrintEvent.machineError:
+        await _postEventAlert(p, _l.printAlertError, s.reason ?? '');
+      case null:
+        break;
+    }
+
+    // MOONGATE_NOTIFY: the plugin (0.6.26+) surfaces the last macro message in
+    // /status as `last_notify` {seq, ts, text}; a seq increase while we watch
+    // is a fresh message. Older plugins simply never send the field.
+    final seq = s.notifySeq;
+    if (seq != null) {
+      if (shouldAlertCustom(_lastNotifySeq[p.id], seq)) {
+        final text = (s.notifyText ?? '').trim();
+        if (text.isNotEmpty) await _postEventAlert(p, text, '');
+      }
+      _lastNotifySeq[p.id] = seq;
+    }
+  }
+
+  /// Post one loud event alert: the printer's name as the title and
+  /// `base: detail` (or just `base`) as the body - the same shape send-push
+  /// builds for the iOS banner, so one incident reads identically on both.
+  Future<void> _postEventAlert(
+      PrinterConfig p, String base, String detail) async {
+    const android = AndroidNotificationDetails(
+      _eventChannelId,
+      _eventChannelName,
+      channelDescription: _eventChannelDesc,
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: 'ic_stat_moongate',
+      autoCancel: true,
+    );
+    await _alerts.show(
+      _eventAlertId(p.id),
+      p.name,
+      detail.isEmpty ? base : '$base: $detail',
+      const NotificationDetails(android: android),
+    );
+  }
+
   // ── Heat-soak timers ────────────────────────────────────────────────────────
 
   /// Per-printer notification id for its one-shot heat-soak alert. High bit
@@ -1294,6 +1485,21 @@ class _Poll {
   final double progress;        // 0..1
   final double printDurationSec;
 
+  /// The printing file (print_stats.filename) - the event alerts' fallback
+  /// detail (a paused / failed print names its file, like the iOS push).
+  final String? filename;
+
+  /// Why, when the state is bad: print_stats.message for a failed print
+  /// ("Move out of range ..."), or Klipper's shutdown reason (webhooks /
+  /// printer-info state_message, first line) when [state] is 'shutdown'.
+  final String? reason;
+
+  /// Last MOONGATE_NOTIFY message, from /status `last_notify` (plugin
+  /// 0.6.26+): a monotonic per-plugin-process sequence number plus the
+  /// sanitised text. Null on older plugins.
+  final int?    notifySeq;
+  final String? notifyText;
+
   /// Extra inputs for the Mainsail-style remaining-time blend - filament used
   /// (print_stats) against the file's filament_total, and the slicer's own
   /// estimated_time (both file metadata). Null when unknown; the estimate
@@ -1322,6 +1528,10 @@ class _Poll {
     required this.state,
     required this.progress,
     required this.printDurationSec,
+    this.filename,
+    this.reason,
+    this.notifySeq,
+    this.notifyText,
     this.filamentUsedMm,
     this.filamentTotalMm,
     this.slicerEstimateSec,

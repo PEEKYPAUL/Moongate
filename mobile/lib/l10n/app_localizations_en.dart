@@ -1683,6 +1683,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get printAlertReady => 'Printer ready';
 
   @override
+  String get printAlertPaused => 'Print paused';
+
+  @override
+  String get printAlertFailed => 'Print failed';
+
+  @override
+  String get printAlertError => 'Printer error';
+
+  @override
   String get printStatusReady => 'Ready';
 
   @override
@@ -1728,16 +1737,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get printAlertResumed => 'Resumed printing';
 
   @override
-  String get printAlertPaused => 'Print paused';
-
-  @override
   String get printAlertComplete => 'Print complete';
 
   @override
   String get printAlertCancelled => 'Print cancelled';
-
-  @override
-  String get printAlertError => 'Printer error';
 
   @override
   String get tileOpenFiles => 'Print a file';
