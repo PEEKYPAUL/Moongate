@@ -693,6 +693,10 @@ class AppLocalizationsPt extends AppLocalizations {
       'Esta versão do plugin ainda não pode ser atualizada pelo app. Na interface web da impressora: Mainsail (ou Fluidd) → Software Updates → Moongate → Update.';
 
   @override
+  String get pluginUpdateManualCopy =>
+      'Este plugin foi instalado manualmente, então a impressora não consegue atualizá-lo sozinha. Atualize da mesma forma que instalou: copie o novo arquivo do plugin sobre o antigo e reinicie o Moonraker.';
+
+  @override
   String get pluginUpdateBusyPrinting =>
       'Esta impressora está imprimindo. Atualize quando a impressão terminar.';
 

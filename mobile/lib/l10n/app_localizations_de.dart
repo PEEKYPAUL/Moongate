@@ -688,6 +688,10 @@ class AppLocalizationsDe extends AppLocalizations {
       'Diese Plugin-Version kann noch nicht aus der App aktualisiert werden. Im Web-Interface des Druckers: Mainsail (oder Fluidd) → Software Updates → Moongate → Update.';
 
   @override
+  String get pluginUpdateManualCopy =>
+      'Dieses Plugin wurde von Hand installiert, daher kann der Drucker es nicht selbst aktualisieren. Aktualisiere es auf demselben Weg wie bei der Installation: die neue Plugin-Datei über die alte kopieren und dann Moonraker neu starten.';
+
+  @override
   String get pluginUpdateBusyPrinting =>
       'Dieser Drucker druckt gerade. Aktualisiere, sobald der Druck fertig ist.';
 

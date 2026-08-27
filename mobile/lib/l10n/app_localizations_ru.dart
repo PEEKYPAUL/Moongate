@@ -689,6 +689,10 @@ class AppLocalizationsRu extends AppLocalizations {
       'Эту версию плагина пока нельзя обновить из приложения. В веб-интерфейсе принтера: Mainsail (или Fluidd) → Software Updates → Moongate → Update.';
 
   @override
+  String get pluginUpdateManualCopy =>
+      'Этот плагин был установлен вручную, поэтому принтер не может обновить его сам. Обновите его так же, как устанавливали: скопируйте новый файл плагина поверх старого и перезапустите Moonraker.';
+
+  @override
   String get pluginUpdateBusyPrinting =>
       'Принтер сейчас печатает. Обновите после завершения печати.';
 

@@ -1300,6 +1300,12 @@ abstract class AppLocalizations {
   /// **'This plugin version can\'t be updated from the app yet. On the printer\'s web interface: Mainsail (or Fluidd) → Software Updates → Moongate → Update.'**
   String get pluginUpdateManual;
 
+  /// Update-dialog hint for a manual (hand-copied) plugin install, plugin 0.6.24+ reporting it can't self-update - the Software Updates panel doesn't apply there.
+  ///
+  /// In en, this message translates to:
+  /// **'This plugin was installed by hand, so the printer can\'t update it itself. Update it the same way it was installed: copy the new plugin file over the old one, then restart Moonraker.'**
+  String get pluginUpdateManualCopy;
+
   /// Hint shown instead of the update button while the printer is printing.
   ///
   /// In en, this message translates to:

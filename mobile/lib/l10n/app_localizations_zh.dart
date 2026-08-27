@@ -654,6 +654,10 @@ class AppLocalizationsZh extends AppLocalizations {
       '此插件版本暂不支持从应用内更新。请在打印机的网页界面操作：Mainsail（或 Fluidd）→ Software Updates → Moongate → Update。';
 
   @override
+  String get pluginUpdateManualCopy =>
+      '此插件是手动安装的，打印机无法自行更新。请按安装时的方式更新：将新的插件文件覆盖旧文件，然后重启 Moonraker。';
+
+  @override
   String get pluginUpdateBusyPrinting => '这台打印机正在打印，请等打印完成后再更新。';
 
   @override

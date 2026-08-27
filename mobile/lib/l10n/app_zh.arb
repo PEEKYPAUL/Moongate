@@ -220,6 +220,7 @@
   "pluginUpdateVersionUnknown": "旧版本",
   "pluginUpdateNow": "立即更新",
   "pluginUpdateManual": "此插件版本暂不支持从应用内更新。请在打印机的网页界面操作：Mainsail（或 Fluidd）→ Software Updates → Moongate → Update。",
+  "pluginUpdateManualCopy": "此插件是手动安装的，打印机无法自行更新。请按安装时的方式更新：将新的插件文件覆盖旧文件，然后重启 Moonraker。",
   "pluginUpdateBusyPrinting": "这台打印机正在打印，请等打印完成后再更新。",
   "pluginUpdateStarted": "更新已开始，将在打印机上后台运行 - 完成后该图标会自动消失（约一分钟）。",
   "pluginUpdateFailed": "无法启动更新。请使用打印机的网页界面：Software Updates → Moongate → Update。",
