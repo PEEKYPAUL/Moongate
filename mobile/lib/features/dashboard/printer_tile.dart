@@ -15,6 +15,7 @@ import '../../services/print_progress.dart';
 import '../../services/printer_registry.dart';
 import '../../services/printer_status_registry.dart';
 import '../../services/printer_status_service.dart';
+import '../../widgets/adaptive_tool_button.dart';
 import '../../widgets/webcam_view.dart';
 import '../printer/printer_camera_screen.dart';
 import '../tutorial/tutorial_anchors.dart';
@@ -1111,43 +1112,27 @@ class _ToolsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final l     = AppLocalizations.of(context);
-    final style = OutlinedButton.styleFrom(
-      visualDensity:   VisualDensity.compact,
-      padding:         const EdgeInsets.symmetric(horizontal: 8),
-      minimumSize:     const Size(0, 30),
-      side:            BorderSide(color: theme.colorScheme.outlineVariant),
-      foregroundColor: theme.colorScheme.primary,
-      textStyle:       theme.textTheme.labelMedium,
-    );
+    final l = AppLocalizations.of(context);
+    // Each button keeps its label only when the text fits its half of the
+    // row - narrow tiles (2-column grid) and long translations collapse to
+    // tooltipped icons instead of ellipsis noise (device pass, 27/08).
     return GestureDetector(
       onTap: () {}, // absorb - the gap between buttons must not navigate
       behavior: HitTestBehavior.opaque,
       child: Row(
         children: [
           Expanded(
-            child: OutlinedButton.icon(
-              style: style,
-              icon: const Icon(Icons.terminal_rounded, size: 16),
-              label: Text(
-                l.tileConsole,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+            child: AdaptiveToolButton(
+              icon: Icons.terminal_rounded,
+              label: l.tileConsole,
               onPressed: () => showConsoleSheet(context, printer),
             ),
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: OutlinedButton.icon(
-              style: style,
-              icon: const Icon(Icons.folder_open_rounded, size: 16),
-              label: Text(
-                l.tileFileSystem,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+            child: AdaptiveToolButton(
+              icon: Icons.folder_open_rounded,
+              label: l.tileFileSystem,
               onPressed: () => showFileSystemSheet(context, printer),
             ),
           ),
