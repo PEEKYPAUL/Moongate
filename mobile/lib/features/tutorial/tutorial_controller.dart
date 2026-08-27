@@ -95,6 +95,8 @@ class TutorialController extends Notifier<TutorialState> {
         unifyAnchors: true,
       ),
       TutorialStep(id: 'estop', anchors: [a.estop]),
+      // The per-printer tools row: Console + File System buttons.
+      TutorialStep(id: 'tools', anchors: [a.toolsRow]),
       TutorialStep(id: 'webcam', anchors: [a.webcam]),
       // Preheat: first spotlight the long-press area (name + temps), then open
       // the real sheet. The sheet dims the rest itself, so that step adds no

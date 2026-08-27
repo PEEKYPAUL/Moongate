@@ -22,6 +22,31 @@ class _TutorialOverlayState extends ConsumerState<TutorialOverlay> {
   int _resolvedForIndex = -1;
   int _settleScheduledForIndex = -1;
 
+  /// Step index whose callout card is shown even though its spotlight never
+  /// resolved. The scrim swallows every gesture, so a step stuck without its
+  /// card would soft-lock the whole tour - no Next, no Skip, just dim. After
+  /// a grace period the card appears regardless, spotlight or not.
+  int _forceCardForIndex = -1;
+
+  /// Scroll the step's first anchor into view before spotlighting it. The
+  /// user CANNOT scroll during the tour (the scrim absorbs the gesture), so
+  /// any target sitting below the fold - tall 1-column tiles now that the
+  /// tools row exists, the update banner pushing the grid down, large
+  /// display sizes - must be brought on screen by us, or its step points at
+  /// nothing. Drawer steps are excluded: the dashboard scrolls those itself.
+  void _ensureAnchorVisible(TutorialState s) {
+    final step = s.current;
+    if (step == null || step.anchors.isEmpty) return;
+    final ctx = step.anchors.first.currentContext;
+    if (ctx == null) return;
+    Scrollable.ensureVisible(
+      ctx,
+      alignment: 0.3,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   /// Resolve every anchor's rectangle in the overlay's own coordinate space,
   /// after layout. Retries on the next frame until the targets are mounted (they
   /// may belong to a screen we just navigated to), then stores the rects.
@@ -89,20 +114,34 @@ class _TutorialOverlayState extends ConsumerState<TutorialOverlay> {
       // appears AFTER the scroll, not before.
       if (!isDrawerStep) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _resolveRect(ref.read(tutorialControllerProvider));
+          if (!mounted) return;
+          _ensureAnchorVisible(ref.read(tutorialControllerProvider));
+          _resolveRect(ref.read(tutorialControllerProvider));
         });
       }
     }
     // Delayed pass(es) for targets that animate into place: a drawer entry
-    // sliding/scrolling in, a bottom sheet rising.
+    // sliding/scrolling in, a bottom sheet rising, our own ensure-visible
+    // scroll settling.
     if (state.active && _settleScheduledForIndex != state.index) {
       _settleScheduledForIndex = state.index;
+      final idx = state.index;
       final delays = isDrawerStep ? const [640] : const [360, 760];
       for (final ms in delays) {
         Future.delayed(Duration(milliseconds: ms), () {
           if (mounted) _resolveRect(ref.read(tutorialControllerProvider));
         });
       }
+      // The never-lock guarantee: if the spotlight still hasn't resolved
+      // after the settle passes (an anchor that can't mount in this layout),
+      // show the callout card anyway so Next and Skip stay reachable.
+      Future.delayed(const Duration(milliseconds: 1200), () {
+        if (!mounted) return;
+        final cur = ref.read(tutorialControllerProvider);
+        if (cur.active && cur.index == idx && _holeRects.isEmpty) {
+          setState(() => _forceCardForIndex = idx);
+        }
+      });
     }
 
     return Stack(
@@ -114,6 +153,7 @@ class _TutorialOverlayState extends ConsumerState<TutorialOverlay> {
             child: _TutorialScrim(
               state: state,
               holes: _holeRects,
+              forceCard: _forceCardForIndex == state.index,
               onNext: () => ref.read(tutorialControllerProvider.notifier).next(),
               onBack: () => ref.read(tutorialControllerProvider.notifier).previous(),
               onSkip: () => ref.read(tutorialControllerProvider.notifier).finish(),
@@ -127,6 +167,11 @@ class _TutorialOverlayState extends ConsumerState<TutorialOverlay> {
 class _TutorialScrim extends StatelessWidget {
   final TutorialState state;
   final List<Rect> holes;
+
+  /// Show the callout card even without a resolved spotlight - the overlay's
+  /// never-lock fallback (see [_TutorialOverlayState._forceCardForIndex]).
+  final bool forceCard;
+
   final VoidCallback onNext;
   final VoidCallback onBack;
   final VoidCallback onSkip;
@@ -134,6 +179,7 @@ class _TutorialScrim extends StatelessWidget {
   const _TutorialScrim({
     required this.state,
     required this.holes,
+    required this.forceCard,
     required this.onNext,
     required this.onBack,
     required this.onSkip,
@@ -172,8 +218,11 @@ class _TutorialScrim extends StatelessWidget {
     // Hold the card back until the spotlight has resolved, so it appears once in
     // its final position rather than flashing at the bottom then jumping to the
     // top as the target scrolls into view. Steps with no spotlight (e.g. the
-    // preheat sheet) have nothing to wait for, so they show it straight away.
-    final showCard = (step?.anchors.isEmpty ?? true) || holes.isNotEmpty;
+    // preheat sheet) have nothing to wait for, so they show it straight away -
+    // and [forceCard] overrides the hold-back for a spotlight that never
+    // resolves, so the tour can always be advanced or skipped.
+    final showCard =
+        (step?.anchors.isEmpty ?? true) || holes.isNotEmpty || forceCard;
 
     return Material(
       type: MaterialType.transparency,
@@ -231,6 +280,8 @@ String _copyFor(AppLocalizations l, String? id) {
       return l.tutorialTemps;
     case 'estop':
       return l.tutorialEstop;
+    case 'tools':
+      return l.tutorialTools;
     case 'webcam':
       return l.tutorialWebcam;
     case 'preheatPress':

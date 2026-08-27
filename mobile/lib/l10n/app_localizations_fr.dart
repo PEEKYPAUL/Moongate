@@ -2072,6 +2072,10 @@ class AppLocalizationsFr extends AppLocalizations {
       'Voici l\'arrêt d\'urgence. Il faut un double appui pour le déclencher, afin d\'éviter tout déclenchement accidentel, et il arrête l\'imprimante immédiatement.';
 
   @override
+  String get tutorialTools =>
+      'Console ouvre la console G-code en direct de cette imprimante. Système de fichiers parcourt ses fichiers de configuration : printer.cfg s\'ouvre dans un éditeur sûr avec sauvegarde automatique. Les deux fonctionnent à la maison et via le tunnel.';
+
+  @override
   String get tutorialWebcam =>
       'Toucher la vue caméra ouvre l\'interface complète de l\'imprimante, l\'écran Klipper en direct.';
 

@@ -625,6 +625,7 @@
   "tutorialChamber": "Wenn dein Drucker einen Kammersensor hat, wird dessen Temperatur hier ebenfalls angezeigt.",
   "tutorialTemps": "Das sind die Live-Temperaturen: das Hotend (Düse), das beheizte Bett und - falls dein Drucker einen Kammersensor hat - die Kammer.",
   "tutorialEstop": "Das ist der Notstopp. Er muss doppelt getippt werden, damit er nicht versehentlich ausgelöst wird, und er hält den Drucker sofort an.",
+  "tutorialTools": "Konsole öffnet die Live-G-Code-Konsole dieses Druckers. Dateisystem durchsucht seine Konfigurationsdateien - printer.cfg öffnet sich in einem sicheren Editor mit automatischem Backup. Beides funktioniert zu Hause und über den Tunnel.",
   "tutorialWebcam": "Ein Tippen auf die Kameraansicht öffnet die vollständige Druckeroberfläche, den Live-Klipper-Bildschirm.",
   "tutorialPreheatPress": "Halte den Namen eines Druckers oder seine Temperaturen gedrückt, um das Vorheiz-Panel anzuzeigen.",
   "tutorialPreheatSheet": "Hier kannst du Zieltemperaturen für Hotend und Bett sowie optional eine Heat-Soak-Zeit festlegen.",

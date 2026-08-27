@@ -625,6 +625,7 @@
   "tutorialChamber": "Si votre imprimante possède un capteur de caisson, sa température s'affiche aussi ici.",
   "tutorialTemps": "Voici les températures en direct : le hotend (la buse), le plateau chauffant et, si votre imprimante possède un capteur de caisson, le caisson.",
   "tutorialEstop": "Voici l'arrêt d'urgence. Il faut un double appui pour le déclencher, afin d'éviter tout déclenchement accidentel, et il arrête l'imprimante immédiatement.",
+  "tutorialTools": "Console ouvre la console G-code en direct de cette imprimante. Système de fichiers parcourt ses fichiers de configuration : printer.cfg s'ouvre dans un éditeur sûr avec sauvegarde automatique. Les deux fonctionnent à la maison et via le tunnel.",
   "tutorialWebcam": "Toucher la vue caméra ouvre l'interface complète de l'imprimante, l'écran Klipper en direct.",
   "tutorialPreheatPress": "Maintenez le nom d'une imprimante ou ses températures pour afficher le panneau de préchauffage.",
   "tutorialPreheatSheet": "Ici, vous pouvez définir les consignes de la buse et du plateau ainsi qu'un temps de chauffe optionnel.",

@@ -2057,6 +2057,10 @@ class AppLocalizationsDe extends AppLocalizations {
       'Das ist der Notstopp. Er muss doppelt getippt werden, damit er nicht versehentlich ausgelöst wird, und er hält den Drucker sofort an.';
 
   @override
+  String get tutorialTools =>
+      'Konsole öffnet die Live-G-Code-Konsole dieses Druckers. Dateisystem durchsucht seine Konfigurationsdateien - printer.cfg öffnet sich in einem sicheren Editor mit automatischem Backup. Beides funktioniert zu Hause und über den Tunnel.';
+
+  @override
   String get tutorialWebcam =>
       'Ein Tippen auf die Kameraansicht öffnet die vollständige Druckeroberfläche, den Live-Klipper-Bildschirm.';
 

@@ -2053,6 +2053,10 @@ class AppLocalizationsPl extends AppLocalizations {
       'To zatrzymanie awaryjne. Wymaga dwukrotnego dotknięcia, aby zadziałało, więc nie da się go uruchomić przypadkowo, i natychmiast zatrzymuje drukarkę.';
 
   @override
+  String get tutorialTools =>
+      'Konsola otwiera konsolę G-code tej drukarki na żywo. System plików przegląda jej pliki konfiguracyjne - printer.cfg otwiera się w bezpiecznym edytorze z automatyczną kopią zapasową. Oba działają w domu i przez tunel.';
+
+  @override
   String get tutorialWebcam =>
       'Dotknięcie podglądu kamery otwiera pełny interfejs drukarki - ekran Klipper na żywo.';
 

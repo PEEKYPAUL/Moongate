@@ -909,7 +909,10 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                   if (_toolsVisible)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
-                      child: _ToolsRow(printer: widget.printer),
+                      child: _anchor(
+                        TutorialAnchors.instance.toolsRow,
+                        _ToolsRow(printer: widget.printer),
+                      ),
                     ),
                 ],
               ),
@@ -1086,7 +1089,10 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                   if (_toolsVisible)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
-                      child: _ToolsRow(printer: widget.printer),
+                      child: _anchor(
+                        TutorialAnchors.instance.toolsRow,
+                        _ToolsRow(printer: widget.printer),
+                      ),
                     ),
                 ],
               ),

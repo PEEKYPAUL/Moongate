@@ -36,6 +36,9 @@ class TutorialAnchors {
   /// The emergency-stop button at the end of the temperature row.
   final GlobalKey estop = GlobalKey(debugLabel: 'tut_estop');
 
+  /// The tools row (Console + File System buttons) under the temperatures.
+  final GlobalKey toolsRow = GlobalKey(debugLabel: 'tut_toolsRow');
+
   /// The add-printer floating action button on the dashboard.
   final GlobalKey addPrinter = GlobalKey(debugLabel: 'tut_addPrinter');
 

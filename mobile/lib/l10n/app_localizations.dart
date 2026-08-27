@@ -3754,6 +3754,12 @@ abstract class AppLocalizations {
   /// **'This is the emergency stop. It needs a double tap to fire, so it can\'t be triggered by accident, and it halts the printer immediately.'**
   String get tutorialEstop;
 
+  /// Tutorial step pointing at the tools row (Console + File System buttons) under a tile's temperatures.
+  ///
+  /// In en, this message translates to:
+  /// **'Console opens this printer\'s live G-code console. File System browses its configuration files - printer.cfg opens in a safe editor with automatic backup. Both work at home and over the tunnel.'**
+  String get tutorialTools;
+
   /// Tutorial step pointing at the tile webcam square.
   ///
   /// In en, this message translates to:
