@@ -2005,7 +2005,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get tutorialMenuSupport =>
-      'Чашка кофе для меня помогает сохранять Moongate бесплатным для всех и с открытым исходным кодом.';
+      'Чашка кофе для меня помогает сохранять Moongate бесплатным для всех.';
 
   @override
   String get tutorialMenuSettings =>

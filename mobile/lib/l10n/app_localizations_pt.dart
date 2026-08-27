@@ -2012,7 +2012,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get tutorialMenuSupport =>
-      'Pagar um café para mim ajuda a manter o Moongate gratuito para todos e de código aberto.';
+      'Pagar um café para mim ajuda a manter o Moongate gratuito para todos.';
 
   @override
   String get tutorialMenuSettings =>

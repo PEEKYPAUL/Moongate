@@ -3,7 +3,7 @@
 **Effective date:** 26 June 2026
 **Last updated:** 26 June 2026
 
-Moongate ("the app", "we", "us") is a free, open-source app for monitoring and
+Moongate ("the app", "we", "us") is a free, source-available app for monitoring and
 controlling your own Klipper/Moonraker 3D printers from your phone. This policy
 explains exactly what data the app handles, why, where it goes, and your
 choices. It is written to be accurate to what the app actually does - nothing

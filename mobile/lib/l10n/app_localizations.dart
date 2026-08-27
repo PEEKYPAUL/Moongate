@@ -3643,7 +3643,7 @@ abstract class AppLocalizations {
   /// Menu tutorial step pointing at the buy-me-a-coffee support entry.
   ///
   /// In en, this message translates to:
-  /// **'Buying me a coffee helps keep Moongate free for everyone and open source.'**
+  /// **'Buying me a coffee helps keep Moongate free for everyone.'**
   String get tutorialMenuSupport;
 
   /// Menu tutorial step pointing at the Settings entry, which holds remove-all-printers and delete-my-data.

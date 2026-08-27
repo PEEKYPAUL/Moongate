@@ -2005,7 +2005,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get tutorialMenuSupport =>
-      'Postawienie mi kawy pomaga utrzymać Moongate darmowym dla wszystkich i otwartoźródłowym.';
+      'Postawienie mi kawy pomaga utrzymać Moongate darmowym dla wszystkich.';
 
   @override
   String get tutorialMenuSettings =>
