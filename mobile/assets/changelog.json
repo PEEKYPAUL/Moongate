@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.9.62",
+    "bullets": [
+      "The guided tour is fixed and extended. It could point at things that were off the bottom of the screen (and you can't scroll while it runs), and in the worst case a step could strand you with no Next or Skip at all. The dashboard now jumps to the top when the tour starts, every step scrolls its target into view, and the explanation card always appears even if a highlight can't - so the tour can never get stuck again. The first tile is also always shown as a healthy, connected example printer for the whole tour, even if your real printer is offline.",
+      "The tour gains a step for the new tools: Console and File System get introduced right after the emergency stop."
+    ]
+  },
+  {
     "version": "v0.9.61",
     "bullets": [
       "Every printer tile gains two tools under its temperatures: Console and File System. Console opens the printer's G-code console as an overlay - recent history already loaded, live updates while open, errors in red, quick-command chips (they fill the input, never send by themselves), and tapping a past command puts it back in the input. It stays available mid-print and while Klipper is in an error state - exactly when you need it. File System browses the printer's config folder and opens printer.cfg (and friends) in a structured editor: setting names stay fixed, you edit only the values, and comments and layout survive a save untouched. Before your first change a backup copy is saved on the printer; Save and restart brings Klipper up on the new config and, if it fails to start, offers one-tap restore from that backup. Both work on your WiFi and over the tunnel alike, and the buttons shrink to icons on narrow tiles. Thanks to the user request behind it.",
