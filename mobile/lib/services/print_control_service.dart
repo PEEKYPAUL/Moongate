@@ -416,6 +416,115 @@ class PrintControlService {
     }
   }
 
+  // ── Config file system: list, read, write ───────────────────────────────────
+  //
+  // Still the same transparent proxy - `server/files/*` is core Moonraker,
+  // and Moonraker serves it whether or not Klipper is alive. That's the
+  // point: a printer.cfg broken badly enough to keep Klipper down is fixed
+  // through exactly these endpoints. Remote Mainsail users save configs
+  // through the auth proxy every day, so the write path is field-proven.
+  // Like the console, everything after the initial listing rides the ONE
+  // connection the listing resolved - a config write must never retry
+  // across paths, and the listing already proved which path answers.
+
+  /// List every file under Moonraker's `config` root (the listing is
+  /// recursive; folders are derived from the paths client-side), plus the
+  /// connection that answered for reads/writes to reuse. Moongate's own
+  /// `.moongate-bak` safety copies are filtered out - they exist to be
+  /// restored from, not browsed into. Null when every path failed.
+  Future<ConfigListing?> listConfigFiles() async {
+    String? winBase;
+    var winToken = '';
+    var winLan   = false;
+    final files = await _viaLanThenTunnel<List<ConfigFileEntry>>(
+        (base, token, isLan) async {
+      try {
+        final uri = Uri.parse('$base/server/files/list?root=config');
+        final resp = await http
+            .get(uri, headers: isLan ? null : {'Authorization': 'Bearer $token'})
+            .timeout(Duration(seconds: isLan ? 4 : 12));
+        if (resp.statusCode != 200) return null;
+        final result =
+            (jsonDecode(resp.body)['result'] as List<dynamic>?) ?? const [];
+        winBase  = base;
+        winToken = token;
+        winLan   = isLan;
+        return result
+            .whereType<Map<String, dynamic>>()
+            .map(ConfigFileEntry.fromJson)
+            .where((f) => f.path.isNotEmpty && !f.isMoongateBackup)
+            .toList()
+          ..sort((a, b) => a.path.toLowerCase().compareTo(b.path.toLowerCase()));
+      } catch (_) {
+        return null;
+      }
+    });
+    if (files == null || winBase == null) return null;
+    return ConfigListing(
+        files: files, base: winBase!, token: winToken, isLan: winLan);
+  }
+
+  /// Download one config file's text over the resolved connection. Decoded
+  /// as UTF-8 with malformed bytes replaced rather than thrown - a config
+  /// with a stray Latin-1 comment must still open.
+  Future<String?> readConfigFile(
+      String base, String token, bool isLan, String path) async {
+    try {
+      final encoded = path.split('/').map(Uri.encodeComponent).join('/');
+      final uri = Uri.parse('$base/server/files/config/$encoded');
+      final resp = await http
+          .get(uri, headers: isLan ? null : {'Authorization': 'Bearer $token'})
+          .timeout(Duration(seconds: isLan ? 6 : 20));
+      if (resp.statusCode != 200) return null;
+      return utf8.decode(resp.bodyBytes, allowMalformed: true);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Upload (overwrite) one config file - Moonraker's multipart
+  /// `server/files/upload`, `root=config`, the subfolder in the `path`
+  /// field and the file name on the part. A single POST on the resolved
+  /// connection, same as console sends: no cross-path retry for writes.
+  /// Moonraker answers 201 (older builds 200) on success.
+  Future<bool> writeConfigFile(String base, String token, bool isLan,
+      String path, String content) async {
+    try {
+      final req =
+          http.MultipartRequest('POST', Uri.parse('$base/server/files/upload'));
+      if (!isLan) req.headers['Authorization'] = 'Bearer $token';
+      req.fields['root'] = 'config';
+      final slash = path.lastIndexOf('/');
+      if (slash > 0) req.fields['path'] = path.substring(0, slash);
+      req.files.add(http.MultipartFile.fromString('file', content,
+          filename: slash > 0 ? path.substring(slash + 1) : path));
+      final resp =
+          await req.send().timeout(Duration(seconds: isLan ? 10 : 25));
+      return resp.statusCode == 201 || resp.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Klipper's state as Moonraker reports it (`server/info` `klippy_state`:
+  /// ready / startup / shutdown / error) over the resolved connection - the
+  /// editor's after-restart watch, which is what turns "Save and restart"
+  /// from a blind write into a guarded one (came back in error → offer the
+  /// backup). Null when the call failed.
+  Future<String?> fetchKlippyState(
+      String base, String token, bool isLan) async {
+    try {
+      final uri = Uri.parse('$base/server/info');
+      final resp = await http
+          .get(uri, headers: isLan ? null : {'Authorization': 'Bearer $token'})
+          .timeout(Duration(seconds: isLan ? 4 : 12));
+      if (resp.statusCode != 200) return null;
+      return jsonDecode(resp.body)['result']?['klippy_state'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ── Heaters: detect object names + set target temperatures ─────────────────
   //
   // `SET_HEATER_TEMPERATURE HEATER=<name> TARGET=<°C>` is a core Klipper gcode,
@@ -845,6 +954,78 @@ class ConsoleLine {
     if (message.startsWith('//')) return ConsoleLineKind.info;
     return ConsoleLineKind.response;
   }
+}
+
+/// Result of [PrintControlService.listConfigFiles]: the config root's files
+/// plus the connection that answered - reads, writes and the after-restart
+/// watch all reuse it (see the file-system section comment).
+class ConfigListing {
+  final List<ConfigFileEntry> files;
+  final String base;
+  final String token;
+  final bool isLan;
+  const ConfigListing({
+    required this.files,
+    required this.base,
+    required this.token,
+    required this.isLan,
+  });
+}
+
+/// One file under Moonraker's `config` root, from
+/// `/server/files/list?root=config` (recursive - folders are derived from
+/// the slashes in [path]).
+class ConfigFileEntry {
+  /// Path relative to the config root, e.g. `KAMP/Adaptive_Meshing.cfg`.
+  final String path;
+
+  /// Last-modified time in unix seconds (0 when unknown).
+  final double modified;
+
+  /// File size in bytes (0 when unknown).
+  final int size;
+
+  const ConfigFileEntry({
+    required this.path,
+    required this.modified,
+    required this.size,
+  });
+
+  factory ConfigFileEntry.fromJson(Map<String, dynamic> j) => ConfigFileEntry(
+        path:     (j['path'] as String?) ?? '',
+        modified: (j['modified'] as num?)?.toDouble() ?? 0,
+        size:     (j['size'] as num?)?.toInt() ?? 0,
+      );
+
+  /// Just the filename, without any subdirectory prefix.
+  String get name {
+    final i = path.lastIndexOf('/');
+    return i >= 0 ? path.substring(i + 1) : path;
+  }
+
+  /// The subdirectory the file lives in, or null when it sits at the root.
+  String? get folder {
+    final i = path.lastIndexOf('/');
+    return i > 0 ? path.substring(0, i) : null;
+  }
+
+  /// The safety copy [PrintControlService.writeConfigFile] callers create
+  /// before a first save - hidden from the browser (restored from, not
+  /// browsed into). The suffix deliberately doesn't end in `.cfg`, so a
+  /// user's `[include *.cfg]` glob can never pull a backup in.
+  bool get isMoongateBackup => path.endsWith('.moongate-bak');
+
+  /// Text formats the structured editor opens. Everything else (images,
+  /// binaries someone dropped in the folder) stays listed but read-only.
+  bool get isEditable {
+    final n = name.toLowerCase();
+    const exts = ['.cfg', '.conf', '.txt', '.ini', '.md', '.json', '.yaml', '.yml'];
+    return exts.any(n.endsWith);
+  }
+
+  DateTime? get modifiedAt => modified > 0
+      ? DateTime.fromMillisecondsSinceEpoch((modified * 1000).round())
+      : null;
 }
 
 /// A Moonraker power device - a `[power …]` section - from

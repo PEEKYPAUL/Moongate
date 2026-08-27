@@ -1879,6 +1879,75 @@ class AppLocalizationsEs extends AppLocalizations {
   String get consoleSendFailed => 'El comando no llegó a la impresora';
 
   @override
+  String get tileFileSystem => 'Sistema de archivos';
+
+  @override
+  String get fsSheetTitle => 'Sistema de archivos';
+
+  @override
+  String get fsLoading => 'Cargando archivos…';
+
+  @override
+  String get fsError => 'No se pudo cargar la lista de archivos';
+
+  @override
+  String get fsEmpty => 'No se encontraron archivos de configuración';
+
+  @override
+  String get fsEditorLoadError => 'No se pudo abrir el archivo';
+
+  @override
+  String get fsViewOnly => 'Solo lectura';
+
+  @override
+  String get fsAutosaveBlock =>
+      'Autoguardado de Klipper (SAVE_CONFIG) - solo lectura';
+
+  @override
+  String get fsBackupNote =>
+      'Se guarda una copia de seguridad en la impresora antes del primer cambio';
+
+  @override
+  String get fsUnsavedChanges => 'Cambios sin guardar';
+
+  @override
+  String get fsSave => 'Guardar';
+
+  @override
+  String get fsSaveRestart => 'Guardar y reiniciar';
+
+  @override
+  String get fsSaved => 'Guardado';
+
+  @override
+  String get fsSaveFailed => 'No se pudo guardar el archivo';
+
+  @override
+  String get fsRestartSent => 'Reiniciando Klipper…';
+
+  @override
+  String get fsRestartOk => 'Klipper reiniciado';
+
+  @override
+  String get fsRestartFailedBanner => 'Klipper no volvió a arrancar';
+
+  @override
+  String get fsRestoreBackup => 'Restaurar copia de seguridad';
+
+  @override
+  String get fsRestored => 'Copia de seguridad restaurada';
+
+  @override
+  String get fsDiscardTitle => '¿Descartar cambios?';
+
+  @override
+  String get fsDiscardBody =>
+      'Se perderán las modificaciones no guardadas de este archivo.';
+
+  @override
+  String get fsDiscard => 'Descartar';
+
+  @override
   String get preheatTitle => 'Precalentar';
 
   @override

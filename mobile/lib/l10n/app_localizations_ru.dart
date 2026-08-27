@@ -1865,6 +1865,75 @@ class AppLocalizationsRu extends AppLocalizations {
   String get consoleSendFailed => 'Команда не дошла до принтера';
 
   @override
+  String get tileFileSystem => 'Файловая система';
+
+  @override
+  String get fsSheetTitle => 'Файловая система';
+
+  @override
+  String get fsLoading => 'Загрузка файлов…';
+
+  @override
+  String get fsError => 'Не удалось загрузить список файлов';
+
+  @override
+  String get fsEmpty => 'Файлы конфигурации не найдены';
+
+  @override
+  String get fsEditorLoadError => 'Не удалось открыть файл';
+
+  @override
+  String get fsViewOnly => 'Только просмотр';
+
+  @override
+  String get fsAutosaveBlock =>
+      'Автосохранение Klipper (SAVE_CONFIG) - только просмотр';
+
+  @override
+  String get fsBackupNote =>
+      'Перед первым изменением на принтере сохраняется резервная копия';
+
+  @override
+  String get fsUnsavedChanges => 'Несохранённые изменения';
+
+  @override
+  String get fsSave => 'Сохранить';
+
+  @override
+  String get fsSaveRestart => 'Сохранить и перезапустить';
+
+  @override
+  String get fsSaved => 'Сохранено';
+
+  @override
+  String get fsSaveFailed => 'Не удалось сохранить файл';
+
+  @override
+  String get fsRestartSent => 'Перезапуск Klipper…';
+
+  @override
+  String get fsRestartOk => 'Klipper перезапущен';
+
+  @override
+  String get fsRestartFailedBanner => 'Klipper не запустился';
+
+  @override
+  String get fsRestoreBackup => 'Восстановить резервную копию';
+
+  @override
+  String get fsRestored => 'Резервная копия восстановлена';
+
+  @override
+  String get fsDiscardTitle => 'Отменить изменения?';
+
+  @override
+  String get fsDiscardBody =>
+      'Несохранённые правки этого файла будут потеряны.';
+
+  @override
+  String get fsDiscard => 'Отменить';
+
+  @override
   String get preheatTitle => 'Прогрев';
 
   @override

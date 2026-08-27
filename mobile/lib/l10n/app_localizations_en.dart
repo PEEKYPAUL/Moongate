@@ -1846,6 +1846,73 @@ class AppLocalizationsEn extends AppLocalizations {
   String get consoleSendFailed => 'Command didn\'t reach the printer';
 
   @override
+  String get tileFileSystem => 'File System';
+
+  @override
+  String get fsSheetTitle => 'File System';
+
+  @override
+  String get fsLoading => 'Loading files…';
+
+  @override
+  String get fsError => 'Couldn\'t load the file list';
+
+  @override
+  String get fsEmpty => 'No config files found';
+
+  @override
+  String get fsEditorLoadError => 'Couldn\'t open the file';
+
+  @override
+  String get fsViewOnly => 'View only';
+
+  @override
+  String get fsAutosaveBlock => 'Klipper autosave (SAVE_CONFIG) - view only';
+
+  @override
+  String get fsBackupNote =>
+      'A backup copy is saved on the printer before your first change';
+
+  @override
+  String get fsUnsavedChanges => 'Unsaved changes';
+
+  @override
+  String get fsSave => 'Save';
+
+  @override
+  String get fsSaveRestart => 'Save and restart';
+
+  @override
+  String get fsSaved => 'Saved';
+
+  @override
+  String get fsSaveFailed => 'Couldn\'t save the file';
+
+  @override
+  String get fsRestartSent => 'Restarting Klipper…';
+
+  @override
+  String get fsRestartOk => 'Klipper restarted';
+
+  @override
+  String get fsRestartFailedBanner => 'Klipper didn\'t come back up';
+
+  @override
+  String get fsRestoreBackup => 'Restore backup';
+
+  @override
+  String get fsRestored => 'Backup restored';
+
+  @override
+  String get fsDiscardTitle => 'Discard changes?';
+
+  @override
+  String get fsDiscardBody => 'Unsaved edits to this file will be lost.';
+
+  @override
+  String get fsDiscard => 'Discard';
+
+  @override
   String get preheatTitle => 'Preheat';
 
   @override

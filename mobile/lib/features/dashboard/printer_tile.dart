@@ -21,6 +21,7 @@ import '../tutorial/tutorial_anchors.dart';
 import '../tutorial/tutorial_controller.dart';
 import 'camera_picker_overlay.dart';
 import 'console_overlay.dart';
+import 'file_system_overlay.dart';
 import 'gcode_files_overlay.dart';
 import 'macros_overlay.dart';
 import 'preheat_overlay.dart';
@@ -903,7 +904,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  // ── Tools row: console (file system next) ────────────────
+                  // ── Tools row: console + file system ─────────────────────
                   if (_toolsVisible)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
@@ -918,7 +919,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
     );
   }
 
-  /// Whether the per-printer tools row (console; file system next) renders.
+  /// Whether the per-printer tools row (console + file system) renders.
   /// Wider than the action row's gate on purpose: the tools talk to
   /// MOONRAKER, which is up in Klipper's 'error', 'waiting' and boot states -
   /// and those are exactly the states where a console is the diagnosis tool.
@@ -1099,7 +1100,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
 // ── Tools row: labelled per-printer workspace buttons ─────────────────────────
 
 /// Labelled tool buttons under the name + temperature block: the G-code
-/// console now, the file system next. A separate labelled row rather than
+/// console and the config file system. A separate labelled row rather than
 /// more icons in the action row: these open workspaces (sheets), not
 /// one-shot actions, and the action row already carries up to four icons.
 /// Visibility is [_PrinterTileState._toolsVisible] - wider than the action
@@ -1135,6 +1136,19 @@ class _ToolsRow extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               onPressed: () => showConsoleSheet(context, printer),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: OutlinedButton.icon(
+              style: style,
+              icon: const Icon(Icons.folder_open_rounded, size: 16),
+              label: Text(
+                l.tileFileSystem,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              onPressed: () => showFileSystemSheet(context, printer),
             ),
           ),
         ],
