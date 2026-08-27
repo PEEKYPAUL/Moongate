@@ -2066,6 +2066,10 @@ class AppLocalizationsIt extends AppLocalizations {
       'Questo è l\'arresto di emergenza. Richiede un doppio tocco per attivarsi, così non può essere azionato per sbaglio, e ferma immediatamente la stampante.';
 
   @override
+  String get tutorialTools =>
+      'Console apre la console G-code dal vivo di questa stampante. File system esplora i suoi file di configurazione: printer.cfg si apre in un editor sicuro con backup automatico. Entrambi funzionano a casa e tramite il tunnel.';
+
+  @override
   String get tutorialWebcam =>
       'Toccando la vista della telecamera si apre l\'interfaccia completa della stampante, la schermata Klipper dal vivo.';
 

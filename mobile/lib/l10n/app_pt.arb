@@ -627,6 +627,7 @@
   "tutorialChamber": "Se a sua impressora tiver um sensor de câmara, a temperatura dele também será mostrada aqui.",
   "tutorialTemps": "Estas são as temperaturas ao vivo: o hotend (bico), a mesa aquecida e - se a sua impressora tiver um sensor de câmara - a câmara.",
   "tutorialEstop": "Esta é a parada de emergência. Ela precisa de um toque duplo para disparar, assim não pode ser acionada por acidente, e interrompe a impressora imediatamente.",
+  "tutorialTools": "Console abre o console G-code ao vivo desta impressora. Sistema de arquivos navega pelos seus arquivos de configuração: o printer.cfg abre em um editor seguro com backup automático. Ambos funcionam em casa e pelo túnel.",
   "tutorialWebcam": "Tocar na visualização da câmera abre a interface completa da impressora, a tela ao vivo do Klipper.",
   "tutorialPreheatPress": "Pressione e segure o nome de uma impressora ou suas temperaturas para exibir o painel de preaquecimento.",
   "tutorialPreheatSheet": "Aqui você pode definir alvos para o hotend e a mesa, além de um tempo opcional de aquecimento.",

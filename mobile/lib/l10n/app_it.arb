@@ -625,6 +625,7 @@
   "tutorialChamber": "Se la tua stampante ha un sensore della camera, qui appare anche la sua temperatura.",
   "tutorialTemps": "Queste sono le temperature in tempo reale: l'hotend (l'ugello), il piano riscaldato e, se la tua stampante ha un sensore della camera, la camera.",
   "tutorialEstop": "Questo è l'arresto di emergenza. Richiede un doppio tocco per attivarsi, così non può essere azionato per sbaglio, e ferma immediatamente la stampante.",
+  "tutorialTools": "Console apre la console G-code dal vivo di questa stampante. File system esplora i suoi file di configurazione: printer.cfg si apre in un editor sicuro con backup automatico. Entrambi funzionano a casa e tramite il tunnel.",
   "tutorialWebcam": "Toccando la vista della telecamera si apre l'interfaccia completa della stampante, la schermata Klipper dal vivo.",
   "tutorialPreheatPress": "Tieni premuto il nome di una stampante o le sue temperature per mostrare il pannello di preriscaldamento.",
   "tutorialPreheatSheet": "Qui puoi impostare le temperature target di hotend e piano e un tempo di riscaldamento facoltativo.",

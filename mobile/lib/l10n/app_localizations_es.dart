@@ -2068,6 +2068,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'Esta es la parada de emergencia. Necesita un doble toque para activarse, así que no puede dispararse por accidente, y detiene la impresora de inmediato.';
 
   @override
+  String get tutorialTools =>
+      'Consola abre la consola G-code en vivo de esta impresora. Sistema de archivos explora sus archivos de configuración: printer.cfg se abre en un editor seguro con copia de seguridad automática. Ambos funcionan en casa y a través del túnel.';
+
+  @override
   String get tutorialWebcam =>
       'Al tocar la vista de la cámara se abre la interfaz completa de la impresora, la pantalla en vivo de Klipper.';
 

@@ -1945,6 +1945,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tutorialEstop => '这是紧急停止。它需要双击才会触发，以免误触，触发后会立即停止打印机。';
 
   @override
+  String get tutorialTools =>
+      '控制台可打开这台打印机的实时 G-code 控制台。文件系统可浏览其配置文件：printer.cfg 会在带自动备份的安全编辑器中打开。两者在家中和通过隧道都可用。';
+
+  @override
   String get tutorialWebcam => '点击摄像头画面会打开完整的打印机界面，即实时的 Klipper 屏幕。';
 
   @override

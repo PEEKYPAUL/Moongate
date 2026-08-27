@@ -148,7 +148,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
   // applied (tunnel mode, or a faked chamber reading). Restored on the way out.
   static const _tileDemoSteps = {
     'localBar', 'tunnelBar', 'remoteBuilding', 'temps',
-    'estop', 'webcam', 'preheatPress', 'preheatSheet',
+    'estop', 'tools', 'webcam', 'preheatPress', 'preheatSheet',
   };
 
   void _applyDemoForStep(TutorialState s) {
@@ -909,7 +909,10 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                   if (_toolsVisible)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
-                      child: _ToolsRow(printer: widget.printer),
+                      child: _anchor(
+                        TutorialAnchors.instance.toolsRow,
+                        _ToolsRow(printer: widget.printer),
+                      ),
                     ),
                 ],
               ),
@@ -1086,7 +1089,10 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                   if (_toolsVisible)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
-                      child: _ToolsRow(printer: widget.printer),
+                      child: _anchor(
+                        TutorialAnchors.instance.toolsRow,
+                        _ToolsRow(printer: widget.printer),
+                      ),
                     ),
                 ],
               ),

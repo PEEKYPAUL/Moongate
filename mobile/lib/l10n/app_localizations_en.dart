@@ -2031,6 +2031,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'This is the emergency stop. It needs a double tap to fire, so it can\'t be triggered by accident, and it halts the printer immediately.';
 
   @override
+  String get tutorialTools =>
+      'Console opens this printer\'s live G-code console. File System browses its configuration files - printer.cfg opens in a safe editor with automatic backup. Both work at home and over the tunnel.';
+
+  @override
   String get tutorialWebcam =>
       'Tapping the camera view opens the full printer interface, the live Klipper screen.';
 

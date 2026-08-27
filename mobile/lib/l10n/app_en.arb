@@ -1237,6 +1237,8 @@
   "@tutorialTemps": {"description": "Tutorial step spotlighting the hotend, bed and chamber temperature chips together in one popup."},
   "tutorialEstop": "This is the emergency stop. It needs a double tap to fire, so it can't be triggered by accident, and it halts the printer immediately.",
   "@tutorialEstop": {"description": "Tutorial step pointing at the E-STOP button and explaining the double-tap-to-fire safety."},
+  "tutorialTools": "Console opens this printer's live G-code console. File System browses its configuration files - printer.cfg opens in a safe editor with automatic backup. Both work at home and over the tunnel.",
+  "@tutorialTools": {"description": "Tutorial step pointing at the tools row (Console + File System buttons) under a tile's temperatures."},
   "tutorialWebcam": "Tapping the camera view opens the full printer interface, the live Klipper screen.",
   "@tutorialWebcam": {"description": "Tutorial step pointing at the tile webcam square."},
   "tutorialPreheatPress": "Press and hold a printer's name or its temperatures to display the preheat panel.",

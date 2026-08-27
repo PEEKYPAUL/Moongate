@@ -625,6 +625,7 @@
   "tutorialChamber": "Jeśli Twoja drukarka ma czujnik komory, jej temperatura również pojawia się tutaj.",
   "tutorialTemps": "To temperatury na żywo: głowica (dysza), podgrzewany stół oraz - jeśli Twoja drukarka ma czujnik komory - komora.",
   "tutorialEstop": "To zatrzymanie awaryjne. Wymaga dwukrotnego dotknięcia, aby zadziałało, więc nie da się go uruchomić przypadkowo, i natychmiast zatrzymuje drukarkę.",
+  "tutorialTools": "Konsola otwiera konsolę G-code tej drukarki na żywo. System plików przegląda jej pliki konfiguracyjne - printer.cfg otwiera się w bezpiecznym edytorze z automatyczną kopią zapasową. Oba działają w domu i przez tunel.",
   "tutorialWebcam": "Dotknięcie podglądu kamery otwiera pełny interfejs drukarki - ekran Klipper na żywo.",
   "tutorialPreheatPress": "Naciśnij i przytrzymaj nazwę drukarki lub jej temperatury, aby wyświetlić panel nagrzewania.",
   "tutorialPreheatSheet": "Tutaj możesz ustawić docelowe temperatury głowicy i stołu oraz opcjonalny czas nagrzewania.",

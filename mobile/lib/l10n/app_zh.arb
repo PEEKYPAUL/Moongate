@@ -625,6 +625,7 @@
   "tutorialChamber": "如果你的打印机有腔体传感器，其温度也会显示在这里。",
   "tutorialTemps": "这些是实时温度：热端（喷嘴）、热床，如果你的打印机有腔体传感器，还会显示腔体温度。",
   "tutorialEstop": "这是紧急停止。它需要双击才会触发，以免误触，触发后会立即停止打印机。",
+  "tutorialTools": "控制台可打开这台打印机的实时 G-code 控制台。文件系统可浏览其配置文件：printer.cfg 会在带自动备份的安全编辑器中打开。两者在家中和通过隧道都可用。",
   "tutorialWebcam": "点击摄像头画面会打开完整的打印机界面，即实时的 Klipper 屏幕。",
   "tutorialPreheatPress": "按住打印机的名称或温度即可显示预热面板。",
   "tutorialPreheatSheet": "在这里你可以设置热端和热床的目标温度，以及可选的热浸时间。",
