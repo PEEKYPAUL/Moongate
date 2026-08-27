@@ -1743,6 +1743,96 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get tileConsole => '控制台';
+
+  @override
+  String get consoleSheetTitle => '控制台';
+
+  @override
+  String get consoleLoading => '正在连接打印机…';
+
+  @override
+  String get consoleError => '无法连接打印机控制台';
+
+  @override
+  String get consoleEmpty => '暂无控制台输出';
+
+  @override
+  String get consoleInputHint => 'G-code 命令';
+
+  @override
+  String get consoleSend => '发送';
+
+  @override
+  String get consoleSendFailed => '命令未送达打印机';
+
+  @override
+  String get tileFileSystem => '文件系统';
+
+  @override
+  String get fsSheetTitle => '文件系统';
+
+  @override
+  String get fsLoading => '正在加载文件…';
+
+  @override
+  String get fsError => '无法加载文件列表';
+
+  @override
+  String get fsEmpty => '未找到配置文件';
+
+  @override
+  String get fsEditorLoadError => '无法打开文件';
+
+  @override
+  String get fsViewOnly => '仅查看';
+
+  @override
+  String get fsAutosaveBlock => 'Klipper 自动保存 (SAVE_CONFIG) - 仅查看';
+
+  @override
+  String get fsBackupNote => '首次更改前会在打印机上保存备份副本';
+
+  @override
+  String get fsUnsavedChanges => '未保存的更改';
+
+  @override
+  String get fsSave => '保存';
+
+  @override
+  String get fsSaveRestart => '保存并重启';
+
+  @override
+  String get fsSaved => '已保存';
+
+  @override
+  String get fsSaveFailed => '无法保存文件';
+
+  @override
+  String get fsRestartSent => '正在重启 Klipper…';
+
+  @override
+  String get fsRestartOk => 'Klipper 已重启';
+
+  @override
+  String get fsRestartFailedBanner => 'Klipper 未能恢复运行';
+
+  @override
+  String get fsRestoreBackup => '恢复备份';
+
+  @override
+  String get fsRestored => '备份已恢复';
+
+  @override
+  String get fsDiscardTitle => '放弃更改？';
+
+  @override
+  String get fsDiscardBody => '此文件未保存的编辑将丢失。';
+
+  @override
+  String get fsDiscard => '放弃';
+
+  @override
   String get preheatTitle => '预热';
 
   @override

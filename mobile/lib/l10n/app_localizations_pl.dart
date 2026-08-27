@@ -1841,6 +1841,99 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
+  String get tileConsole => 'Konsola';
+
+  @override
+  String get consoleSheetTitle => 'Konsola';
+
+  @override
+  String get consoleLoading => 'Łączenie z drukarką…';
+
+  @override
+  String get consoleError => 'Nie można połączyć się z konsolą drukarki';
+
+  @override
+  String get consoleEmpty => 'Brak danych w konsoli';
+
+  @override
+  String get consoleInputHint => 'Polecenie G-code';
+
+  @override
+  String get consoleSend => 'Wyślij';
+
+  @override
+  String get consoleSendFailed => 'Polecenie nie dotarło do drukarki';
+
+  @override
+  String get tileFileSystem => 'System plików';
+
+  @override
+  String get fsSheetTitle => 'System plików';
+
+  @override
+  String get fsLoading => 'Wczytywanie plików…';
+
+  @override
+  String get fsError => 'Nie można wczytać listy plików';
+
+  @override
+  String get fsEmpty => 'Nie znaleziono plików konfiguracyjnych';
+
+  @override
+  String get fsEditorLoadError => 'Nie można otworzyć pliku';
+
+  @override
+  String get fsViewOnly => 'Tylko podgląd';
+
+  @override
+  String get fsAutosaveBlock =>
+      'Autozapis Klippera (SAVE_CONFIG) - tylko podgląd';
+
+  @override
+  String get fsBackupNote =>
+      'Przed pierwszą zmianą na drukarce zapisywana jest kopia zapasowa';
+
+  @override
+  String get fsUnsavedChanges => 'Niezapisane zmiany';
+
+  @override
+  String get fsSave => 'Zapisz';
+
+  @override
+  String get fsSaveRestart => 'Zapisz i uruchom ponownie';
+
+  @override
+  String get fsSaved => 'Zapisano';
+
+  @override
+  String get fsSaveFailed => 'Nie można zapisać pliku';
+
+  @override
+  String get fsRestartSent => 'Ponowne uruchamianie Klippera…';
+
+  @override
+  String get fsRestartOk => 'Klipper uruchomiony ponownie';
+
+  @override
+  String get fsRestartFailedBanner => 'Klipper nie wystartował';
+
+  @override
+  String get fsRestoreBackup => 'Przywróć kopię zapasową';
+
+  @override
+  String get fsRestored => 'Przywrócono kopię zapasową';
+
+  @override
+  String get fsDiscardTitle => 'Odrzucić zmiany?';
+
+  @override
+  String get fsDiscardBody =>
+      'Niezapisane zmiany w tym pliku zostaną utracone.';
+
+  @override
+  String get fsDiscard => 'Odrzuć';
+
+  @override
   String get preheatTitle => 'Nagrzewanie';
 
   @override

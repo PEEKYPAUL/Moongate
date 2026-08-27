@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as dev;
 import 'dart:typed_data';
@@ -311,6 +312,217 @@ class PrintControlService {
     final ok = await _viaLanThenTunnel(
         (base, token, isLan) => _postGcode(base, token, isLan, macro));
     return ok ?? false;
+  }
+
+  // ── Console: G-code history + sending raw commands ──────────────────────────
+  //
+  // Same transparent-proxy story again: `server/gcode_store` (Moonraker's
+  // rolling console cache) and `printer/gcode/script` are core endpoints, so
+  // LAN goes header-less and the tunnel carries the Bearer token - no plugin
+  // update. One twist: console sends must NOT ride [_viaLanThenTunnel].
+  // `gcode/script` only answers once the command *completes* (a homing run can
+  // take a minute), so a LAN attempt timing out mid-move would "fall back" to
+  // the tunnel and run the same command on the printer TWICE. Instead the
+  // history fetch resolves the winning connection (the [listGcodes] +
+  // thumbnail pattern) and [sendConsoleCommand] posts on exactly that path,
+  // once.
+
+  /// Fetch the rolling console history (`server/gcode_store` - it survives
+  /// the sheet opening and closing, so the console opens with context from
+  /// before it existed) plus the connection that answered, which the sheet's
+  /// refresh ticks and sends then reuse. Null when every path failed.
+  Future<ConsoleSnapshot?> fetchConsole({int count = 100}) async {
+    String? winBase;
+    var winToken = '';
+    var winLan   = false;
+    final lines = await _viaLanThenTunnel<List<ConsoleLine>>(
+        (base, token, isLan) async {
+      final got = await fetchConsoleOn(base, token, isLan, count: count);
+      if (got == null) return null;
+      winBase  = base;
+      winToken = token;
+      winLan   = isLan;
+      return got;
+    });
+    if (lines == null || winBase == null) return null;
+    return ConsoleSnapshot(
+        lines: lines, base: winBase!, token: winToken, isLan: winLan);
+  }
+
+  /// Re-read the console history over an already-resolved connection - the
+  /// sheet's periodic tick. Deliberately no LAN/tunnel re-probe here: on a
+  /// null return the sheet drops its connection and the next tick runs
+  /// [fetchConsole] again (covering a Pi IP change or the phone leaving the
+  /// LAN mid-session) - so the 2s cadence stays one cheap GET, not a probe.
+  Future<List<ConsoleLine>?> fetchConsoleOn(
+      String base, String token, bool isLan,
+      {int count = 100}) async {
+    try {
+      final uri = Uri.parse('$base/server/gcode_store?count=$count');
+      final resp = await http
+          .get(uri, headers: isLan ? null : {'Authorization': 'Bearer $token'})
+          .timeout(Duration(seconds: isLan ? 4 : 12));
+      if (resp.statusCode != 200) return null;
+      final store =
+          (jsonDecode(resp.body)['result']?['gcode_store'] as List<dynamic>?) ??
+              const [];
+      return store
+          .whereType<Map<String, dynamic>>()
+          .map(ConsoleLine.fromJson)
+          .toList();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Send one console command over the connection [fetchConsole] resolved -
+  /// a single POST, no fallback (see the section comment: a retry on another
+  /// path could run a slow-but-executing command twice). `gcode/script` blocks
+  /// until Klipper finishes the command, so the timeout is generous and the
+  /// sheet doesn't gate on this future for the echo - the store ticks carry it.
+  ///
+  /// `delivered: false` means the POST never reached Moonraker (the sheet
+  /// shows a local failure line). A non-200 answer carries Moonraker's
+  /// [error] message for the states the store can't report - above all
+  /// "Klippy Host not connected": a dead Klipper appends nothing to the
+  /// store, so without this the sheet would sit silent. Klipper's own gcode
+  /// errors (HTTP 400) return NO [error]: Klipper echoes those into the
+  /// store itself as `!!` lines, and doubling them up reads as two failures.
+  /// A response timeout counts as delivered: the command reached the printer
+  /// and is still running - the store shows its output when it lands.
+  Future<({bool delivered, String? error})> sendConsoleCommand(
+      String base, String token, bool isLan, String command) async {
+    try {
+      final uri = Uri.parse('$base/printer/gcode/script'
+          '?script=${Uri.encodeComponent(command)}');
+      final resp = await http
+          .post(uri,
+              headers: isLan ? null : {'Authorization': 'Bearer $token'})
+          .timeout(Duration(seconds: isLan ? 90 : 100));
+      if (resp.statusCode == 200 || resp.statusCode == 400) {
+        return (delivered: true, error: null);
+      }
+      String? message;
+      try {
+        final err = jsonDecode(resp.body)['error'];
+        message =
+            (err is Map<String, dynamic> ? err['message'] : null) as String?;
+      } catch (_) {}
+      return (delivered: true, error: message ?? 'HTTP ${resp.statusCode}');
+    } on TimeoutException {
+      return (delivered: true, error: null);
+    } catch (_) {
+      return (delivered: false, error: null);
+    }
+  }
+
+  // ── Config file system: list, read, write ───────────────────────────────────
+  //
+  // Still the same transparent proxy - `server/files/*` is core Moonraker,
+  // and Moonraker serves it whether or not Klipper is alive. That's the
+  // point: a printer.cfg broken badly enough to keep Klipper down is fixed
+  // through exactly these endpoints. Remote Mainsail users save configs
+  // through the auth proxy every day, so the write path is field-proven.
+  // Like the console, everything after the initial listing rides the ONE
+  // connection the listing resolved - a config write must never retry
+  // across paths, and the listing already proved which path answers.
+
+  /// List every file under Moonraker's `config` root (the listing is
+  /// recursive; folders are derived from the paths client-side), plus the
+  /// connection that answered for reads/writes to reuse. Moongate's own
+  /// `.moongate-bak` safety copies are filtered out - they exist to be
+  /// restored from, not browsed into. Null when every path failed.
+  Future<ConfigListing?> listConfigFiles() async {
+    String? winBase;
+    var winToken = '';
+    var winLan   = false;
+    final files = await _viaLanThenTunnel<List<ConfigFileEntry>>(
+        (base, token, isLan) async {
+      try {
+        final uri = Uri.parse('$base/server/files/list?root=config');
+        final resp = await http
+            .get(uri, headers: isLan ? null : {'Authorization': 'Bearer $token'})
+            .timeout(Duration(seconds: isLan ? 4 : 12));
+        if (resp.statusCode != 200) return null;
+        final result =
+            (jsonDecode(resp.body)['result'] as List<dynamic>?) ?? const [];
+        winBase  = base;
+        winToken = token;
+        winLan   = isLan;
+        return result
+            .whereType<Map<String, dynamic>>()
+            .map(ConfigFileEntry.fromJson)
+            .where((f) => f.path.isNotEmpty && !f.isMoongateBackup)
+            .toList()
+          ..sort((a, b) => a.path.toLowerCase().compareTo(b.path.toLowerCase()));
+      } catch (_) {
+        return null;
+      }
+    });
+    if (files == null || winBase == null) return null;
+    return ConfigListing(
+        files: files, base: winBase!, token: winToken, isLan: winLan);
+  }
+
+  /// Download one config file's text over the resolved connection. Decoded
+  /// as UTF-8 with malformed bytes replaced rather than thrown - a config
+  /// with a stray Latin-1 comment must still open.
+  Future<String?> readConfigFile(
+      String base, String token, bool isLan, String path) async {
+    try {
+      final encoded = path.split('/').map(Uri.encodeComponent).join('/');
+      final uri = Uri.parse('$base/server/files/config/$encoded');
+      final resp = await http
+          .get(uri, headers: isLan ? null : {'Authorization': 'Bearer $token'})
+          .timeout(Duration(seconds: isLan ? 6 : 20));
+      if (resp.statusCode != 200) return null;
+      return utf8.decode(resp.bodyBytes, allowMalformed: true);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Upload (overwrite) one config file - Moonraker's multipart
+  /// `server/files/upload`, `root=config`, the subfolder in the `path`
+  /// field and the file name on the part. A single POST on the resolved
+  /// connection, same as console sends: no cross-path retry for writes.
+  /// Moonraker answers 201 (older builds 200) on success.
+  Future<bool> writeConfigFile(String base, String token, bool isLan,
+      String path, String content) async {
+    try {
+      final req =
+          http.MultipartRequest('POST', Uri.parse('$base/server/files/upload'));
+      if (!isLan) req.headers['Authorization'] = 'Bearer $token';
+      req.fields['root'] = 'config';
+      final slash = path.lastIndexOf('/');
+      if (slash > 0) req.fields['path'] = path.substring(0, slash);
+      req.files.add(http.MultipartFile.fromString('file', content,
+          filename: slash > 0 ? path.substring(slash + 1) : path));
+      final resp =
+          await req.send().timeout(Duration(seconds: isLan ? 10 : 25));
+      return resp.statusCode == 201 || resp.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Klipper's state as Moonraker reports it (`server/info` `klippy_state`:
+  /// ready / startup / shutdown / error) over the resolved connection - the
+  /// editor's after-restart watch, which is what turns "Save and restart"
+  /// from a blind write into a guarded one (came back in error → offer the
+  /// backup). Null when the call failed.
+  Future<String?> fetchKlippyState(
+      String base, String token, bool isLan) async {
+    try {
+      final uri = Uri.parse('$base/server/info');
+      final resp = await http
+          .get(uri, headers: isLan ? null : {'Authorization': 'Bearer $token'})
+          .timeout(Duration(seconds: isLan ? 4 : 12));
+      if (resp.statusCode != 200) return null;
+      return jsonDecode(resp.body)['result']?['klippy_state'] as String?;
+    } catch (_) {
+      return null;
+    }
   }
 
   // ── Heaters: detect object names + set target temperatures ─────────────────
@@ -688,6 +900,127 @@ class GcodeFile {
   String? get folder {
     final i = path.lastIndexOf('/');
     return i > 0 ? path.substring(0, i) : null;
+  }
+
+  DateTime? get modifiedAt => modified > 0
+      ? DateTime.fromMillisecondsSinceEpoch((modified * 1000).round())
+      : null;
+}
+
+/// Result of [PrintControlService.fetchConsole]: the console history plus the
+/// connection that answered. The sheet holds onto it so refresh ticks stay a
+/// single GET and every send goes out on the one path known to be alive
+/// (never a LAN-then-tunnel retry, which could run a command twice).
+class ConsoleSnapshot {
+  final List<ConsoleLine> lines;
+  final String base;
+  final String token;
+  final bool isLan;
+  const ConsoleSnapshot({
+    required this.lines,
+    required this.base,
+    required this.token,
+    required this.isLan,
+  });
+}
+
+/// How a console line renders: [command] = something sent TO the printer,
+/// the rest are Klipper output following its line conventions - `!!` marks
+/// an error, `//` a comment/info line, anything else a plain response.
+enum ConsoleLineKind { command, error, info, response }
+
+/// One line of Moonraker's `server/gcode_store`: a command the printer
+/// received or a line Klipper emitted, with the store's unix timestamp.
+class ConsoleLine {
+  final String message;
+  final double time;
+  final bool isCommand;
+
+  const ConsoleLine({
+    required this.message,
+    required this.time,
+    required this.isCommand,
+  });
+
+  factory ConsoleLine.fromJson(Map<String, dynamic> j) => ConsoleLine(
+        message:   (j['message'] as String?) ?? '',
+        time:      (j['time'] as num?)?.toDouble() ?? 0,
+        isCommand: j['type'] == 'command',
+      );
+
+  ConsoleLineKind get kind {
+    if (isCommand) return ConsoleLineKind.command;
+    if (message.startsWith('!!')) return ConsoleLineKind.error;
+    if (message.startsWith('//')) return ConsoleLineKind.info;
+    return ConsoleLineKind.response;
+  }
+}
+
+/// Result of [PrintControlService.listConfigFiles]: the config root's files
+/// plus the connection that answered - reads, writes and the after-restart
+/// watch all reuse it (see the file-system section comment).
+class ConfigListing {
+  final List<ConfigFileEntry> files;
+  final String base;
+  final String token;
+  final bool isLan;
+  const ConfigListing({
+    required this.files,
+    required this.base,
+    required this.token,
+    required this.isLan,
+  });
+}
+
+/// One file under Moonraker's `config` root, from
+/// `/server/files/list?root=config` (recursive - folders are derived from
+/// the slashes in [path]).
+class ConfigFileEntry {
+  /// Path relative to the config root, e.g. `KAMP/Adaptive_Meshing.cfg`.
+  final String path;
+
+  /// Last-modified time in unix seconds (0 when unknown).
+  final double modified;
+
+  /// File size in bytes (0 when unknown).
+  final int size;
+
+  const ConfigFileEntry({
+    required this.path,
+    required this.modified,
+    required this.size,
+  });
+
+  factory ConfigFileEntry.fromJson(Map<String, dynamic> j) => ConfigFileEntry(
+        path:     (j['path'] as String?) ?? '',
+        modified: (j['modified'] as num?)?.toDouble() ?? 0,
+        size:     (j['size'] as num?)?.toInt() ?? 0,
+      );
+
+  /// Just the filename, without any subdirectory prefix.
+  String get name {
+    final i = path.lastIndexOf('/');
+    return i >= 0 ? path.substring(i + 1) : path;
+  }
+
+  /// The subdirectory the file lives in, or null when it sits at the root.
+  String? get folder {
+    final i = path.lastIndexOf('/');
+    return i > 0 ? path.substring(0, i) : null;
+  }
+
+  /// The safety copy [PrintControlService.writeConfigFile] callers create
+  /// before a first save - hidden from the browser (restored from, not
+  /// browsed into). The suffix deliberately doesn't end in `.cfg`, so a
+  /// user's `[include *.cfg]` glob can never pull a backup in.
+  bool get isMoongateBackup => path.endsWith('.moongate-bak');
+
+  /// Text formats the structured editor opens. Everything else (images,
+  /// binaries someone dropped in the folder) stays listed but read-only.
+  bool get isEditable {
+    final n = name.toLowerCase();
+    const exts = ['.cfg', '.conf', '.txt', '.ini', '.md', '.json', '.yaml', '.yml'];
+    return exts.any(n.endsWith);
   }
 
   DateTime? get modifiedAt => modified > 0

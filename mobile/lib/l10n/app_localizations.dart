@@ -3370,6 +3370,186 @@ abstract class AppLocalizations {
   /// **'Couldn\'t send {macro}'**
   String macroFailed(String macro);
 
+  /// Label of the console button in a tile's tools row; opens the G-code console sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Console'**
+  String get tileConsole;
+
+  /// Title of the G-code console bottom sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Console'**
+  String get consoleSheetTitle;
+
+  /// Shown while the console history is first being fetched.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting to the printer…'**
+  String get consoleLoading;
+
+  /// Shown when the console history couldn't be fetched at all.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach the printer\'s console'**
+  String get consoleError;
+
+  /// Shown when the fetched console history is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No console output yet'**
+  String get consoleEmpty;
+
+  /// Hint text in the console's command input field.
+  ///
+  /// In en, this message translates to:
+  /// **'G-code command'**
+  String get consoleInputHint;
+
+  /// Tooltip of the console's send button.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get consoleSend;
+
+  /// Injected as an error line in the console transcript when a command couldn't be delivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Command didn\'t reach the printer'**
+  String get consoleSendFailed;
+
+  /// Label of the file-system button in a tile's tools row; opens the config file browser.
+  ///
+  /// In en, this message translates to:
+  /// **'File System'**
+  String get tileFileSystem;
+
+  /// Title of the config file browser bottom sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'File System'**
+  String get fsSheetTitle;
+
+  /// Shown while the config file list is being fetched.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading files…'**
+  String get fsLoading;
+
+  /// Shown when the config file list couldn't be fetched.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the file list'**
+  String get fsError;
+
+  /// Shown when the config root has no files.
+  ///
+  /// In en, this message translates to:
+  /// **'No config files found'**
+  String get fsEmpty;
+
+  /// Shown when a config file couldn't be downloaded into the editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open the file'**
+  String get fsEditorLoadError;
+
+  /// Chip on options the structured editor can't edit (multi-line values like gcode blocks).
+  ///
+  /// In en, this message translates to:
+  /// **'View only'**
+  String get fsViewOnly;
+
+  /// Locked card for Klipper's auto-generated SAVE_CONFIG block at the end of printer.cfg.
+  ///
+  /// In en, this message translates to:
+  /// **'Klipper autosave (SAVE_CONFIG) - view only'**
+  String get fsAutosaveBlock;
+
+  /// Helper line in the editor's save bar while nothing is edited yet.
+  ///
+  /// In en, this message translates to:
+  /// **'A backup copy is saved on the printer before your first change'**
+  String get fsBackupNote;
+
+  /// Save-bar label while edited values haven't been saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsaved changes'**
+  String get fsUnsavedChanges;
+
+  /// Editor button: save the file without restarting Klipper.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get fsSave;
+
+  /// Editor button: save the file, then restart Klipper so the config applies.
+  ///
+  /// In en, this message translates to:
+  /// **'Save and restart'**
+  String get fsSaveRestart;
+
+  /// Snackbar after the file saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get fsSaved;
+
+  /// Snackbar when writing the file to the printer failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save the file'**
+  String get fsSaveFailed;
+
+  /// Progress label while waiting for Klipper to come back after a restart.
+  ///
+  /// In en, this message translates to:
+  /// **'Restarting Klipper…'**
+  String get fsRestartSent;
+
+  /// Snackbar when Klipper reports ready after the restart.
+  ///
+  /// In en, this message translates to:
+  /// **'Klipper restarted'**
+  String get fsRestartOk;
+
+  /// Banner when Klipper reports error/shutdown (or stays silent) after the restart.
+  ///
+  /// In en, this message translates to:
+  /// **'Klipper didn\'t come back up'**
+  String get fsRestartFailedBanner;
+
+  /// Banner action: write the pre-edit backup back and restart again.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore backup'**
+  String get fsRestoreBackup;
+
+  /// Snackbar after the backup copy was written back.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup restored'**
+  String get fsRestored;
+
+  /// Title of the confirm dialog when closing the editor with unsaved edits.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes?'**
+  String get fsDiscardTitle;
+
+  /// Body of the discard-changes confirm dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsaved edits to this file will be lost.'**
+  String get fsDiscardBody;
+
+  /// Confirm button of the discard-changes dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get fsDiscard;
+
   /// Title of the bottom sheet for setting hotend/bed target temperatures and a heat-soak timer, opened by long-pressing a tile's temperatures.
   ///
   /// In en, this message translates to:

@@ -1848,6 +1848,99 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
+  String get tileConsole => 'Console';
+
+  @override
+  String get consoleSheetTitle => 'Console';
+
+  @override
+  String get consoleLoading => 'Conectando à impressora…';
+
+  @override
+  String get consoleError => 'Não foi possível acessar o console da impressora';
+
+  @override
+  String get consoleEmpty => 'Ainda não há saída do console';
+
+  @override
+  String get consoleInputHint => 'Comando G-code';
+
+  @override
+  String get consoleSend => 'Enviar';
+
+  @override
+  String get consoleSendFailed => 'O comando não chegou à impressora';
+
+  @override
+  String get tileFileSystem => 'Sistema de arquivos';
+
+  @override
+  String get fsSheetTitle => 'Sistema de arquivos';
+
+  @override
+  String get fsLoading => 'Carregando arquivos…';
+
+  @override
+  String get fsError => 'Não foi possível carregar a lista de arquivos';
+
+  @override
+  String get fsEmpty => 'Nenhum arquivo de configuração encontrado';
+
+  @override
+  String get fsEditorLoadError => 'Não foi possível abrir o arquivo';
+
+  @override
+  String get fsViewOnly => 'Somente leitura';
+
+  @override
+  String get fsAutosaveBlock =>
+      'Salvamento automático do Klipper (SAVE_CONFIG) - somente leitura';
+
+  @override
+  String get fsBackupNote =>
+      'Uma cópia de segurança é salva na impressora antes da primeira alteração';
+
+  @override
+  String get fsUnsavedChanges => 'Alterações não salvas';
+
+  @override
+  String get fsSave => 'Salvar';
+
+  @override
+  String get fsSaveRestart => 'Salvar e reiniciar';
+
+  @override
+  String get fsSaved => 'Salvo';
+
+  @override
+  String get fsSaveFailed => 'Não foi possível salvar o arquivo';
+
+  @override
+  String get fsRestartSent => 'Reiniciando o Klipper…';
+
+  @override
+  String get fsRestartOk => 'Klipper reiniciado';
+
+  @override
+  String get fsRestartFailedBanner => 'O Klipper não voltou';
+
+  @override
+  String get fsRestoreBackup => 'Restaurar backup';
+
+  @override
+  String get fsRestored => 'Backup restaurado';
+
+  @override
+  String get fsDiscardTitle => 'Descartar alterações?';
+
+  @override
+  String get fsDiscardBody =>
+      'As edições não salvas deste arquivo serão perdidas.';
+
+  @override
+  String get fsDiscard => 'Descartar';
+
+  @override
   String get preheatTitle => 'Preaquecer';
 
   @override

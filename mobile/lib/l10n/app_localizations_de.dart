@@ -1846,6 +1846,98 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
+  String get tileConsole => 'Konsole';
+
+  @override
+  String get consoleSheetTitle => 'Konsole';
+
+  @override
+  String get consoleLoading => 'Verbindung zum Drucker…';
+
+  @override
+  String get consoleError => 'Konsole des Druckers nicht erreichbar';
+
+  @override
+  String get consoleEmpty => 'Noch keine Konsolenausgabe';
+
+  @override
+  String get consoleInputHint => 'G-Code-Befehl';
+
+  @override
+  String get consoleSend => 'Senden';
+
+  @override
+  String get consoleSendFailed => 'Befehl hat den Drucker nicht erreicht';
+
+  @override
+  String get tileFileSystem => 'Dateisystem';
+
+  @override
+  String get fsSheetTitle => 'Dateisystem';
+
+  @override
+  String get fsLoading => 'Dateien werden geladen…';
+
+  @override
+  String get fsError => 'Dateiliste konnte nicht geladen werden';
+
+  @override
+  String get fsEmpty => 'Keine Konfigurationsdateien gefunden';
+
+  @override
+  String get fsEditorLoadError => 'Datei konnte nicht geöffnet werden';
+
+  @override
+  String get fsViewOnly => 'Nur Ansicht';
+
+  @override
+  String get fsAutosaveBlock => 'Klipper-Autosave (SAVE_CONFIG) - nur Ansicht';
+
+  @override
+  String get fsBackupNote =>
+      'Vor der ersten Änderung wird eine Sicherungskopie auf dem Drucker gespeichert';
+
+  @override
+  String get fsUnsavedChanges => 'Ungespeicherte Änderungen';
+
+  @override
+  String get fsSave => 'Speichern';
+
+  @override
+  String get fsSaveRestart => 'Speichern und neu starten';
+
+  @override
+  String get fsSaved => 'Gespeichert';
+
+  @override
+  String get fsSaveFailed => 'Datei konnte nicht gespeichert werden';
+
+  @override
+  String get fsRestartSent => 'Klipper wird neu gestartet…';
+
+  @override
+  String get fsRestartOk => 'Klipper neu gestartet';
+
+  @override
+  String get fsRestartFailedBanner => 'Klipper ist nicht wieder hochgekommen';
+
+  @override
+  String get fsRestoreBackup => 'Sicherung wiederherstellen';
+
+  @override
+  String get fsRestored => 'Sicherung wiederhergestellt';
+
+  @override
+  String get fsDiscardTitle => 'Änderungen verwerfen?';
+
+  @override
+  String get fsDiscardBody =>
+      'Ungespeicherte Änderungen an dieser Datei gehen verloren.';
+
+  @override
+  String get fsDiscard => 'Verwerfen';
+
+  @override
   String get preheatTitle => 'Vorheizen';
 
   @override

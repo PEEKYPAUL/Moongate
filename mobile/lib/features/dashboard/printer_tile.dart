@@ -15,11 +15,14 @@ import '../../services/print_progress.dart';
 import '../../services/printer_registry.dart';
 import '../../services/printer_status_registry.dart';
 import '../../services/printer_status_service.dart';
+import '../../widgets/adaptive_tool_button.dart';
 import '../../widgets/webcam_view.dart';
 import '../printer/printer_camera_screen.dart';
 import '../tutorial/tutorial_anchors.dart';
 import '../tutorial/tutorial_controller.dart';
 import 'camera_picker_overlay.dart';
+import 'console_overlay.dart';
+import 'file_system_overlay.dart';
 import 'gcode_files_overlay.dart';
 import 'macros_overlay.dart';
 import 'preheat_overlay.dart';
@@ -902,6 +905,12 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                  // ── Tools row: console + file system ─────────────────────
+                  if (_toolsVisible)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: _ToolsRow(printer: widget.printer),
+                    ),
                 ],
               ),
             ),
@@ -910,6 +919,15 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
       ),
     );
   }
+
+  /// Whether the per-printer tools row (console + file system) renders.
+  /// Wider than the action row's gate on purpose: the tools talk to
+  /// MOONRAKER, which is up in Klipper's 'error', 'waiting' and boot states -
+  /// and those are exactly the states where a console is the diagnosis tool.
+  /// Only a printer with no reachable Moonraker at all (offline, or the first
+  /// poll still in flight) hides the row.
+  bool get _toolsVisible =>
+      _status.state != 'offline' && _status.state != 'connecting';
 
   /// Compact dashboard tile for a printer whose webcam is hidden
   /// ([PrinterConfig.hideWebcam]). Drops the 1:1 webcam square entirely and
@@ -1064,11 +1082,61 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                       padding: const EdgeInsets.only(top: 5),
                       child: _CompactStateLabel(state: _overlayState(_status)!),
                     ),
+                  // ── Tools row (same gate as the full tile) ───────────────
+                  if (_toolsVisible)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: _ToolsRow(printer: widget.printer),
+                    ),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Tools row: labelled per-printer workspace buttons ─────────────────────────
+
+/// Labelled tool buttons under the name + temperature block: the G-code
+/// console and the config file system. A separate labelled row rather than
+/// more icons in the action row: these open workspaces (sheets), not
+/// one-shot actions, and the action row already carries up to four icons.
+/// Visibility is [_PrinterTileState._toolsVisible] - wider than the action
+/// row's, since Moonraker (which these talk to) outlives Klipper errors.
+class _ToolsRow extends StatelessWidget {
+  final PrinterConfig printer;
+  const _ToolsRow({required this.printer});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    // Each button keeps its label only when the text fits its half of the
+    // row - narrow tiles (2-column grid) and long translations collapse to
+    // tooltipped icons instead of ellipsis noise (device pass, 27/08).
+    return GestureDetector(
+      onTap: () {}, // absorb - the gap between buttons must not navigate
+      behavior: HitTestBehavior.opaque,
+      child: Row(
+        children: [
+          Expanded(
+            child: AdaptiveToolButton(
+              icon: Icons.terminal_rounded,
+              label: l.tileConsole,
+              onPressed: () => showConsoleSheet(context, printer),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: AdaptiveToolButton(
+              icon: Icons.folder_open_rounded,
+              label: l.tileFileSystem,
+              onPressed: () => showFileSystemSheet(context, printer),
+            ),
+          ),
+        ],
       ),
     );
   }
