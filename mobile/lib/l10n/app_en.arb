@@ -1199,7 +1199,7 @@
   "@tutorialMenuCameras": {"description": "Menu tutorial step pointing at the camera-feeds / webcams entries."},
   "tutorialMenuAbout": "What's new, how pairing works, an icon guide, and where to report a problem all live here.",
   "@tutorialMenuAbout": {"description": "Menu tutorial step pointing at the About section."},
-  "tutorialMenuSupport": "Buying me a coffee helps keep Moongate free for everyone and open source.",
+  "tutorialMenuSupport": "Buying me a coffee helps keep Moongate free for everyone.",
   "@tutorialMenuSupport": {"description": "Menu tutorial step pointing at the buy-me-a-coffee support entry."},
   "tutorialMenuSettings": "Settings has two options inside: clear all your printers, or delete all your data and start completely fresh.",
   "@tutorialMenuSettings": {"description": "Menu tutorial step pointing at the Settings entry, which holds remove-all-printers and delete-my-data."},

@@ -1985,7 +1985,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tutorialMenuSupport =>
-      'Buying me a coffee helps keep Moongate free for everyone and open source.';
+      'Buying me a coffee helps keep Moongate free for everyone.';
 
   @override
   String get tutorialMenuSettings =>

@@ -2020,7 +2020,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get tutorialMenuSupport =>
-      'Invitarme a un café ayuda a mantener Moongate gratis para todos y de código abierto.';
+      'Invitarme a un café ayuda a mantener Moongate gratis para todos.';
 
   @override
   String get tutorialMenuSettings =>

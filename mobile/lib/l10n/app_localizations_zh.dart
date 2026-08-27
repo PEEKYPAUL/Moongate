@@ -1887,7 +1887,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tutorialMenuAbout => '更新内容、配对原理、图标指南，以及在哪里反馈问题，都在这里。';
 
   @override
-  String get tutorialMenuSupport => '请我喝杯咖啡，有助于让 Moongate 对所有人保持免费和开源。';
+  String get tutorialMenuSupport => '请我喝杯咖啡，有助于让 Moongate 对所有人保持免费。';
 
   @override
   String get tutorialMenuSettings => '设置中有两个选项：清除所有打印机，或删除所有数据并完全重新开始。';

@@ -2018,7 +2018,7 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get tutorialMenuSupport =>
-      'Offrirmi un caffè aiuta a mantenere Moongate gratuito per tutti e open source.';
+      'Offrirmi un caffè aiuta a mantenere Moongate gratuito per tutti.';
 
   @override
   String get tutorialMenuSettings =>

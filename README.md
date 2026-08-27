@@ -14,7 +14,7 @@
 
 <img src="docs/screenshots/generated/hero-ios.png" width="820" alt="Moongate on iPhone and Android - fleet dashboard, the full Mainsail UI in-app, and custom themes"/>
 
-Free, open-source **iPhone and Android** control for your **Klipper 3D printer** - live webcam, print controls, temperatures, and the complete Mainsail/Fluidd UI - over home WiFi and **automatically over the internet** when you're away. Zero setup, no port forwarding, no subscriptions.
+Free, source-available **iPhone and Android** control for your **Klipper 3D printer** - live webcam, print controls, temperatures, and the complete Mainsail/Fluidd UI - over home WiFi and **automatically over the internet** when you're away. Zero setup, no port forwarding, no subscriptions.
 
 **Prefer your own infrastructure? Run it your way.** The cloud-free **Direct (LAN/VPN)** mode talks straight to your printer over your network - or your own **WireGuard / Tailscale VPN** when you're out - and never touches the internet. [See how the two modes compare ›](#run-it-your-way)
 
@@ -231,7 +231,7 @@ Direct mode isn't picky about the host, either: from plugin 0.6.17 it needs **ze
 
 ## Buy me a coffee
 
-Moongate is free, open source, and built in my spare time for the Klipper community - no ads, no subscriptions, no data harvesting. If it's earned a spot on your phone, you can buy me a coffee to say thanks. Every contribution goes straight back into the project: test hardware, the cloud service that keeps remote access working, and the time to keep shipping features.
+Moongate is free, source available, and built in my spare time for the Klipper community - no ads, no subscriptions, no data harvesting. If it's earned a spot on your phone, you can buy me a coffee to say thanks. Every contribution goes straight back into the project: test hardware, the cloud service that keeps remote access working, and the time to keep shipping features.
 
 Thank you for being part of it 💜
 

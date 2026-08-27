@@ -2024,7 +2024,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get tutorialMenuSupport =>
-      'M\'offrir un café aide à garder Moongate gratuit pour tous et open source.';
+      'M\'offrir un café aide à garder Moongate gratuit pour tous.';
 
   @override
   String get tutorialMenuSettings =>

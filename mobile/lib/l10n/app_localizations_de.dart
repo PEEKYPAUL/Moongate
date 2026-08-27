@@ -2010,7 +2010,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get tutorialMenuSupport =>
-      'Mir einen Kaffee zu spendieren hilft, Moongate für alle kostenlos und quelloffen zu halten.';
+      'Mir einen Kaffee zu spendieren hilft, Moongate für alle kostenlos zu halten.';
 
   @override
   String get tutorialMenuSettings =>
