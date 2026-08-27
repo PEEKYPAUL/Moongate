@@ -220,6 +220,7 @@
   "pluginUpdateVersionUnknown": "eine alte Version",
   "pluginUpdateNow": "Jetzt aktualisieren",
   "pluginUpdateManual": "Diese Plugin-Version kann noch nicht aus der App aktualisiert werden. Im Web-Interface des Druckers: Mainsail (oder Fluidd) → Software Updates → Moongate → Update.",
+  "pluginUpdateManualCopy": "Dieses Plugin wurde von Hand installiert, daher kann der Drucker es nicht selbst aktualisieren. Aktualisiere es auf demselben Weg wie bei der Installation: die neue Plugin-Datei über die alte kopieren und dann Moonraker neu starten.",
   "pluginUpdateBusyPrinting": "Dieser Drucker druckt gerade. Aktualisiere, sobald der Druck fertig ist.",
   "pluginUpdateStarted": "Update gestartet. Es läuft im Hintergrund auf dem Drucker - das Symbol verschwindet, sobald es fertig ist (etwa eine Minute).",
   "pluginUpdateFailed": "Update konnte nicht gestartet werden. Nutze das Web-Interface des Druckers: Software Updates → Moongate → Update.",

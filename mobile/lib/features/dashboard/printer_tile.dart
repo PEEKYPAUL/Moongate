@@ -2212,6 +2212,14 @@ class _PluginUpdateButton extends StatelessWidget {
     // fresh (they ride every status poll).
     final canPush  = status.pluginCanSelfUpdate;
     final printing = status.isPrinting;
+    // 0.6.24+ EARNS canPush from a real update-manager answer, so false
+    // there means a genuinely manual install (the plugin file was copied by
+    // hand - Moonraker's Software Updates panel can't see it, and pointing
+    // there was #282's follow-up gap). On older plugins false only means
+    // the push action predates them, and the Software Updates route is
+    // exactly right.
+    final manualInstall =
+        !canPush && pluginVersionAtLeast(status.pluginVersion, '0.6.24');
 
     await showDialog<void>(
       context: context,
@@ -2231,7 +2239,7 @@ class _PluginUpdateButton extends StatelessWidget {
             if (!canPush) ...[
               const SizedBox(height: 10),
               Text(
-                l.pluginUpdateManual,
+                manualInstall ? l.pluginUpdateManualCopy : l.pluginUpdateManual,
                 style: TextStyle(
                   fontSize: 13,
                   color: Theme.of(ctx).colorScheme.onSurfaceVariant,
