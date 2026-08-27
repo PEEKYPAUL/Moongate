@@ -148,7 +148,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
   // applied (tunnel mode, or a faked chamber reading). Restored on the way out.
   static const _tileDemoSteps = {
     'localBar', 'tunnelBar', 'remoteBuilding', 'temps',
-    'estop', 'webcam', 'preheatPress', 'preheatSheet',
+    'estop', 'tools', 'webcam', 'preheatPress', 'preheatSheet',
   };
 
   void _applyDemoForStep(TutorialState s) {

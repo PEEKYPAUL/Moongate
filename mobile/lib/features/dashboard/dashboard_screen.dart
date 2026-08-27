@@ -74,6 +74,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   // there's more below the fold (user-reported - not obvious it scrolled).
   final ScrollController _drawerScroll = ScrollController();
 
+  /// The printer grid's scroll position, owned here so the tutorial can jump
+  /// the dashboard to the top when it starts - its whole stage is the FIRST
+  /// tile, and the scrim blocks manual scrolling, so a tour started halfway
+  /// down a long 1-column list would otherwise spotlight things off-screen.
+  final ScrollController _gridScroll = ScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -87,6 +93,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   void dispose() {
     _drawerScroll.dispose();
+    _gridScroll.dispose();
     super.dispose();
   }
 
@@ -197,10 +204,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final cs = Theme.of(context).colorScheme;
-    // The live tutorial opens/closes the menu drawer for its menu steps.
+    // The live tutorial opens/closes the menu drawer for its menu steps, and
+    // the dashboard jumps to the top when the tour starts (see [_gridScroll]).
     ref.listen<TutorialState>(
       tutorialControllerProvider,
-      (_, next) => _syncTutorialDrawer(next),
+      (prev, next) {
+        _syncTutorialDrawer(next);
+        final started = next.active && !(prev?.active ?? false);
+        if (started && _gridScroll.hasClients) {
+          _gridScroll.animateTo(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+          );
+        }
+      },
     );
     // Check for update - runs once per session, silently ignored on failure.
     final updateAsync = ref.watch(updateProvider);
@@ -255,6 +273,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           columns: gridColumns,
           onTap: openPrinter,
           tileOpacity: tileOpacity,
+          scrollController: _gridScroll,
         ),
       );
     } else {
@@ -272,6 +291,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               columns: gridColumns,
               onTap: openPrinter,
               tileOpacity: tileOpacity,
+              scrollController: _gridScroll,
               // Non-null only while actively arranging → the draggable reorder
               // list; otherwise the read-only masonry in the saved order.
               onReorder: _reordering ? _onReorder : null,
@@ -2182,11 +2202,17 @@ class _PrinterGrid extends StatelessWidget {
   /// Printer-tile background opacity (Custom theme); 1.0 = opaque.
   final double tileOpacity;
 
+  /// The dashboard's grid scroll position - shared so the live tutorial can
+  /// jump the grid to the top when the tour starts. Only the masonry display
+  /// grid attaches it; the reorder grid never hosts the tour.
+  final ScrollController? scrollController;
+
   const _PrinterGrid({
     required this.printers,
     required this.onTap,
     required this.columns,
     this.tileOpacity = 1.0,
+    this.scrollController,
     this.onReorder,
   });
 
@@ -2259,6 +2285,7 @@ class _PrinterGrid extends StatelessWidget {
       // tiles each take their natural height and pack the columns tightly -
       // roughly two compact tiles fit in the height of one full tile.
       return MasonryGridView.count(
+        controller: scrollController,
         padding: padding,
         crossAxisCount: effectiveCols,
         mainAxisSpacing: spacing,
