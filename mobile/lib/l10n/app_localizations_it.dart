@@ -1853,6 +1853,30 @@ class AppLocalizationsIt extends AppLocalizations {
   }
 
   @override
+  String get tileConsole => 'Console';
+
+  @override
+  String get consoleSheetTitle => 'Console';
+
+  @override
+  String get consoleLoading => 'Connessione alla stampante…';
+
+  @override
+  String get consoleError => 'Console della stampante non raggiungibile';
+
+  @override
+  String get consoleEmpty => 'Ancora nessun output della console';
+
+  @override
+  String get consoleInputHint => 'Comando G-code';
+
+  @override
+  String get consoleSend => 'Invia';
+
+  @override
+  String get consoleSendFailed => 'Il comando non ha raggiunto la stampante';
+
+  @override
   String get preheatTitle => 'Preriscalda';
 
   @override

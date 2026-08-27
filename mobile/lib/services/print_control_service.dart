@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as dev;
 import 'dart:typed_data';
@@ -311,6 +312,108 @@ class PrintControlService {
     final ok = await _viaLanThenTunnel(
         (base, token, isLan) => _postGcode(base, token, isLan, macro));
     return ok ?? false;
+  }
+
+  // ── Console: G-code history + sending raw commands ──────────────────────────
+  //
+  // Same transparent-proxy story again: `server/gcode_store` (Moonraker's
+  // rolling console cache) and `printer/gcode/script` are core endpoints, so
+  // LAN goes header-less and the tunnel carries the Bearer token - no plugin
+  // update. One twist: console sends must NOT ride [_viaLanThenTunnel].
+  // `gcode/script` only answers once the command *completes* (a homing run can
+  // take a minute), so a LAN attempt timing out mid-move would "fall back" to
+  // the tunnel and run the same command on the printer TWICE. Instead the
+  // history fetch resolves the winning connection (the [listGcodes] +
+  // thumbnail pattern) and [sendConsoleCommand] posts on exactly that path,
+  // once.
+
+  /// Fetch the rolling console history (`server/gcode_store` - it survives
+  /// the sheet opening and closing, so the console opens with context from
+  /// before it existed) plus the connection that answered, which the sheet's
+  /// refresh ticks and sends then reuse. Null when every path failed.
+  Future<ConsoleSnapshot?> fetchConsole({int count = 100}) async {
+    String? winBase;
+    var winToken = '';
+    var winLan   = false;
+    final lines = await _viaLanThenTunnel<List<ConsoleLine>>(
+        (base, token, isLan) async {
+      final got = await fetchConsoleOn(base, token, isLan, count: count);
+      if (got == null) return null;
+      winBase  = base;
+      winToken = token;
+      winLan   = isLan;
+      return got;
+    });
+    if (lines == null || winBase == null) return null;
+    return ConsoleSnapshot(
+        lines: lines, base: winBase!, token: winToken, isLan: winLan);
+  }
+
+  /// Re-read the console history over an already-resolved connection - the
+  /// sheet's periodic tick. Deliberately no LAN/tunnel re-probe here: on a
+  /// null return the sheet drops its connection and the next tick runs
+  /// [fetchConsole] again (covering a Pi IP change or the phone leaving the
+  /// LAN mid-session) - so the 2s cadence stays one cheap GET, not a probe.
+  Future<List<ConsoleLine>?> fetchConsoleOn(
+      String base, String token, bool isLan,
+      {int count = 100}) async {
+    try {
+      final uri = Uri.parse('$base/server/gcode_store?count=$count');
+      final resp = await http
+          .get(uri, headers: isLan ? null : {'Authorization': 'Bearer $token'})
+          .timeout(Duration(seconds: isLan ? 4 : 12));
+      if (resp.statusCode != 200) return null;
+      final store =
+          (jsonDecode(resp.body)['result']?['gcode_store'] as List<dynamic>?) ??
+              const [];
+      return store
+          .whereType<Map<String, dynamic>>()
+          .map(ConsoleLine.fromJson)
+          .toList();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Send one console command over the connection [fetchConsole] resolved -
+  /// a single POST, no fallback (see the section comment: a retry on another
+  /// path could run a slow-but-executing command twice). `gcode/script` blocks
+  /// until Klipper finishes the command, so the timeout is generous and the
+  /// sheet doesn't gate on this future for the echo - the store ticks carry it.
+  ///
+  /// `delivered: false` means the POST never reached Moonraker (the sheet
+  /// shows a local failure line). A non-200 answer carries Moonraker's
+  /// [error] message for the states the store can't report - above all
+  /// "Klippy Host not connected": a dead Klipper appends nothing to the
+  /// store, so without this the sheet would sit silent. Klipper's own gcode
+  /// errors (HTTP 400) return NO [error]: Klipper echoes those into the
+  /// store itself as `!!` lines, and doubling them up reads as two failures.
+  /// A response timeout counts as delivered: the command reached the printer
+  /// and is still running - the store shows its output when it lands.
+  Future<({bool delivered, String? error})> sendConsoleCommand(
+      String base, String token, bool isLan, String command) async {
+    try {
+      final uri = Uri.parse('$base/printer/gcode/script'
+          '?script=${Uri.encodeComponent(command)}');
+      final resp = await http
+          .post(uri,
+              headers: isLan ? null : {'Authorization': 'Bearer $token'})
+          .timeout(Duration(seconds: isLan ? 90 : 100));
+      if (resp.statusCode == 200 || resp.statusCode == 400) {
+        return (delivered: true, error: null);
+      }
+      String? message;
+      try {
+        final err = jsonDecode(resp.body)['error'];
+        message =
+            (err is Map<String, dynamic> ? err['message'] : null) as String?;
+      } catch (_) {}
+      return (delivered: true, error: message ?? 'HTTP ${resp.statusCode}');
+    } on TimeoutException {
+      return (delivered: true, error: null);
+    } catch (_) {
+      return (delivered: false, error: null);
+    }
   }
 
   // ── Heaters: detect object names + set target temperatures ─────────────────
@@ -693,6 +796,55 @@ class GcodeFile {
   DateTime? get modifiedAt => modified > 0
       ? DateTime.fromMillisecondsSinceEpoch((modified * 1000).round())
       : null;
+}
+
+/// Result of [PrintControlService.fetchConsole]: the console history plus the
+/// connection that answered. The sheet holds onto it so refresh ticks stay a
+/// single GET and every send goes out on the one path known to be alive
+/// (never a LAN-then-tunnel retry, which could run a command twice).
+class ConsoleSnapshot {
+  final List<ConsoleLine> lines;
+  final String base;
+  final String token;
+  final bool isLan;
+  const ConsoleSnapshot({
+    required this.lines,
+    required this.base,
+    required this.token,
+    required this.isLan,
+  });
+}
+
+/// How a console line renders: [command] = something sent TO the printer,
+/// the rest are Klipper output following its line conventions - `!!` marks
+/// an error, `//` a comment/info line, anything else a plain response.
+enum ConsoleLineKind { command, error, info, response }
+
+/// One line of Moonraker's `server/gcode_store`: a command the printer
+/// received or a line Klipper emitted, with the store's unix timestamp.
+class ConsoleLine {
+  final String message;
+  final double time;
+  final bool isCommand;
+
+  const ConsoleLine({
+    required this.message,
+    required this.time,
+    required this.isCommand,
+  });
+
+  factory ConsoleLine.fromJson(Map<String, dynamic> j) => ConsoleLine(
+        message:   (j['message'] as String?) ?? '',
+        time:      (j['time'] as num?)?.toDouble() ?? 0,
+        isCommand: j['type'] == 'command',
+      );
+
+  ConsoleLineKind get kind {
+    if (isCommand) return ConsoleLineKind.command;
+    if (message.startsWith('!!')) return ConsoleLineKind.error;
+    if (message.startsWith('//')) return ConsoleLineKind.info;
+    return ConsoleLineKind.response;
+  }
 }
 
 /// A Moonraker power device - a `[power …]` section - from

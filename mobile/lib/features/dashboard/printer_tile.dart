@@ -20,6 +20,7 @@ import '../printer/printer_camera_screen.dart';
 import '../tutorial/tutorial_anchors.dart';
 import '../tutorial/tutorial_controller.dart';
 import 'camera_picker_overlay.dart';
+import 'console_overlay.dart';
 import 'gcode_files_overlay.dart';
 import 'macros_overlay.dart';
 import 'preheat_overlay.dart';
@@ -902,6 +903,12 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                  // ── Tools row: console (file system next) ────────────────
+                  if (_toolsVisible)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: _ToolsRow(printer: widget.printer),
+                    ),
                 ],
               ),
             ),
@@ -910,6 +917,15 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
       ),
     );
   }
+
+  /// Whether the per-printer tools row (console; file system next) renders.
+  /// Wider than the action row's gate on purpose: the tools talk to
+  /// MOONRAKER, which is up in Klipper's 'error', 'waiting' and boot states -
+  /// and those are exactly the states where a console is the diagnosis tool.
+  /// Only a printer with no reachable Moonraker at all (offline, or the first
+  /// poll still in flight) hides the row.
+  bool get _toolsVisible =>
+      _status.state != 'offline' && _status.state != 'connecting';
 
   /// Compact dashboard tile for a printer whose webcam is hidden
   /// ([PrinterConfig.hideWebcam]). Drops the 1:1 webcam square entirely and
@@ -1064,11 +1080,64 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                       padding: const EdgeInsets.only(top: 5),
                       child: _CompactStateLabel(state: _overlayState(_status)!),
                     ),
+                  // ── Tools row (same gate as the full tile) ───────────────
+                  if (_toolsVisible)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: _ToolsRow(printer: widget.printer),
+                    ),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Tools row: labelled per-printer workspace buttons ─────────────────────────
+
+/// Labelled tool buttons under the name + temperature block: the G-code
+/// console now, the file system next. A separate labelled row rather than
+/// more icons in the action row: these open workspaces (sheets), not
+/// one-shot actions, and the action row already carries up to four icons.
+/// Visibility is [_PrinterTileState._toolsVisible] - wider than the action
+/// row's, since Moonraker (which these talk to) outlives Klipper errors.
+class _ToolsRow extends StatelessWidget {
+  final PrinterConfig printer;
+  const _ToolsRow({required this.printer});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l     = AppLocalizations.of(context);
+    final style = OutlinedButton.styleFrom(
+      visualDensity:   VisualDensity.compact,
+      padding:         const EdgeInsets.symmetric(horizontal: 8),
+      minimumSize:     const Size(0, 30),
+      side:            BorderSide(color: theme.colorScheme.outlineVariant),
+      foregroundColor: theme.colorScheme.primary,
+      textStyle:       theme.textTheme.labelMedium,
+    );
+    return GestureDetector(
+      onTap: () {}, // absorb - the gap between buttons must not navigate
+      behavior: HitTestBehavior.opaque,
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              style: style,
+              icon: const Icon(Icons.terminal_rounded, size: 16),
+              label: Text(
+                l.tileConsole,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              onPressed: () => showConsoleSheet(context, printer),
+            ),
+          ),
+        ],
       ),
     );
   }

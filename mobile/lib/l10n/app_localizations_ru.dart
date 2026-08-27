@@ -1841,6 +1841,30 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get tileConsole => 'Консоль';
+
+  @override
+  String get consoleSheetTitle => 'Консоль';
+
+  @override
+  String get consoleLoading => 'Подключение к принтеру…';
+
+  @override
+  String get consoleError => 'Консоль принтера недоступна';
+
+  @override
+  String get consoleEmpty => 'Вывода в консоли пока нет';
+
+  @override
+  String get consoleInputHint => 'Команда G-code';
+
+  @override
+  String get consoleSend => 'Отправить';
+
+  @override
+  String get consoleSendFailed => 'Команда не дошла до принтера';
+
+  @override
   String get preheatTitle => 'Прогрев';
 
   @override

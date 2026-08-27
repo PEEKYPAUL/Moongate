@@ -1743,6 +1743,30 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get tileConsole => '控制台';
+
+  @override
+  String get consoleSheetTitle => '控制台';
+
+  @override
+  String get consoleLoading => '正在连接打印机…';
+
+  @override
+  String get consoleError => '无法连接打印机控制台';
+
+  @override
+  String get consoleEmpty => '暂无控制台输出';
+
+  @override
+  String get consoleInputHint => 'G-code 命令';
+
+  @override
+  String get consoleSend => '发送';
+
+  @override
+  String get consoleSendFailed => '命令未送达打印机';
+
+  @override
   String get preheatTitle => '预热';
 
   @override

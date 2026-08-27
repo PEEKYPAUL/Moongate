@@ -1846,6 +1846,30 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
+  String get tileConsole => 'Konsole';
+
+  @override
+  String get consoleSheetTitle => 'Konsole';
+
+  @override
+  String get consoleLoading => 'Verbindung zum Drucker…';
+
+  @override
+  String get consoleError => 'Konsole des Druckers nicht erreichbar';
+
+  @override
+  String get consoleEmpty => 'Noch keine Konsolenausgabe';
+
+  @override
+  String get consoleInputHint => 'G-Code-Befehl';
+
+  @override
+  String get consoleSend => 'Senden';
+
+  @override
+  String get consoleSendFailed => 'Befehl hat den Drucker nicht erreicht';
+
+  @override
   String get preheatTitle => 'Vorheizen';
 
   @override

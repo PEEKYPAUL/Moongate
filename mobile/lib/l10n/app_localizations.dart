@@ -3370,6 +3370,54 @@ abstract class AppLocalizations {
   /// **'Couldn\'t send {macro}'**
   String macroFailed(String macro);
 
+  /// Label of the console button in a tile's tools row; opens the G-code console sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Console'**
+  String get tileConsole;
+
+  /// Title of the G-code console bottom sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Console'**
+  String get consoleSheetTitle;
+
+  /// Shown while the console history is first being fetched.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting to the printer…'**
+  String get consoleLoading;
+
+  /// Shown when the console history couldn't be fetched at all.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach the printer\'s console'**
+  String get consoleError;
+
+  /// Shown when the fetched console history is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No console output yet'**
+  String get consoleEmpty;
+
+  /// Hint text in the console's command input field.
+  ///
+  /// In en, this message translates to:
+  /// **'G-code command'**
+  String get consoleInputHint;
+
+  /// Tooltip of the console's send button.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get consoleSend;
+
+  /// Injected as an error line in the console transcript when a command couldn't be delivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Command didn\'t reach the printer'**
+  String get consoleSendFailed;
+
   /// Title of the bottom sheet for setting hotend/bed target temperatures and a heat-soak timer, opened by long-pressing a tile's temperatures.
   ///
   /// In en, this message translates to:

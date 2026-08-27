@@ -1841,6 +1841,30 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
+  String get tileConsole => 'Konsola';
+
+  @override
+  String get consoleSheetTitle => 'Konsola';
+
+  @override
+  String get consoleLoading => 'Łączenie z drukarką…';
+
+  @override
+  String get consoleError => 'Nie można połączyć się z konsolą drukarki';
+
+  @override
+  String get consoleEmpty => 'Brak danych w konsoli';
+
+  @override
+  String get consoleInputHint => 'Polecenie G-code';
+
+  @override
+  String get consoleSend => 'Wyślij';
+
+  @override
+  String get consoleSendFailed => 'Polecenie nie dotarło do drukarki';
+
+  @override
   String get preheatTitle => 'Nagrzewanie';
 
   @override

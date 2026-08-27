@@ -1822,6 +1822,30 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get tileConsole => 'Console';
+
+  @override
+  String get consoleSheetTitle => 'Console';
+
+  @override
+  String get consoleLoading => 'Connecting to the printer…';
+
+  @override
+  String get consoleError => 'Couldn\'t reach the printer\'s console';
+
+  @override
+  String get consoleEmpty => 'No console output yet';
+
+  @override
+  String get consoleInputHint => 'G-code command';
+
+  @override
+  String get consoleSend => 'Send';
+
+  @override
+  String get consoleSendFailed => 'Command didn\'t reach the printer';
+
+  @override
   String get preheatTitle => 'Preheat';
 
   @override
