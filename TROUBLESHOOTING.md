@@ -63,6 +63,10 @@ Cosmetic - the update has actually completed. A Moongate plugin update restarts 
 
 (Klipper itself is left alone on purpose: the plugin lives inside Moonraker, so a plugin update never needs to touch a running print.)
 
+## The amber update arrow shows, but tapping "Update now" does nothing
+
+This happens on printers where Moongate was **installed by hand** (the machines in [docs/third-party-printers.md](docs/third-party-printers.md), like the Elegoo Centauri Carbon - or a manual file copy on a normal Pi). The one-tap update works through Moonraker's update manager, and a manual install isn't registered there - so on plugins up to 0.6.23 the button sent an update request the printer had no way to act on, and the arrow never cleared. From **plugin 0.6.24** the app knows the difference and shows manual update instructions instead of the dead button. Updating a manual install = re-copying the plugin file exactly as on install day (each machine's section in the third-party guide has the command), then restarting Moonraker; the arrow clears on its own within a few seconds.
+
 ## The Pi acts strangely after weeks of uptime (failed updates, sudo password errors)
 
 Plugin versions before **0.6.14** kept the remote-access proxy's request log on a small memory-backed disk (`/run`) that nothing trimmed. A printer left powered on for a few weeks could fill it completely, and a full `/run` makes unrelated things on the Pi misbehave: `sudo` fails with odd errors, updates act up, services get flaky. Check with:
@@ -94,6 +98,20 @@ To save battery, your phone can freeze Moongate while it's in the background, wh
 ## Your print-status notification vanished, or notifications stopped updating
 
 If print notifications were on but the ongoing status notification is gone and you're no longer getting updates, you may have **paused** them. Since **v0.9.46** there's a **pause/play button** in the dashboard top bar (it appears when notifications are on): tapping **pause** stops Moongate checking your printers in the background, which saves battery and removes the ongoing notification. Tap the same button (now a **play** icon) to resume. A pause is remembered across app restarts and reboots, so it stays off until you tap play.
+
+## No notification appeared on your iPhone - but everything says it was sent
+
+If you were **inside the Moongate app** (or any app, with Moongate in the foreground) when the alert fired, that's normal iPhone behaviour: iOS doesn't show a banner for a push notification while the app it belongs to is on screen. The alert still exists - swipe down from the top of the screen (Notification Centre) and it's there. Lock the phone or switch apps and the next one will banner normally.
+
+## Android didn't alert when a print paused or failed, or the printer errored
+
+Loud Android alerts for these moments arrived in **v0.9.61** - older versions only re-labelled the quiet status bar. On v0.9.61+, three things have to be true, and each has an easy check:
+
+1. **Print notifications are on and not paused.** Unlike iPhone push, Android's alerts come from the app's own background monitoring, so the "Print notifications" toggle in the menu must be on and the top-bar pause button not engaged. No status bar in the shade = nothing is watching, and nothing can alert.
+2. **The "Printer alerts" category isn't muted.** Long-press any Moongate notification → notification settings, and check the **Printer alerts** category is allowed. It's separate from the quiet status/cards categories on purpose, so it can buzz (or be silenced) on its own.
+3. **The moment happened while Moongate was watching.** Alerts fire on changes the monitoring sees as they happen. Something that went wrong while notifications were off, paused, or the phone was without any connection to the printer won't alert retroactively - the tile still shows the state and the reason when you open the app.
+
+Direct (LAN/VPN) printers are the documented exception: no notifications in cloud-free mode.
 
 ## Chamber temperature missing on the dashboard
 
