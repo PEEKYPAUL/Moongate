@@ -30,6 +30,8 @@ _FONT_CANDIDATES = [
     "/System/Library/Fonts/SFNS.ttf",
     "/System/Library/Fonts/Helvetica.ttc",
     "/System/Library/Fonts/Supplemental/Arial.ttf",
+    "C:/Windows/Fonts/segoeui.ttf",
+    "C:/Windows/Fonts/arial.ttf",
 ]
 
 
