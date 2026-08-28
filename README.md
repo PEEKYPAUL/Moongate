@@ -12,7 +12,7 @@
 [![App Store](https://img.shields.io/badge/iPhone-on%20the%20App%20Store-0D96F6?logo=apple&logoColor=white)](https://apps.apple.com/gb/app/moongate-klipper-control/id6785038887)
 [![Google Play](https://img.shields.io/badge/Android-on%20Google%20Play-34A853?logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.moongate.app.moongate)
 
-<img src="docs/screenshots/generated/hero-ios.png" width="820" alt="Moongate on iPhone and Android - fleet dashboard, the full Mainsail UI in-app, and custom themes"/>
+<img src="docs/screenshots/generated/hero-ios.png" width="820" alt="Moongate on iPhone and Android - fleet dashboard with per-printer console and file tools, the full Mainsail UI in-app, and printing straight from stored G-code"/>
 
 Free, source-available **iPhone and Android** control for your **Klipper 3D printer** - live webcam, print controls, temperatures, and the complete Mainsail/Fluidd UI - over home WiFi and **automatically over the internet** when you're away. Zero setup, no port forwarding, no subscriptions.
 
@@ -72,6 +72,12 @@ Free, source-available **iPhone and Android** control for your **Klipper 3D prin
   <img src="docs/screenshots/generated/framed-icon-guide.png" width="19%" alt="Icon guide - what every dashboard icon means"/>
   <img src="docs/screenshots/generated/framed-custom-theme.png" width="19%" alt="Custom theme editor"/>
   <img src="docs/screenshots/generated/framed-gcode-viewer.png" width="19%" alt="Print a stored G-code file"/>
+</div>
+
+<div align="center">
+  <img src="docs/screenshots/generated/framed-console.png" width="19%" alt="Per-printer G-code console - history pre-filled, quick-command chips"/>
+  <img src="docs/screenshots/generated/framed-file-system.png" width="19%" alt="File System - browse the printer's configuration folder"/>
+  <img src="docs/screenshots/generated/framed-config-editor.png" width="19%" alt="Structured printer.cfg editor - names fixed, values editable, backup before the first change"/>
 </div>
 
 <div align="center">

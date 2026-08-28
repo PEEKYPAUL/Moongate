@@ -131,7 +131,8 @@ def build_row():
     # partly obscured) in the hero - it's featured again here standalone so the
     # print-from-stored-gcodes flow gets a clear, unobstructed showcase.
     for name in ["pairing.png", "drawer.png", "icon-guide.png", "custom-theme.png",
-                 "gcode-viewer.png"]:
+                 "gcode-viewer.png", "console.png", "file-system.png",
+                 "config-editor.png"]:
         phone = with_shadow(frame_phone(name, 460), alpha=90)
         phone = trim(phone, margin=10)
         phone.save(os.path.join(OUT, "framed-" + name))
