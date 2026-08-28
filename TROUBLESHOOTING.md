@@ -95,6 +95,8 @@ If you power a printer back on (from Home Assistant, a smart plug, or its own sw
 
 To save battery, your phone can freeze Moongate while it's in the background, which briefly drops its live-status link - so on return the app still thinks the printer is off, even though the notifications may already show it back. Since **v0.9.45**, Moongate re-checks every printer's live status the moment you switch back to it, so the tile clears itself within a few seconds, no force-close needed. On older versions, force-stop Moongate and reopen it to refresh.
 
+Right after the power-on itself, also give the printer a little time: some Pis take a few **minutes** after boot to actually get their network address from the router (even when the printer's own screen already looks awake), and until that lands the tile stays offline no matter what the app does. It heals on its own - if the tile is still offline five minutes after the printer finished booting, then start with the checks below.
+
 ## Your print-status notification vanished, or notifications stopped updating
 
 If print notifications were on but the ongoing status notification is gone and you're no longer getting updates, you may have **paused** them. Since **v0.9.46** there's a **pause/play button** in the dashboard top bar (it appears when notifications are on): tapping **pause** stops Moongate checking your printers in the background, which saves battery and removes the ongoing notification. Tap the same button (now a **play** icon) to resume. A pause is remembered across app restarts and reboots, so it stays off until you tap play.
