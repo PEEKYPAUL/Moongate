@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.9.63",
+    "bullets": [
+      "The File System browser can now hide the clutter. A checkbox at the top - ticked by default and remembered - hides Klipper's automatic SAVE_CONFIG snapshots (the printer-20260830_101530.cfg pile), .bak backup files and hidden dotfiles like .theme, so the list shows just your real config files; a folder whose entire contents are hidden disappears with them. Untick it and everything is back. The choice travels in your backups too.",
+      "Settings backups now provably carry every setting. An audit found the global power button toggle was always meant to travel in backups but never did - fixed - and an automated check now guarantees every future setting either rides your backup or has a written reason it can't (like the app lock and its PIN, which must never leave the device)."
+    ]
+  },
+  {
     "version": "v0.9.62",
     "bullets": [
       "The guided tour is fixed and extended. It could point at things that were off the bottom of the screen (and you can't scroll while it runs), and in the worst case a step could strand you with no Next or Skip at all. The dashboard now jumps to the top when the tour starts, every step scrolls its target into view, and the explanation card always appears even if a highlight can't - so the tour can never get stuck again. The first tile is also always shown as a healthy, connected example printer for the whole tour, even if your real printer is offline.",
