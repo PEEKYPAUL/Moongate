@@ -575,6 +575,7 @@
   "fsLoading": "正在加载文件…",
   "fsError": "无法加载文件列表",
   "fsEmpty": "未找到配置文件",
+  "fsHideBackups": "隐藏备份和隐藏文件",
   "fsEditorLoadError": "无法打开文件",
   "fsViewOnly": "仅查看",
   "fsAutosaveBlock": "Klipper 自动保存 (SAVE_CONFIG) - 仅查看",

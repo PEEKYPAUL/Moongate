@@ -575,6 +575,7 @@
   "fsLoading": "Caricamento file…",
   "fsError": "Impossibile caricare l'elenco dei file",
   "fsEmpty": "Nessun file di configurazione trovato",
+  "fsHideBackups": "Nascondi backup e file nascosti",
   "fsEditorLoadError": "Impossibile aprire il file",
   "fsViewOnly": "Sola lettura",
   "fsAutosaveBlock": "Salvataggio automatico Klipper (SAVE_CONFIG) - sola lettura",

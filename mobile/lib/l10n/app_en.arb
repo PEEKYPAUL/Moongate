@@ -1136,6 +1136,8 @@
   "@fsError": {"description": "Shown when the config file list couldn't be fetched."},
   "fsEmpty": "No config files found",
   "@fsEmpty": {"description": "Shown when the config root has no files."},
+  "fsHideBackups": "Hide backups & hidden files",
+  "@fsHideBackups": {"description": "Checkbox above the file list: hides Klipper SAVE_CONFIG snapshots, .bak-style backup files and dotfiles/dot-folders."},
   "fsEditorLoadError": "Couldn't open the file",
   "@fsEditorLoadError": {"description": "Shown when a config file couldn't be downloaded into the editor."},
   "fsViewOnly": "View only",

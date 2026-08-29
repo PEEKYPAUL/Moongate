@@ -1884,6 +1884,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get fsEmpty => 'Файлы конфигурации не найдены';
 
   @override
+  String get fsHideBackups => 'Скрывать резервные копии и скрытые файлы';
+
+  @override
   String get fsEditorLoadError => 'Не удалось открыть файл';
 
   @override
