@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/printer_config.dart';
@@ -41,11 +42,25 @@ class _FileSystemSheetState extends State<_FileSystemSheet> {
   /// view over the one recursive listing.
   String _dir = '';
 
+  /// Hide backup files (SAVE_CONFIG snapshots, `.bak`) and dotfiles. On by
+  /// default - a long-lived printer's config root is mostly snapshots.
+  static const _hideCleanKey = 'fs_hide_backups_hidden';
+  bool _hideClean = true;
+
   @override
   void initState() {
     super.initState();
     _control = PrintControlService(widget.printer);
     _future = _control.listConfigFiles();
+    SharedPreferences.getInstance().then((prefs) {
+      final v = prefs.getBool(_hideCleanKey);
+      if (v != null && mounted) setState(() => _hideClean = v);
+    });
+  }
+
+  void _setHideClean(bool v) {
+    setState(() => _hideClean = v);
+    SharedPreferences.getInstance().then((p) => p.setBool(_hideCleanKey, v));
   }
 
   void _reload() => setState(() => _future = _control.listConfigFiles());
@@ -140,11 +155,15 @@ class _FileSystemSheetState extends State<_FileSystemSheet> {
                 }
 
                 // Derive this level's folders and files from the flat
-                // recursive listing.
+                // recursive listing. The clutter filter runs BEFORE the
+                // folder derivation, so a folder whose every file is
+                // filtered (a `.theme` dir, a stash of snapshots) vanishes
+                // along with its contents.
                 final prefix = _dir.isEmpty ? '' : '$_dir/';
                 final folders = <String>{};
                 final files = <ConfigFileEntry>[];
                 for (final f in listing.files) {
+                  if (_hideClean && (f.isBackup || f.isHidden)) continue;
                   if (!f.path.startsWith(prefix)) continue;
                   final rest = f.path.substring(prefix.length);
                   final slash = rest.indexOf('/');
@@ -154,67 +173,90 @@ class _FileSystemSheetState extends State<_FileSystemSheet> {
                     folders.add(rest.substring(0, slash));
                   }
                 }
-                if (folders.isEmpty && files.isEmpty) {
-                  return _Centered(
-                    child:
-                        Text(l.fsEmpty, style: theme.textTheme.bodyMedium),
-                  );
-                }
                 final sortedFolders = folders.toList()
                   ..sort((a, b) =>
                       a.toLowerCase().compareTo(b.toLowerCase()));
-                return SafeArea(
-                  top: false,
-                  child: ListView(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    children: [
-                      for (final d in sortedFolders)
-                        ListTile(
-                          leading: Icon(Icons.folder_rounded,
-                              color: theme.colorScheme.outline),
-                          title: Text(d,
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () => setState(
-                              () => _dir = _dir.isEmpty ? d : '$_dir/$d'),
-                        ),
-                      for (final f in files)
-                        ListTile(
-                          leading: Icon(
-                            f.isEditable
-                                ? Icons.description_outlined
-                                : Icons.insert_drive_file_outlined,
-                            color: f.isEditable
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.outline,
-                          ),
-                          title: Text(f.name,
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                          subtitle: Text(
-                            _subtitle(context, f),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          enabled: f.isEditable,
-                          onTap: f.isEditable
-                              ? () => showConfigEditorSheet(
-                                    context,
-                                    printer: widget.printer,
-                                    base:    listing.base,
-                                    token:   listing.token,
-                                    isLan:   listing.isLan,
-                                    path:    f.path,
-                                  )
-                              : null,
-                        ),
-                    ],
-                  ),
+                final content = folders.isEmpty && files.isEmpty
+                    ? _Centered(
+                        child: Text(l.fsEmpty,
+                            style: theme.textTheme.bodyMedium),
+                      )
+                    : SafeArea(
+                        top: false,
+                        child: _fileList(context, listing, sortedFolders,
+                            files),
+                      );
+                return Column(
+                  children: [
+                    CheckboxListTile(
+                      value:            _hideClean,
+                      onChanged:        (v) => _setHideClean(v ?? true),
+                      title:            Text(l.fsHideBackups,
+                          style: theme.textTheme.bodyMedium),
+                      dense:            true,
+                      visualDensity:    VisualDensity.compact,
+                      controlAffinity:  ListTileControlAffinity.leading,
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    const Divider(height: 1),
+                    Expanded(child: content),
+                  ],
                 );
               },
             ),
           ),
         ],
       ),
+    );
+  }
+
+  /// The folder + file tiles for the current level.
+  Widget _fileList(BuildContext context, ConfigListing listing,
+      List<String> sortedFolders, List<ConfigFileEntry> files) {
+    final theme = Theme.of(context);
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 8),
+      children: [
+        for (final d in sortedFolders)
+          ListTile(
+            leading: Icon(Icons.folder_rounded,
+                color: theme.colorScheme.outline),
+            title: Text(d, maxLines: 1, overflow: TextOverflow.ellipsis),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () =>
+                setState(() => _dir = _dir.isEmpty ? d : '$_dir/$d'),
+          ),
+        for (final f in files)
+          ListTile(
+            leading: Icon(
+              f.isEditable
+                  ? Icons.description_outlined
+                  : Icons.insert_drive_file_outlined,
+              color: f.isEditable
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outline,
+            ),
+            title:
+                Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Text(
+              _subtitle(context, f),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            enabled: f.isEditable,
+            onTap: f.isEditable
+                ? () => showConfigEditorSheet(
+                      context,
+                      printer: widget.printer,
+                      base:    listing.base,
+                      token:   listing.token,
+                      isLan:   listing.isLan,
+                      path:    f.path,
+                    )
+                : null,
+          ),
+      ],
     );
   }
 

@@ -1891,6 +1891,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get fsEmpty => 'Nenhum arquivo de configuração encontrado';
 
   @override
+  String get fsHideBackups => 'Ocultar backups e arquivos ocultos';
+
+  @override
   String get fsEditorLoadError => 'Não foi possível abrir o arquivo';
 
   @override

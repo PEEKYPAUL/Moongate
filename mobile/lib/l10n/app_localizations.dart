@@ -3454,6 +3454,12 @@ abstract class AppLocalizations {
   /// **'No config files found'**
   String get fsEmpty;
 
+  /// Checkbox above the file list: hides Klipper SAVE_CONFIG snapshots, .bak-style backup files and dotfiles/dot-folders.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide backups & hidden files'**
+  String get fsHideBackups;
+
   /// Shown when a config file couldn't be downloaded into the editor.
   ///
   /// In en, this message translates to:
