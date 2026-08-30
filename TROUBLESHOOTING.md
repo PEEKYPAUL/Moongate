@@ -232,6 +232,10 @@ Some routers micro-drop the WiFi for a fraction of a second at regular intervals
 
 From v0.9.48 this friendly message (with an automatic retry every few seconds) replaces the raw Cloudflare **"Bad gateway / Error 502"** page you used to see when opening a printer whose Pi was still starting up - the tunnel comes up a little before Mainsail does, so the first moments after a Pi boot can answer 502. It normally clears by itself within a minute. If it doesn't: check Mainsail loads in a browser on the printer's own network, and that Moonraker/Klipper are actually running on the Pi - the tunnel being up only proves the Pi is powered, not that the web stack behind it is healthy.
 
+## A file you expect is missing in File System (v0.9.63+)
+
+The file browser hides clutter by default: Klipper's timestamped SAVE_CONFIG snapshots (`printer-20260830_101530.cfg` and friends), `.bak`-style backup files, and hidden dotfiles and dot-folders (`.theme/`, `.mainsail.json`) - along with any folder left empty by the filter. Untick **Hide backups & hidden files** at the top of the sheet to list everything; the choice is remembered.
+
 ## Remote tunnel not connecting
 
 - Check the systemd unit:
