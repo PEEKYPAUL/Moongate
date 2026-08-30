@@ -1884,6 +1884,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get fsEmpty => 'Nie znaleziono plików konfiguracyjnych';
 
   @override
+  String get fsHideBackups => 'Ukryj kopie zapasowe i ukryte pliki';
+
+  @override
   String get fsEditorLoadError => 'Nie można otworzyć pliku';
 
   @override

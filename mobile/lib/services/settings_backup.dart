@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum _Kind { string, boolean, integer, real }
@@ -12,11 +13,20 @@ enum _Kind { string, boolean, integer, real }
 ///     Keystore-backed secure storage and is device-bound; exporting "lock on"
 ///     without a PIN would lock the user out on another device, and writing the
 ///     PIN hash into a file would defeat its at-rest encryption.
-///   • first-run onboarding flags (`language_selected`, `notifications_prompted`,
-///     `pairing_help_dismissed`, `donation_prompted`) - transient UI state, not
-///     preferences (so the donation nudge can still appear once on a fresh
-///     install even after restoring a backup).
+///   • first-run onboarding + one-time hint flags (`language_selected`,
+///     `notifications_prompted`, `pairing_help_dismissed`, `donation_prompted`,
+///     `tutorial_offered`, `camera_hint_seen`, `notif_pause_hint_seen`) -
+///     transient UI state, not preferences (so the donation nudge can still
+///     appear once on a fresh install even after restoring a backup).
+///   • moment-to-moment state (`print_notifications_paused`,
+///     `heatsoak_deadlines`) - a restore must never silently pause someone's
+///     alerts or resurrect a finished timer.
+///   • `dashboard_background_path` - the image it points at lives only on this
+///     device; the file itself can't ride a JSON backup (see its provider).
 /// The printer list is carried separately, by the backup envelope itself.
+/// settings_backup_completeness_test.dart enforces the classification: every
+/// preference key in lib/ must appear in the allow-list below or in that
+/// test's documented exclusions, so a new setting can't silently skip backups.
 ///
 /// The allow-list also gates [apply], so a hand-edited backup can only ever set
 /// these known keys - never an arbitrary or sensitive preference.
@@ -44,11 +54,17 @@ class SettingsBackup {
     'show_dashboard_buttons':      _Kind.boolean,
     'show_print_eta':              _Kind.boolean,
     'print_eta_format':            _Kind.string,
+    'fs_hide_backups_hidden':      _Kind.boolean,
+    'global_power_button':         _Kind.boolean,
     // The Local-only BUTTON preference rides backups; the local-only MODE
     // itself (kLocalOnlyKey) deliberately does not - a restore should never
     // silently cut remote access.
     'show_local_only_button':      _Kind.boolean,
   };
+
+  /// Every key that rides a backup - exposed for the completeness test.
+  @visibleForTesting
+  static Set<String> get backedUpKeys => _keys.keys.toSet();
 
   /// Snapshot the currently-set preferences into a JSON-safe map. Unset keys
   /// are omitted, so restoring leaves their defaults untouched.

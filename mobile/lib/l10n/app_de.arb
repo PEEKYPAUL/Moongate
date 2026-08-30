@@ -575,6 +575,7 @@
   "fsLoading": "Dateien werden geladen…",
   "fsError": "Dateiliste konnte nicht geladen werden",
   "fsEmpty": "Keine Konfigurationsdateien gefunden",
+  "fsHideBackups": "Backups & versteckte Dateien ausblenden",
   "fsEditorLoadError": "Datei konnte nicht geöffnet werden",
   "fsViewOnly": "Nur Ansicht",
   "fsAutosaveBlock": "Klipper-Autosave (SAVE_CONFIG) - nur Ansicht",

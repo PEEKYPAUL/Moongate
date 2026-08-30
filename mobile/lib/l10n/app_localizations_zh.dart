@@ -1786,6 +1786,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fsEmpty => '未找到配置文件';
 
   @override
+  String get fsHideBackups => '隐藏备份和隐藏文件';
+
+  @override
   String get fsEditorLoadError => '无法打开文件';
 
   @override

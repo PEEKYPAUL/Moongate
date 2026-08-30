@@ -1059,6 +1059,22 @@ class ConfigFileEntry {
   /// user's `[include *.cfg]` glob can never pull a backup in.
   bool get isMoongateBackup => path.endsWith('.moongate-bak');
 
+  /// Klipper's SAVE_CONFIG snapshots (`printer-20260829_101530.cfg`) and
+  /// generic backup suffixes. The date pattern is exact - a real
+  /// `printer-macros.cfg` must never match.
+  bool get isBackup {
+    if (_saveConfigSnapshot.hasMatch(name)) return true;
+    final n = name.toLowerCase();
+    return n.endsWith('.bak') || n.endsWith('.bkp') || n.endsWith('~');
+  }
+
+  /// Dotfiles, or anything living under a dot-folder (`.theme/…`) - UI-tool
+  /// state (Mainsail/Fluidd themes and settings), not printer config.
+  bool get isHidden => path.split('/').any((s) => s.startsWith('.'));
+
+  static final RegExp _saveConfigSnapshot =
+      RegExp(r'^printer-\d{8}_\d{6}\.cfg$');
+
   /// Text formats the structured editor opens. Everything else (images,
   /// binaries someone dropped in the folder) stays listed but read-only.
   bool get isEditable {

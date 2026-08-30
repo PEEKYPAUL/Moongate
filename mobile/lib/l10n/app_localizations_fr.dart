@@ -1903,6 +1903,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get fsEmpty => 'Aucun fichier de configuration trouvé';
 
   @override
+  String get fsHideBackups => 'Masquer les sauvegardes et fichiers cachés';
+
+  @override
   String get fsEditorLoadError => 'Impossible d\'ouvrir le fichier';
 
   @override

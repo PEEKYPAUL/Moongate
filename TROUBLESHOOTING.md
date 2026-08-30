@@ -65,7 +65,7 @@ Cosmetic - the update has actually completed. A Moongate plugin update restarts 
 
 ## The amber update arrow shows, but tapping "Update now" does nothing
 
-This happens on printers where Moongate was **installed by hand** (the machines in [docs/third-party-printers.md](docs/third-party-printers.md), like the Elegoo Centauri Carbon - or a manual file copy on a normal Pi). The one-tap update works through Moonraker's update manager, and a manual install isn't registered there - so on plugins up to 0.6.23 the button sent an update request the printer had no way to act on, and the arrow never cleared. From **plugin 0.6.24** the app knows the difference and shows manual update instructions instead of the dead button. Updating a manual install = re-copying the plugin file exactly as on install day (each machine's section in the third-party guide has the command), then restarting Moonraker; the arrow clears on its own within a few seconds.
+This happens on printers where Moongate was **installed by hand** (the machines in [docs/third-party-printers.md](docs/third-party-printers.md), like the Elegoo Centauri Carbon - or a manual file copy on a normal Pi). The one-tap update works through Moonraker's update manager, and a manual install isn't registered there - so on plugins up to 0.6.23 the button sent an update request the printer had no way to act on, and the arrow never cleared. From **plugin 0.6.24** the printer reports the difference honestly, and the app (**v0.9.61+**) shows re-copy instructions in the update dialog instead of the dead button (an older app still points at Mainsail's Software Updates panel, which doesn't list a manual install). Updating a manual install = re-copying the plugin file exactly as on install day (each machine's section in the third-party guide has the command), then restarting Moonraker; the arrow clears on its own within a few seconds.
 
 ## The Pi acts strangely after weeks of uptime (failed updates, sudo password errors)
 
@@ -233,6 +233,10 @@ Some routers micro-drop the WiFi for a fraction of a second at regular intervals
 ## Opening a printer shows "the web interface isn't answering yet"
 
 From v0.9.48 this friendly message (with an automatic retry every few seconds) replaces the raw Cloudflare **"Bad gateway / Error 502"** page you used to see when opening a printer whose Pi was still starting up - the tunnel comes up a little before Mainsail does, so the first moments after a Pi boot can answer 502. It normally clears by itself within a minute. If it doesn't: check Mainsail loads in a browser on the printer's own network, and that Moonraker/Klipper are actually running on the Pi - the tunnel being up only proves the Pi is powered, not that the web stack behind it is healthy.
+
+## A file you expect is missing in File System (v0.9.63+)
+
+The file browser hides clutter by default: Klipper's timestamped SAVE_CONFIG snapshots (`printer-20260830_101530.cfg` and friends), `.bak`-style backup files, and hidden dotfiles and dot-folders (`.theme/`, `.mainsail.json`) - along with any folder left empty by the filter. Untick **Hide backups & hidden files** at the top of the sheet to list everything; the choice is remembered.
 
 ## Remote tunnel not connecting
 

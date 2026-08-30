@@ -50,6 +50,23 @@ void main() {
         reason: 'bed stayed hidden');
   });
 
+  test('the file-browser clutter-filter choice rides the backup', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+
+    // The user opted to see everything (the non-default choice).
+    await prefs.setBool('fs_hide_backups_hidden', false);
+    final backup = await SettingsBackup.snapshot();
+    expect(backup['fs_hide_backups_hidden'], isFalse,
+        reason: 'the choice must be written into the backup');
+
+    // Fresh install, then restore: the unticked checkbox comes back.
+    await prefs.clear();
+    await SettingsBackup.apply(backup);
+    expect(prefs.getBool('fs_hide_backups_hidden'), isFalse);
+  });
+
   test('a never-customised user omits the keys (defaults apply on restore)',
       () async {
     SharedPreferences.setMockInitialValues({});

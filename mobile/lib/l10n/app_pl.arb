@@ -575,6 +575,7 @@
   "fsLoading": "Wczytywanie plików…",
   "fsError": "Nie można wczytać listy plików",
   "fsEmpty": "Nie znaleziono plików konfiguracyjnych",
+  "fsHideBackups": "Ukryj kopie zapasowe i ukryte pliki",
   "fsEditorLoadError": "Nie można otworzyć pliku",
   "fsViewOnly": "Tylko podgląd",
   "fsAutosaveBlock": "Autozapis Klippera (SAVE_CONFIG) - tylko podgląd",

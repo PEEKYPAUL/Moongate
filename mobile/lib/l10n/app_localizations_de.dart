@@ -1889,6 +1889,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get fsEmpty => 'Keine Konfigurationsdateien gefunden';
 
   @override
+  String get fsHideBackups => 'Backups & versteckte Dateien ausblenden';
+
+  @override
   String get fsEditorLoadError => 'Datei konnte nicht geöffnet werden';
 
   @override
