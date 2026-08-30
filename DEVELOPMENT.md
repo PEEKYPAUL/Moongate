@@ -307,6 +307,8 @@ So **the only thing you commit by hand is code + screenshots + docs**. The relea
 
 `ci.yml` runs `flutter analyze` and `flutter test` on PRs (unit tests live in `mobile/test/`; the Pi plugin additionally has standalone stdlib-only tests under `klipper-plugin/tests/` - dependency isolation, the heartbeat pairing window, the tunnel watchdog, the MOONGATE_STATUS wording, the webcam-list contract, the self-update capability gate, and the notification event matrix - each runnable with plain `python3` on any machine).
 
+> **Adding a setting? Classify it for backups.** `settings_backup_completeness_test.dart` scans `lib/` for every preference key the app touches and fails CI unless each one is either on the `SettingsBackup` allow-list (it rides the user's backup file - the usual choice) or in that test's exclusion map with a written reason it must not (device-bound, transient, and so on). A new SharedPreferences key that skips both lists turns the suite red until you pick a side.
+
 > **The Supabase backend is not part of CI.** Database migrations under [`supabase/migrations/`](supabase/migrations/) and the Edge Functions under [`supabase/functions/`](supabase/functions/) are deployed **manually** against the live project - `supabase db push` for migrations and `supabase functions deploy <name>` for functions - never by GitHub Actions. So a PR that adds a migration (e.g. `20260619120000_printers_realtime.sql`, which enabled Realtime on the `printers` table for v0.9.16) or changes a function (e.g. the access-token TTL in `_shared/accessToken.ts`) only takes effect once it's pushed to Supabase by hand. Full backend setup / deploy flow: [`supabase/README.md`](supabase/README.md).
 
 ---
