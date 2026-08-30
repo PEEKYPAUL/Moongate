@@ -1945,6 +1945,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get fsAddSection => 'Abschnitt hinzufügen';
 
   @override
+  String get fsEditMacro => 'Makro bearbeiten';
+
+  @override
   String get fsAddField => 'Feld hinzufügen';
 
   @override

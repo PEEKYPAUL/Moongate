@@ -1171,6 +1171,8 @@
   "fsDiscard": "Discard",
   "@fsDiscard": {"description": "Confirm button of the discard-changes dialog."},
   "fsAddSection": "Add section",
+  "fsEditMacro": "Edit macro",
+  "@fsEditMacro": {"description": "Tooltip on the button that opens the multiline G-code macro editor."},
   "@fsAddSection": {"description": "Config editor action to add a documented Klipper section."},
   "fsAddField": "Add field",
   "@fsAddField": {"description": "Config editor action to add a documented field to a section."},

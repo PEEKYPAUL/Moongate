@@ -593,6 +593,7 @@
   "fsDiscardBody": "Ungespeicherte Änderungen an dieser Datei gehen verloren.",
   "fsDiscard": "Verwerfen",
   "fsAddSection": "Abschnitt hinzufügen",
+  "fsEditMacro": "Makro bearbeiten",
   "fsAddField": "Feld hinzufügen",
   "fsAddInclude": "Include hinzufügen",
   "fsFileChanged": "Die Datei wurde auf dem Drucker geändert. Vor dem Speichern neu laden.",

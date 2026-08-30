@@ -111,7 +111,8 @@ void main() {
     final doc = KlipperConfigDoc.parse(_sample);
 
     test('an indented block marks its option multi-line and view-only', () {
-      final points = doc.sections[2].options.firstWhere((o) => o.key == 'points');
+      final points =
+          doc.sections[2].options.firstWhere((o) => o.key == 'points');
       expect(points.isMultiline, isTrue);
       expect(doc.canEdit(points), isFalse);
       final gcode = doc.sections[3].options.single;
@@ -133,15 +134,15 @@ void main() {
   group('textWithEdits - the splice', () {
     test('replaces only the value, preserving everything around it', () {
       final doc = KlipperConfigDoc.parse(_sample);
-      final pa = doc.sections[1].options.firstWhere(
-          (o) => o.key == 'pressure_advance');
+      final pa = doc.sections[1].options
+          .firstWhere((o) => o.key == 'pressure_advance');
       final edited = doc.textWithEdits({pa: '0.052'});
-      expect(edited,
-          contains('pressure_advance: 0.052  # tuned for ABS 2026-06'));
+      expect(
+          edited, contains('pressure_advance: 0.052  # tuned for ABS 2026-06'));
       // One value changed, nothing else: the texts differ by exactly the
       // one line.
       final before = _sample.split('\n');
-      final after  = edited.split('\n');
+      final after = edited.split('\n');
       expect(after.length, before.length);
       final changed = [
         for (var i = 0; i < before.length; i++)
@@ -176,7 +177,8 @@ void main() {
       final opt = doc.sections.single.options.single;
       // The \r is trailing whitespace, outside the span.
       expect(opt.value, '285');
-      expect(doc.textWithEdits({opt: '290'}), '[extruder]\r\nmax_temp: 290\r\n');
+      expect(
+          doc.textWithEdits({opt: '290'}), '[extruder]\r\nmax_temp: 290\r\n');
     });
   });
 
@@ -188,6 +190,17 @@ void main() {
       expect(gcode.value, '');
       expect(gcode.isMultiline, isTrue);
       expect(doc.text, text);
+    });
+
+    test('macro body can be viewed and replaced without touching its options',
+        () {
+      const text =
+          '[gcode_macro M600]\r\ndescription: Swap\r\ngcode:\r\n\tPAUSE\r\n\tM117 Change filament\r\nvariable_ready: 1\r\n';
+      final doc = KlipperConfigDoc.parse(text);
+      final section = doc.sections.single;
+      expect(doc.macroBody(section), 'PAUSE\nM117 Change filament');
+      expect(doc.replaceMacroBody(section, 'SAVE_GCODE_STATE\nPAUSE'),
+          '[gcode_macro M600]\r\ndescription: Swap\r\ngcode:\r\n\tSAVE_GCODE_STATE\r\n\tPAUSE\r\nvariable_ready: 1\r\n');
     });
   });
 
@@ -202,7 +215,8 @@ void main() {
     test('preserve CRLF and autosave boundary', () {
       const text = '[a]\r\nkey: value\r\n#*# SAVE\r\n';
       final doc = KlipperConfigDoc.parse(text);
-      expect(doc.insertSection('b'), '[a]\r\nkey: value\r\n[b]\r\n#*# SAVE\r\n');
+      expect(
+          doc.insertSection('b'), '[a]\r\nkey: value\r\n[b]\r\n#*# SAVE\r\n');
     });
   });
 }

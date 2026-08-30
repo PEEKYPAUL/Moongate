@@ -319,6 +319,46 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
     }
   }
 
+  Future<void> _editMacro(ConfigSection section) async {
+    final doc = _doc;
+    if (doc == null || doc.macroGcodeOption(section) == null) return;
+    final controller = TextEditingController(text: doc.macroBody(section));
+    final value = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('[${section.name}]'),
+        content: SizedBox(
+          width: 560,
+          child: TextField(
+            controller: controller,
+            autofocus: true,
+            minLines: 8,
+            maxLines: 20,
+            autocorrect: false,
+            enableSuggestions: false,
+            keyboardType: TextInputType.multiline,
+            style: const TextStyle(fontFamily: 'monospace'),
+            decoration: const InputDecoration(border: OutlineInputBorder()),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(AppLocalizations.of(context).commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: Text(AppLocalizations.of(context).commonSave),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (value != null && mounted && value != doc.macroBody(section)) {
+      _setWorkingText(doc.replaceMacroBody(section, value));
+    }
+  }
+
   Future<void> _addSection() async {
     final schema = _schema;
     final doc = _doc;
@@ -821,6 +861,13 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
             Row(
               children: [
                 Expanded(child: Text('[${section.name}]', style: mono)),
+                if (doc.macroGcodeOption(section) != null)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    tooltip: l.fsEditMacro,
+                    onPressed: () => _editMacro(section),
+                  ),
                 if (_definition(section)?.options.any((candidate) => !section
                         .options
                         .any((option) => option.key == candidate.name)) ==

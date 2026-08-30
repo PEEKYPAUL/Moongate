@@ -593,6 +593,7 @@
   "fsDiscardBody": "Se perderán las modificaciones no guardadas de este archivo.",
   "fsDiscard": "Descartar",
   "fsAddSection": "Añadir sección",
+  "fsEditMacro": "Editar macro",
   "fsAddField": "Añadir campo",
   "fsAddInclude": "Añadir inclusión",
   "fsFileChanged": "El archivo cambió en la impresora. Recárgalo antes de guardar.",

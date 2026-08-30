@@ -594,6 +594,7 @@
   "fsDiscardBody": "As edições não salvas deste arquivo serão perdidas.",
   "fsDiscard": "Descartar",
   "fsAddSection": "Adicionar seção",
+  "fsEditMacro": "Editar macro",
   "fsAddField": "Adicionar campo",
   "fsAddInclude": "Adicionar inclusão",
   "fsFileChanged": "O arquivo mudou na impressora. Recarregue antes de salvar.",

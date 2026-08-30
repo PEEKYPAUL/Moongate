@@ -265,6 +265,60 @@ class KlipperConfigDoc {
     return textWithEdits({option: value});
   }
 
+  ConfigOption? macroGcodeOption(ConfigSection section) {
+    if (!section.name.startsWith('gcode_macro ')) return null;
+    for (final option in section.options) {
+      if (option.key == 'gcode') return option;
+    }
+    return null;
+  }
+
+  String macroBody(ConfigSection section) {
+    final option = macroGcodeOption(section);
+    if (option == null) return '';
+    final end = _multilineEnd(section, option);
+    if (end <= option.lineIndex + 1) return option.value;
+    final body = lines.sublist(option.lineIndex + 1, end);
+    final first =
+        body.firstWhere((line) => line.trim().isNotEmpty, orElse: () => '  ');
+    final indent = RegExp(r'^\s*').firstMatch(first)!.group(0)!;
+    return body.map((line) {
+      final clean =
+          line.endsWith('\r') ? line.substring(0, line.length - 1) : line;
+      return clean.startsWith(indent) ? clean.substring(indent.length) : clean;
+    }).join('\n');
+  }
+
+  String replaceMacroBody(ConfigSection section, String value) {
+    final option = macroGcodeOption(section);
+    if (option == null || value.contains('\r')) {
+      throw ArgumentError('Invalid macro edit');
+    }
+    final end = _multilineEnd(section, option);
+    var indent = '  ';
+    if (end > option.lineIndex + 1) {
+      final first = lines
+          .sublist(option.lineIndex + 1, end)
+          .firstWhere((line) => line.trim().isNotEmpty, orElse: () => '  ');
+      indent = RegExp(r'^\s*').firstMatch(first)!.group(0)!;
+    }
+    final out = List<String>.from(lines)
+      ..removeRange(option.lineIndex + 1, end)
+      ..insertAll(
+          option.lineIndex + 1,
+          value.isEmpty
+              ? const []
+              : value.split('\n').map((line) => '$indent$line$_lineEnding'));
+    return out.join('\n');
+  }
+
+  int _multilineEnd(ConfigSection section, ConfigOption option) {
+    for (final candidate in section.options) {
+      if (candidate.lineIndex > option.lineIndex) return candidate.lineIndex;
+    }
+    return section.bodyEnd;
+  }
+
   String insertOption(ConfigSection section, String key, String value) {
     if (value.contains('\n') ||
         value.contains('\r') ||
@@ -276,8 +330,8 @@ class KlipperConfigDoc {
         ? '='
         : ':';
     final out = List<String>.from(lines);
-    out.insert(_insertionIndex(section.bodyEnd),
-        '$key$separator $value$_lineEnding');
+    out.insert(
+        _insertionIndex(section.bodyEnd), '$key$separator $value$_lineEnding');
     return out.join('\n');
   }
 
@@ -294,7 +348,8 @@ class KlipperConfigDoc {
     return out.join('\n');
   }
 
-  String get _lineEnding => lines.any((line) => line.endsWith('\r')) ? '\r' : '';
+  String get _lineEnding =>
+      lines.any((line) => line.endsWith('\r')) ? '\r' : '';
 
   /// Keep a terminal empty split line at the end of the file. Inserting at
   /// [lines.length] after `text.split('\n')` would move the new line past the

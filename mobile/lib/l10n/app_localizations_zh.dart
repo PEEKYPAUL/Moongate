@@ -1840,6 +1840,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fsAddSection => '添加配置节';
 
   @override
+  String get fsEditMacro => '编辑宏';
+
+  @override
   String get fsAddField => '添加字段';
 
   @override

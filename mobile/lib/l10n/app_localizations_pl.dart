@@ -1941,6 +1941,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get fsAddSection => 'Dodaj sekcję';
 
   @override
+  String get fsEditMacro => 'Edytuj makro';
+
+  @override
   String get fsAddField => 'Dodaj pole';
 
   @override

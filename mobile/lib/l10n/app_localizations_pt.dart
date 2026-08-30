@@ -1948,6 +1948,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get fsAddSection => 'Adicionar seção';
 
   @override
+  String get fsEditMacro => 'Editar macro';
+
+  @override
   String get fsAddField => 'Adicionar campo';
 
   @override

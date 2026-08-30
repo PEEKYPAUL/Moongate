@@ -3562,6 +3562,12 @@ abstract class AppLocalizations {
   /// **'Add section'**
   String get fsAddSection;
 
+  /// Tooltip on the button that opens the multiline G-code macro editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit macro'**
+  String get fsEditMacro;
+
   /// Config editor action to add a documented field to a section.
   ///
   /// In en, this message translates to:

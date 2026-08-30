@@ -593,6 +593,7 @@
   "fsDiscardBody": "此文件未保存的编辑将丢失。",
   "fsDiscard": "放弃",
   "fsAddSection": "添加配置节",
+  "fsEditMacro": "编辑宏",
   "fsAddField": "添加字段",
   "fsAddInclude": "添加包含文件",
   "fsFileChanged": "打印机上的文件已更改。请重新加载后再保存。",

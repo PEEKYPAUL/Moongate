@@ -1920,6 +1920,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fsAddSection => 'Add section';
 
   @override
+  String get fsEditMacro => 'Edit macro';
+
+  @override
   String get fsAddField => 'Add field';
 
   @override

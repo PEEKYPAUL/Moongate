@@ -1941,6 +1941,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get fsAddSection => 'Добавить раздел';
 
   @override
+  String get fsEditMacro => 'Изменить макрос';
+
+  @override
   String get fsAddField => 'Добавить поле';
 
   @override

@@ -593,6 +593,7 @@
   "fsDiscardBody": "Niezapisane zmiany w tym pliku zostaną utracone.",
   "fsDiscard": "Odrzuć",
   "fsAddSection": "Dodaj sekcję",
+  "fsEditMacro": "Edytuj makro",
   "fsAddField": "Dodaj pole",
   "fsAddInclude": "Dodaj plik dołączany",
   "fsFileChanged": "Plik zmienił się na drukarce. Wczytaj go ponownie przed zapisem.",

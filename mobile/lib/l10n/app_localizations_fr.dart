@@ -1960,6 +1960,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get fsAddSection => 'Ajouter une section';
 
   @override
+  String get fsEditMacro => 'Modifier la macro';
+
+  @override
   String get fsAddField => 'Ajouter un champ';
 
   @override
