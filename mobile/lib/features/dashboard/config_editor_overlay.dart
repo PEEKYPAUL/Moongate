@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/klipper_config_doc.dart';
+import '../../models/klipper_schema.dart';
 import '../../models/printer_config.dart';
+import '../../services/klipper_include_resolver.dart';
+import '../../services/klipper_schema_service.dart';
 import '../../services/print_control_service.dart';
 
 /// Structured config editor as a near-full-height bottom sheet: sections as
@@ -29,6 +32,7 @@ Future<void> showConfigEditorSheet(
   required String token,
   required bool isLan,
   required String path,
+  List<ConfigFileEntry> files = const [],
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -46,10 +50,11 @@ Future<void> showConfigEditorSheet(
       padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
       child: _ConfigEditorSheet(
         printer: printer,
-        base:    base,
-        token:   token,
-        isLan:   isLan,
-        path:    path,
+        base: base,
+        token: token,
+        isLan: isLan,
+        path: path,
+        files: files,
       ),
     ),
   );
@@ -64,6 +69,7 @@ class _ConfigEditorSheet extends StatefulWidget {
   final String token;
   final bool isLan;
   final String path;
+  final List<ConfigFileEntry> files;
 
   const _ConfigEditorSheet({
     required this.printer,
@@ -71,6 +77,7 @@ class _ConfigEditorSheet extends StatefulWidget {
     required this.token,
     required this.isLan,
     required this.path,
+    required this.files,
   });
 
   @override
@@ -84,8 +91,9 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
   /// every successful save) - the baseline dirty-tracking compares against.
   String? _savedText;
   KlipperConfigDoc? _doc;
+  KlipperSchema? _schema;
   bool _loading = true;
-  bool _failed  = false;
+  bool _failed = false;
 
   /// What [_restore] writes back: the file as it was BEFORE this sheet's
   /// first change, captured when the `.moongate-bak` copy is uploaded.
@@ -123,25 +131,30 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
   Future<void> _load() async {
     setState(() {
       _loading = true;
-      _failed  = false;
+      _failed = false;
     });
-    final text = await _control.readConfigFile(
-        widget.base, widget.token, widget.isLan, widget.path);
+    final results = await Future.wait([
+      _control.readConfigFile(
+          widget.base, widget.token, widget.isLan, widget.path),
+      KlipperSchemaService().load(),
+    ]);
+    final text = results[0] as String?;
     if (!mounted) return;
     // A config root should hold nothing above a few hundred KB - refuse to
     // build thousands of rows out of something that plainly isn't a config.
     if (text == null || text.length > 512 * 1024) {
       setState(() {
         _loading = false;
-        _failed  = true;
+        _failed = true;
       });
       return;
     }
     _disposeControllers();
     setState(() {
       _savedText = text;
-      _doc       = KlipperConfigDoc.parse(text);
-      _loading   = false;
+      _doc = KlipperConfigDoc.parse(text);
+      _schema = results[1] as KlipperSchema;
+      _loading = false;
     });
   }
 
@@ -175,8 +188,240 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
     _disposeControllers();
     setState(() {
       _savedText = text;
-      _doc       = KlipperConfigDoc.parse(text);
+      _doc = KlipperConfigDoc.parse(text);
     });
+  }
+
+  void _setWorkingText(String text) {
+    _disposeControllers();
+    setState(() => _doc = KlipperConfigDoc.parse(text));
+  }
+
+  ConfigSectionDefinition? _definition(ConfigSection section) {
+    final schema = _schema;
+    return schema == null
+        ? null
+        : KlipperSchemaService().matchSection(schema, section.name);
+  }
+
+  String? _valueError(
+      ConfigSection section, ConfigOption option, String value) {
+    final l = AppLocalizations.of(context);
+    ConfigOptionDefinition? definition;
+    for (final candidate in _definition(section)?.options ?? const []) {
+      if (candidate.name == option.key) {
+        definition = candidate;
+        break;
+      }
+    }
+    if (definition == null || value.isEmpty) return null;
+    switch (definition.type) {
+      case ConfigValueType.boolean:
+        return const {'true', 'false'}.contains(value.toLowerCase())
+            ? null
+            : l.fsUseBoolean;
+      case ConfigValueType.integer:
+        final parsed = int.tryParse(value);
+        if (parsed == null) return l.fsExpectedInteger;
+        if (definition.min != null && parsed < definition.min!) {
+          return 'Minimum ${definition.min}';
+        }
+        if (definition.max != null && parsed > definition.max!) {
+          return 'Maximum ${definition.max}';
+        }
+        return null;
+      case ConfigValueType.floating:
+        final parsed = double.tryParse(value);
+        if (parsed == null) return l.fsExpectedNumber;
+        if (definition.min != null && parsed < definition.min!) {
+          return 'Minimum ${definition.min}';
+        }
+        if (definition.max != null && parsed > definition.max!) {
+          return 'Maximum ${definition.max}';
+        }
+        return null;
+      case ConfigValueType.enumeration:
+        return definition.enumValues.isNotEmpty &&
+                !definition.enumValues.contains(value)
+            ? 'Choose: ${definition.enumValues.join(', ')}'
+            : null;
+      default:
+        return null;
+    }
+  }
+
+  bool get _hasInvalidValues {
+    final doc = _doc;
+    if (doc == null) return false;
+    return doc.sections.any((section) => section.options.any((option) {
+          final value = _controllers[option.lineIndex]?.text ?? option.value;
+          return _valueError(section, option, value) != null;
+        }));
+  }
+
+  Future<void> _addOption(ConfigSection section) async {
+    final doc = _doc;
+    final definition = _definition(section);
+    if (doc == null || definition == null) return;
+    final existing = section.options.map((option) => option.key).toSet();
+    final available = definition.options
+        .where((option) => !existing.contains(option.name))
+        .toList();
+    if (available.isEmpty) return;
+    final selected = await showDialog<ConfigOptionDefinition>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(AppLocalizations.of(context).fsAddField),
+        children: [
+          for (final option in available)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, option),
+              child: Text(option.name),
+            ),
+        ],
+      ),
+    );
+    if (selected == null || !mounted) return;
+    final controller = TextEditingController();
+    final value = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(selected.name),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(helperText: selected.description),
+          onSubmitted: (value) => Navigator.pop(context, value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(AppLocalizations.of(context).commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: Text(AppLocalizations.of(context).commonDone),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (value != null && mounted) {
+      final working =
+          KlipperConfigDoc.parse(doc.textWithEdits(_pendingEdits()));
+      final target = working.sections.firstWhere(
+          (candidate) =>
+              candidate.name == section.name &&
+              candidate.lineIndex == section.lineIndex,
+          orElse: () => working.sections
+              .firstWhere((candidate) => candidate.name == section.name));
+      _setWorkingText(working.insertOption(target, selected.name, value));
+    }
+  }
+
+  Future<void> _addSection() async {
+    final schema = _schema;
+    final doc = _doc;
+    if (schema == null || doc == null) return;
+    final selected = await showDialog<ConfigSectionDefinition>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(AppLocalizations.of(context).fsAddSection),
+        children: [
+          for (final section in schema.sections)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, section),
+              child: Text('[${section.name}]'),
+            ),
+        ],
+      ),
+    );
+    if (selected == null || !mounted) return;
+    var name = selected.name;
+    if (name.contains('<name>')) {
+      final controller = TextEditingController();
+      final suffix = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('[${selected.name}]'),
+          content: TextField(controller: controller, autofocus: true),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(context, controller.text.trim()),
+              child: Text(AppLocalizations.of(context).commonDone),
+            ),
+          ],
+        ),
+      );
+      controller.dispose();
+      if (suffix == null || suffix.isEmpty || !mounted) return;
+      name = name.replaceFirst('<name>', suffix);
+    }
+    final working = KlipperConfigDoc.parse(doc.textWithEdits(_pendingEdits()));
+    _setWorkingText(working.insertSection(name));
+  }
+
+  Future<void> _addInclude() async {
+    final doc = _doc;
+    if (doc == null) return;
+    final paths = widget.files
+        .where((file) => file.name.toLowerCase().endsWith('.cfg'))
+        .map((file) => file.path)
+        .where((path) => path != widget.path)
+        .toList();
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(AppLocalizations.of(context).fsAddInclude),
+        children: [
+          for (final path in paths)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, path),
+              child: Text(path),
+            ),
+        ],
+      ),
+    );
+    if (selected == null || !mounted) return;
+    final working = KlipperConfigDoc.parse(doc.textWithEdits(_pendingEdits()));
+    final currentDir = widget.path.contains('/')
+        ? widget.path.substring(0, widget.path.lastIndexOf('/'))
+        : '';
+    final relative = currentDir.isEmpty
+        ? selected
+        : selected.startsWith('$currentDir/')
+            ? selected.substring(currentDir.length + 1)
+            : selected;
+    _setWorkingText(working.insertSection('include $relative'));
+  }
+
+  Future<void> _openInclude(ConfigSection section) async {
+    final pattern = section.name.substring('include '.length).trim();
+    final matches = KlipperIncludeResolver.matchingPaths(
+        widget.path, pattern, widget.files.map((file) => file.path));
+    if (matches.isEmpty) return;
+    String? target = matches.length == 1 ? matches.single : null;
+    target ??= await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(pattern),
+        children: [
+          for (final path in matches)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, path),
+              child: Text(path),
+            ),
+        ],
+      ),
+    );
+    if (target == null || !mounted) return;
+    await showConfigEditorSheet(context,
+        printer: widget.printer,
+        base: widget.base,
+        token: widget.token,
+        isLan: widget.isLan,
+        path: target,
+        files: widget.files);
   }
 
   Future<void> _save({required bool restart}) async {
@@ -186,23 +431,44 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
     final l = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final edits = _pendingEdits();
-    if (edits.isEmpty && !restart) return;
+    final structural = doc.text != saved;
+    if (edits.isEmpty && !structural && !restart) return;
+    if (_hasInvalidValues) return;
 
     setState(() => _saving = true);
 
+    final current = await _control.readConfigFile(
+        widget.base, widget.token, widget.isLan, widget.path);
+    if (!mounted) return;
+    if (current == null || current != saved) {
+      setState(() => _saving = false);
+      messenger.showSnackBar(SnackBar(
+        content: Text(l.fsFileChanged),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+
     // First change this session: put the safety copy on the printer before
-    // touching the file. Best-effort - a failed backup doesn't block the
-    // save the user asked for, it just leaves nothing to restore.
-    if (_backupContent == null && edits.isNotEmpty) {
+    // touching the file. A failed backup blocks the mutation: without it the
+    // restore action promised by this editor cannot work.
+    if (_backupContent == null && (edits.isNotEmpty || structural)) {
       final ok = await _control.writeConfigFile(widget.base, widget.token,
           widget.isLan, '${widget.path}.moongate-bak', saved);
       if (!mounted) return;
-      if (ok) _backupContent = saved;
+      if (!ok) {
+        setState(() => _saving = false);
+        messenger.showSnackBar(SnackBar(
+          content: Text(l.fsSaveFailed),
+          behavior: SnackBarBehavior.floating,
+        ));
+        return;
+      }
+      _backupContent = saved;
     }
 
-    var newText = saved;
-    if (edits.isNotEmpty) {
-      newText = doc.textWithEdits(edits);
+    var newText = doc.textWithEdits(edits);
+    if (newText != saved) {
       final ok = await _control.writeConfigFile(
           widget.base, widget.token, widget.isLan, widget.path, newText);
       if (!mounted) return;
@@ -236,8 +502,17 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
     final l = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _restart = _RestartPhase.waiting);
-    await _control.sendConsoleCommand(
+    final restartResult = await _control.sendConsoleCommand(
         widget.base, widget.token, widget.isLan, 'RESTART');
+    if (!mounted) return;
+    if (!restartResult.delivered || restartResult.error != null) {
+      setState(() => _restart = _RestartPhase.none);
+      messenger.showSnackBar(SnackBar(
+        content: Text(l.fsSaveFailed),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
     for (var i = 0; i < 25; i++) {
       if (!mounted || _restart != _RestartPhase.waiting) return;
       await Future<void>.delayed(const Duration(seconds: 2));
@@ -268,7 +543,7 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
     final l = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     setState(() {
-      _saving  = true;
+      _saving = true;
       _restart = _RestartPhase.none;
     });
     final ok = await _control.writeConfigFile(
@@ -318,7 +593,8 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l = AppLocalizations.of(context);
-    final dirty = _pendingEdits().length;
+    final dirty = _pendingEdits().length +
+        ((_doc?.text != null && _doc?.text != _savedText) ? 1 : 0);
 
     return PopScope(
       canPop: dirty == 0 && !_saving,
@@ -351,6 +627,16 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
                         ),
                       ],
                     ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add),
+                    tooltip: l.fsAddSection,
+                    onPressed: _schema == null ? null : _addSection,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.account_tree_outlined),
+                    tooltip: l.fsAddInclude,
+                    onPressed: widget.files.isEmpty ? null : _addInclude,
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -394,8 +680,7 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
                       ),
                     IconButton(
                       icon: Icon(Icons.close,
-                          size: 18,
-                          color: theme.colorScheme.onErrorContainer),
+                          size: 18, color: theme.colorScheme.onErrorContainer),
                       onPressed: () =>
                           setState(() => _restart = _RestartPhase.none),
                     ),
@@ -427,20 +712,21 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
                     ),
                     const SizedBox(width: 8),
                     TextButton(
-                      onPressed:
-                          dirty > 0 && !_saving ? () => _save(restart: false) : null,
+                      onPressed: dirty > 0 && !_saving && !_hasInvalidValues
+                          ? () => _save(restart: false)
+                          : null,
                       child: Text(l.fsSave),
                     ),
                     const SizedBox(width: 4),
                     FilledButton(
-                      onPressed:
-                          dirty > 0 && !_saving ? () => _save(restart: true) : null,
+                      onPressed: dirty > 0 && !_saving && !_hasInvalidValues
+                          ? () => _save(restart: true)
+                          : null,
                       child: _saving
                           ? const SizedBox(
                               width: 16,
                               height: 16,
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2))
+                              child: CircularProgressIndicator(strokeWidth: 2))
                           : Text(l.fsSaveRestart),
                     ),
                   ],
@@ -465,8 +751,7 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.cloud_off,
-                  size: 40, color: theme.colorScheme.outline),
+              Icon(Icons.cloud_off, size: 40, color: theme.colorScheme.outline),
               const SizedBox(height: 12),
               Text(l.fsEditorLoadError,
                   textAlign: TextAlign.center,
@@ -490,8 +775,8 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
           // The trailing SAVE_CONFIG autosave block - Klipper owns it.
           return Card(
             child: ListTile(
-              leading: Icon(Icons.lock_outline,
-                  color: theme.colorScheme.outline),
+              leading:
+                  Icon(Icons.lock_outline, color: theme.colorScheme.outline),
               title: Text(
                 l.fsAutosaveBlock,
                 style: theme.textTheme.bodySmall
@@ -505,8 +790,8 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
     );
   }
 
-  Widget _sectionCard(ThemeData theme, AppLocalizations l,
-      KlipperConfigDoc doc, ConfigSection section) {
+  Widget _sectionCard(ThemeData theme, AppLocalizations l, KlipperConfigDoc doc,
+      ConfigSection section) {
     final mono = TextStyle(
       fontFamily: 'monospace',
       fontFamilyFallback: const ['Menlo', 'Courier'],
@@ -521,6 +806,9 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
           leading: Icon(Icons.subdirectory_arrow_right_rounded,
               color: theme.colorScheme.outline),
           title: Text('[${section.name}]', style: mono),
+          subtitle: Text(widget.path),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _openInclude(section),
         ),
       );
     }
@@ -530,10 +818,24 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('[${section.name}]', style: mono),
+            Row(
+              children: [
+                Expanded(child: Text('[${section.name}]', style: mono)),
+                if (_definition(section)?.options.any((candidate) => !section
+                        .options
+                        .any((option) => option.key == candidate.name)) ==
+                    true)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.add, size: 18),
+                    tooltip: l.fsAddField,
+                    onPressed: () => _addOption(section),
+                  ),
+              ],
+            ),
             for (final o in section.options) ...[
               const SizedBox(height: 8),
-              _optionRow(theme, l, doc, o),
+              _optionRow(theme, l, doc, section, o),
             ],
           ],
         ),
@@ -541,8 +843,8 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
     );
   }
 
-  Widget _optionRow(ThemeData theme, AppLocalizations l,
-      KlipperConfigDoc doc, ConfigOption o) {
+  Widget _optionRow(ThemeData theme, AppLocalizations l, KlipperConfigDoc doc,
+      ConfigSection section, ConfigOption o) {
     final keyStyle = TextStyle(
       fontFamily: 'monospace',
       fontFamilyFallback: const ['Menlo', 'Courier'],
@@ -566,8 +868,7 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
         children: [
           Expanded(child: label),
           const SizedBox(width: 8),
-          Icon(Icons.lock_outline,
-              size: 14, color: theme.colorScheme.outline),
+          Icon(Icons.lock_outline, size: 14, color: theme.colorScheme.outline),
           const SizedBox(width: 4),
           Text(
             l.fsViewOnly,
@@ -599,6 +900,7 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
                   : theme.colorScheme.onSurface,
             ),
             decoration: InputDecoration(
+              errorText: _valueError(section, o, ctl.text),
               isDense: true,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),

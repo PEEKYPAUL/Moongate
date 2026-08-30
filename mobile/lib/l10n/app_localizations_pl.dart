@@ -1938,6 +1938,28 @@ class AppLocalizationsPl extends AppLocalizations {
   String get fsDiscard => 'Odrzuć';
 
   @override
+  String get fsAddSection => 'Dodaj sekcję';
+
+  @override
+  String get fsAddField => 'Dodaj pole';
+
+  @override
+  String get fsAddInclude => 'Dodaj plik dołączany';
+
+  @override
+  String get fsFileChanged =>
+      'Plik zmienił się na drukarce. Wczytaj go ponownie przed zapisem.';
+
+  @override
+  String get fsExpectedInteger => 'Oczekiwano liczby całkowitej';
+
+  @override
+  String get fsExpectedNumber => 'Oczekiwano liczby';
+
+  @override
+  String get fsUseBoolean => 'Użyj true lub false';
+
+  @override
   String get preheatTitle => 'Nagrzewanie';
 
   @override

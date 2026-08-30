@@ -1938,6 +1938,28 @@ class AppLocalizationsRu extends AppLocalizations {
   String get fsDiscard => 'Отменить';
 
   @override
+  String get fsAddSection => 'Добавить раздел';
+
+  @override
+  String get fsAddField => 'Добавить поле';
+
+  @override
+  String get fsAddInclude => 'Добавить подключение файла';
+
+  @override
+  String get fsFileChanged =>
+      'Файл изменён на принтере. Перезагрузите его перед сохранением.';
+
+  @override
+  String get fsExpectedInteger => 'Ожидается целое число';
+
+  @override
+  String get fsExpectedNumber => 'Ожидается число';
+
+  @override
+  String get fsUseBoolean => 'Используйте true или false';
+
+  @override
   String get preheatTitle => 'Прогрев';
 
   @override

@@ -156,13 +156,11 @@ class _FileSystemSheetState extends State<_FileSystemSheet> {
                 }
                 if (folders.isEmpty && files.isEmpty) {
                   return _Centered(
-                    child:
-                        Text(l.fsEmpty, style: theme.textTheme.bodyMedium),
+                    child: Text(l.fsEmpty, style: theme.textTheme.bodyMedium),
                   );
                 }
                 final sortedFolders = folders.toList()
-                  ..sort((a, b) =>
-                      a.toLowerCase().compareTo(b.toLowerCase()));
+                  ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
                 return SafeArea(
                   top: false,
                   child: ListView(
@@ -200,10 +198,11 @@ class _FileSystemSheetState extends State<_FileSystemSheet> {
                               ? () => showConfigEditorSheet(
                                     context,
                                     printer: widget.printer,
-                                    base:    listing.base,
-                                    token:   listing.token,
-                                    isLan:   listing.isLan,
-                                    path:    f.path,
+                                    base: listing.base,
+                                    token: listing.token,
+                                    isLan: listing.isLan,
+                                    path: f.path,
+                                    files: listing.files,
                                   )
                               : null,
                         ),

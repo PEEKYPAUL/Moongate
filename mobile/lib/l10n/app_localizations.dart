@@ -3556,6 +3556,48 @@ abstract class AppLocalizations {
   /// **'Discard'**
   String get fsDiscard;
 
+  /// Config editor action to add a documented Klipper section.
+  ///
+  /// In en, this message translates to:
+  /// **'Add section'**
+  String get fsAddSection;
+
+  /// Config editor action to add a documented field to a section.
+  ///
+  /// In en, this message translates to:
+  /// **'Add field'**
+  String get fsAddField;
+
+  /// Config editor action to include another config file.
+  ///
+  /// In en, this message translates to:
+  /// **'Add include'**
+  String get fsAddInclude;
+
+  /// Shown when a config file changed remotely during editing.
+  ///
+  /// In en, this message translates to:
+  /// **'File changed on the printer. Reload before saving.'**
+  String get fsFileChanged;
+
+  /// Validation message for an invalid integer config value.
+  ///
+  /// In en, this message translates to:
+  /// **'Expected an integer'**
+  String get fsExpectedInteger;
+
+  /// Validation message for an invalid numeric config value.
+  ///
+  /// In en, this message translates to:
+  /// **'Expected a number'**
+  String get fsExpectedNumber;
+
+  /// Validation message for an invalid boolean config value.
+  ///
+  /// In en, this message translates to:
+  /// **'Use true or false'**
+  String get fsUseBoolean;
+
   /// Title of the bottom sheet for setting hotend/bed target temperatures and a heat-soak timer, opened by long-pressing a tile's temperatures.
   ///
   /// In en, this message translates to:

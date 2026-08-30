@@ -1957,6 +1957,28 @@ class AppLocalizationsFr extends AppLocalizations {
   String get fsDiscard => 'Abandonner';
 
   @override
+  String get fsAddSection => 'Ajouter une section';
+
+  @override
+  String get fsAddField => 'Ajouter un champ';
+
+  @override
+  String get fsAddInclude => 'Ajouter une inclusion';
+
+  @override
+  String get fsFileChanged =>
+      'Le fichier a changé sur l’imprimante. Rechargez-le avant d’enregistrer.';
+
+  @override
+  String get fsExpectedInteger => 'Nombre entier attendu';
+
+  @override
+  String get fsExpectedNumber => 'Nombre attendu';
+
+  @override
+  String get fsUseBoolean => 'Utilisez true ou false';
+
+  @override
   String get preheatTitle => 'Préchauffer';
 
   @override

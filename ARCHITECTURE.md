@@ -281,6 +281,25 @@ Direct-added printers mint a **local id** (`lan-<address>`), so `PrinterConfig.c
 
 ## Key design decisions
 
+### Klipper-aware config editing and console completion
+
+The config editor keeps its line-preserving parser: existing values are
+spliced in place and new fields/sections are inserted without reserializing the
+file. A catalog generated from a pinned Klipper `Config_Reference.md` provides
+documented section, field, type, enum, and helper text. Includes resolve against
+Moonraker's config listing and open each source file in its own editor. Saves
+are deliberately single-file transactions: they re-read the
+remote file first, create a backup, and retain the existing restart/restore
+safety path; local checks are guidance, not a replacement for Klipper loading
+the config.
+
+Console suggestions use the connected printer's `/printer/gcode/help`, macros,
+and local command history. The pinned official catalog enriches live commands
+with parameter metadata and serves as the offline fallback.
+Completion replaces only the token at the cursor and supports touch, Tab, and
+Up/Down history. `M112` bypasses the queued G-code endpoint and uses
+Moonraker's immediate emergency-stop endpoint.
+
 ### LAN-first on every poll, no skip backoff
 
 Every poll tries LAN before the tunnel when a cached LAN URL is known. There used to be a "3 LAN failures → skip LAN for 5 minutes" backoff in v0.3, but it had a frustrating bug: once you went on cellular at any point, returning to home WiFi did not flip back to "Local" until the 5-min timer expired. The user-perceptible "stuck on Tunnel at home" was worse than the off-LAN polling overhead. v0.4.0 removed the skip.

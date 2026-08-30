@@ -161,6 +161,8 @@ flutter:
   assets:
     - assets/icons/
     - assets/changelog.json
+    - assets/klipper/config_schema.json
+    - assets/klipper/gcode_schema.json
 
   # Bundled, open-licensed (SIL OFL) fonts for the in-app Font picker. A Flutter
   # app can't read the user's selected system font, so we ship a small set: a

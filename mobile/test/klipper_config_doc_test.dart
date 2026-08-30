@@ -190,4 +190,19 @@ void main() {
       expect(doc.text, text);
     });
   });
+
+  group('structural insertions', () {
+    test('preserve a terminal newline without adding a blank line', () {
+      final doc = KlipperConfigDoc.parse('[a]\nkey: value\n');
+      expect(doc.insertOption(doc.sections.single, 'other', 'x'),
+          '[a]\nkey: value\nother: x\n');
+      expect(doc.insertSection('b'), '[a]\nkey: value\n[b]\n');
+    });
+
+    test('preserve CRLF and autosave boundary', () {
+      const text = '[a]\r\nkey: value\r\n#*# SAVE\r\n';
+      final doc = KlipperConfigDoc.parse(text);
+      expect(doc.insertSection('b'), '[a]\r\nkey: value\r\n[b]\r\n#*# SAVE\r\n');
+    });
+  });
 }

@@ -1952,6 +1952,28 @@ class AppLocalizationsEs extends AppLocalizations {
   String get fsDiscard => 'Descartar';
 
   @override
+  String get fsAddSection => 'Añadir sección';
+
+  @override
+  String get fsAddField => 'Añadir campo';
+
+  @override
+  String get fsAddInclude => 'Añadir inclusión';
+
+  @override
+  String get fsFileChanged =>
+      'El archivo cambió en la impresora. Recárgalo antes de guardar.';
+
+  @override
+  String get fsExpectedInteger => 'Se esperaba un entero';
+
+  @override
+  String get fsExpectedNumber => 'Se esperaba un número';
+
+  @override
+  String get fsUseBoolean => 'Usa true o false';
+
+  @override
   String get preheatTitle => 'Precalentar';
 
   @override

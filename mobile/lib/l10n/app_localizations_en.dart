@@ -1917,6 +1917,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fsDiscard => 'Discard';
 
   @override
+  String get fsAddSection => 'Add section';
+
+  @override
+  String get fsAddField => 'Add field';
+
+  @override
+  String get fsAddInclude => 'Add include';
+
+  @override
+  String get fsFileChanged =>
+      'File changed on the printer. Reload before saving.';
+
+  @override
+  String get fsExpectedInteger => 'Expected an integer';
+
+  @override
+  String get fsExpectedNumber => 'Expected a number';
+
+  @override
+  String get fsUseBoolean => 'Use true or false';
+
+  @override
   String get preheatTitle => 'Preheat';
 
   @override
