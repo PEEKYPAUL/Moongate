@@ -1015,12 +1015,15 @@ class ConfigFileEntry {
   /// user's `[include *.cfg]` glob can never pull a backup in.
   bool get isMoongateBackup => path.endsWith('.moongate-bak');
 
-  /// Klipper's SAVE_CONFIG snapshots (`printer-20260829_101530.cfg`) and
-  /// generic backup suffixes. The date pattern is exact - a real
-  /// `printer-macros.cfg` must never match.
+  /// Klipper's SAVE_CONFIG snapshots (`printer-20260829_101530.cfg`),
+  /// updater copies that bolt a timestamp after the extension
+  /// (crowsnest's `crowsnest.conf.2024-12-22-1121`), and generic backup
+  /// suffixes. The date patterns are exact - a real `printer-macros.cfg`
+  /// must never match.
   bool get isBackup {
     if (_saveConfigSnapshot.hasMatch(name)) return true;
     final n = name.toLowerCase();
+    if (_timestampedBackup.hasMatch(n)) return true;
     return n.endsWith('.bak') || n.endsWith('.bkp') || n.endsWith('~');
   }
 
@@ -1031,12 +1034,21 @@ class ConfigFileEntry {
   static final RegExp _saveConfigSnapshot =
       RegExp(r'^printer-\d{8}_\d{6}\.cfg$');
 
+  /// A config extension followed by a `YYYY-MM-DD[-HHMM]` tail. Matched
+  /// against the lowercased name by [isBackup] and [isEditable]: such a
+  /// file is a backup, but it is still config text, so with backups shown
+  /// it must open like the file it was copied from.
+  static final RegExp _timestampedBackup =
+      RegExp(r'\.(cfg|conf)\.\d{4}-\d{2}-\d{2}(-\d{4,6})?$');
+
   /// Text formats the structured editor opens. Everything else (images,
   /// binaries someone dropped in the folder) stays listed but read-only.
+  /// Timestamped backups pass: the extension sits mid-name, but the
+  /// content is the config text it was copied from.
   bool get isEditable {
     final n = name.toLowerCase();
     const exts = ['.cfg', '.conf', '.txt', '.ini', '.md', '.json', '.yaml', '.yml'];
-    return exts.any(n.endsWith);
+    return exts.any(n.endsWith) || _timestampedBackup.hasMatch(n);
   }
 
   DateTime? get modifiedAt => modified > 0

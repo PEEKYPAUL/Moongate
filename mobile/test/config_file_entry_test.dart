@@ -32,6 +32,36 @@ void main() {
     test('a snapshot inside a folder still counts', () {
       expect(_entry('old/printer-20250101_000000.cfg').isBackup, isTrue);
     });
+
+    test('a timestamped updater copy is a backup (crowsnest style)', () {
+      expect(_entry('crowsnest.conf.2024-12-22-1121').isBackup, isTrue);
+      expect(_entry('printer.cfg.2026-01-03').isBackup, isTrue);
+      expect(_entry('sub/crowsnest.conf.2024-12-22-1121').isBackup, isTrue);
+    });
+
+    test('the timestamp tail is exact - lookalikes are NOT backups', () {
+      expect(_entry('crowsnest.conf').isBackup, isFalse);
+      expect(_entry('crowsnest.conf.d').isBackup, isFalse);
+      expect(_entry('probe.cfg.202-12-22-1121').isBackup, isFalse);
+      expect(_entry('notes.txt.2024-12-22-1121').isBackup, isFalse);
+    });
+  });
+
+  group('ConfigFileEntry.isEditable', () {
+    test('a timestamped backup opens as the config text it is', () {
+      expect(_entry('crowsnest.conf.2024-12-22-1121').isEditable, isTrue);
+      expect(_entry('printer.cfg.2026-01-03').isEditable, isTrue);
+    });
+
+    test('unknown extensions stay read-only', () {
+      expect(_entry('photo.png').isEditable, isFalse);
+      expect(_entry('crowsnest.conf.d').isEditable, isFalse);
+    });
+
+    test('plain config files are editable', () {
+      expect(_entry('printer.cfg').isEditable, isTrue);
+      expect(_entry('crowsnest.conf').isEditable, isTrue);
+    });
   });
 
   group('ConfigFileEntry.isHidden', () {
