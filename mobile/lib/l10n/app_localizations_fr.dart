@@ -1960,6 +1960,46 @@ class AppLocalizationsFr extends AppLocalizations {
   String get fsDiscard => 'Abandonner';
 
   @override
+  String get fsAddSection => 'Ajouter une section';
+
+  @override
+  String get fsEditMacro => 'Modifier la macro';
+
+  @override
+  String get fsAddField => 'Ajouter un champ';
+
+  @override
+  String get fsAddInclude => 'Ajouter une inclusion';
+
+  @override
+  String get fsFileChanged =>
+      'Le fichier a changé sur l’imprimante. Rechargez-le avant d’enregistrer.';
+
+  @override
+  String get fsExpectedInteger => 'Nombre entier attendu';
+
+  @override
+  String get fsExpectedNumber => 'Nombre attendu';
+
+  @override
+  String get fsUseBoolean => 'Utilisez true/false, yes/no, on/off ou 1/0';
+
+  @override
+  String fsMinimumValue(num value) {
+    return 'Minimum $value';
+  }
+
+  @override
+  String fsMaximumValue(num value) {
+    return 'Maximum $value';
+  }
+
+  @override
+  String fsChooseValue(String values) {
+    return 'Choisissez : $values';
+  }
+
+  @override
   String get preheatTitle => 'Préchauffer';
 
   @override

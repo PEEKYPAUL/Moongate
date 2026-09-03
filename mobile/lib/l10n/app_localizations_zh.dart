@@ -1840,6 +1840,45 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fsDiscard => '放弃';
 
   @override
+  String get fsAddSection => '添加配置节';
+
+  @override
+  String get fsEditMacro => '编辑宏';
+
+  @override
+  String get fsAddField => '添加字段';
+
+  @override
+  String get fsAddInclude => '添加包含文件';
+
+  @override
+  String get fsFileChanged => '打印机上的文件已更改。请重新加载后再保存。';
+
+  @override
+  String get fsExpectedInteger => '应为整数';
+
+  @override
+  String get fsExpectedNumber => '应为数字';
+
+  @override
+  String get fsUseBoolean => '请使用 true/false、yes/no、on/off 或 1/0';
+
+  @override
+  String fsMinimumValue(num value) {
+    return '最小值 $value';
+  }
+
+  @override
+  String fsMaximumValue(num value) {
+    return '最大值 $value';
+  }
+
+  @override
+  String fsChooseValue(String values) {
+    return '请选择：$values';
+  }
+
+  @override
   String get preheatTitle => '预热';
 
   @override

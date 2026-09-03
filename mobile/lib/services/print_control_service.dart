@@ -242,6 +242,25 @@ class PrintControlService {
     });
   }
 
+  /// Live command help from Klipper. Keep the connection explicit so callers
+  /// cannot accidentally retry a command on a second transport.
+  Future<Map<String, String>?> fetchGcodeHelpOn(
+      String base, String token, bool isLan) async {
+    try {
+      final uri = Uri.parse('$base/printer/gcode/help');
+      final response = await http
+          .get(uri, headers: isLan ? null : {'Authorization': 'Bearer $token'})
+          .timeout(Duration(seconds: isLan ? 4 : 12));
+      if (response.statusCode != 200) return null;
+      final raw = jsonDecode(response.body)['result'];
+      final map = <String, String>{};
+      if (raw is Map) raw.forEach((k, v) => map['$k'] = '$v');
+      return map;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// For the lighting config screen: the printer's runnable macros (same filter
   /// as [listMacros]) plus its light-capable objects (output_pin / led /
   /// neopixel / dotstar), each as the full Klipper object name so the status

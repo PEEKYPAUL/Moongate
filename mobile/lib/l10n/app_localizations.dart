@@ -3562,6 +3562,72 @@ abstract class AppLocalizations {
   /// **'Discard'**
   String get fsDiscard;
 
+  /// Config editor action to add a documented Klipper section.
+  ///
+  /// In en, this message translates to:
+  /// **'Add section'**
+  String get fsAddSection;
+
+  /// Tooltip on the button that opens the multiline G-code macro editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit macro'**
+  String get fsEditMacro;
+
+  /// Config editor action to add a documented field to a section.
+  ///
+  /// In en, this message translates to:
+  /// **'Add field'**
+  String get fsAddField;
+
+  /// Config editor action to include another config file.
+  ///
+  /// In en, this message translates to:
+  /// **'Add include'**
+  String get fsAddInclude;
+
+  /// Shown when a config file changed remotely during editing.
+  ///
+  /// In en, this message translates to:
+  /// **'File changed on the printer. Reload before saving.'**
+  String get fsFileChanged;
+
+  /// Validation message for an invalid integer config value.
+  ///
+  /// In en, this message translates to:
+  /// **'Expected an integer'**
+  String get fsExpectedInteger;
+
+  /// Validation message for an invalid numeric config value.
+  ///
+  /// In en, this message translates to:
+  /// **'Expected a number'**
+  String get fsExpectedNumber;
+
+  /// Validation message for an invalid boolean config value.
+  ///
+  /// In en, this message translates to:
+  /// **'Use true/false, yes/no, on/off, or 1/0'**
+  String get fsUseBoolean;
+
+  /// Validation hint for a value below its documented minimum.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum {value}'**
+  String fsMinimumValue(num value);
+
+  /// Validation hint for a value above its documented maximum.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum {value}'**
+  String fsMaximumValue(num value);
+
+  /// Validation hint listing documented choices.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose: {values}'**
+  String fsChooseValue(String values);
+
   /// Title of the bottom sheet for setting hotend/bed target temperatures and a heat-soak timer, opened by long-pressing a tile's temperatures.
   ///
   /// In en, this message translates to:

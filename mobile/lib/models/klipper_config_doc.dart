@@ -16,6 +16,8 @@
 ///   show it as locked (Klipper owns it - "DO NOT EDIT" by contract).
 library;
 
+import 'klipper_schema.dart';
+
 /// One `[section]` of the file with the options found in its body.
 class ConfigSection {
   /// The name between the brackets, e.g. `extruder`, `gcode_macro START`.
@@ -25,11 +27,13 @@ class ConfigSection {
   final int lineIndex;
 
   final List<ConfigOption> options;
+  final int bodyEnd;
 
   const ConfigSection({
     required this.name,
     required this.lineIndex,
     required this.options,
+    this.bodyEnd = 0,
   });
 
   /// `[include …]` pseudo-sections pull other files in and have no body of
@@ -85,22 +89,26 @@ class KlipperConfigDoc {
 
   /// True when any `#*#` line exists - Klipper's SAVE_CONFIG autosave block.
   final bool hasAutosaveBlock;
+  final List<ConfigDiagnostic> diagnostics;
 
   const KlipperConfigDoc({
     required this.lines,
     required this.sections,
     required this.hasAutosaveBlock,
+    this.diagnostics = const [],
   });
 
   String get text => lines.join('\n');
 
   static final _sectionRe = RegExp(r'^\[([^\]]*)\]');
-  static final _optionRe  = RegExp(r'^([^\s:=#;\[][^:=#;]*?)\s*[:=](.*)$');
+  static final _optionRe = RegExp(r'^([^\s:=#;\[][^:=#;]*?)\s*[:=](.*)$');
 
   static KlipperConfigDoc parse(String text) {
     final lines = text.split('\n');
     final sections = <ConfigSection>[];
     var autosave = false;
+    var autosaveStart = lines.length;
+    final diagnostics = <ConfigDiagnostic>[];
 
     List<ConfigOption>? current; // options of the section being built
 
@@ -108,7 +116,8 @@ class KlipperConfigDoc {
       final raw = lines[i];
       if (raw.startsWith('#*#')) {
         autosave = true;
-        continue;
+        autosaveStart = i;
+        break;
       }
       final trimmed = raw.trimRight();
       if (trimmed.isEmpty) continue;
@@ -122,9 +131,9 @@ class KlipperConfigDoc {
       if (sec != null) {
         current = <ConfigOption>[];
         sections.add(ConfigSection(
-          name:      sec.group(1)!.trim(),
+          name: sec.group(1)!.trim(),
           lineIndex: i,
-          options:   current,
+          options: current,
         ));
         continue;
       }
@@ -180,27 +189,53 @@ class KlipperConfigDoc {
       var multiline = false;
       for (var j = i + 1; j < lines.length; j++) {
         final next = lines[j];
-        if (next.trim().isEmpty) continue;
+        final nextTrimmed = next.trim();
+        if (nextTrimmed.isEmpty ||
+            nextTrimmed.startsWith('#') ||
+            nextTrimmed.startsWith(';')) {
+          continue;
+        }
         final nc = next.codeUnitAt(0);
         multiline = nc == 0x20 || nc == 0x09;
         break;
       }
 
       current.add(ConfigOption(
-        key:           opt.group(1)!.trim(),
-        lineIndex:     i,
-        valueStart:    start,
-        valueEnd:      end,
-        value:         raw.substring(start, end),
-        isMultiline:   multiline,
+        key: opt.group(1)!.trim(),
+        lineIndex: i,
+        valueStart: start,
+        valueEnd: end,
+        value: raw.substring(start, end),
+        isMultiline: multiline,
         inlineComment: comment,
       ));
     }
 
+    for (final section in sections) {
+      final seen = <String>{};
+      for (final option in section.options) {
+        if (!seen.add(option.key)) {
+          diagnostics.add(ConfigDiagnostic('Duplicate option: ${option.key}',
+              ConfigDiagnosticSeverity.warning,
+              line: option.lineIndex));
+        }
+      }
+    }
+    for (var i = 0; i < sections.length; i++) {
+      final s = sections[i];
+      final next =
+          i + 1 < sections.length ? sections[i + 1].lineIndex : autosaveStart;
+      sections[i] = ConfigSection(
+          name: s.name,
+          lineIndex: s.lineIndex,
+          options: s.options,
+          bodyEnd: next);
+    }
     return KlipperConfigDoc(
-      lines:            lines,
-      sections:         sections,
+      lines: lines,
+      sections: sections,
       hasAutosaveBlock: autosave,
+      diagnostics: diagnostics,
     );
   }
 
@@ -228,5 +263,138 @@ class KlipperConfigDoc {
     final raw = lines[option.lineIndex];
     if (option.valueEnd > raw.length) return false;
     return raw.substring(option.valueStart, option.valueEnd) == option.value;
+  }
+
+  String replaceOption(ConfigOption option, String value) {
+    if (!canEdit(option) || value.contains('\n') || value.contains('\r')) {
+      throw ArgumentError('Invalid single-line option edit');
+    }
+    return textWithEdits({option: value});
+  }
+
+  ConfigOption? macroGcodeOption(ConfigSection section) {
+    if (!section.name.startsWith('gcode_macro ')) return null;
+    for (final option in section.options) {
+      if (option.key == 'gcode') return option;
+    }
+    return null;
+  }
+
+  String macroBody(ConfigSection section) {
+    final option = macroGcodeOption(section);
+    if (option == null) return '';
+    final end = _multilineEnd(section, option);
+    final body = lines.sublist(option.lineIndex + 1, end);
+    final first =
+        body.firstWhere((line) => line.trim().isNotEmpty, orElse: () => '  ');
+    final indent = RegExp(r'^\s*').firstMatch(first)!.group(0)!;
+    final continuation = body.map((line) {
+      final clean =
+          line.endsWith('\r') ? line.substring(0, line.length - 1) : line;
+      return clean.startsWith(indent) ? clean.substring(indent.length) : clean;
+    });
+    return [if (option.value.isNotEmpty) option.value, ...continuation]
+        .join('\n');
+  }
+
+  String replaceMacroBody(ConfigSection section, String value) {
+    final option = macroGcodeOption(section);
+    if (option == null || value.contains('\r')) {
+      throw ArgumentError('Invalid macro edit');
+    }
+    final end = _multilineEnd(section, option);
+    var indent = '  ';
+    if (end > option.lineIndex + 1) {
+      final first = lines
+          .sublist(option.lineIndex + 1, end)
+          .firstWhere((line) => line.trim().isNotEmpty, orElse: () => '  ');
+      indent = RegExp(r'^\s*').firstMatch(first)!.group(0)!;
+    }
+    final raw = lines[option.lineIndex];
+    final out = List<String>.from(lines)
+      ..[option.lineIndex] =
+          raw.substring(0, option.valueStart) + raw.substring(option.valueEnd)
+      ..removeRange(option.lineIndex + 1, end)
+      ..insertAll(
+          option.lineIndex + 1,
+          value.isEmpty
+              ? const []
+              : value.split('\n').map((line) => '$indent$line$_lineEnding'));
+    return out.join('\n');
+  }
+
+  int _multilineEnd(ConfigSection section, ConfigOption option) {
+    var end = option.lineIndex + 1;
+    for (var i = end; i < section.bodyEnd; i++) {
+      final clean = lines[i].endsWith('\r')
+          ? lines[i].substring(0, lines[i].length - 1)
+          : lines[i];
+      if (clean.isEmpty || clean.startsWith('#') || clean.startsWith(';')) {
+        var next = i + 1;
+        while (next < section.bodyEnd) {
+          final candidate = lines[next].trim();
+          if (candidate.isNotEmpty &&
+              !candidate.startsWith('#') &&
+              !candidate.startsWith(';')) {
+            break;
+          }
+          next++;
+        }
+        if (next >= section.bodyEnd ||
+            !(lines[next].startsWith(' ') || lines[next].startsWith('\t'))) {
+          break;
+        }
+      } else if (!(clean.startsWith(' ') || clean.startsWith('\t'))) {
+        break;
+      }
+      end = i + 1;
+    }
+    return end;
+  }
+
+  String insertOption(ConfigSection section, String key, String value) {
+    if (value.contains('\n') ||
+        value.contains('\r') ||
+        section.options.any((o) => o.key == key)) {
+      throw ArgumentError('Invalid or duplicate option');
+    }
+    final separator = section.options.isNotEmpty &&
+            lines[section.options.first.lineIndex].contains('=')
+        ? '='
+        : ':';
+    final out = List<String>.from(lines);
+    out.insert(
+        _insertionIndex(section.bodyEnd), '$key$separator $value$_lineEnding');
+    return out.join('\n');
+  }
+
+  String insertSection(String name) {
+    final normalized = name.trim();
+    if (normalized.isEmpty ||
+        normalized.contains('\n') ||
+        normalized.contains(']') ||
+        sections.any((section) => section.name == normalized)) {
+      throw ArgumentError('Invalid section');
+    }
+    final out = List<String>.from(lines);
+    final at = hasAutosaveBlock
+        ? lines.indexWhere((l) => l.startsWith('#*#'))
+        : lines.length;
+    out.insert(_insertionIndex(at < 0 ? lines.length : at),
+        '[$normalized]$_lineEnding');
+    return out.join('\n');
+  }
+
+  String get _lineEnding =>
+      lines.any((line) => line.endsWith('\r')) ? '\r' : '';
+
+  /// Keep a terminal empty split line at the end of the file. Inserting at
+  /// [lines.length] after `text.split('\n')` would move the new line past the
+  /// sentinel and add a blank line before it.
+  int _insertionIndex(int index) {
+    final at = index.clamp(0, lines.length);
+    return at == lines.length && lines.isNotEmpty && lines.last.isEmpty
+        ? lines.length - 1
+        : at;
   }
 }

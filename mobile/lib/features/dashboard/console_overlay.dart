@@ -1,10 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/printer_config.dart';
+import '../../models/gcode_completion.dart';
+import '../../models/klipper_schema.dart';
 import '../../services/print_control_service.dart';
+import '../../services/gcode_completion_service.dart';
+import '../../services/klipper_schema_service.dart';
 
 /// Bottom-sheet G-code console. Opens with the printer's rolling history
 /// (Moonraker's `server/gcode_store`, so lines from before the sheet existed
@@ -71,8 +76,9 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
   final List<ConsoleLine> _local = [];
 
   bool _loading = true;
-  bool _failed  = false;
+  bool _failed = false;
   bool _refreshing = false;
+  bool _sending = false;
 
   /// Whether the view is riding the bottom of the transcript. New lines only
   /// yank the scroll while true, so reading old lines isn't interrupted.
@@ -80,8 +86,14 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
 
   Timer? _tick;
   final _scroll = ScrollController();
-  final _input  = TextEditingController();
+  final _input = TextEditingController();
   final _inputFocus = FocusNode();
+  List<GcodeCompletion> _suggestions = const [];
+  final List<String> _history = [];
+  int _historyIndex = 0;
+  Map<String, String> _help = const {};
+  List<String> _macros = const [];
+  Map<String, List<String>> _parameters = const {};
 
   @override
   void initState() {
@@ -89,8 +101,8 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
     _control = PrintControlService(widget.printer);
     _scroll.addListener(() {
       if (!_scroll.hasClients) return;
-      _pinned = _scroll.position.pixels >=
-          _scroll.position.maxScrollExtent - 48;
+      _pinned =
+          _scroll.position.pixels >= _scroll.position.maxScrollExtent - 48;
     });
     _refresh();
     _tick = Timer.periodic(const Duration(seconds: 2), (_) => _refresh());
@@ -115,16 +127,46 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
         if (!mounted) return;
         if (snap != null) {
           setState(() {
-            _conn    = snap;
-            _lines   = snap.lines;
+            _conn = snap;
+            _lines = snap.lines;
             _loading = false;
-            _failed  = false;
+            _failed = false;
           });
+          final results = await Future.wait([
+            _control.fetchGcodeHelpOn(snap.base, snap.token, snap.isLan),
+            _control.listMacros(),
+            KlipperSchemaService.instance.load(),
+          ]);
+          if (mounted) {
+            final schema = results[2] as KlipperSchema;
+            final liveHelp = results[0] as Map<String, String>?;
+            final liveMacros = results[1] as List<String>?;
+            setState(() {
+              final schemaDescriptions = {
+                for (final command in schema.commands)
+                  command.name: command.description,
+              };
+              if (liveHelp != null) {
+                _help = {
+                  for (final entry in liveHelp.entries)
+                    entry.key: schemaDescriptions[entry.key] ?? entry.value,
+                };
+              }
+              if (liveMacros != null) _macros = liveMacros;
+              _parameters = {
+                for (final command in schema.commands)
+                  command.name: [
+                    for (final parameter in command.parameters)
+                      '${parameter.name}=',
+                  ],
+              };
+            });
+          }
           _maybeAutoScroll();
         } else if (_lines.isEmpty) {
           setState(() {
             _loading = false;
-            _failed  = true;
+            _failed = true;
           });
         }
       } else {
@@ -150,7 +192,7 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
   void _retry() {
     setState(() {
       _loading = true;
-      _failed  = false;
+      _failed = false;
     });
     _refresh();
   }
@@ -165,17 +207,27 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
   }
 
   ConsoleLine _localError(String message) => ConsoleLine(
-        message:   '!! $message',
-        time:      DateTime.now().millisecondsSinceEpoch / 1000,
+        message: '!! $message',
+        time: DateTime.now().millisecondsSinceEpoch / 1000,
         isCommand: false,
       );
 
   Future<void> _send(String raw) async {
     final text = raw.trim();
     if (text.isEmpty) return;
+    final emergency = text.toUpperCase() == 'M112';
+    if (_sending && !emergency) return;
     final l = AppLocalizations.of(context);
-    _input.clear();
+    _setInput('');
     _inputFocus.requestFocus(); // keep the keyboard up for the next command
+
+    if (emergency) {
+      final delivered = await _control.sendAction('emergency_stop');
+      if (!mounted || delivered) return;
+      setState(() => _local.add(_localError(l.consoleSendFailed)));
+      _maybeAutoScroll();
+      return;
+    }
 
     final conn = _conn;
     if (conn == null) {
@@ -183,14 +235,18 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
       _maybeAutoScroll();
       return;
     }
+    if (_history.isEmpty || _history.last != text) _history.add(text);
+    _historyIndex = _history.length;
+    setState(() => _sending = true);
     // Kick a quick refresh so the command's echo appears in ~half a second
     // rather than waiting out the 2s cadence - the send itself can block for
     // as long as the command runs (G28), so the echo must not gate on it.
-    unawaited(Future<void>.delayed(
-        const Duration(milliseconds: 400), _refresh));
-    final res =
-        await _control.sendConsoleCommand(conn.base, conn.token, conn.isLan, text);
+    unawaited(
+        Future<void>.delayed(const Duration(milliseconds: 400), _refresh));
+    final res = await _control.sendConsoleCommand(
+        conn.base, conn.token, conn.isLan, text);
     if (!mounted) return;
+    setState(() => _sending = false);
     if (!res.delivered) {
       setState(() => _local.add(_localError(l.consoleSendFailed)));
       _maybeAutoScroll();
@@ -198,6 +254,43 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
       setState(() => _local.add(_localError(res.error!)));
       _maybeAutoScroll();
     }
+  }
+
+  void _acceptSuggestion() {
+    if (_suggestions.isEmpty) return;
+    final suggestion = _suggestions.first;
+    _setInputValue(TextEditingValue(
+      text: _input.text.replaceRange(
+          suggestion.start, suggestion.end, suggestion.insertionText),
+      selection: TextSelection.collapsed(
+          offset: suggestion.start + suggestion.insertionText.length),
+    ));
+    setState(() => _suggestions = const []);
+  }
+
+  void _setInput(String text) => _setInputValue(TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      ));
+
+  void _setInputValue(TextEditingValue value) {
+    _input.value = value;
+    if (mounted) {
+      setState(() => _suggestions = GcodeCompletionService(
+              commands: _help,
+              macros: _macros,
+              history: _history,
+              parameters: _parameters)
+          .complete(value.text, cursor: value.selection.baseOffset));
+    }
+  }
+
+  void _moveHistory(int delta) {
+    if (_history.isEmpty) return;
+    _historyIndex = (_historyIndex + delta).clamp(0, _history.length);
+    final text =
+        _historyIndex == _history.length ? '' : _history[_historyIndex];
+    _setInput(text);
   }
 
   @override
@@ -251,6 +344,28 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (_suggestions.isNotEmpty)
+                    SizedBox(
+                        height: 36,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: [
+                            for (final s in _suggestions.take(8))
+                              ActionChip(
+                                  label: Text(s.displayText),
+                                  onPressed: () {
+                                    _setInputValue(TextEditingValue(
+                                      text: _input.text.replaceRange(
+                                          s.start, s.end, s.insertionText),
+                                      selection: TextSelection.collapsed(
+                                          offset:
+                                              s.start + s.insertionText.length),
+                                    ));
+                                    setState(() => _suggestions = const []);
+                                    _inputFocus.requestFocus();
+                                  })
+                          ],
+                        )),
                   SizedBox(
                     height: 36,
                     child: ListView(
@@ -270,9 +385,7 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
                                 ),
                               ),
                               onPressed: () {
-                                _input.text = cmd;
-                                _input.selection = TextSelection.collapsed(
-                                    offset: cmd.length);
+                                _setInput(cmd);
                                 _inputFocus.requestFocus();
                               },
                             ),
@@ -284,35 +397,51 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
                   Row(
                     children: [
                       Expanded(
-                        child: TextField(
-                          controller: _input,
-                          focusNode: _inputFocus,
-                          autocorrect: false,
-                          enableSuggestions: false,
-                          textCapitalization: TextCapitalization.characters,
-                          textInputAction: TextInputAction.send,
-                          style: const TextStyle(
-                            fontFamily: 'monospace',
-                            fontFamilyFallback: _monoFallback,
-                            fontSize: 14,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: l.consoleInputHint,
-                            isDense: true,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
+                        child: CallbackShortcuts(
+                          bindings: {
+                            const SingleActivator(LogicalKeyboardKey.tab):
+                                _acceptSuggestion,
+                            const SingleActivator(LogicalKeyboardKey.arrowUp):
+                                () => _moveHistory(-1),
+                            const SingleActivator(LogicalKeyboardKey.arrowDown):
+                                () => _moveHistory(1),
+                            const SingleActivator(LogicalKeyboardKey.escape):
+                                () => setState(() => _suggestions = const []),
+                          },
+                          child: TextField(
+                            controller: _input,
+                            focusNode: _inputFocus,
+                            autocorrect: false,
+                            enableSuggestions: false,
+                            textCapitalization: TextCapitalization.characters,
+                            textInputAction: TextInputAction.send,
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontFamilyFallback: _monoFallback,
+                              fontSize: 14,
                             ),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
+                            decoration: InputDecoration(
+                              hintText: l.consoleInputHint,
+                              isDense: true,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                            ),
+                            onSubmitted: _send,
+                            onChanged: (value) => _setInputValue(_input.value),
                           ),
-                          onSubmitted: _send,
                         ),
                       ),
                       const SizedBox(width: 8),
                       IconButton.filled(
                         icon: const Icon(Icons.send_rounded),
                         tooltip: l.consoleSend,
-                        onPressed: () => _send(_input.text),
+                        onPressed: _sending &&
+                                _input.text.trim().toUpperCase() != 'M112'
+                            ? null
+                            : () => _send(_input.text),
                       ),
                     ],
                   ),
@@ -346,8 +475,7 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
             Icon(Icons.cloud_off, size: 40, color: theme.colorScheme.outline),
             const SizedBox(height: 12),
             Text(l.consoleError,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium),
+                textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
             const SizedBox(height: 16),
             FilledButton.tonal(
               onPressed: _retry,
@@ -375,9 +503,7 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
           // or editing - the phone's stand-in for a desktop's up-arrow.
           onUse: line.kind == ConsoleLineKind.command
               ? () {
-                  _input.text = line.message;
-                  _input.selection =
-                      TextSelection.collapsed(offset: line.message.length);
+                  _setInput(line.message);
                   _inputFocus.requestFocus();
                 }
               : null,
@@ -399,9 +525,9 @@ class _ConsoleLineRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final (color, text) = switch (line.kind) {
-      ConsoleLineKind.command  => (scheme.primary, '> ${line.message}'),
-      ConsoleLineKind.error    => (scheme.error, line.message),
-      ConsoleLineKind.info     => (scheme.outline, line.message),
+      ConsoleLineKind.command => (scheme.primary, '> ${line.message}'),
+      ConsoleLineKind.error => (scheme.error, line.message),
+      ConsoleLineKind.info => (scheme.outline, line.message),
       ConsoleLineKind.response => (scheme.onSurfaceVariant, line.message),
     };
     return InkWell(

@@ -253,6 +253,7 @@ class _FileSystemSheetState extends State<_FileSystemSheet> {
                       token:   listing.token,
                       isLan:   listing.isLan,
                       path:    f.path,
+                      files:   listing.files,
                     )
                 : null,
           ),

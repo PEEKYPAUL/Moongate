@@ -1941,6 +1941,46 @@ class AppLocalizationsRu extends AppLocalizations {
   String get fsDiscard => 'Отменить';
 
   @override
+  String get fsAddSection => 'Добавить раздел';
+
+  @override
+  String get fsEditMacro => 'Изменить макрос';
+
+  @override
+  String get fsAddField => 'Добавить поле';
+
+  @override
+  String get fsAddInclude => 'Добавить подключение файла';
+
+  @override
+  String get fsFileChanged =>
+      'Файл изменён на принтере. Перезагрузите его перед сохранением.';
+
+  @override
+  String get fsExpectedInteger => 'Ожидается целое число';
+
+  @override
+  String get fsExpectedNumber => 'Ожидается число';
+
+  @override
+  String get fsUseBoolean => 'Используйте true/false, yes/no, on/off или 1/0';
+
+  @override
+  String fsMinimumValue(num value) {
+    return 'Минимум $value';
+  }
+
+  @override
+  String fsMaximumValue(num value) {
+    return 'Максимум $value';
+  }
+
+  @override
+  String fsChooseValue(String values) {
+    return 'Выберите: $values';
+  }
+
+  @override
   String get preheatTitle => 'Прогрев';
 
   @override

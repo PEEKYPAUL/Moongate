@@ -355,6 +355,20 @@ For this to work the Pi's clone must carry tags. `install.sh` uses a **blobless*
 
 ## Coding conventions
 
+### Updating Klipper completion metadata
+
+The config editor and console catalogs are generated from an explicit Klipper
+commit using only Python's standard library:
+
+```bash
+python3 tool/generate_klipper_catalog.py --ref <klipper-commit-sha>
+cd mobile
+flutter test test/klipper_schema_test.dart
+```
+
+Review the generated diff with the code change that updates the pinned
+revision. Do not hand-edit the generated JSON.
+
 | Topic | Rule |
 |---|---|
 | **Dart lints** | `flutter_lints` (see `mobile/analysis_options.yaml`). `flutter analyze` must be clean before push |
