@@ -136,7 +136,7 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
     final results = await Future.wait([
       _control.readConfigFile(
           widget.base, widget.token, widget.isLan, widget.path),
-      KlipperSchemaService().load(),
+      KlipperSchemaService.instance.load(),
     ]);
     final text = results[0] as String?;
     if (!mounted) return;
@@ -201,7 +201,7 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
     final schema = _schema;
     return schema == null
         ? null
-        : KlipperSchemaService().matchSection(schema, section.name);
+        : KlipperSchemaService.instance.matchSection(schema, section.name);
   }
 
   String? _valueError(
@@ -217,46 +217,38 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
     if (definition == null || value.isEmpty) return null;
     switch (definition.type) {
       case ConfigValueType.boolean:
-        return const {'true', 'false'}.contains(value.toLowerCase())
+        return const {'true', 'false', '1', '0', 'yes', 'no', 'on', 'off'}
+                .contains(value.toLowerCase())
             ? null
             : l.fsUseBoolean;
       case ConfigValueType.integer:
         final parsed = int.tryParse(value);
         if (parsed == null) return l.fsExpectedInteger;
         if (definition.min != null && parsed < definition.min!) {
-          return 'Minimum ${definition.min}';
+          return l.fsMinimumValue(definition.min!);
         }
         if (definition.max != null && parsed > definition.max!) {
-          return 'Maximum ${definition.max}';
+          return l.fsMaximumValue(definition.max!);
         }
         return null;
       case ConfigValueType.floating:
         final parsed = double.tryParse(value);
         if (parsed == null) return l.fsExpectedNumber;
         if (definition.min != null && parsed < definition.min!) {
-          return 'Minimum ${definition.min}';
+          return l.fsMinimumValue(definition.min!);
         }
         if (definition.max != null && parsed > definition.max!) {
-          return 'Maximum ${definition.max}';
+          return l.fsMaximumValue(definition.max!);
         }
         return null;
       case ConfigValueType.enumeration:
         return definition.enumValues.isNotEmpty &&
                 !definition.enumValues.contains(value)
-            ? 'Choose: ${definition.enumValues.join(', ')}'
+            ? l.fsChooseValue(definition.enumValues.join(', '))
             : null;
       default:
         return null;
     }
-  }
-
-  bool get _hasInvalidValues {
-    final doc = _doc;
-    if (doc == null) return false;
-    return doc.sections.any((section) => section.options.any((option) {
-          final value = _controllers[option.lineIndex]?.text ?? option.value;
-          return _valueError(section, option, value) != null;
-        }));
   }
 
   Future<void> _addOption(ConfigSection section) async {
@@ -322,7 +314,14 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
   Future<void> _editMacro(ConfigSection section) async {
     final doc = _doc;
     if (doc == null || doc.macroGcodeOption(section) == null) return;
-    final controller = TextEditingController(text: doc.macroBody(section));
+    final working = KlipperConfigDoc.parse(doc.textWithEdits(_pendingEdits()));
+    final target = working.sections.firstWhere(
+        (candidate) =>
+            candidate.name == section.name &&
+            candidate.lineIndex == section.lineIndex,
+        orElse: () => working.sections
+            .firstWhere((candidate) => candidate.name == section.name));
+    final controller = TextEditingController(text: working.macroBody(target));
     final value = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -354,8 +353,8 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
       ),
     );
     controller.dispose();
-    if (value != null && mounted && value != doc.macroBody(section)) {
-      _setWorkingText(doc.replaceMacroBody(section, value));
+    if (value != null && mounted && value != working.macroBody(target)) {
+      _setWorkingText(working.replaceMacroBody(target, value));
     }
   }
 
@@ -363,12 +362,16 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
     final schema = _schema;
     final doc = _doc;
     if (schema == null || doc == null) return;
+    final available = schema.sections.where((section) =>
+        section.name != 'include' &&
+        (section.name.contains('<name>') ||
+            !doc.sections.any((existing) => existing.name == section.name)));
     final selected = await showDialog<ConfigSectionDefinition>(
       context: context,
       builder: (context) => SimpleDialog(
         title: Text(AppLocalizations.of(context).fsAddSection),
         children: [
-          for (final section in schema.sections)
+          for (final section in available)
             SimpleDialogOption(
               onPressed: () => Navigator.pop(context, section),
               child: Text('[${section.name}]'),
@@ -424,14 +427,11 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
     );
     if (selected == null || !mounted) return;
     final working = KlipperConfigDoc.parse(doc.textWithEdits(_pendingEdits()));
-    final currentDir = widget.path.contains('/')
-        ? widget.path.substring(0, widget.path.lastIndexOf('/'))
-        : '';
-    final relative = currentDir.isEmpty
-        ? selected
-        : selected.startsWith('$currentDir/')
-            ? selected.substring(currentDir.length + 1)
-            : selected;
+    final relative = KlipperIncludeResolver.relativePath(widget.path, selected);
+    if (working.sections
+        .any((section) => section.name == 'include $relative')) {
+      return;
+    }
     _setWorkingText(working.insertSection('include $relative'));
   }
 
@@ -473,14 +473,20 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
     final edits = _pendingEdits();
     final structural = doc.text != saved;
     if (edits.isEmpty && !structural && !restart) return;
-    if (_hasInvalidValues) return;
-
     setState(() => _saving = true);
 
     final current = await _control.readConfigFile(
         widget.base, widget.token, widget.isLan, widget.path);
     if (!mounted) return;
-    if (current == null || current != saved) {
+    if (current == null) {
+      setState(() => _saving = false);
+      messenger.showSnackBar(SnackBar(
+        content: Text(l.fsEditorLoadError),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    if (current != saved) {
       setState(() => _saving = false);
       messenger.showSnackBar(SnackBar(
         content: Text(l.fsFileChanged),
@@ -546,11 +552,7 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
         widget.base, widget.token, widget.isLan, 'RESTART');
     if (!mounted) return;
     if (!restartResult.delivered || restartResult.error != null) {
-      setState(() => _restart = _RestartPhase.none);
-      messenger.showSnackBar(SnackBar(
-        content: Text(l.fsSaveFailed),
-        behavior: SnackBarBehavior.floating,
-      ));
+      setState(() => _restart = _RestartPhase.failed);
       return;
     }
     for (var i = 0; i < 25; i++) {
@@ -752,14 +754,14 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
                     ),
                     const SizedBox(width: 8),
                     TextButton(
-                      onPressed: dirty > 0 && !_saving && !_hasInvalidValues
+                      onPressed: dirty > 0 && !_saving
                           ? () => _save(restart: false)
                           : null,
                       child: Text(l.fsSave),
                     ),
                     const SizedBox(width: 4),
                     FilledButton(
-                      onPressed: dirty > 0 && !_saving && !_hasInvalidValues
+                      onPressed: dirty > 0 && !_saving
                           ? () => _save(restart: true)
                           : null,
                       child: _saving

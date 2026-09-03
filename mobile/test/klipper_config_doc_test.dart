@@ -202,6 +202,28 @@ void main() {
       expect(doc.replaceMacroBody(section, 'SAVE_GCODE_STATE\nPAUSE'),
           '[gcode_macro M600]\r\ndescription: Swap\r\ngcode:\r\n\tSAVE_GCODE_STATE\r\n\tPAUSE\r\nvariable_ready: 1\r\n');
     });
+
+    test('inline macro gcode is shown and cleared when replaced', () {
+      const text = '[gcode_macro HOME]\ngcode: G28\n\n[next]\nkey: value\n';
+      final doc = KlipperConfigDoc.parse(text);
+      final macro = doc.sections.first;
+      expect(doc.macroBody(macro), 'G28');
+      expect(doc.replaceMacroBody(macro, 'M117 Homing'),
+          '[gcode_macro HOME]\ngcode: \n  M117 Homing\n\n[next]\nkey: value\n');
+    });
+
+    test('macro edits leave trailing comments and SAVE_CONFIG untouched', () {
+      const text =
+          '[gcode_macro HOME]\ngcode:\n  G28\n\n# keep me\n#*# SAVE_CONFIG\n#*# z_offset = 1.0\n';
+      final doc = KlipperConfigDoc.parse(text);
+      final macro = doc.sections.single;
+      expect(macro.bodyEnd, 5);
+      expect(doc.macroBody(macro), 'G28');
+      expect(doc.replaceMacroBody(macro, 'M117 Homing'),
+          '[gcode_macro HOME]\ngcode:\n  M117 Homing\n\n# keep me\n#*# SAVE_CONFIG\n#*# z_offset = 1.0\n');
+      expect(doc.insertOption(macro, 'description', 'Home'),
+          '[gcode_macro HOME]\ngcode:\n  G28\n\n# keep me\ndescription: Home\n#*# SAVE_CONFIG\n#*# z_offset = 1.0\n');
+    });
   });
 
   group('structural insertions', () {

@@ -440,24 +440,6 @@ class PrintControlService {
     }
   }
 
-  /// M112 is safety-critical: Moonraker's immediate endpoint bypasses the
-  /// queued script path. It is still sent exactly once on the chosen path.
-  Future<({bool delivered, String? error})> sendEmergencyStop(
-      String base, String token, bool isLan) async {
-    try {
-      final response = await http
-          .post(Uri.parse('$base/printer/emergency_stop'),
-              headers: isLan ? null : {'Authorization': 'Bearer $token'})
-          .timeout(Duration(seconds: isLan ? 4 : 12));
-      return (
-        delivered: response.statusCode == 200,
-        error: response.statusCode == 200 ? null : 'HTTP ${response.statusCode}'
-      );
-    } catch (_) {
-      return (delivered: false, error: null);
-    }
-  }
-
   // ── Config file system: list, read, write ───────────────────────────────────
   //
   // Still the same transparent proxy - `server/files/*` is core Moonraker,

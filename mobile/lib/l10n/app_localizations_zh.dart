@@ -1861,7 +1861,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fsExpectedNumber => '应为数字';
 
   @override
-  String get fsUseBoolean => '请使用 true 或 false';
+  String get fsUseBoolean => '请使用 true/false、yes/no、on/off 或 1/0';
+
+  @override
+  String fsMinimumValue(num value) {
+    return '最小值 $value';
+  }
+
+  @override
+  String fsMaximumValue(num value) {
+    return '最大值 $value';
+  }
+
+  @override
+  String fsChooseValue(String values) {
+    return '请选择：$values';
+  }
 
   @override
   String get preheatTitle => '预热';

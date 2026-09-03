@@ -5,7 +5,7 @@ import 'package:moongate/services/klipper_schema_service.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   test('bundled catalog has provenance and unique keys', () async {
-    final schema = await KlipperSchemaService().load();
+    final schema = await KlipperSchemaService.instance.load();
     expect(schema.formatVersion, 1);
     expect(schema.upstreamCommit, isNotEmpty);
     expect(schema.sections.map((s) => s.name).toSet().length,
@@ -24,6 +24,21 @@ void main() {
         isTrue);
     expect(schema.sections.any((s) => s.name == 'temperature_sensor <name>'),
         isTrue);
+    expect(schema.sections.any((s) => s.name == 'stepper_<name>'), isTrue);
+    expect(schema.sections.any((s) => s.name == 'tmc2209 <name>'), isTrue);
+    expect(schema.sections.any((s) => s.name == 'include'), isFalse);
+    expect(
+        schema.sections
+            .expand((section) => section.options)
+            .any((option) => option.name == 'WARNING' || option.name.contains('<')),
+        isFalse);
+    final bedMesh =
+        schema.sections.firstWhere((section) => section.name == 'bed_mesh');
+    expect(
+        bedMesh.options
+            .firstWhere((option) => option.name == 'probe_count')
+            .type,
+        ConfigValueType.list);
   });
 
   test('parameterized sections match by base name', () {
@@ -31,7 +46,19 @@ void main() {
         formatVersion: 1,
         upstreamCommit: 'test',
         sections: [ConfigSectionDefinition(name: 'mcu <name>')]);
-    expect(KlipperSchemaService().matchSection(schema, 'mcu host')?.name,
+    expect(KlipperSchemaService.instance.matchSection(schema, 'mcu host')?.name,
         'mcu <name>');
+    expect(
+        KlipperSchemaService.instance
+            .matchSection(
+                const KlipperSchema(
+                    formatVersion: 1,
+                    upstreamCommit: 'test',
+                    sections: [
+                      ConfigSectionDefinition(name: 'stepper_<name>')
+                    ]),
+                'stepper_x')
+            ?.name,
+        'stepper_<name>');
   });
 }

@@ -84,8 +84,8 @@
       ]
     },
     {
-      "name": "stepper",
-      "repeatable": false,
+      "name": "stepper_<name>",
+      "repeatable": true,
       "options": [
         {
           "name": "step_pin",
@@ -392,7 +392,7 @@
         },
         {
           "name": "probe_count",
-          "type": "integer",
+          "type": "list",
           "description": "For rectangular beds, this is a comma separate pair of integer values X, Y defining the number of points to probe along each axis. A single value is also valid, in which case that value will be applied to both axes. Default is 3, 3."
         },
         {
@@ -427,7 +427,7 @@
         },
         {
           "name": "mesh_pps",
-          "type": "integer",
+          "type": "list",
           "description": "A comma separated pair of integers X, Y defining the number of points per segment to interpolate in the mesh along each axis. A \"segment\" can be defined as the space between each probed point. The user may enter a single value which will be applied to both axes. Default is 2, 2."
         },
         {
@@ -637,14 +637,6 @@
       "repeatable": false,
       "options": [
         {
-          "name": "WARNING",
-          "type": "string"
-        },
-        {
-          "name": "configuration",
-          "type": "string"
-        },
-        {
           "name": "gantry_corners",
           "type": "string",
           "description": "A newline separated list of X, Y coordinates describing the two opposing corners of the gantry. The first entry corresponds to Z, the second to Z2. This parameter must be provided."
@@ -795,8 +787,8 @@
       ]
     },
     {
-      "name": "endstop_phase",
-      "repeatable": false,
+      "name": "endstop_phase <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "endstop_accuracy",
@@ -823,11 +815,6 @@
           "name": "gcode",
           "type": "string",
           "description": "A list of G-Code commands to execute in place of \"my_cmd\". See docs/Command_Templates.md for G-Code format. This parameter must be provided."
-        },
-        {
-          "name": "variable_<name>",
-          "type": "string",
-          "description": "One may specify any number of options with a \"variable_\" prefix. The given variable name will be assigned the given value (parsed as a Python literal) and will be available during macro expansion. For example, a config with \"variable_fan_speed = 75\" might have gcode commands containing \"M106 S{ fan_speed * 255 }\". Variables can be changed at run-time using the SET_GCODE_VARIABLE command (see docs/Command_Templates.md for details). Variable names may not use upper case characters."
         },
         {
           "name": "rename_existing",
@@ -1300,8 +1287,8 @@
       ]
     },
     {
-      "name": "mpu9250",
-      "repeatable": false,
+      "name": "mpu9250 <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "i2c_address",
@@ -1422,8 +1409,8 @@
       ]
     },
     {
-      "name": "board_pins",
-      "repeatable": false,
+      "name": "board_pins <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "mcu",
@@ -1433,18 +1420,8 @@
         {
           "name": "aliases",
           "type": "string"
-        },
-        {
-          "name": "aliases_<name>",
-          "type": "list",
-          "description": "A comma separated list of \"name=value\" aliases to create for the given micro-controller. For example, \"EXP1_1=PE6\" would create an \"EXP1_1\" alias for the \"PE6\" pin. However, if \"value\" is enclosed in \"<>\" then \"name\" is created as a reserved pin (for example, \"EXP1_9=<GND>\" would reserve \"EXP1_9\"). Any number of options starting with \"aliases_\" may be specified."
         }
       ]
-    },
-    {
-      "name": "include",
-      "repeatable": false,
-      "options": []
     },
     {
       "name": "duplicate_pin_override",
@@ -1699,8 +1676,8 @@
       ]
     },
     {
-      "name": "probe_eddy_current",
-      "repeatable": false,
+      "name": "probe_eddy_current <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "sensor_type",
@@ -1991,8 +1968,8 @@
       ]
     },
     {
-      "name": "extruder_stepper",
-      "repeatable": false,
+      "name": "extruder_stepper <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "extruder",
@@ -2272,8 +2249,8 @@
       ]
     },
     {
-      "name": "temperature_probe",
-      "repeatable": false,
+      "name": "temperature_probe <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "sensor_type",
@@ -2973,8 +2950,8 @@
       ]
     },
     {
-      "name": "gcode_button",
-      "repeatable": false,
+      "name": "gcode_button <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "pin",
@@ -3059,8 +3036,8 @@
       ]
     },
     {
-      "name": "static_pwm_clock",
-      "repeatable": false,
+      "name": "static_pwm_clock <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "pin",
@@ -3075,8 +3052,8 @@
       ]
     },
     {
-      "name": "pwm_tool",
-      "repeatable": false,
+      "name": "pwm_tool <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "pin",
@@ -3139,8 +3116,8 @@
       ]
     },
     {
-      "name": "static_digital_output",
-      "repeatable": false,
+      "name": "static_digital_output <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "pins",
@@ -3150,8 +3127,8 @@
       ]
     },
     {
-      "name": "multi_pin",
-      "repeatable": false,
+      "name": "multi_pin <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "pins",
@@ -3161,8 +3138,8 @@
       ]
     },
     {
-      "name": "tmc2130",
-      "repeatable": false,
+      "name": "tmc2130 <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "cs_pin",
@@ -3396,8 +3373,8 @@
       ]
     },
     {
-      "name": "tmc2208",
-      "repeatable": false,
+      "name": "tmc2208 <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "uart_pin",
@@ -3503,8 +3480,8 @@
       ]
     },
     {
-      "name": "tmc2209",
-      "repeatable": false,
+      "name": "tmc2209 <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "uart_pin",
@@ -3642,8 +3619,8 @@
       ]
     },
     {
-      "name": "tmc2660",
-      "repeatable": false,
+      "name": "tmc2660 <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "cs_pin",
@@ -3768,8 +3745,8 @@
       ]
     },
     {
-      "name": "tmc2240",
-      "repeatable": false,
+      "name": "tmc2240 <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "cs_pin",
@@ -4064,8 +4041,8 @@
       ]
     },
     {
-      "name": "tmc5160",
-      "repeatable": false,
+      "name": "tmc5160 <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "cs_pin",
@@ -4351,8 +4328,8 @@
       ]
     },
     {
-      "name": "ad5206",
-      "repeatable": false,
+      "name": "ad5206 <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "enable_pin",
@@ -4413,8 +4390,8 @@
       ]
     },
     {
-      "name": "mcp4451",
-      "repeatable": false,
+      "name": "mcp4451 <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "i2c_address",
@@ -4467,8 +4444,8 @@
       ]
     },
     {
-      "name": "mcp4728",
-      "repeatable": false,
+      "name": "mcp4728 <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "i2c_address",
@@ -4521,8 +4498,8 @@
       ]
     },
     {
-      "name": "mcp4018",
-      "repeatable": false,
+      "name": "mcp4018 <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "i2c_address",
@@ -4796,8 +4773,8 @@
       ]
     },
     {
-      "name": "display_data",
-      "repeatable": false,
+      "name": "display_data <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "position",
@@ -4812,14 +4789,9 @@
       ]
     },
     {
-      "name": "display_template",
-      "repeatable": false,
+      "name": "display_template <name>",
+      "repeatable": true,
       "options": [
-        {
-          "name": "param_<name>",
-          "type": "string",
-          "description": "One may specify any number of options with a \"param_\" prefix. The given name will be assigned the given value (parsed as a Python literal) and will be available during macro expansion. If the parameter is passed in the call to render() then that value will be used during macro expansion. For example, a config with \"param_speed = 75\" might have a caller with \"render('my_template_name', param_speed=80)\". Parameter names may not use upper case characters."
-        },
         {
           "name": "text",
           "type": "string",
@@ -4828,8 +4800,8 @@
       ]
     },
     {
-      "name": "display_glyph",
-      "repeatable": false,
+      "name": "display_glyph <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "data",
@@ -5348,8 +5320,8 @@
       ]
     },
     {
-      "name": "sx1509",
-      "repeatable": false,
+      "name": "sx1509 <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "i2c_address",
@@ -5380,8 +5352,8 @@
       ]
     },
     {
-      "name": "samd_sercom",
-      "repeatable": false,
+      "name": "samd_sercom <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "sercom",
@@ -5406,8 +5378,8 @@
       ]
     },
     {
-      "name": "adc_scaled",
-      "repeatable": false,
+      "name": "adc_scaled <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "vref_pin",
@@ -5427,13 +5399,9 @@
       ]
     },
     {
-      "name": "ads1x1x",
-      "repeatable": false,
+      "name": "ads1x1x <name>",
+      "repeatable": true,
       "options": [
-        {
-          "name": "Note",
-          "type": "string"
-        },
         {
           "name": "chip",
           "type": "string"
@@ -5641,8 +5609,8 @@
       ]
     },
     {
-      "name": "angle",
-      "repeatable": false,
+      "name": "angle <name>",
+      "repeatable": true,
       "options": [
         {
           "name": "sensor_type",

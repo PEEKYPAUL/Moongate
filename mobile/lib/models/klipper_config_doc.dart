@@ -107,6 +107,7 @@ class KlipperConfigDoc {
     final lines = text.split('\n');
     final sections = <ConfigSection>[];
     var autosave = false;
+    var autosaveStart = lines.length;
     final diagnostics = <ConfigDiagnostic>[];
 
     List<ConfigOption>? current; // options of the section being built
@@ -115,7 +116,8 @@ class KlipperConfigDoc {
       final raw = lines[i];
       if (raw.startsWith('#*#')) {
         autosave = true;
-        continue;
+        autosaveStart = i;
+        break;
       }
       final trimmed = raw.trimRight();
       if (trimmed.isEmpty) continue;
@@ -187,7 +189,12 @@ class KlipperConfigDoc {
       var multiline = false;
       for (var j = i + 1; j < lines.length; j++) {
         final next = lines[j];
-        if (next.trim().isEmpty) continue;
+        final nextTrimmed = next.trim();
+        if (nextTrimmed.isEmpty ||
+            nextTrimmed.startsWith('#') ||
+            nextTrimmed.startsWith(';')) {
+          continue;
+        }
         final nc = next.codeUnitAt(0);
         multiline = nc == 0x20 || nc == 0x09;
         break;
@@ -217,7 +224,7 @@ class KlipperConfigDoc {
     for (var i = 0; i < sections.length; i++) {
       final s = sections[i];
       final next =
-          i + 1 < sections.length ? sections[i + 1].lineIndex : lines.length;
+          i + 1 < sections.length ? sections[i + 1].lineIndex : autosaveStart;
       sections[i] = ConfigSection(
           name: s.name,
           lineIndex: s.lineIndex,
@@ -277,16 +284,17 @@ class KlipperConfigDoc {
     final option = macroGcodeOption(section);
     if (option == null) return '';
     final end = _multilineEnd(section, option);
-    if (end <= option.lineIndex + 1) return option.value;
     final body = lines.sublist(option.lineIndex + 1, end);
     final first =
         body.firstWhere((line) => line.trim().isNotEmpty, orElse: () => '  ');
     final indent = RegExp(r'^\s*').firstMatch(first)!.group(0)!;
-    return body.map((line) {
+    final continuation = body.map((line) {
       final clean =
           line.endsWith('\r') ? line.substring(0, line.length - 1) : line;
       return clean.startsWith(indent) ? clean.substring(indent.length) : clean;
-    }).join('\n');
+    });
+    return [if (option.value.isNotEmpty) option.value, ...continuation]
+        .join('\n');
   }
 
   String replaceMacroBody(ConfigSection section, String value) {
@@ -302,7 +310,10 @@ class KlipperConfigDoc {
           .firstWhere((line) => line.trim().isNotEmpty, orElse: () => '  ');
       indent = RegExp(r'^\s*').firstMatch(first)!.group(0)!;
     }
+    final raw = lines[option.lineIndex];
     final out = List<String>.from(lines)
+      ..[option.lineIndex] =
+          raw.substring(0, option.valueStart) + raw.substring(option.valueEnd)
       ..removeRange(option.lineIndex + 1, end)
       ..insertAll(
           option.lineIndex + 1,
@@ -313,10 +324,32 @@ class KlipperConfigDoc {
   }
 
   int _multilineEnd(ConfigSection section, ConfigOption option) {
-    for (final candidate in section.options) {
-      if (candidate.lineIndex > option.lineIndex) return candidate.lineIndex;
+    var end = option.lineIndex + 1;
+    for (var i = end; i < section.bodyEnd; i++) {
+      final clean = lines[i].endsWith('\r')
+          ? lines[i].substring(0, lines[i].length - 1)
+          : lines[i];
+      if (clean.isEmpty || clean.startsWith('#') || clean.startsWith(';')) {
+        var next = i + 1;
+        while (next < section.bodyEnd) {
+          final candidate = lines[next].trim();
+          if (candidate.isNotEmpty &&
+              !candidate.startsWith('#') &&
+              !candidate.startsWith(';')) {
+            break;
+          }
+          next++;
+        }
+        if (next >= section.bodyEnd ||
+            !(lines[next].startsWith(' ') || lines[next].startsWith('\t'))) {
+          break;
+        }
+      } else if (!(clean.startsWith(' ') || clean.startsWith('\t'))) {
+        break;
+      }
+      end = i + 1;
     }
-    return section.bodyEnd;
+    return end;
   }
 
   String insertOption(ConfigSection section, String key, String value) {
@@ -336,7 +369,11 @@ class KlipperConfigDoc {
   }
 
   String insertSection(String name) {
-    if (name.contains('\n') || name.contains(']')) {
+    final normalized = name.trim();
+    if (normalized.isEmpty ||
+        normalized.contains('\n') ||
+        normalized.contains(']') ||
+        sections.any((section) => section.name == normalized)) {
       throw ArgumentError('Invalid section');
     }
     final out = List<String>.from(lines);
@@ -344,7 +381,7 @@ class KlipperConfigDoc {
         ? lines.indexWhere((l) => l.startsWith('#*#'))
         : lines.length;
     out.insert(_insertionIndex(at < 0 ? lines.length : at),
-        '[${name.trim()}]$_lineEnding');
+        '[$normalized]$_lineEnding');
     return out.join('\n');
   }
 

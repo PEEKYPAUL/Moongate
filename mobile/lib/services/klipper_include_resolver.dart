@@ -106,20 +106,41 @@ class KlipperIncludeResolver {
       ..sort();
   }
 
+  static String relativePath(String includingPath, String targetPath) {
+    final from = includingPath.split('/')..removeLast();
+    final target = targetPath.split('/');
+    var common = 0;
+    while (common < from.length &&
+        common < target.length &&
+        from[common] == target[common]) {
+      common++;
+    }
+    return [
+      for (var i = common; i < from.length; i++) '..',
+      ...target.skip(common),
+    ].join('/');
+  }
+
   static String? _clean(String path) {
-    if (path.startsWith('/') || path.split('/').contains('..')) return null;
-    final parts = path.split('/')..removeWhere((p) => p.isEmpty || p == '.');
+    if (path.startsWith('/')) return null;
+    final parts = <String>[];
+    for (final part in path.split('/')) {
+      if (part.isEmpty || part == '.') continue;
+      if (part == '..') {
+        if (parts.isEmpty) return null;
+        parts.removeLast();
+      } else {
+        parts.add(part);
+      }
+    }
     return parts.isEmpty ? null : parts.join('/');
   }
 
   static bool _matches(String pattern, String path) {
     final clean = _clean(path);
-    if (clean == null ||
-        pattern.startsWith('/') ||
-        pattern.split('/').contains('..')) {
-      return false;
-    }
-    final escaped = pattern
+    final cleanPattern = _clean(pattern);
+    if (clean == null || cleanPattern == null) return false;
+    final escaped = cleanPattern
         .split('*')
         .map((part) => part.split('?').map(RegExp.escape).join('[^/]'))
         .join('[^/]*');

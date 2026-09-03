@@ -1963,7 +1963,22 @@ class AppLocalizationsRu extends AppLocalizations {
   String get fsExpectedNumber => 'Ожидается число';
 
   @override
-  String get fsUseBoolean => 'Используйте true или false';
+  String get fsUseBoolean => 'Используйте true/false, yes/no, on/off или 1/0';
+
+  @override
+  String fsMinimumValue(num value) {
+    return 'Минимум $value';
+  }
+
+  @override
+  String fsMaximumValue(num value) {
+    return 'Максимум $value';
+  }
+
+  @override
+  String fsChooseValue(String values) {
+    return 'Выберите: $values';
+  }
 
   @override
   String get preheatTitle => 'Прогрев';

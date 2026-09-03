@@ -10,34 +10,6 @@ from pathlib import Path
 ROOT = Path(__file__).parents[1]
 DEFAULT_REF = "f0892d82b0f1c1228454f09eb508eddde2250f4b"
 
-# Config_Reference headings omit the example instance name for these sections,
-# even though Klipper requires one in the actual section header.
-NAMED_SECTIONS = {
-    "adc_temperature",
-    "controller_fan",
-    "delayed_gcode",
-    "dotstar",
-    "fan_generic",
-    "filament_motion_sensor",
-    "filament_switch_sensor",
-    "gcode_macro",
-    "heater_fan",
-    "heater_generic",
-    "led",
-    "manual_stepper",
-    "neopixel",
-    "output_pin",
-    "pca9533",
-    "pca9632",
-    "pwm_cycle_time",
-    "servo",
-    "temperature_fan",
-    "temperature_sensor",
-    "thermistor",
-    "verify_heater",
-}
-
-
 def fetch(ref: str, name: str) -> str:
     url = f"https://raw.githubusercontent.com/Klipper3d/klipper/{ref}/docs/{name}"
     with urllib.request.urlopen(url) as response:
@@ -50,12 +22,12 @@ def value_type(description: str) -> str:
         return "boolean"
     if "pin" in text and any(word in text for word in ("mcu", "gpio", "input", "output")):
         return "pin"
+    if "comma separated" in text:
+        return "list"
     if "integer" in text:
         return "integer"
     if any(word in text for word in ("float", "floating point", "in mm", "in degrees", "in seconds")):
         return "floating"
-    if "comma separated" in text:
-        return "list"
     if any(word in text for word in ("file name", "filename", "path to")):
         return "path"
     return "string"
@@ -73,23 +45,41 @@ def parse_config(markdown: str, ref: str) -> dict:
             i += 1
             continue
         raw_name = match.group(1).strip()
-        name = re.sub(r"\s+my_[^ ]+$", " <name>", raw_name)
-        if name in NAMED_SECTIONS:
-            name += " <name>"
         end = i + 1
         while end < len(lines) and not lines[end].startswith("### "):
             end += 1
         block = lines[i + 1:end]
+        fenced = []
+        in_fence = False
+        for line in block:
+            if line.startswith("```"):
+                in_fence = not in_fence
+            elif in_fence:
+                fenced.append(line)
+        example = next(
+            (m.group(1).strip() for line in fenced
+             if (m := re.match(r"^\[([^]]+)]$", line.strip()))),
+            raw_name,
+        )
+        if raw_name == "include":
+            i = end
+            continue
+        if example.startswith(f"{raw_name} "):
+            name = f"{raw_name} <name>"
+        elif raw_name == "stepper" and example.startswith("stepper_"):
+            name = "stepper_<name>"
+        else:
+            name = re.sub(r"\s+my_[^ ]+$", " <name>", raw_name)
         options = []
         seen = set()
-        for pos, line in enumerate(block):
+        for pos, line in enumerate(fenced):
             found = option.match(line.strip())
-            if not found or found.group(1) in seen:
+            if not found or found.group(1) in seen or "<" in found.group(1):
                 continue
             key = found.group(1)
             seen.add(key)
             description = []
-            for following in block[pos + 1:]:
+            for following in fenced[pos + 1:]:
                 stripped = following.strip()
                 if option.match(stripped) or stripped.startswith("["):
                     break
@@ -98,7 +88,10 @@ def parse_config(markdown: str, ref: str) -> dict:
                 elif description and stripped:
                     break
             text = " ".join(description).strip()
-            item = {"name": key, "type": value_type(text)}
+            item = {
+                "name": key,
+                "type": "list" if key in {"probe_count", "mesh_pps"} else value_type(text),
+            }
             if "one of" in text.lower():
                 choices = re.findall(r"`([^`]+)`", text)
                 if not choices:

@@ -5,7 +5,7 @@ void main() {
   const service = GcodeCompletionService(
     commands: {'RESTART': 'Reload config', 'STATUS': 'Report status'},
     macros: ['PRINT_START'],
-    history: ['G28'],
+    history: ['G28', 'STATUS'],
     parameters: {
       'SET_HEATER_TEMPERATURE': ['HEATER=', 'TARGET='],
     },
@@ -15,6 +15,7 @@ void main() {
     expect(service.complete('P').map((c) => c.displayText), ['PRINT_START']);
     expect(service.complete('R').single.description, 'Reload config');
     expect(service.complete('G').single.displayText, 'G28');
+    expect(service.complete('STAT').single.description, 'Report status');
   });
 
   test('completes the token at the cursor', () {

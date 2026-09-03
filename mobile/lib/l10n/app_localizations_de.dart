@@ -1967,7 +1967,22 @@ class AppLocalizationsDe extends AppLocalizations {
   String get fsExpectedNumber => 'Zahl erwartet';
 
   @override
-  String get fsUseBoolean => 'true oder false verwenden';
+  String get fsUseBoolean => 'true/false, yes/no, on/off oder 1/0 verwenden';
+
+  @override
+  String fsMinimumValue(num value) {
+    return 'Minimum $value';
+  }
+
+  @override
+  String fsMaximumValue(num value) {
+    return 'Maximum $value';
+  }
+
+  @override
+  String fsChooseValue(String values) {
+    return 'Auswahl: $values';
+  }
 
   @override
   String get preheatTitle => 'Vorheizen';

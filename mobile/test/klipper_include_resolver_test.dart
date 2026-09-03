@@ -49,4 +49,15 @@ void main() {
       ['configs/ok.cfg'],
     );
   });
+
+  test('relative paths can move to a sibling folder without escaping root', () {
+    expect(KlipperIncludeResolver.relativePath(
+        'macros/tools.cfg', 'shared/common.cfg'), '../shared/common.cfg');
+    expect(
+        KlipperIncludeResolver.matchingPaths('macros/tools.cfg',
+            '../shared/*.cfg', ['shared/common.cfg', 'outside.cfg']),
+        ['shared/common.cfg']);
+    expect(KlipperIncludeResolver.matchingPaths(
+        'printer.cfg', '../outside.cfg', ['outside.cfg']), isEmpty);
+  });
 }

@@ -24,7 +24,9 @@ class GcodeCompletionService {
     void add(String value, GcodeCompletionKind kind,
         {String? description, int rank = 0}) {
       if (!value.toLowerCase().startsWith(prefix.toLowerCase())) return;
-      names[value.toUpperCase()] = GcodeCompletion(
+      final key = value.toUpperCase();
+      if ((names[key]?.rank ?? -1) > rank) return;
+      names[key] = GcodeCompletion(
           kind: kind,
           displayText: value,
           insertionText: value,

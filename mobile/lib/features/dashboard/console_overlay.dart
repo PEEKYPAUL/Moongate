@@ -135,24 +135,24 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
           final results = await Future.wait([
             _control.fetchGcodeHelpOn(snap.base, snap.token, snap.isLan),
             _control.listMacros(),
-            KlipperSchemaService().load(),
+            KlipperSchemaService.instance.load(),
           ]);
           if (mounted) {
             final schema = results[2] as KlipperSchema;
             final liveHelp = results[0] as Map<String, String>?;
+            final liveMacros = results[1] as List<String>?;
             setState(() {
               final schemaDescriptions = {
                 for (final command in schema.commands)
                   command.name: command.description,
               };
-              final names = liveHelp ?? schemaDescriptions;
-              _help = {
-                for (final entry in names.entries)
-                  entry.key: liveHelp?[entry.key] ??
-                      schemaDescriptions[entry.key] ??
-                      entry.value,
-              };
-              _macros = (results[1] as List<String>?) ?? const [];
+              if (liveHelp != null) {
+                _help = {
+                  for (final entry in liveHelp.entries)
+                    entry.key: schemaDescriptions[entry.key] ?? entry.value,
+                };
+              }
+              if (liveMacros != null) _macros = liveMacros;
               _parameters = {
                 for (final command in schema.commands)
                   command.name: [
@@ -214,24 +214,25 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
 
   Future<void> _send(String raw) async {
     final text = raw.trim();
-    if (text.isEmpty || _sending) return;
+    if (text.isEmpty) return;
+    final emergency = text.toUpperCase() == 'M112';
+    if (_sending && !emergency) return;
     final l = AppLocalizations.of(context);
     _setInput('');
     _inputFocus.requestFocus(); // keep the keyboard up for the next command
+
+    if (emergency) {
+      final delivered = await _control.sendAction('emergency_stop');
+      if (!mounted || delivered) return;
+      setState(() => _local.add(_localError(l.consoleSendFailed)));
+      _maybeAutoScroll();
+      return;
+    }
 
     final conn = _conn;
     if (conn == null) {
       setState(() => _local.add(_localError(l.consoleSendFailed)));
       _maybeAutoScroll();
-      return;
-    }
-    if (text.toUpperCase() == 'M112') {
-      setState(() => _sending = true);
-      final res =
-          await _control.sendEmergencyStop(conn.base, conn.token, conn.isLan);
-      if (mounted) setState(() => _sending = false);
-      if (!mounted || res.delivered) return;
-      setState(() => _local.add(_localError(l.consoleSendFailed)));
       return;
     }
     if (_history.isEmpty || _history.last != text) _history.add(text);
@@ -428,9 +429,7 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
                               contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 10),
                             ),
-                            onSubmitted: (value) => _suggestions.isNotEmpty
-                                ? _acceptSuggestion()
-                                : _send(value),
+                            onSubmitted: _send,
                             onChanged: (value) => _setInputValue(_input.value),
                           ),
                         ),
@@ -439,7 +438,10 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
                       IconButton.filled(
                         icon: const Icon(Icons.send_rounded),
                         tooltip: l.consoleSend,
-                        onPressed: _sending ? null : () => _send(_input.text),
+                        onPressed: _sending &&
+                                _input.text.trim().toUpperCase() != 'M112'
+                            ? null
+                            : () => _send(_input.text),
                       ),
                     ],
                   ),
@@ -501,9 +503,7 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
           // or editing - the phone's stand-in for a desktop's up-arrow.
           onUse: line.kind == ConsoleLineKind.command
               ? () {
-                  _input.text = line.message;
-                  _input.selection =
-                      TextSelection.collapsed(offset: line.message.length);
+                  _setInput(line.message);
                   _inputFocus.requestFocus();
                 }
               : null,
