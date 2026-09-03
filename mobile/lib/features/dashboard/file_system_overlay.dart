@@ -174,28 +174,30 @@ class _FileSystemSheetState extends State<_FileSystemSheet> {
                   }
                 }
                 final sortedFolders = folders.toList()
-                  ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+                  ..sort((a, b) =>
+                      a.toLowerCase().compareTo(b.toLowerCase()));
                 final content = folders.isEmpty && files.isEmpty
                     ? _Centered(
-                        child:
-                            Text(l.fsEmpty, style: theme.textTheme.bodyMedium),
+                        child: Text(l.fsEmpty,
+                            style: theme.textTheme.bodyMedium),
                       )
                     : SafeArea(
                         top: false,
-                        child:
-                            _fileList(context, listing, sortedFolders, files),
+                        child: _fileList(context, listing, sortedFolders,
+                            files),
                       );
                 return Column(
                   children: [
                     CheckboxListTile(
-                      value: _hideClean,
-                      onChanged: (v) => _setHideClean(v ?? true),
-                      title: Text(l.fsHideBackups,
+                      value:            _hideClean,
+                      onChanged:        (v) => _setHideClean(v ?? true),
+                      title:            Text(l.fsHideBackups,
                           style: theme.textTheme.bodyMedium),
-                      dense: true,
-                      visualDensity: VisualDensity.compact,
-                      controlAffinity: ListTileControlAffinity.leading,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                      dense:            true,
+                      visualDensity:    VisualDensity.compact,
+                      controlAffinity:  ListTileControlAffinity.leading,
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 8),
                     ),
                     const Divider(height: 1),
                     Expanded(child: content),
@@ -218,11 +220,12 @@ class _FileSystemSheetState extends State<_FileSystemSheet> {
       children: [
         for (final d in sortedFolders)
           ListTile(
-            leading:
-                Icon(Icons.folder_rounded, color: theme.colorScheme.outline),
+            leading: Icon(Icons.folder_rounded,
+                color: theme.colorScheme.outline),
             title: Text(d, maxLines: 1, overflow: TextOverflow.ellipsis),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => setState(() => _dir = _dir.isEmpty ? d : '$_dir/$d'),
+            onTap: () =>
+                setState(() => _dir = _dir.isEmpty ? d : '$_dir/$d'),
           ),
         for (final f in files)
           ListTile(
@@ -234,7 +237,8 @@ class _FileSystemSheetState extends State<_FileSystemSheet> {
                   ? theme.colorScheme.primary
                   : theme.colorScheme.outline,
             ),
-            title: Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+            title:
+                Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis),
             subtitle: Text(
               _subtitle(context, f),
               maxLines: 1,
@@ -245,11 +249,11 @@ class _FileSystemSheetState extends State<_FileSystemSheet> {
                 ? () => showConfigEditorSheet(
                       context,
                       printer: widget.printer,
-                      base: listing.base,
-                      token: listing.token,
-                      isLan: listing.isLan,
-                      path: f.path,
-                      files: listing.files,
+                      base:    listing.base,
+                      token:   listing.token,
+                      isLan:   listing.isLan,
+                      path:    f.path,
+                      files:   listing.files,
                     )
                 : null,
           ),

@@ -35,9 +35,10 @@ class PrintControlService {
   /// Live lanOnly flag - the registry copy wins over the construction-time
   /// config so a Direct-mode toggle takes effect on the next action without
   /// recreating this service.
-  bool get _liveLanOnly => PrinterRegistry.instance.printers
-      .firstWhere((p) => p.id == config.id, orElse: () => config)
-      .lanOnly;
+  bool get _liveLanOnly =>
+      PrinterRegistry.instance.printers
+          .firstWhere((p) => p.id == config.id, orElse: () => config)
+          .lanOnly;
 
   Future<bool> sendAction(String action) async {
     // Cloudless LAN-only printer: hit the plugin over the LAN with no token
@@ -80,7 +81,7 @@ class PrintControlService {
     final lanUrl = discovered ?? live;
     if (lanUrl != null &&
         await _send(lanUrl, access.accessToken, action,
-            timeout: const Duration(seconds: 2))) {
+                    timeout: const Duration(seconds: 2))) {
       return true;
     }
 
@@ -89,7 +90,7 @@ class PrintControlService {
     // tunnel here is normal, not a failure.
     if (access.tunnelUrl != null &&
         await _send(access.tunnelUrl!, access.accessToken, action,
-            timeout: const Duration(seconds: 10))) {
+                    timeout: const Duration(seconds: 10))) {
       return true;
     }
 
@@ -103,7 +104,7 @@ class PrintControlService {
     }
     if (access.tunnelUrl == null) return false;
     return _send(access.tunnelUrl!, access.accessToken, action,
-        timeout: const Duration(seconds: 10));
+                 timeout: const Duration(seconds: 10));
   }
 
   /// Ask the plugin to update itself via Moonraker's update manager
@@ -150,13 +151,12 @@ class PrintControlService {
   Future<GcodeListing?> listGcodes() async {
     String? winBase;
     var winLan = false;
-    final files =
-        await _viaLanThenTunnel<List<GcodeFile>>((base, token, isLan) async {
+    final files = await _viaLanThenTunnel<List<GcodeFile>>(
+        (base, token, isLan) async {
       try {
         final uri = Uri.parse('$base/server/files/list?root=gcodes');
         final resp = await http
-            .get(uri,
-                headers: isLan ? null : {'Authorization': 'Bearer $token'})
+            .get(uri, headers: isLan ? null : {'Authorization': 'Bearer $token'})
             .timeout(Duration(seconds: isLan ? 4 : 12));
         if (resp.statusCode != 200) return null;
         final result =
@@ -221,8 +221,7 @@ class PrintControlService {
       try {
         final uri = Uri.parse('$base/printer/objects/list');
         final resp = await http
-            .get(uri,
-                headers: isLan ? null : {'Authorization': 'Bearer $token'})
+            .get(uri, headers: isLan ? null : {'Authorization': 'Bearer $token'})
             .timeout(Duration(seconds: isLan ? 4 : 12));
         if (resp.statusCode != 200) return null;
         final objects =
@@ -271,19 +270,13 @@ class PrintControlService {
       listLightingTargets() async {
     const macroPrefix = 'gcode_macro ';
     const lightPrefixes = [
-      'output_pin ',
-      'led ',
-      'neopixel ',
-      'dotstar ',
-      'pca9533 ',
-      'pca9632 ',
+      'output_pin ', 'led ', 'neopixel ', 'dotstar ', 'pca9533 ', 'pca9632 ',
     ];
     return _viaLanThenTunnel((base, token, isLan) async {
       try {
         final uri = Uri.parse('$base/printer/objects/list');
         final resp = await http
-            .get(uri,
-                headers: isLan ? null : {'Authorization': 'Bearer $token'})
+            .get(uri, headers: isLan ? null : {'Authorization': 'Bearer $token'})
             .timeout(Duration(seconds: isLan ? 4 : 12));
         if (resp.statusCode != 200) return null;
         final objects =
@@ -320,7 +313,8 @@ class PrintControlService {
       final uri = Uri.parse('$base/printer/gcode/script'
           '?script=${Uri.encodeComponent(gcode)}');
       final resp = await http
-          .post(uri, headers: isLan ? null : {'Authorization': 'Bearer $token'})
+          .post(uri,
+              headers: isLan ? null : {'Authorization': 'Bearer $token'})
           .timeout(Duration(seconds: isLan ? 4 : 12));
       // null (not false) on non-200 so the next path is still tried.
       return resp.statusCode == 200 ? true : null;
@@ -359,14 +353,14 @@ class PrintControlService {
   Future<ConsoleSnapshot?> fetchConsole({int count = 100}) async {
     String? winBase;
     var winToken = '';
-    var winLan = false;
-    final lines =
-        await _viaLanThenTunnel<List<ConsoleLine>>((base, token, isLan) async {
+    var winLan   = false;
+    final lines = await _viaLanThenTunnel<List<ConsoleLine>>(
+        (base, token, isLan) async {
       final got = await fetchConsoleOn(base, token, isLan, count: count);
       if (got == null) return null;
-      winBase = base;
+      winBase  = base;
       winToken = token;
-      winLan = isLan;
+      winLan   = isLan;
       return got;
     });
     if (lines == null || winBase == null) return null;
@@ -421,7 +415,8 @@ class PrintControlService {
       final uri = Uri.parse('$base/printer/gcode/script'
           '?script=${Uri.encodeComponent(command)}');
       final resp = await http
-          .post(uri, headers: isLan ? null : {'Authorization': 'Bearer $token'})
+          .post(uri,
+              headers: isLan ? null : {'Authorization': 'Bearer $token'})
           .timeout(Duration(seconds: isLan ? 90 : 100));
       if (resp.statusCode == 200 || resp.statusCode == 400) {
         return (delivered: true, error: null);
@@ -459,28 +454,26 @@ class PrintControlService {
   Future<ConfigListing?> listConfigFiles() async {
     String? winBase;
     var winToken = '';
-    var winLan = false;
+    var winLan   = false;
     final files = await _viaLanThenTunnel<List<ConfigFileEntry>>(
         (base, token, isLan) async {
       try {
         final uri = Uri.parse('$base/server/files/list?root=config');
         final resp = await http
-            .get(uri,
-                headers: isLan ? null : {'Authorization': 'Bearer $token'})
+            .get(uri, headers: isLan ? null : {'Authorization': 'Bearer $token'})
             .timeout(Duration(seconds: isLan ? 4 : 12));
         if (resp.statusCode != 200) return null;
         final result =
             (jsonDecode(resp.body)['result'] as List<dynamic>?) ?? const [];
-        winBase = base;
+        winBase  = base;
         winToken = token;
-        winLan = isLan;
+        winLan   = isLan;
         return result
             .whereType<Map<String, dynamic>>()
             .map(ConfigFileEntry.fromJson)
             .where((f) => f.path.isNotEmpty && !f.isMoongateBackup)
             .toList()
-          ..sort(
-              (a, b) => a.path.toLowerCase().compareTo(b.path.toLowerCase()));
+          ..sort((a, b) => a.path.toLowerCase().compareTo(b.path.toLowerCase()));
       } catch (_) {
         return null;
       }
@@ -524,7 +517,8 @@ class PrintControlService {
       if (slash > 0) req.fields['path'] = path.substring(0, slash);
       req.files.add(http.MultipartFile.fromString('file', content,
           filename: slash > 0 ? path.substring(slash + 1) : path));
-      final resp = await req.send().timeout(Duration(seconds: isLan ? 10 : 25));
+      final resp =
+          await req.send().timeout(Duration(seconds: isLan ? 10 : 25));
       return resp.statusCode == 201 || resp.statusCode == 200;
     } catch (_) {
       return false;
@@ -720,8 +714,7 @@ class PrintControlService {
       try {
         final uri = Uri.parse('$base/machine/device_power/devices');
         final resp = await http
-            .get(uri,
-                headers: isLan ? null : {'Authorization': 'Bearer $token'})
+            .get(uri, headers: isLan ? null : {'Authorization': 'Bearer $token'})
             .timeout(Duration(seconds: isLan ? 4 : 12));
         if (resp.statusCode != 200) return null;
         final list =
@@ -906,9 +899,9 @@ class GcodeFile {
   });
 
   factory GcodeFile.fromJson(Map<String, dynamic> j) => GcodeFile(
-        path: (j['path'] as String?) ?? '',
+        path:     (j['path'] as String?) ?? '',
         modified: (j['modified'] as num?)?.toDouble() ?? 0,
-        size: (j['size'] as num?)?.toInt() ?? 0,
+        size:     (j['size'] as num?)?.toInt() ?? 0,
       );
 
   bool get isGcode {
@@ -969,8 +962,8 @@ class ConsoleLine {
   });
 
   factory ConsoleLine.fromJson(Map<String, dynamic> j) => ConsoleLine(
-        message: (j['message'] as String?) ?? '',
-        time: (j['time'] as num?)?.toDouble() ?? 0,
+        message:   (j['message'] as String?) ?? '',
+        time:      (j['time'] as num?)?.toDouble() ?? 0,
         isCommand: j['type'] == 'command',
       );
 
@@ -1018,9 +1011,9 @@ class ConfigFileEntry {
   });
 
   factory ConfigFileEntry.fromJson(Map<String, dynamic> j) => ConfigFileEntry(
-        path: (j['path'] as String?) ?? '',
+        path:     (j['path'] as String?) ?? '',
         modified: (j['modified'] as num?)?.toDouble() ?? 0,
-        size: (j['size'] as num?)?.toInt() ?? 0,
+        size:     (j['size'] as num?)?.toInt() ?? 0,
       );
 
   /// Just the filename, without any subdirectory prefix.
@@ -1073,16 +1066,7 @@ class ConfigFileEntry {
   /// content is the config text it was copied from.
   bool get isEditable {
     final n = name.toLowerCase();
-    const exts = [
-      '.cfg',
-      '.conf',
-      '.txt',
-      '.ini',
-      '.md',
-      '.json',
-      '.yaml',
-      '.yml'
-    ];
+    const exts = ['.cfg', '.conf', '.txt', '.ini', '.md', '.json', '.yaml', '.yml'];
     return exts.any(n.endsWith) || _timestampedBackup.hasMatch(n);
   }
 
