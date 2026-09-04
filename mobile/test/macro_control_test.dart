@@ -26,15 +26,48 @@ void main() {
   );
 
   test('builds a macro command from defaults and supplied values', () {
-    expect(control.command(const {}), 'LOAD_FILAMENT TEMP=220 FAST=0');
+    // FAST defaults to off, and an OFF toggle is omitted rather than sent as
+    // FAST=0: Jinja sees params as strings and '0' is truthy, so an explicit
+    // 0 would run the `{% if params.FAST|default(false) %}` branch anyway.
+    expect(control.command(const {}), 'LOAD_FILAMENT TEMP=220');
     expect(control.command(const {'TEMP': '235', 'FAST': '1'}),
         'LOAD_FILAMENT TEMP=235 FAST=1');
+    expect(control.command(const {'TEMP': '235', 'FAST': '0'}),
+        'LOAD_FILAMENT TEMP=235');
   });
 
   test('omits blank optional values and rejects multiline injection', () {
     expect(control.command(const {'TEMP': '', 'FAST': ''}), 'LOAD_FILAMENT');
     expect(() => control.command(const {'TEMP': '220\nM112'}),
         throwsFormatException);
+    expect(() => control.command(const {'TEMP': '220\rM112'}),
+        throwsFormatException);
+  });
+
+  test('newline-bearing stored defaults are sanitized, not fatal', () {
+    // Backups are hand-editable JSON; a smuggled newline in a default must
+    // not make command() throw on every future run of the restored control.
+    final restored = MacroControlParameter.fromJson(const {
+      'name': 'TEMP',
+      'label': 'Temperature',
+      'kind': 'number',
+      'defaultValue': '220\nM112',
+    });
+    expect(restored.defaultValue, '220 M112');
+  });
+
+  test('multiline macro defaults collapse to one line at inference', () {
+    final parameters = inferMacroParameters(
+        'M117 {params.MSG|default("line one\nline two")}');
+    expect(parameters.single.defaultValue, 'line one line two');
+  });
+
+  test('macro name validity gate matches the load-time filter', () {
+    expect(MacroControl.isValidMacroName('LOAD_FILAMENT'), isTrue);
+    expect(MacroControl.isValidMacroName('_PRIVATE'), isTrue);
+    expect(MacroControl.isValidMacroName('PRINT-START'), isFalse);
+    expect(MacroControl.isValidMacroName('T0.1'), isFalse);
+    expect(MacroControl.isValidMacroName(''), isFalse);
   });
 
   test('infers editable parameters and defaults from macro gcode', () {

@@ -1915,8 +1915,10 @@ class AppLocalizationsRu extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count параметров',
-      one: '1 параметр',
+      other: '$count параметра',
+      many: '$count параметров',
+      few: '$count параметра',
+      one: '$count параметр',
     );
     return '$_temp0';
   }
@@ -1960,6 +1962,10 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get controlPanelCommandSent => 'Команда отправлена';
+
+  @override
+  String get controlPanelCommandFailed =>
+      'Принтер не смог выполнить эту команду';
 
   @override
   String get controlPanelHomed => 'Откалиброван';

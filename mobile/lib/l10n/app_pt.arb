@@ -598,6 +598,7 @@
   "controlPanelHeatersOff": "Desligar aquecedores",
   "controlPanelHome": "Início",
   "controlPanelCommandSent": "Comando enviado",
+  "controlPanelCommandFailed": "A impressora não conseguiu executar esse comando",
   "controlPanelHomed": "Referenciada",
   "controlPanelNotHomed": "Não referenciada",
   "controlPanelPositionUnknown": "Posição desconhecida",

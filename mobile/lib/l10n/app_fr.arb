@@ -597,6 +597,7 @@
   "controlPanelHeatersOff": "Éteindre les chauffages",
   "controlPanelHome": "Origine",
   "controlPanelCommandSent": "Commande envoyée",
+  "controlPanelCommandFailed": "L'imprimante n'a pas pu exécuter cette commande",
   "controlPanelHomed": "Initialisée",
   "controlPanelNotHomed": "Non initialisée",
   "controlPanelPositionUnknown": "Position inconnue",

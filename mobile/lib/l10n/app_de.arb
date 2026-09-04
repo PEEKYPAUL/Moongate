@@ -597,6 +597,7 @@
   "controlPanelHeatersOff": "Heizungen ausschalten",
   "controlPanelHome": "Referenzfahrt",
   "controlPanelCommandSent": "Befehl gesendet",
+  "controlPanelCommandFailed": "Der Drucker konnte diesen Befehl nicht ausführen",
   "controlPanelHomed": "Referenziert",
   "controlPanelNotHomed": "Nicht referenziert",
   "controlPanelPositionUnknown": "Position unbekannt",

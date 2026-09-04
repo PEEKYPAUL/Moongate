@@ -1856,6 +1856,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get controlPanelCommandSent => '命令已发送';
 
   @override
+  String get controlPanelCommandFailed => '打印机无法执行该命令';
+
+  @override
   String get controlPanelHomed => '已归位';
 
   @override

@@ -31,6 +31,10 @@ List<MacroControlParameter> inferMacroParameters(String gcode) {
             (value.startsWith('"') && value.endsWith('"')))) {
       value = value.substring(1, value.length - 1);
     }
+    // The capture can span lines (a multi-line default(...) in the macro);
+    // collapse to one line so the suggested default never trips command()'s
+    // single-line rule on every run of the finished control.
+    value = value.replaceAll(RegExp(r'\s*[\r\n]+\s*'), ' ').trim();
     final lower = value.toLowerCase();
     final kind = lower == 'true' || lower == 'false'
         ? MacroControlParameterKind.toggle
@@ -125,12 +129,20 @@ class MacroControlParameter {
           (kind) => kind.name == json['kind'],
           orElse: () => MacroControlParameterKind.text,
         ),
-        defaultValue: json['defaultValue'] as String? ?? '',
+        // Backups are hand-editable JSON: a smuggled newline here would make
+        // command() throw on every run of the restored control.
+        defaultValue: (json['defaultValue'] as String? ?? '')
+            .replaceAll(RegExp(r'[\r\n]'), ' '),
       );
 }
 
 class MacroControl {
   static final RegExp _identifier = RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$');
+
+  /// Whether [name] can be a control's macro. Klipper tolerates section names
+  /// outside this set (dots, dashes), but [isValid] silently drops such
+  /// controls on the next load, so the builder refuses to offer them at all.
+  static bool isValidMacroName(String name) => _identifier.hasMatch(name);
 
   final String id;
   final String macro;
@@ -165,6 +177,13 @@ class MacroControl {
     for (final parameter in parameters) {
       final value = (values[parameter.name] ?? parameter.defaultValue).trim();
       if (value.isEmpty) continue;
+      // An OFF toggle is omitted, not sent as NAME=0: macro params arrive in
+      // Jinja as strings and '0' is truthy, so an explicit 0 would RUN the
+      // `{% if params.X|default(false) %}` branch the toggle kind is inferred
+      // from. Omission lets the macro's own default apply.
+      if (parameter.kind == MacroControlParameterKind.toggle && value != '1') {
+        continue;
+      }
       if (value.contains('\n') || value.contains('\r')) {
         throw const FormatException('Macro parameters must be single-line');
       }
@@ -321,7 +340,7 @@ class PrinterConfig {
     this.customCameraUrl,
     this.selectedWebcam,
     this.favouriteMacros = const [],
-    this.macroControls    = const [],
+    this.macroControls   = const [],
     this.controlPanelModules = defaultControlPanelModules,
     this.lightingEnabled   = false,
     this.lightOnMacro,
@@ -377,7 +396,7 @@ class PrinterConfig {
             ? this.selectedWebcam
             : selectedWebcam as String?,
         favouriteMacros: favouriteMacros ?? this.favouriteMacros,
-        macroControls:    macroControls    ?? this.macroControls,
+        macroControls:   macroControls   ?? this.macroControls,
         controlPanelModules:
             controlPanelModules ?? this.controlPanelModules,
         lightingEnabled: lightingEnabled ?? this.lightingEnabled,

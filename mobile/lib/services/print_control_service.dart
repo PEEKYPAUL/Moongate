@@ -295,10 +295,18 @@ class PrintControlService {
     });
   }
 
-  Future<MotionPanelState?> motionPanelState() async {
+  /// [configTooForForceMove]: the configfile object rides along only for the
+  /// static `force_move.enable_force_move` flag and can be a multi-hundred-KB
+  /// download over the tunnel, so only the first load asks for it; the
+  /// per-command refreshes query the toolhead alone and the caller carries
+  /// the known flag forward.
+  Future<MotionPanelState?> motionPanelState(
+      {bool configTooForForceMove = true}) async {
     return _viaLanThenTunnel<MotionPanelState>((base, token, isLan) async {
       try {
-        final uri = Uri.parse('$base/printer/objects/query?toolhead&configfile');
+        final uri = Uri.parse(configTooForForceMove
+            ? '$base/printer/objects/query?toolhead&configfile'
+            : '$base/printer/objects/query?toolhead');
         final resp = await http
             .get(uri,
                 headers: isLan ? null : {'Authorization': 'Bearer $token'})
@@ -403,15 +411,32 @@ class PrintControlService {
     return ok ?? false;
   }
 
+  /// Connection resolved by the last [runPanelCommand], reused by the next
+  /// one so a jog session pays the LAN probe once, not per tap. Dropped
+  /// whenever a POST fails to reach Moonraker; the next command re-resolves
+  /// (the console sheet's drop-and-reprobe pattern).
+  ConsoleSnapshot? _panelConnection;
+
   /// Run a generated control-panel command exactly once on a resolved path.
-  /// Motion commands must not use the LAN-then-tunnel retry ladder: if a reply
-  /// is lost after the printer moved, retrying would move it twice.
+  /// Panel commands must not use the LAN-then-tunnel retry ladder: if a reply
+  /// is lost after the printer moved (or a macro started), retrying would run
+  /// it twice. Unlike the console there is no `!!` line to lean on, so a
+  /// Klipper refusal (HTTP 400, e.g. "Must home axis first" or a cold
+  /// extrude) counts as failure here rather than as console-style success.
   Future<bool> runPanelCommand(String command) async {
-    final connection = await fetchConsole(count: 1);
-    if (connection == null) return false;
+    var connection = _panelConnection;
+    if (connection == null) {
+      connection = await fetchConsole(count: 1);
+      if (connection == null) return false;
+      _panelConnection = connection;
+    }
     final result = await sendConsoleCommand(connection.base, connection.token,
-        connection.isLan, command);
-    return result.delivered && result.error == null;
+        connection.isLan, command, errorOn400: true);
+    if (!result.delivered) {
+      _panelConnection = null;
+      return false;
+    }
+    return result.error == null;
   }
 
   // ── Console: G-code history + sending raw commands ──────────────────────────
@@ -490,8 +515,14 @@ class PrintControlService {
   /// store itself as `!!` lines, and doubling them up reads as two failures.
   /// A response timeout counts as delivered: the command reached the printer
   /// and is still running - the store shows its output when it lands.
+  ///
+  /// [errorOn400] is for callers WITHOUT a console view: Klipper's own gcode
+  /// errors come back as HTTP 400, which the console deliberately treats as
+  /// success (the store's `!!` line already reports it); a caller that shows
+  /// no store lines passes true so the refusal surfaces as [error] instead.
   Future<({bool delivered, String? error})> sendConsoleCommand(
-      String base, String token, bool isLan, String command) async {
+      String base, String token, bool isLan, String command,
+      {bool errorOn400 = false}) async {
     try {
       final uri = Uri.parse('$base/printer/gcode/script'
           '?script=${Uri.encodeComponent(command)}');
@@ -499,7 +530,7 @@ class PrintControlService {
           .post(uri,
               headers: isLan ? null : {'Authorization': 'Bearer $token'})
           .timeout(Duration(seconds: isLan ? 90 : 100));
-      if (resp.statusCode == 200 || resp.statusCode == 400) {
+      if (resp.statusCode == 200 || (resp.statusCode == 400 && !errorOn400)) {
         return (delivered: true, error: null);
       }
       String? message;

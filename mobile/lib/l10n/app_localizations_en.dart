@@ -1906,7 +1906,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get controlPanelTitle => 'Control panel';
 
   @override
-  String get controlPanelCustomize => 'Customize';
+  String get controlPanelCustomize => 'Customise';
 
   @override
   String get controlPanelPresets => 'Panel presets';
@@ -1941,6 +1941,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get controlPanelCommandSent => 'Command sent';
+
+  @override
+  String get controlPanelCommandFailed =>
+      'The printer couldn\'t run that command';
 
   @override
   String get controlPanelHomed => 'Homed';

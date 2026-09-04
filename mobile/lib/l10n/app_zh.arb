@@ -597,6 +597,7 @@
   "controlPanelHeatersOff": "关闭加热器",
   "controlPanelHome": "归零",
   "controlPanelCommandSent": "命令已发送",
+  "controlPanelCommandFailed": "打印机无法执行该命令",
   "controlPanelHomed": "已归位",
   "controlPanelNotHomed": "未归位",
   "controlPanelPositionUnknown": "位置未知",

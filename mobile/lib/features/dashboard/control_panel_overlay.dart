@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -234,9 +236,14 @@ class _ControlPanelState extends State<_ControlPanel> {
 
   Widget _module(ControlPanelModule module) {
     final color = Color(module.color);
-    final foreground = color.computeLuminance() > 0.6
-        ? Colors.black87
-        : color;
+    // Contrast against the header's REAL colour: the module tint paints at
+    // 14% alpha over the card surface, so in dark mode a light module colour
+    // composites to a near-black header that black87 text vanishes on.
+    final headerBg = Color.alphaBlend(color.withValues(alpha: 0.14),
+        Theme.of(context).colorScheme.surface);
+    final foreground = headerBg.computeLuminance() > 0.5
+        ? (color.computeLuminance() > 0.6 ? Colors.black87 : color)
+        : (color.computeLuminance() < 0.25 ? Colors.white : color);
     final title = module.title.isEmpty ? _moduleName(module.type) : module.title;
     final icon = switch (module.type) {
       ControlPanelModuleType.temperatures => Icons.thermostat_rounded,
@@ -354,7 +361,10 @@ class _ControlPanelState extends State<_ControlPanel> {
                   onReorderItem: (oldIndex, newIndex) {
                     if (oldIndex >= _modules.length) return;
                     final modules = [..._modules];
-                    modules.insert(newIndex, modules.removeAt(oldIndex));
+                    final module = modules.removeAt(oldIndex);
+                    // A drop below the edit-mode "Add module" footer arrives
+                    // as one slot past the last module; clamp it to "end".
+                    modules.insert(newIndex.clamp(0, modules.length), module);
                     _saveModules(modules);
                   },
                   itemBuilder: (context, index) {
@@ -378,6 +388,10 @@ class _ControlPanelState extends State<_ControlPanel> {
                   },
                 ),
         ),
+        // Keyboard clearance: the temperature fields live inside the list,
+        // and without this the 94%-height sheet keeps its size while the
+        // keyboard covers the lower modules (every sibling sheet pads this).
+        SizedBox(height: MediaQuery.viewInsetsOf(context).bottom),
       ],
     );
   }
@@ -429,21 +443,43 @@ class _TemperatureModuleState extends State<_TemperatureModule> {
 
   Future<void> _set({bool off = false}) async {
     if (_sending) return;
-    final hotend = off ? 0.0 : double.tryParse(_hotend.text.trim());
-    final bed = off ? 0.0 : double.tryParse(_bed.text.trim());
-    final targets = <String, double>{
-      if (hotend != null) _heaters.hotend: hotend.clamp(0, 500),
-      if (bed != null) _heaters.bed: bed.clamp(0, 500),
-    };
-    if (targets.isEmpty) return;
-    setState(() => _sending = true);
-    final ok = await _control.setHeaterTargets(targets);
+    final l = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final bool ok;
+    if (off) {
+      // The one command whose reach matches the button's promise: extra
+      // hotends and [heater_generic] chambers go cold too, not just the two
+      // mapped heaters.
+      setState(() => _sending = true);
+      ok = await _control.runPanelCommand('TURN_OFF_HEATERS');
+    } else {
+      final hotendText = _hotend.text.trim();
+      final bedText = _bed.text.trim();
+      final hotend = double.tryParse(hotendText);
+      final bed = double.tryParse(bedText);
+      // A filled-in field that doesn't parse fails the WHOLE set: quietly
+      // sending just the other heater while reporting success reads as both
+      // heating.
+      if ((hotendText.isNotEmpty && hotend == null) ||
+          (bedText.isNotEmpty && bed == null)) {
+        messenger.showSnackBar(SnackBar(
+          content: Text(l.preheatFailed),
+          behavior: SnackBarBehavior.floating,
+        ));
+        return;
+      }
+      final targets = <String, double>{
+        if (hotend != null) _heaters.hotend: hotend.clamp(0, 500),
+        if (bed != null) _heaters.bed: bed.clamp(0, 500),
+      };
+      if (targets.isEmpty) return;
+      setState(() => _sending = true);
+      ok = await _control.setHeaterTargets(targets);
+    }
     if (!mounted) return;
     setState(() => _sending = false);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(ok
-          ? AppLocalizations.of(context).controlPanelCommandSent
-          : AppLocalizations.of(context).preheatFailed),
+    messenger.showSnackBar(SnackBar(
+      content: Text(ok ? l.controlPanelCommandSent : l.preheatFailed),
       behavior: SnackBarBehavior.floating,
     ));
   }
@@ -499,10 +535,13 @@ class _TemperatureModuleState extends State<_TemperatureModule> {
                 ),
                 onPressed: _sending ? null : _set,
                 child: _sending
-                    ? const SizedBox.square(
+                    ? SizedBox.square(
                         dimension: 18,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
+                            strokeWidth: 2,
+                            color: widget.color.computeLuminance() > 0.6
+                                ? Colors.black87
+                                : Colors.white))
                     : Text(l.preheatSet),
               ),
             ],
@@ -536,19 +575,32 @@ class _MotionModuleState extends State<_MotionModule> {
   void initState() {
     super.initState();
     _control = PrintControlService(widget.printer);
-    _refreshState();
+    _refreshState(withConfig: true);
   }
 
-  Future<void> _refreshState() async {
-    final state = await _control.motionPanelState();
+  /// [withConfig] fetches the configfile object too - needed exactly once,
+  /// for the static force_move flag; per-command refreshes go toolhead-only
+  /// and carry the flag forward (the config dump is heavy over the tunnel).
+  Future<void> _refreshState({bool withConfig = false}) async {
+    final fresh =
+        await _control.motionPanelState(configTooForForceMove: withConfig);
     if (!mounted) return;
     setState(() {
-      _state = state;
+      if (fresh != null) {
+        _state = withConfig
+            ? fresh
+            : (
+                homedAxes: fresh.homedAxes,
+                position: fresh.position,
+                forceMoveEnabled:
+                    _state?.forceMoveEnabled ?? fresh.forceMoveEnabled,
+              );
+      }
       _loadingState = false;
     });
   }
 
-  Future<void> _send(String command) async {
+  Future<void> _send(String command, {String? restoreOnFailure}) async {
     if (_moving) return;
     setState(() => _moving = true);
     final ok = await _control.runPanelCommand(command);
@@ -556,8 +608,17 @@ class _MotionModuleState extends State<_MotionModule> {
     setState(() => _moving = false);
     if (ok) _refreshState();
     if (!ok) {
+      // A script that died mid-way (unhomed axis, move past a limit) leaves
+      // its G91/M83 mode switch applied with the RESTORE line never reached,
+      // latching the printer relative for every client. Put the saved state
+      // back; if the script never got that far, Klipper shrugs the unknown
+      // state name off as a harmless error.
+      if (restoreOnFailure != null) {
+        unawaited(_control
+            .runPanelCommand('RESTORE_GCODE_STATE NAME=$restoreOnFailure'));
+      }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(AppLocalizations.of(context).consoleSendFailed),
+        content: Text(AppLocalizations.of(context).controlPanelCommandFailed),
         behavior: SnackBarBehavior.floating,
       ));
     }
@@ -566,13 +627,17 @@ class _MotionModuleState extends State<_MotionModule> {
   void _jog(String axis, double direction) {
     final amount = (_distance * direction).toStringAsFixed(
         _distance < 1 ? 1 : 0);
-    _send('SAVE_GCODE_STATE NAME=MOONGATE_JOG\nG91\nG0 $axis$amount F3000\nRESTORE_GCODE_STATE NAME=MOONGATE_JOG');
+    _send(
+        'SAVE_GCODE_STATE NAME=MOONGATE_JOG\nG91\nG0 $axis$amount F3000\nRESTORE_GCODE_STATE NAME=MOONGATE_JOG',
+        restoreOnFailure: 'MOONGATE_JOG');
   }
 
   void _extrude(double direction) {
     final amount = (_distance * direction).toStringAsFixed(
         _distance < 1 ? 1 : 0);
-    _send('SAVE_GCODE_STATE NAME=MOONGATE_EXTRUDE\nM83\nG1 E$amount F300\nRESTORE_GCODE_STATE NAME=MOONGATE_EXTRUDE');
+    _send(
+        'SAVE_GCODE_STATE NAME=MOONGATE_EXTRUDE\nM83\nG1 E$amount F300\nRESTORE_GCODE_STATE NAME=MOONGATE_EXTRUDE',
+        restoreOnFailure: 'MOONGATE_EXTRUDE');
   }
 
   Future<void> _setPosition() async {
@@ -765,17 +830,37 @@ class _MacrosModule extends StatefulWidget {
 }
 
 class _MacrosModuleState extends State<_MacrosModule> {
+  late final PrintControlService _control;
   String? _running;
+
+  @override
+  void initState() {
+    super.initState();
+    _control = PrintControlService(widget.printer);
+  }
+
+  /// Same dark-mode rule as the module headers: the tonal button paints on
+  /// secondaryContainer, so the foreground must contrast with THAT.
+  Color _chipForeground(BuildContext context) {
+    final bg = Theme.of(context).colorScheme.secondaryContainer;
+    final color = widget.color;
+    return bg.computeLuminance() > 0.5
+        ? (color.computeLuminance() > 0.6 ? Colors.black87 : color)
+        : (color.computeLuminance() < 0.25 ? Colors.white : color);
+  }
 
   Future<void> _run(MacroControl control) async {
     if (_running != null) return;
     final command = await showMacroControlRunner(context, control);
     if (command == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
     setState(() => _running = control.id);
-    final ok = await PrintControlService(widget.printer).runMacro(command);
+    // Single-shot path: a heat-and-wait macro outlives the ladder's 4s LAN
+    // timeout, and a cross-transport "retry" would run it twice.
+    final ok = await _control.runPanelCommand(command);
     if (!mounted) return;
     setState(() => _running = null);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    messenger.showSnackBar(SnackBar(
       content: Text(ok
           ? AppLocalizations.of(context).macroSent(control.label)
           : AppLocalizations.of(context).macroFailed(control.label)),
@@ -805,9 +890,7 @@ class _MacrosModuleState extends State<_MacrosModule> {
                 for (final control in widget.controls)
                   FilledButton.tonalIcon(
                     style: FilledButton.styleFrom(
-                        foregroundColor: widget.color.computeLuminance() > 0.6
-                            ? Colors.black87
-                            : widget.color),
+                        foregroundColor: _chipForeground(context)),
                     onPressed: _running == null ? () => _run(control) : null,
                     icon: _running == control.id
                         ? const SizedBox.square(

@@ -9,8 +9,9 @@ import 'macro_control_builder.dart';
 /// Bottom-sheet macro runner. Lists the Klipper macros defined on the printer
 /// (Moonraker's `printer/objects/list`, filtered to `gcode_macro` entries),
 /// lets the user **star** the ones they use most to pin them to the top, and
-/// runs a macro after a confirmation. Opened from the macro button on an
-/// online tile - see `printer_tile.dart`.
+/// runs a macro after a confirmation. Opened from the control panel's Macros
+/// module ("Manage") - the tile button itself now opens the panel, see
+/// `control_panel_overlay.dart`.
 ///
 /// Hidden from the list (in [PrintControlService.listMacros]): `_`-prefixed
 /// helper macros (Klipper's private-macro convention, e.g. `_Probe_Variables`)
@@ -90,24 +91,36 @@ class _MacrosSheetState extends State<_MacrosSheet> {
         .updateFavouriteMacros(widget.printer.id, _favourites.toList());
   }
 
+  /// Gates [_buildControl]: the parameter fetch can take seconds over the
+  /// tunnel, and a second tap while it runs would stack a second builder
+  /// sheet on top of the first when both awaits resolve.
+  bool _buildingControl = false;
+
   Future<void> _buildControl(String macro, [MacroControl? existing]) async {
-    final parameters = existing == null
-        ? await _control.macroParameters(macro) ?? const <MacroControlParameter>[]
-        : const <MacroControlParameter>[];
-    if (!mounted) return;
-    final control = await showMacroControlBuilder(context,
-        macro: macro, existing: existing, suggestedParameters: parameters);
-    if (control == null || !mounted) return;
-    setState(() {
-      final index = _controls.indexWhere((item) => item.id == control.id);
-      if (index < 0) {
-        _controls.add(control);
-      } else {
-        _controls[index] = control;
-      }
-    });
-    await PrinterRegistry.instance
-        .updateMacroControls(widget.printer.id, _controls);
+    if (_buildingControl) return;
+    _buildingControl = true;
+    try {
+      final parameters = existing == null
+          ? await _control.macroParameters(macro) ??
+              const <MacroControlParameter>[]
+          : const <MacroControlParameter>[];
+      if (!mounted) return;
+      final control = await showMacroControlBuilder(context,
+          macro: macro, existing: existing, suggestedParameters: parameters);
+      if (control == null || !mounted) return;
+      setState(() {
+        final index = _controls.indexWhere((item) => item.id == control.id);
+        if (index < 0) {
+          _controls.add(control);
+        } else {
+          _controls[index] = control;
+        }
+      });
+      await PrinterRegistry.instance
+          .updateMacroControls(widget.printer.id, _controls);
+    } finally {
+      _buildingControl = false;
+    }
   }
 
   Future<void> _deleteControl(MacroControl control) async {
@@ -141,7 +154,9 @@ class _MacrosSheetState extends State<_MacrosSheet> {
     if (command == null || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _running = control.id);
-    final ok = await _control.runMacro(command);
+    // Single-shot path: a heat-and-wait macro outlives the ladder's 4s LAN
+    // timeout, and a cross-transport "retry" would run it twice.
+    final ok = await _control.runPanelCommand(command);
     if (!mounted) return;
     setState(() => _running = null);
     messenger.showSnackBar(SnackBar(
@@ -178,7 +193,9 @@ class _MacrosSheetState extends State<_MacrosSheet> {
     if (confirmed != true || !mounted) return;
 
     setState(() => _running = macro);
-    final ok = await _control.runMacro(macro);
+    // Same single-shot rule as the control cards: gcode/script answers on
+    // completion, so the old retry ladder ran any >4s macro twice.
+    final ok = await _control.runPanelCommand(macro);
     if (!mounted) return;
     setState(() => _running = null);
     // Unlike starting a print, the sheet stays open so several macros can be
@@ -317,7 +334,9 @@ class _MacrosSheetState extends State<_MacrosSheet> {
                         enabled: _running == null,
                         onRun: () => _run(m),
                         onToggleFavourite: () => _toggleFavourite(m),
-                        onBuildControl: () => _buildControl(m),
+                        onBuildControl: MacroControl.isValidMacroName(m)
+                            ? () => _buildControl(m)
+                            : null,
                       ),
                       if (favs.isNotEmpty && rest.isNotEmpty)
                         const Divider(height: 1),
@@ -328,7 +347,9 @@ class _MacrosSheetState extends State<_MacrosSheet> {
                         enabled: _running == null,
                         onRun: () => _run(m),
                         onToggleFavourite: () => _toggleFavourite(m),
-                        onBuildControl: () => _buildControl(m),
+                        onBuildControl: MacroControl.isValidMacroName(m)
+                            ? () => _buildControl(m)
+                            : null,
                       ),
                     ],
                   ),
@@ -355,7 +376,11 @@ class _MacroRow extends StatelessWidget {
   final bool enabled;
   final VoidCallback onRun;
   final VoidCallback onToggleFavourite;
-  final VoidCallback onBuildControl;
+
+  /// Null hides the customize button: a macro whose name falls outside
+  /// [MacroControl.isValidMacroName] would build a control that the validity
+  /// filter silently drops on the next load, so it is never offered.
+  final VoidCallback? onBuildControl;
 
   const _MacroRow({
     required this.name,
@@ -364,7 +389,7 @@ class _MacroRow extends StatelessWidget {
     required this.enabled,
     required this.onRun,
     required this.onToggleFavourite,
-    required this.onBuildControl,
+    this.onBuildControl,
   });
 
   @override
@@ -389,11 +414,12 @@ class _MacroRow extends StatelessWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(
-            icon: const Icon(Icons.dashboard_customize_outlined),
-            tooltip: l.macroControlCreate,
-            onPressed: onBuildControl,
-          ),
+          if (onBuildControl != null)
+            IconButton(
+              icon: const Icon(Icons.dashboard_customize_outlined),
+              tooltip: l.macroControlCreate,
+              onPressed: onBuildControl,
+            ),
           IconButton(
             icon: Icon(
               favourite ? Icons.star_rounded : Icons.star_border_rounded,

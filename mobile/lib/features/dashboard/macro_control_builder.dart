@@ -223,6 +223,7 @@ class _MacroControlBuilderState extends State<_MacroControlBuilder> {
                 controller: _label,
                 autofocus: widget.existing == null,
                 decoration: InputDecoration(labelText: l.macroControlLabel),
+                onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 16),
               Text(l.macroControlIcon,
@@ -291,7 +292,8 @@ class _MacroControlBuilderState extends State<_MacroControlBuilder> {
                 ),
               const SizedBox(height: 12),
               FilledButton.icon(
-                onPressed: _save,
+                // Disabled rather than a silent no-op on an empty label.
+                onPressed: _label.text.trim().isEmpty ? null : _save,
                 icon: const Icon(Icons.check),
                 label: Text(l.commonSave),
               ),
@@ -306,7 +308,14 @@ class _MacroControlBuilderState extends State<_MacroControlBuilder> {
 Future<String?> showMacroControlRunner(
     BuildContext context, MacroControl control) async {
   if (control.parameters.isEmpty && !control.confirm) {
-    return control.command(const {});
+    // command() throws on data the validity filters can't vouch for (e.g. a
+    // control persisted before they existed); a broken control must degrade
+    // to a no-op tap, not an unhandled async error.
+    try {
+      return control.command(const {});
+    } on FormatException {
+      return null;
+    }
   }
   final values = {
     for (final parameter in control.parameters)
@@ -321,7 +330,14 @@ Future<String?> showMacroControlRunner(
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setState) {
-        final preview = control.command(values);
+        // A value the single-line rule rejects renders as a disabled Run
+        // with an empty preview instead of throwing mid-build.
+        String? preview;
+        try {
+          preview = control.command(values);
+        } on FormatException {
+          preview = null;
+        }
         return AlertDialog(
           title: Text(control.label),
           content: SingleChildScrollView(
@@ -365,7 +381,7 @@ Future<String?> showMacroControlRunner(
                     color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: SelectableText(preview,
+                  child: SelectableText(preview ?? '',
                       style: const TextStyle(fontFamily: 'monospace')),
                 ),
               ],
@@ -377,7 +393,8 @@ Future<String?> showMacroControlRunner(
               child: Text(AppLocalizations.of(context).commonCancel),
             ),
             FilledButton.icon(
-              onPressed: () => Navigator.pop(context, preview),
+              onPressed:
+                  preview == null ? null : () => Navigator.pop(context, preview),
               icon: const Icon(Icons.play_arrow_rounded),
               label: Text(AppLocalizations.of(context).macroRunAction),
             ),

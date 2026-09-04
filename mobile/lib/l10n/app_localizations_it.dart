@@ -1974,6 +1974,10 @@ class AppLocalizationsIt extends AppLocalizations {
   String get controlPanelCommandSent => 'Comando inviato';
 
   @override
+  String get controlPanelCommandFailed =>
+      'La stampante non è riuscita a eseguire quel comando';
+
+  @override
   String get controlPanelHomed => 'Azzerata';
 
   @override

@@ -3517,7 +3517,7 @@ abstract class AppLocalizations {
   /// No description provided for @controlPanelCustomize.
   ///
   /// In en, this message translates to:
-  /// **'Customize'**
+  /// **'Customise'**
   String get controlPanelCustomize;
 
   /// No description provided for @controlPanelPresets.
@@ -3585,6 +3585,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Command sent'**
   String get controlPanelCommandSent;
+
+  /// Snackbar when a control-panel command fails: the printer refused it (not homed, cold extrude, move past a limit) or could not be reached.
+  ///
+  /// In en, this message translates to:
+  /// **'The printer couldn\'t run that command'**
+  String get controlPanelCommandFailed;
 
   /// No description provided for @controlPanelHomed.
   ///

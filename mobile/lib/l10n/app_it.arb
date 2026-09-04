@@ -597,6 +597,7 @@
   "controlPanelHeatersOff": "Spegni riscaldatori",
   "controlPanelHome": "Home",
   "controlPanelCommandSent": "Comando inviato",
+  "controlPanelCommandFailed": "La stampante non è riuscita a eseguire quel comando",
   "controlPanelHomed": "Azzerata",
   "controlPanelNotHomed": "Non azzerata",
   "controlPanelPositionUnknown": "Posizione sconosciuta",

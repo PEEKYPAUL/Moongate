@@ -1967,6 +1967,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get controlPanelCommandSent => 'Befehl gesendet';
 
   @override
+  String get controlPanelCommandFailed =>
+      'Der Drucker konnte diesen Befehl nicht ausführen';
+
+  @override
   String get controlPanelHomed => 'Referenziert';
 
   @override

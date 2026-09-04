@@ -597,6 +597,7 @@
   "controlPanelHeatersOff": "Apagar calentadores",
   "controlPanelHome": "Inicio",
   "controlPanelCommandSent": "Comando enviado",
+  "controlPanelCommandFailed": "La impresora no pudo ejecutar ese comando",
   "controlPanelHomed": "Referenciada",
   "controlPanelNotHomed": "Sin referenciar",
   "controlPanelPositionUnknown": "Posición desconocida",

@@ -1915,8 +1915,10 @@ class AppLocalizationsPl extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count parametrów',
-      one: '1 parametr',
+      other: '$count parametru',
+      many: '$count parametrów',
+      few: '$count parametry',
+      one: '$count parametr',
     );
     return '$_temp0';
   }
@@ -1960,6 +1962,10 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get controlPanelCommandSent => 'Polecenie wysłane';
+
+  @override
+  String get controlPanelCommandFailed =>
+      'Drukarka nie mogła wykonać tego polecenia';
 
   @override
   String get controlPanelHomed => 'Zbazowana';

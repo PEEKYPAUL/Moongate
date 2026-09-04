@@ -1969,6 +1969,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get controlPanelCommandSent => 'Comando enviado';
 
   @override
+  String get controlPanelCommandFailed =>
+      'A impressora não conseguiu executar esse comando';
+
+  @override
   String get controlPanelHomed => 'Referenciada';
 
   @override

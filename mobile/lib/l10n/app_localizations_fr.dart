@@ -1981,6 +1981,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get controlPanelCommandSent => 'Commande envoyée';
 
   @override
+  String get controlPanelCommandFailed =>
+      'L\'imprimante n\'a pas pu exécuter cette commande';
+
+  @override
   String get controlPanelHomed => 'Initialisée';
 
   @override
