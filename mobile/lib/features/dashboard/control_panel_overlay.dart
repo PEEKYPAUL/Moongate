@@ -14,7 +14,6 @@ Future<void> showControlPanel(
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    useSafeArea: true,
     showDragHandle: true,
     builder: (_) => FractionallySizedBox(
       heightFactor: 0.94,
@@ -314,7 +313,7 @@ class _ControlPanelState extends State<_ControlPanel> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    return Column(
+    final Widget body = Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
@@ -388,11 +387,18 @@ class _ControlPanelState extends State<_ControlPanel> {
                   },
                 ),
         ),
-        // Keyboard clearance: the temperature fields live inside the list,
-        // and without this the 94%-height sheet keeps its size while the
-        // keyboard covers the lower modules (every sibling sheet pads this).
-        SizedBox(height: MediaQuery.viewInsetsOf(context).bottom),
       ],
+    );
+    // The sheet's bottom edge sits at the screen bottom, so its lower controls
+    // (the temperature Set/Off row, extrude/retract, Manage macros) must clear
+    // BOTH the on-screen keyboard and the system navigation bar. viewInsets
+    // lifts the whole sheet above the keyboard; SafeArea(top: false) insets the
+    // bottom for the nav bar (and side gesture bars in landscape). The two
+    // never double up - padding.bottom that SafeArea reads goes to 0 while the
+    // keyboard is up. Same idiom as preheat/console/file-system.
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SafeArea(top: false, child: body),
     );
   }
 }
@@ -839,6 +845,27 @@ class _MacrosModuleState extends State<_MacrosModule> {
     _control = PrintControlService(widget.printer);
   }
 
+  /// Chrome around the label inside a [FilledButton.tonalIcon]: Material 3's
+  /// 16px start / 24px end padding, the 18px icon and its 8px gap, plus a
+  /// little slack so a rounding difference between this estimate and the real
+  /// button layout can never ellipsize a label we decided "fits" (the same
+  /// estimate idea as AdaptiveToolButton).
+  static const double _chipChrome = 70;
+
+  /// Whether [label] fits a half-width grid cell at the live text scale.
+  bool _fitsHalfCell(BuildContext context, String label, double cell) {
+    final painter = TextPainter(
+      text: TextSpan(
+          text: label, style: Theme.of(context).textTheme.labelLarge),
+      textDirection: Directionality.of(context),
+      textScaler:    MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    final fits = painter.width + _chipChrome <= cell;
+    painter.dispose();
+    return fits;
+  }
+
   /// Same dark-mode rule as the module headers: the tonal button paints on
   /// secondaryContainer, so the foreground must contrast with THAT.
   Color _chipForeground(BuildContext context) {
@@ -883,24 +910,41 @@ class _MacrosModuleState extends State<_MacrosModule> {
                   textAlign: TextAlign.center),
             )
           else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final control in widget.controls)
-                  FilledButton.tonalIcon(
-                    style: FilledButton.styleFrom(
-                        foregroundColor: _chipForeground(context)),
-                    onPressed: _running == null ? () => _run(control) : null,
-                    icon: _running == control.id
-                        ? const SizedBox.square(
-                            dimension: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : Icon(macroControlIcon(control.icon)),
-                    label: Text(control.label),
-                  ),
-              ],
-            ),
+            // A two-column grid, not a free-flowing Wrap: every chip fills
+            // its cell, so the block sits flush with the card edges and every
+            // gap is identical, and a label too long for half a row takes a
+            // full row of its own instead of ragging the right edge.
+            LayoutBuilder(builder: (context, constraints) {
+              const gap = 8.0;
+              final full = constraints.maxWidth;
+              final half = (full - gap) / 2;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: [
+                  for (final control in widget.controls)
+                    SizedBox(
+                      width: _fitsHalfCell(context, control.label, half)
+                          ? half
+                          : full,
+                      child: FilledButton.tonalIcon(
+                        style: FilledButton.styleFrom(
+                            foregroundColor: _chipForeground(context)),
+                        onPressed:
+                            _running == null ? () => _run(control) : null,
+                        icon: _running == control.id
+                            ? const SizedBox.square(
+                                dimension: 16,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2))
+                            : Icon(macroControlIcon(control.icon)),
+                        label: Text(control.label,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ),
+                    ),
+                ],
+              );
+            }),
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerRight,
