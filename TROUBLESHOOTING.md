@@ -236,7 +236,7 @@ From v0.9.48 this friendly message (with an automatic retry every few seconds) r
 
 ## A file you expect is missing in File System (v0.9.63+)
 
-The file browser hides clutter by default: Klipper's timestamped SAVE_CONFIG snapshots (`printer-20260830_101530.cfg` and friends), `.bak`-style backup files, and hidden dotfiles and dot-folders (`.theme/`, `.mainsail.json`) - along with any folder left empty by the filter. Untick **Hide backups & hidden files** at the top of the sheet to list everything; the choice is remembered.
+The file browser hides clutter by default: Klipper's timestamped SAVE_CONFIG snapshots (`printer-20260830_101530.cfg` and friends), `.bak`-style backup files, other tools' timestamped config copies (crowsnest-style, `crowsnest.conf.2024-12-22-1121`; from v0.9.64 these also open as plain text if you show them), and hidden dotfiles and dot-folders (`.theme/`, `.mainsail.json`) - along with any folder left empty by the filter. Untick **Hide backups & hidden files** at the top of the sheet to list everything; the choice is remembered.
 
 ## Remote tunnel not connecting
 
