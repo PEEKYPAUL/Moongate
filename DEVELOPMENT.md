@@ -81,7 +81,7 @@ Debug builds are unsigned, slower, and have hot-reload. Press `r` in the termina
 
 ### Release build (production-equivalent)
 
-The app builds in two **distribution flavors** (added in #178 for the Play Store): `github` (the sideloaded APK for GitHub Releases + KIAUH - the **early-access channel** - which keeps the in-app self-updater) and `play` (the App Bundle for Google Play - the **stable channel**, live in production since v0.9.57 - which ships **without** the self-updater or `REQUEST_INSTALL_PACKAGES`). Because flavors now exist, `--flavor` is **required** - a bare `flutter build apk` errors with "this app has flavors". Details in [`docs/design/play-flavor-plan.md`](docs/design/play-flavor-plan.md).
+The app builds in two **distribution flavors** (added in #178 for the Play Store): `github` (the sideloaded APK for GitHub Releases + KIAUH - the **early-access channel** - which keeps the in-app self-updater) and `play` (the App Bundle for Google Play - the **stable channel**, live in production since v0.9.57 - which ships **without** the self-updater or `REQUEST_INSTALL_PACKAGES`). Because flavors now exist, always pass `--flavor`. On the current toolchain a bare `flutter build apk --release` does not error: Gradle builds **both** flavors (≈14 min), then Flutter reports "Gradle build failed to produce an .apk file" because it looks for an unflavored `app-release.apk` - the flavored APKs are sitting in `build/app/outputs/flutter-apk/` regardless. Details in [`docs/design/play-flavor-plan.md`](docs/design/play-flavor-plan.md).
 
 ```bash
 cd mobile
@@ -89,6 +89,8 @@ cd mobile
 flutter build apk --release --flavor github --dart-define=MOONGATE_CHANNEL=github
 # Output: build/app/outputs/flutter-apk/app-github-release.apk
 adb install -r build/app/outputs/flutter-apk/app-github-release.apk
+# Prove it was an in-place update (nothing wiped): firstInstallTime must be unchanged
+adb shell dumpsys package com.moongate.app.moongate | grep -E 'versionCode|firstInstallTime|lastUpdateTime'
 
 # Play App Bundle (no self-updater) - for local inspection only, never sideload it
 flutter build appbundle --release --flavor play --dart-define=MOONGATE_CHANNEL=play
@@ -375,6 +377,8 @@ revision. Do not hand-edit the generated JSON.
 | **Folder structure** | Feature-first: `lib/features/<area>/<screen>.dart`. Shared cross-feature code goes in `lib/services/` or `lib/providers/` |
 | **State management** | Riverpod `NotifierProvider`. Avoid `StatefulWidget` for app-wide state |
 | **Colour API** | `withValues(alpha: 0.5)`, **not** the deprecated `withOpacity()` |
+| **Bottom sheets** | Every `showModalBottomSheet` body wraps in `Padding(bottom: MediaQuery.viewInsetsOf(context).bottom)` (keyboard) **and** `SafeArea(top: false)` (navigation / gesture bars), or adds `MediaQuery.paddingOf(context).bottom` to its scroll padding. `useSafeArea: true` on the sheet protects only the top and sides; the v0.9.64 control panel relied on it and its bottom row sat behind 3-button navigation (fixed v0.9.65). Reference implementations: `preheat_overlay.dart`, `console_overlay.dart`, `file_system_overlay.dart`, `control_panel_overlay.dart`. Device-check every new sheet with the nav bar in 3-button mode, in landscape, and with the keyboard up |
+| **Button grids** | Rows of labelled buttons (macro chips, tool buttons) are measured, not guessed: a `LayoutBuilder` plus `TextPainter` at `MediaQuery.textScalerOf(context)` decides whether a label fits its cell, with a chrome allowance for the button's padding and icon (`AdaptiveToolButton`, the control panel's macro grid). A free-flowing `Wrap` of intrinsic-width buttons rags the right edge |
 | **Python** | PEP 8, type hints on public functions, zero runtime deps beyond what Moonraker already pulls in |
 | **Plugin lint** | CI runs `ruff check klipper-plugin/` with ruff **pinned** (see `.github/workflows/ci.yml`) - new ruff releases change default rules, so unpin only together with a deliberate lint cleanup |
 | **Commits** | Conventional prefixes: `feat:`, `fix:`, `docs:`, `release:`, `chore:`. Bodies wrap at ~72 cols |
