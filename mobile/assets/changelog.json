@@ -1,5 +1,14 @@
 [
   {
+    "version": "v0.9.64",
+    "bullets": [
+      "The Macros button on each printer tile is now a full Control panel. Alongside your macros it brings heater targets and motion controls - homing, jogging, extrude and retract - into one sheet, arranged the way you want: reorder, rename and recolour the temperature, motion and macro sections, or start from the Essential, Motion or Macros presets. Any Klipper macro can become a labelled button with its own icon, colour and parameters, the parameters it needs are suggested from the macro itself, and the exact command is shown for you to review before it runs. It all saves per printer and travels in your backups.",
+      "The config editor now understands Klipper. Editing printer.cfg suggests the right section and option names as you type, warns about values that don't look right before you save, and lets you edit a macro's G-code inline. The console gained command completions to match.",
+      "The File System 'Hide backups & hidden files' filter now also catches timestamped config backups that other tools leave behind (like crowsnest's crowsnest.conf.2024-12-22-1121), and those files now open as text so you can read them.",
+      "The preheat sheet now fills the full width in landscape instead of floating in a narrow strip down the middle of the screen."
+    ]
+  },
+  {
     "version": "v0.9.63",
     "bullets": [
       "The File System browser can now hide the clutter. A checkbox at the top - ticked by default and remembered - hides Klipper's automatic SAVE_CONFIG snapshots (the printer-20260830_101530.cfg pile), .bak backup files and hidden dotfiles like .theme, so the list shows just your real config files; a folder whose entire contents are hidden disappears with them. Untick it and everything is back. The choice travels in your backups too.",
