@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.9.65",
+    "bullets": [
+      "The Control panel's lower controls no longer hide behind the phone's navigation bar or the keyboard. The Set / Heaters off row, extrude and retract, and Manage macro controls now always clear the system bars, in portrait and landscape alike.",
+      "Macro buttons in the Control panel, and the cards on the Manage macro controls sheet, now line up in a tidy two-column grid with even gaps. A macro with a long name takes a full row of its own instead of leaving a ragged edge."
+    ]
+  },
+  {
     "version": "v0.9.64",
     "bullets": [
       "The Macros button on each printer tile is now a full Control panel. Alongside your macros it brings heater targets and motion controls - homing, jogging, extrude and retract - into one sheet, arranged the way you want: reorder, rename and recolour the temperature, motion and macro sections, or start from the Essential, Motion or Macros presets. Any Klipper macro can become a labelled button with its own icon, colour and parameters, the parameters it needs are suggested from the macro itself, and the exact command is shown for you to review before it runs. It all saves per printer and travels in your backups.",

@@ -305,22 +305,31 @@ class _MacrosSheetState extends State<_MacrosSheet> {
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              for (final control in _controls)
-                                _MacroControlCard(
-                                  control: control,
-                                  running: _running == control.id,
-                                  enabled: _running == null,
-                                  onRun: () => _runControl(control),
-                                  onEdit: () =>
-                                      _buildControl(control.macro, control),
-                                  onDelete: () => _deleteControl(control),
-                                ),
-                            ],
-                          ),
+                          // Same two-column grid as the control panel's Macros
+                          // module: each card fills half the row, so the block
+                          // sits flush with the sheet and the gaps are even.
+                          child: LayoutBuilder(builder: (context, constraints) {
+                            final half = (constraints.maxWidth - 8) / 2;
+                            return Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (final control in _controls)
+                                  SizedBox(
+                                    width: half,
+                                    child: _MacroControlCard(
+                                      control: control,
+                                      running: _running == control.id,
+                                      enabled: _running == null,
+                                      onRun: () => _runControl(control),
+                                      onEdit: () => _buildControl(
+                                          control.macro, control),
+                                      onDelete: () => _deleteControl(control),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          }),
                         ),
                         const Padding(
                           padding: EdgeInsets.only(top: 12),
@@ -455,8 +464,10 @@ class _MacroControlCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = macroControlColor(context, control.color);
+    // Fills the grid cell the sheet hands it (a fixed 176px used to leave
+    // ragged gaps on every screen width).
     return SizedBox(
-      width: 176,
+      width: double.infinity,
       child: Card(
         color: color.withValues(alpha: 0.12),
         clipBehavior: Clip.antiAlias,
