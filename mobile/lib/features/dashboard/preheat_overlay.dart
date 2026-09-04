@@ -40,6 +40,10 @@ Future<void> showPreheatSheet(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
+    // Span the full width even in landscape. Material 3's default caps a modal
+    // bottom sheet at 640dp and centres it, so on a wide (landscape) screen the
+    // sheet floated in the middle with the dashboard showing on either side.
+    constraints: const BoxConstraints(maxWidth: double.infinity),
     backgroundColor: Theme.of(context).colorScheme.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
