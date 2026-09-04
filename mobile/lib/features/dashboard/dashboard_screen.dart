@@ -1273,7 +1273,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (!mounted) return;
     final bytes = Uint8List.fromList(
       utf8.encode(
-        PrinterConfig.toBackupJson(_printers,
+        // Read the REGISTRY, not this screen's _printers copy: the copy is
+        // from the last _load(), and per-printer edits made since (favourite
+        // stars, macro controls, panel layout) live only in the registry
+        // until something reloads - a backup taken then would omit them.
+        PrinterConfig.toBackupJson(PrinterRegistry.instance.printers,
             restoreCode: restoreCode, settings: settings),
       ),
     );

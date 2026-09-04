@@ -4,12 +4,14 @@ import '../../l10n/app_localizations.dart';
 import '../../models/printer_config.dart';
 import '../../services/print_control_service.dart';
 import '../../services/printer_registry.dart';
+import 'macro_control_builder.dart';
 
 /// Bottom-sheet macro runner. Lists the Klipper macros defined on the printer
 /// (Moonraker's `printer/objects/list`, filtered to `gcode_macro` entries),
 /// lets the user **star** the ones they use most to pin them to the top, and
-/// runs a macro after a confirmation. Opened from the macro button on an
-/// online tile - see `printer_tile.dart`.
+/// runs a macro after a confirmation. Opened from the control panel's Macros
+/// module ("Manage") - the tile button itself now opens the panel, see
+/// `control_panel_overlay.dart`.
 ///
 /// Hidden from the list (in [PrintControlService.listMacros]): `_`-prefixed
 /// helper macros (Klipper's private-macro convention, e.g. `_Probe_Variables`)
@@ -46,6 +48,7 @@ class _MacrosSheetState extends State<_MacrosSheet> {
   /// back to the registry (which persists it + carries it into backups). The
   /// local set is the source of truth for this open sheet.
   late final Set<String> _favourites;
+  late List<MacroControl> _controls;
 
   /// Macro currently being sent - gates taps and shows a spinner on its row so
   /// a double-tap can't fire it twice.
@@ -70,6 +73,7 @@ class _MacrosSheetState extends State<_MacrosSheet> {
       }
     }
     _favourites = {...seed.favouriteMacros};
+    _controls = [...seed.macroControls];
     _future = _control.listMacros();
   }
 
@@ -85,6 +89,83 @@ class _MacrosSheetState extends State<_MacrosSheet> {
     // only needs to land before the sheet is next opened.
     PrinterRegistry.instance
         .updateFavouriteMacros(widget.printer.id, _favourites.toList());
+  }
+
+  /// Gates [_buildControl]: the parameter fetch can take seconds over the
+  /// tunnel, and a second tap while it runs would stack a second builder
+  /// sheet on top of the first when both awaits resolve.
+  bool _buildingControl = false;
+
+  Future<void> _buildControl(String macro, [MacroControl? existing]) async {
+    if (_buildingControl) return;
+    _buildingControl = true;
+    try {
+      final parameters = existing == null
+          ? await _control.macroParameters(macro) ??
+              const <MacroControlParameter>[]
+          : const <MacroControlParameter>[];
+      if (!mounted) return;
+      final control = await showMacroControlBuilder(context,
+          macro: macro, existing: existing, suggestedParameters: parameters);
+      if (control == null || !mounted) return;
+      setState(() {
+        final index = _controls.indexWhere((item) => item.id == control.id);
+        if (index < 0) {
+          _controls.add(control);
+        } else {
+          _controls[index] = control;
+        }
+      });
+      await PrinterRegistry.instance
+          .updateMacroControls(widget.printer.id, _controls);
+    } finally {
+      _buildingControl = false;
+    }
+  }
+
+  Future<void> _deleteControl(MacroControl control) async {
+    final remove = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(AppLocalizations.of(context).macroControlDeleteTitle),
+        content: Text(AppLocalizations.of(context)
+            .macroControlDeleteBody(control.label)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(AppLocalizations.of(context).commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(AppLocalizations.of(context).commonDelete),
+          ),
+        ],
+      ),
+    );
+    if (remove != true || !mounted) return;
+    setState(() => _controls.removeWhere((item) => item.id == control.id));
+    await PrinterRegistry.instance
+        .updateMacroControls(widget.printer.id, _controls);
+  }
+
+  Future<void> _runControl(MacroControl control) async {
+    if (_running != null) return;
+    final command = await showMacroControlRunner(context, control);
+    if (command == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _running = control.id);
+    // Single-shot path: a heat-and-wait macro outlives the ladder's 4s LAN
+    // timeout, and a cross-transport "retry" would run it twice.
+    final ok = await _control.runPanelCommand(command);
+    if (!mounted) return;
+    setState(() => _running = null);
+    messenger.showSnackBar(SnackBar(
+      content: Text(ok
+          ? AppLocalizations.of(context).macroSent(control.label)
+          : AppLocalizations.of(context).macroFailed(control.label)),
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 2),
+    ));
   }
 
   Future<void> _run(String macro) async {
@@ -112,7 +193,9 @@ class _MacrosSheetState extends State<_MacrosSheet> {
     if (confirmed != true || !mounted) return;
 
     setState(() => _running = macro);
-    final ok = await _control.runMacro(macro);
+    // Same single-shot rule as the control cards: gcode/script answers on
+    // completion, so the old retry ladder ran any >4s macro twice.
+    final ok = await _control.runPanelCommand(macro);
     if (!mounted) return;
     setState(() => _running = null);
     // Unlike starting a print, the sheet stays open so several macros can be
@@ -214,6 +297,36 @@ class _MacrosSheetState extends State<_MacrosSheet> {
                   child: ListView(
                     padding: const EdgeInsets.only(bottom: 8),
                     children: [
+                      if (_controls.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                          child: Text(l.macroControlsTitle,
+                              style: theme.textTheme.titleSmall),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              for (final control in _controls)
+                                _MacroControlCard(
+                                  control: control,
+                                  running: _running == control.id,
+                                  enabled: _running == null,
+                                  onRun: () => _runControl(control),
+                                  onEdit: () =>
+                                      _buildControl(control.macro, control),
+                                  onDelete: () => _deleteControl(control),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.only(top: 12),
+                          child: Divider(height: 1),
+                        ),
+                      ],
                       for (final m in favs) _MacroRow(
                         name: m,
                         favourite: true,
@@ -221,6 +334,9 @@ class _MacrosSheetState extends State<_MacrosSheet> {
                         enabled: _running == null,
                         onRun: () => _run(m),
                         onToggleFavourite: () => _toggleFavourite(m),
+                        onBuildControl: MacroControl.isValidMacroName(m)
+                            ? () => _buildControl(m)
+                            : null,
                       ),
                       if (favs.isNotEmpty && rest.isNotEmpty)
                         const Divider(height: 1),
@@ -231,6 +347,9 @@ class _MacrosSheetState extends State<_MacrosSheet> {
                         enabled: _running == null,
                         onRun: () => _run(m),
                         onToggleFavourite: () => _toggleFavourite(m),
+                        onBuildControl: MacroControl.isValidMacroName(m)
+                            ? () => _buildControl(m)
+                            : null,
                       ),
                     ],
                   ),
@@ -258,6 +377,11 @@ class _MacroRow extends StatelessWidget {
   final VoidCallback onRun;
   final VoidCallback onToggleFavourite;
 
+  /// Null hides the customize button: a macro whose name falls outside
+  /// [MacroControl.isValidMacroName] would build a control that the validity
+  /// filter silently drops on the next load, so it is never offered.
+  final VoidCallback? onBuildControl;
+
   const _MacroRow({
     required this.name,
     required this.favourite,
@@ -265,6 +389,7 @@ class _MacroRow extends StatelessWidget {
     required this.enabled,
     required this.onRun,
     required this.onToggleFavourite,
+    this.onBuildControl,
   });
 
   @override
@@ -286,15 +411,101 @@ class _MacroRow extends StatelessWidget {
         style:
             theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
       ),
-      trailing: IconButton(
-        icon: Icon(
-          favourite ? Icons.star_rounded : Icons.star_border_rounded,
-          color: favourite ? Colors.amber : theme.colorScheme.outline,
-        ),
-        tooltip: favourite ? l.macroUnfavourite : l.macroFavourite,
-        onPressed: onToggleFavourite,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (onBuildControl != null)
+            IconButton(
+              icon: const Icon(Icons.dashboard_customize_outlined),
+              tooltip: l.macroControlCreate,
+              onPressed: onBuildControl,
+            ),
+          IconButton(
+            icon: Icon(
+              favourite ? Icons.star_rounded : Icons.star_border_rounded,
+              color: favourite ? Colors.amber : theme.colorScheme.outline,
+            ),
+            tooltip: favourite ? l.macroUnfavourite : l.macroFavourite,
+            onPressed: onToggleFavourite,
+          ),
+        ],
       ),
       onTap: enabled ? onRun : null,
+    );
+  }
+}
+
+class _MacroControlCard extends StatelessWidget {
+  final MacroControl control;
+  final bool running;
+  final bool enabled;
+  final VoidCallback onRun;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _MacroControlCard({
+    required this.control,
+    required this.running,
+    required this.enabled,
+    required this.onRun,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = macroControlColor(context, control.color);
+    return SizedBox(
+      width: 176,
+      child: Card(
+        color: color.withValues(alpha: 0.12),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: enabled ? onRun : null,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+            child: Row(
+              children: [
+                running
+                    ? SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2.5, color: color),
+                      )
+                    : Icon(macroControlIcon(control.icon), color: color),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(control.label,
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                      if (control.parameters.isNotEmpty)
+                        Text(
+                          AppLocalizations.of(context).macroControlParameterCount(
+                              control.parameters.length),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  onSelected: (value) => value == 'edit' ? onEdit() : onDelete(),
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                        value: 'edit',
+                        child: Text(AppLocalizations.of(context).macroControlEdit)),
+                    PopupMenuItem(
+                        value: 'delete',
+                        child: Text(AppLocalizations.of(context).commonDelete)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
