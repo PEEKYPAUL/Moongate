@@ -1826,6 +1826,155 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get macroControlsTitle => 'My controls';
+
+  @override
+  String get macroControlCreate => 'Create control';
+
+  @override
+  String get macroControlEdit => 'Edit control';
+
+  @override
+  String get macroControlLabel => 'Label';
+
+  @override
+  String get macroControlIcon => 'Icon';
+
+  @override
+  String get macroControlColor => 'Colour';
+
+  @override
+  String get macroControlConfirm => 'Ask before running';
+
+  @override
+  String get macroControlParameters => 'Parameters';
+
+  @override
+  String get macroControlAddParameter => 'Add parameter';
+
+  @override
+  String get macroControlEditParameter => 'Edit parameter';
+
+  @override
+  String get macroControlParameterName => 'Macro parameter name';
+
+  @override
+  String get macroControlParameterLabel => 'Display label';
+
+  @override
+  String get macroControlParameterType => 'Input type';
+
+  @override
+  String get macroControlTypeNumber => 'Number';
+
+  @override
+  String get macroControlTypeText => 'Text';
+
+  @override
+  String get macroControlTypeToggle => 'Toggle';
+
+  @override
+  String get macroControlDefaultValue => 'Default value';
+
+  @override
+  String get macroControlParameterInvalid =>
+      'Use a unique name containing letters, numbers or underscores';
+
+  @override
+  String get macroControlPreview => 'Command preview';
+
+  @override
+  String get macroControlDeleteTitle => 'Delete control?';
+
+  @override
+  String macroControlDeleteBody(String label) {
+    return 'Delete $label from your macro controls?';
+  }
+
+  @override
+  String macroControlParameterCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count parameters',
+      one: '1 parameter',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get controlPanelTitle => 'Control panel';
+
+  @override
+  String get controlPanelCustomize => 'Customize';
+
+  @override
+  String get controlPanelPresets => 'Panel presets';
+
+  @override
+  String get controlPanelPresetEssential =>
+      'Essentials: temperatures, motion and macros';
+
+  @override
+  String get controlPanelPresetMotion => 'Motion and temperatures';
+
+  @override
+  String get controlPanelPresetMacros => 'Macros only';
+
+  @override
+  String get controlPanelEditModule => 'Edit module';
+
+  @override
+  String get controlPanelAddModule => 'Add module';
+
+  @override
+  String get controlPanelTemperatures => 'Temperatures';
+
+  @override
+  String get controlPanelMotion => 'Motion';
+
+  @override
+  String get controlPanelHeatersOff => 'Turn heaters off';
+
+  @override
+  String get controlPanelHome => 'Home';
+
+  @override
+  String get controlPanelCommandSent => 'Command sent';
+
+  @override
+  String get controlPanelHomed => 'Homed';
+
+  @override
+  String get controlPanelNotHomed => 'Not homed';
+
+  @override
+  String get controlPanelPositionUnknown => 'Position unknown';
+
+  @override
+  String get controlPanelSetPosition => 'Set position to zero';
+
+  @override
+  String get controlPanelSetPositionConfirm =>
+      'This tells Klipper the current X, Y and Z position is zero without moving the printer. Continue?';
+
+  @override
+  String get controlPanelExtruder => 'Extruder';
+
+  @override
+  String get controlPanelExtrude => 'Extrude';
+
+  @override
+  String get controlPanelRetract => 'Retract';
+
+  @override
+  String get controlPanelNoMacroControls =>
+      'Create macro controls to place them here.';
+
+  @override
+  String get controlPanelManageMacros => 'Manage macro controls';
+
+  @override
   String get tileConsole => 'Console';
 
   @override

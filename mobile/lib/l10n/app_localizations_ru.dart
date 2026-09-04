@@ -1845,6 +1845,155 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get macroControlsTitle => 'Мои элементы управления';
+
+  @override
+  String get macroControlCreate => 'Создать элемент управления';
+
+  @override
+  String get macroControlEdit => 'Изменить элемент управления';
+
+  @override
+  String get macroControlLabel => 'Название';
+
+  @override
+  String get macroControlIcon => 'Значок';
+
+  @override
+  String get macroControlColor => 'Цвет';
+
+  @override
+  String get macroControlConfirm => 'Спрашивать перед запуском';
+
+  @override
+  String get macroControlParameters => 'Параметры';
+
+  @override
+  String get macroControlAddParameter => 'Добавить параметр';
+
+  @override
+  String get macroControlEditParameter => 'Изменить параметр';
+
+  @override
+  String get macroControlParameterName => 'Имя параметра макроса';
+
+  @override
+  String get macroControlParameterLabel => 'Отображаемое название';
+
+  @override
+  String get macroControlParameterType => 'Тип ввода';
+
+  @override
+  String get macroControlTypeNumber => 'Число';
+
+  @override
+  String get macroControlTypeText => 'Текст';
+
+  @override
+  String get macroControlTypeToggle => 'Переключатель';
+
+  @override
+  String get macroControlDefaultValue => 'Значение по умолчанию';
+
+  @override
+  String get macroControlParameterInvalid =>
+      'Используйте уникальное имя из букв, цифр или подчёркиваний';
+
+  @override
+  String get macroControlPreview => 'Предпросмотр команды';
+
+  @override
+  String get macroControlDeleteTitle => 'Удалить элемент управления?';
+
+  @override
+  String macroControlDeleteBody(String label) {
+    return 'Удалить $label из элементов управления макросами?';
+  }
+
+  @override
+  String macroControlParameterCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count параметров',
+      one: '1 параметр',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get controlPanelTitle => 'Панель управления';
+
+  @override
+  String get controlPanelCustomize => 'Настроить';
+
+  @override
+  String get controlPanelPresets => 'Шаблоны панели';
+
+  @override
+  String get controlPanelPresetEssential =>
+      'Основное: температуры, движение и макросы';
+
+  @override
+  String get controlPanelPresetMotion => 'Движение и температуры';
+
+  @override
+  String get controlPanelPresetMacros => 'Только макросы';
+
+  @override
+  String get controlPanelEditModule => 'Изменить модуль';
+
+  @override
+  String get controlPanelAddModule => 'Добавить модуль';
+
+  @override
+  String get controlPanelTemperatures => 'Температуры';
+
+  @override
+  String get controlPanelMotion => 'Движение';
+
+  @override
+  String get controlPanelHeatersOff => 'Выключить нагреватели';
+
+  @override
+  String get controlPanelHome => 'Парковка';
+
+  @override
+  String get controlPanelCommandSent => 'Команда отправлена';
+
+  @override
+  String get controlPanelHomed => 'Откалиброван';
+
+  @override
+  String get controlPanelNotHomed => 'Не откалиброван';
+
+  @override
+  String get controlPanelPositionUnknown => 'Позиция неизвестна';
+
+  @override
+  String get controlPanelSetPosition => 'Установить позицию в ноль';
+
+  @override
+  String get controlPanelSetPositionConfirm =>
+      'Klipper примет текущую позицию X, Y и Z за ноль без движения принтера. Продолжить?';
+
+  @override
+  String get controlPanelExtruder => 'Экструдер';
+
+  @override
+  String get controlPanelExtrude => 'Выдавить';
+
+  @override
+  String get controlPanelRetract => 'Втянуть';
+
+  @override
+  String get controlPanelNoMacroControls =>
+      'Создайте элементы управления макросами, чтобы разместить их здесь.';
+
+  @override
+  String get controlPanelManageMacros => 'Управление макросами';
+
+  @override
   String get tileConsole => 'Консоль';
 
   @override

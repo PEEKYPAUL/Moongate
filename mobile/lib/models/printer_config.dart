@@ -15,6 +15,190 @@ import 'dart:convert';
 // without ambiguity vs "don't change". Module-private const.
 const Object _sentinel = Object();
 
+enum MacroControlParameterKind { text, number, toggle }
+
+List<MacroControlParameter> inferMacroParameters(String gcode) {
+  final found = <String, MacroControlParameter>{};
+  final references = RegExp(
+    r'params\.([A-Za-z_][A-Za-z0-9_]*)(?:\s*\|\s*default\s*\(\s*([^)]*?)\s*\))?',
+    caseSensitive: false,
+  );
+  for (final match in references.allMatches(gcode)) {
+    final name = match.group(1)!.toUpperCase();
+    var value = match.group(2)?.trim() ?? '';
+    if (value.length >= 2 &&
+        ((value.startsWith("'") && value.endsWith("'")) ||
+            (value.startsWith('"') && value.endsWith('"')))) {
+      value = value.substring(1, value.length - 1);
+    }
+    final lower = value.toLowerCase();
+    final kind = lower == 'true' || lower == 'false'
+        ? MacroControlParameterKind.toggle
+        : num.tryParse(value) != null
+            ? MacroControlParameterKind.number
+            : MacroControlParameterKind.text;
+    final parameter = MacroControlParameter(
+      name: name,
+      label: name,
+      kind: kind,
+      defaultValue: kind == MacroControlParameterKind.toggle
+          ? (lower == 'true' ? '1' : '0')
+          : value,
+    );
+    if (!found.containsKey(name) || found[name]!.defaultValue.isEmpty) {
+      found[name] = parameter;
+    }
+  }
+  return found.values.toList();
+}
+
+enum ControlPanelModuleType { temperatures, motion, macros }
+
+class ControlPanelModule {
+  final String id;
+  final ControlPanelModuleType type;
+  final String title;
+  final int color;
+
+  const ControlPanelModule({
+    required this.id,
+    required this.type,
+    this.title = '',
+    this.color = 0xFFFFFFFF,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'type': type.name,
+        'title': title,
+        'color': color,
+      };
+
+  factory ControlPanelModule.fromJson(Map<String, dynamic> json) =>
+      ControlPanelModule(
+        id: json['id'] as String? ?? '',
+        type: ControlPanelModuleType.values.firstWhere(
+          (type) => type.name == json['type'],
+          orElse: () => ControlPanelModuleType.macros,
+        ),
+        title: json['title'] as String? ?? '',
+        color: (json['color'] as num?)?.toInt() ?? 0xFFFFFFFF,
+      );
+}
+
+const defaultControlPanelModules = [
+  ControlPanelModule(
+      id: 'temperatures',
+      type: ControlPanelModuleType.temperatures,
+      color: 0xFFFFFFFF),
+  ControlPanelModule(
+      id: 'motion', type: ControlPanelModuleType.motion, color: 0xFFFFFFFF),
+  ControlPanelModule(
+      id: 'macros', type: ControlPanelModuleType.macros, color: 0xFFFFFFFF),
+];
+
+class MacroControlParameter {
+  final String name;
+  final String label;
+  final MacroControlParameterKind kind;
+  final String defaultValue;
+
+  const MacroControlParameter({
+    required this.name,
+    required this.label,
+    this.kind = MacroControlParameterKind.text,
+    this.defaultValue = '',
+  });
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'label': label,
+        'kind': kind.name,
+        'defaultValue': defaultValue,
+      };
+
+  factory MacroControlParameter.fromJson(Map<String, dynamic> json) =>
+      MacroControlParameter(
+        name: json['name'] as String? ?? '',
+        label: json['label'] as String? ?? '',
+        kind: MacroControlParameterKind.values.firstWhere(
+          (kind) => kind.name == json['kind'],
+          orElse: () => MacroControlParameterKind.text,
+        ),
+        defaultValue: json['defaultValue'] as String? ?? '',
+      );
+}
+
+class MacroControl {
+  static final RegExp _identifier = RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$');
+
+  final String id;
+  final String macro;
+  final String label;
+  final String icon;
+  final String color;
+  final bool confirm;
+  final List<MacroControlParameter> parameters;
+
+  const MacroControl({
+    required this.id,
+    required this.macro,
+    required this.label,
+    this.icon = 'play',
+    this.color = 'blue',
+    this.confirm = true,
+    this.parameters = const [],
+  });
+
+  bool get isValid {
+    final names = parameters.map((parameter) => parameter.name).toList();
+    return id.isNotEmpty &&
+        label.isNotEmpty &&
+        _identifier.hasMatch(macro) &&
+        names.every(_identifier.hasMatch) &&
+        names.toSet().length == names.length;
+  }
+
+  String command(Map<String, String> values) {
+    if (!isValid) throw const FormatException('Invalid macro control');
+    final arguments = <String>[];
+    for (final parameter in parameters) {
+      final value = (values[parameter.name] ?? parameter.defaultValue).trim();
+      if (value.isEmpty) continue;
+      if (value.contains('\n') || value.contains('\r')) {
+        throw const FormatException('Macro parameters must be single-line');
+      }
+      arguments.add('${parameter.name.toUpperCase()}=$value');
+    }
+    return [macro, ...arguments].join(' ');
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'macro': macro,
+        'label': label,
+        'icon': icon,
+        'color': color,
+        'confirm': confirm,
+        'parameters': parameters.map((parameter) => parameter.toJson()).toList(),
+      };
+
+  factory MacroControl.fromJson(Map<String, dynamic> json) => MacroControl(
+        id: json['id'] as String? ?? '',
+        macro: json['macro'] as String? ?? '',
+        label: json['label'] as String? ?? '',
+        icon: json['icon'] as String? ?? 'play',
+        color: json['color'] as String? ?? 'blue',
+        confirm: json['confirm'] as bool? ?? true,
+        parameters: (json['parameters'] as List<dynamic>?)
+                ?.whereType<Map<String, dynamic>>()
+                .map(MacroControlParameter.fromJson)
+                .where((parameter) => parameter.name.isNotEmpty)
+                .toList() ??
+            const [],
+      );
+}
+
 class PrinterConfig {
   static const int schemaVersion = 3;
 
@@ -85,6 +269,13 @@ class PrinterConfig {
   /// schema bump. Empty when nothing is starred.
   final List<String> favouriteMacros;
 
+  /// User-built macro cards shown at the top of the macro sheet. Stored with
+  /// the printer so controls follow the normal settings backup/restore path.
+  final List<MacroControl> macroControls;
+
+  /// Ordered modules in the printer's customizable control panel.
+  final List<ControlPanelModule> controlPanelModules;
+
   /// Per-printer lighting control (v0.9.8). [lightingEnabled] shows the bulb
   /// icon on the tile's webcam; the user supplies EITHER an on+off macro pair
   /// OR a single toggle macro, and optionally a [lightStatusObject] (a Klipper
@@ -130,6 +321,8 @@ class PrinterConfig {
     this.customCameraUrl,
     this.selectedWebcam,
     this.favouriteMacros = const [],
+    this.macroControls    = const [],
+    this.controlPanelModules = defaultControlPanelModules,
     this.lightingEnabled   = false,
     this.lightOnMacro,
     this.lightOffMacro,
@@ -154,6 +347,8 @@ class PrinterConfig {
     Object? customCameraUrl = _sentinel,
     Object? selectedWebcam  = _sentinel,
     List<String>? favouriteMacros,
+    List<MacroControl>? macroControls,
+    List<ControlPanelModule>? controlPanelModules,
     bool?   lightingEnabled,
     Object? lightOnMacro      = _sentinel,
     Object? lightOffMacro     = _sentinel,
@@ -182,6 +377,9 @@ class PrinterConfig {
             ? this.selectedWebcam
             : selectedWebcam as String?,
         favouriteMacros: favouriteMacros ?? this.favouriteMacros,
+        macroControls:    macroControls    ?? this.macroControls,
+        controlPanelModules:
+            controlPanelModules ?? this.controlPanelModules,
         lightingEnabled: lightingEnabled ?? this.lightingEnabled,
         lightOnMacro: identical(lightOnMacro, _sentinel)
             ? this.lightOnMacro
@@ -278,6 +476,10 @@ class PrinterConfig {
         if (customCameraUrl != null) 'customCameraUrl': customCameraUrl,
         if (selectedWebcam != null) 'selectedWebcam': selectedWebcam,
         if (favouriteMacros.isNotEmpty) 'favouriteMacros': favouriteMacros,
+        if (macroControls.isNotEmpty)
+          'macroControls': macroControls.map((control) => control.toJson()).toList(),
+        'controlPanelModules':
+            controlPanelModules.map((module) => module.toJson()).toList(),
         if (lightingEnabled) 'lightingEnabled': lightingEnabled,
         if (lightOnMacro != null) 'lightOnMacro': lightOnMacro,
         if (lightOffMacro != null) 'lightOffMacro': lightOffMacro,
@@ -311,6 +513,20 @@ class PrinterConfig {
               ?.map((e) => e as String)
               .toList() ??
           const [],
+      macroControls: (j['macroControls'] as List<dynamic>?)
+              ?.whereType<Map<String, dynamic>>()
+              .map(MacroControl.fromJson)
+              .where((control) => control.isValid)
+              .toList() ??
+          const [],
+      controlPanelModules: j.containsKey('controlPanelModules')
+          ? (j['controlPanelModules'] as List<dynamic>?)
+                  ?.whereType<Map<String, dynamic>>()
+                  .map(ControlPanelModule.fromJson)
+                  .where((module) => module.id.isNotEmpty)
+                  .toList() ??
+              const []
+          : defaultControlPanelModules,
       lightingEnabled:   j['lightingEnabled']   as bool?   ?? false,
       lightOnMacro:      j['lightOnMacro']       as String?,
       lightOffMacro:     j['lightOffMacro']      as String?,

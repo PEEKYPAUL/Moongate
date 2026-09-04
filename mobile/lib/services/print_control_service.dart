@@ -11,6 +11,29 @@ import 'printer_access_cache.dart';
 import 'printer_registry.dart';
 import 'supabase_service.dart';
 
+typedef MotionPanelState = ({
+  String homedAxes,
+  List<double> position,
+  bool forceMoveEnabled,
+});
+
+MotionPanelState parseMotionPanelState(Map<String, dynamic> response) {
+  final status = response['result']?['status'] as Map<String, dynamic>? ?? {};
+  final toolhead = status['toolhead'] as Map<String, dynamic>? ?? {};
+  final configfile = status['configfile'] as Map<String, dynamic>? ?? {};
+  final settings = configfile['settings'] as Map<String, dynamic>? ?? {};
+  final forceMove = settings['force_move'] as Map<String, dynamic>? ?? {};
+  final enabled = forceMove['enable_force_move'];
+  return (
+    homedAxes: (toolhead['homed_axes'] as String? ?? '').toLowerCase(),
+    position: (toolhead['position'] as List<dynamic>? ?? const [])
+        .whereType<num>()
+        .map((value) => value.toDouble())
+        .toList(),
+    forceMoveEnabled: enabled == true || enabled.toString().toLowerCase() == 'true',
+  );
+}
+
 /// Sends print-control commands to the Moongate plugin.
 ///
 /// v0.3.0: each call fetches a fresh `{tunnel_url, access_token}` from
@@ -242,6 +265,53 @@ class PrintControlService {
     });
   }
 
+  /// Parameters referenced by a macro's Jinja template. Klipper does not
+  /// publish a formal macro signature, so `params.NAME` is the source of truth.
+  Future<List<MacroControlParameter>?> macroParameters(String macro) async {
+    return _viaLanThenTunnel<List<MacroControlParameter>>(
+        (base, token, isLan) async {
+      try {
+        final uri = Uri.parse('$base/printer/objects/query?configfile');
+        final resp = await http
+            .get(uri,
+                headers: isLan ? null : {'Authorization': 'Bearer $token'})
+            .timeout(Duration(seconds: isLan ? 4 : 12));
+        if (resp.statusCode != 200) return null;
+        final settings = jsonDecode(resp.body)['result']?['status']?['configfile']
+            ?['settings'] as Map<String, dynamic>?;
+        if (settings == null) return null;
+        final sectionName = 'gcode_macro $macro'.toLowerCase();
+        Map<String, dynamic>? section;
+        for (final entry in settings.entries) {
+          if (entry.key.toLowerCase() == sectionName && entry.value is Map) {
+            section = Map<String, dynamic>.from(entry.value as Map);
+            break;
+          }
+        }
+        return inferMacroParameters(section?['gcode'] as String? ?? '');
+      } catch (_) {
+        return null;
+      }
+    });
+  }
+
+  Future<MotionPanelState?> motionPanelState() async {
+    return _viaLanThenTunnel<MotionPanelState>((base, token, isLan) async {
+      try {
+        final uri = Uri.parse('$base/printer/objects/query?toolhead&configfile');
+        final resp = await http
+            .get(uri,
+                headers: isLan ? null : {'Authorization': 'Bearer $token'})
+            .timeout(Duration(seconds: isLan ? 4 : 12));
+        if (resp.statusCode != 200) return null;
+        return parseMotionPanelState(
+            jsonDecode(resp.body) as Map<String, dynamic>);
+      } catch (_) {
+        return null;
+      }
+    });
+  }
+
   /// Live command help from Klipper. Keep the connection explicit so callers
   /// cannot accidentally retry a command on a second transport.
   Future<Map<String, String>?> fetchGcodeHelpOn(
@@ -331,6 +401,17 @@ class PrintControlService {
     final ok = await _viaLanThenTunnel(
         (base, token, isLan) => _postGcode(base, token, isLan, macro));
     return ok ?? false;
+  }
+
+  /// Run a generated control-panel command exactly once on a resolved path.
+  /// Motion commands must not use the LAN-then-tunnel retry ladder: if a reply
+  /// is lost after the printer moved, retrying would move it twice.
+  Future<bool> runPanelCommand(String command) async {
+    final connection = await fetchConsole(count: 1);
+    if (connection == null) return false;
+    final result = await sendConsoleCommand(connection.base, connection.token,
+        connection.isLan, command);
+    return result.delivered && result.error == null;
   }
 
   // ── Console: G-code history + sending raw commands ──────────────────────────

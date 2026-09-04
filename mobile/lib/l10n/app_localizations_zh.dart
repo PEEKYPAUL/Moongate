@@ -1747,6 +1747,146 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get macroControlsTitle => '我的控件';
+
+  @override
+  String get macroControlCreate => '创建控件';
+
+  @override
+  String get macroControlEdit => '编辑控件';
+
+  @override
+  String get macroControlLabel => '标签';
+
+  @override
+  String get macroControlIcon => '图标';
+
+  @override
+  String get macroControlColor => '颜色';
+
+  @override
+  String get macroControlConfirm => '运行前询问';
+
+  @override
+  String get macroControlParameters => '参数';
+
+  @override
+  String get macroControlAddParameter => '添加参数';
+
+  @override
+  String get macroControlEditParameter => '编辑参数';
+
+  @override
+  String get macroControlParameterName => '宏参数名称';
+
+  @override
+  String get macroControlParameterLabel => '显示标签';
+
+  @override
+  String get macroControlParameterType => '输入类型';
+
+  @override
+  String get macroControlTypeNumber => '数字';
+
+  @override
+  String get macroControlTypeText => '文本';
+
+  @override
+  String get macroControlTypeToggle => '开关';
+
+  @override
+  String get macroControlDefaultValue => '默认值';
+
+  @override
+  String get macroControlParameterInvalid => '请使用由字母、数字或下划线组成的唯一名称';
+
+  @override
+  String get macroControlPreview => '命令预览';
+
+  @override
+  String get macroControlDeleteTitle => '删除控件？';
+
+  @override
+  String macroControlDeleteBody(String label) {
+    return '从宏控件中删除 $label？';
+  }
+
+  @override
+  String macroControlParameterCount(int count) {
+    return '$count 个参数';
+  }
+
+  @override
+  String get controlPanelTitle => '控制面板';
+
+  @override
+  String get controlPanelCustomize => '自定义';
+
+  @override
+  String get controlPanelPresets => '面板预设';
+
+  @override
+  String get controlPanelPresetEssential => '基础：温度、运动和宏';
+
+  @override
+  String get controlPanelPresetMotion => '运动和温度';
+
+  @override
+  String get controlPanelPresetMacros => '仅宏';
+
+  @override
+  String get controlPanelEditModule => '编辑模块';
+
+  @override
+  String get controlPanelAddModule => '添加模块';
+
+  @override
+  String get controlPanelTemperatures => '温度';
+
+  @override
+  String get controlPanelMotion => '运动';
+
+  @override
+  String get controlPanelHeatersOff => '关闭加热器';
+
+  @override
+  String get controlPanelHome => '归零';
+
+  @override
+  String get controlPanelCommandSent => '命令已发送';
+
+  @override
+  String get controlPanelHomed => '已归位';
+
+  @override
+  String get controlPanelNotHomed => '未归位';
+
+  @override
+  String get controlPanelPositionUnknown => '位置未知';
+
+  @override
+  String get controlPanelSetPosition => '将位置设为零';
+
+  @override
+  String get controlPanelSetPositionConfirm =>
+      '这会在不移动打印机的情况下告诉 Klipper 当前 X、Y、Z 位置为零。继续吗？';
+
+  @override
+  String get controlPanelExtruder => '挤出机';
+
+  @override
+  String get controlPanelExtrude => '挤出';
+
+  @override
+  String get controlPanelRetract => '回抽';
+
+  @override
+  String get controlPanelNoMacroControls => '创建宏控件后即可放置在此处。';
+
+  @override
+  String get controlPanelManageMacros => '管理宏控件';
+
+  @override
   String get tileConsole => '控制台';
 
   @override

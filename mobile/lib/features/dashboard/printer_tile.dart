@@ -22,9 +22,9 @@ import '../tutorial/tutorial_anchors.dart';
 import '../tutorial/tutorial_controller.dart';
 import 'camera_picker_overlay.dart';
 import 'console_overlay.dart';
+import 'control_panel_overlay.dart';
 import 'file_system_overlay.dart';
 import 'gcode_files_overlay.dart';
-import 'macros_overlay.dart';
 import 'preheat_overlay.dart';
 
 class PrinterTile extends ConsumerStatefulWidget {
@@ -813,7 +813,8 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                   onStop: _handleStop,
                   onOpenFiles: () =>
                       showGcodeFilesSheet(context, widget.printer),
-                  onOpenMacros: () => showMacrosSheet(context, widget.printer),
+                  onOpenMacros: () =>
+                      showControlPanel(context, widget.printer, _status),
                 ),
               ),
 
@@ -991,7 +992,8 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                   onStop: _handleStop,
                   onOpenFiles: () =>
                       showGcodeFilesSheet(context, widget.printer),
-                  onOpenMacros: () => showMacrosSheet(context, widget.printer),
+                  onOpenMacros: () =>
+                      showControlPanel(context, widget.printer, _status),
                   lightPrinter: widget.printer,
                 ),
               ),
@@ -1284,7 +1286,7 @@ class _ActionRow extends StatelessWidget {
             _Btn(
               icon: Icons.code_rounded,
               color: theme.colorScheme.primary,
-              tooltip: l.tileMacros,
+              tooltip: l.controlPanelTitle,
               onTap: onOpenMacros,
             ),
           ],

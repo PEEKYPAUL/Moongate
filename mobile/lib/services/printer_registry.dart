@@ -377,6 +377,24 @@ class PrinterRegistry {
     await _save();
   }
 
+  Future<void> updateMacroControls(
+      String printerId, List<MacroControl> controls) async {
+    final idx = _printers.indexWhere((p) => p.id == printerId);
+    if (idx == -1) return;
+    _printers = List.of(_printers)
+      ..[idx] = _printers[idx].copyWith(macroControls: controls);
+    await _save();
+  }
+
+  Future<void> updateControlPanelModules(
+      String printerId, List<ControlPanelModule> modules) async {
+    final idx = _printers.indexWhere((p) => p.id == printerId);
+    if (idx == -1) return;
+    _printers = List.of(_printers)
+      ..[idx] = _printers[idx].copyWith(controlPanelModules: modules);
+    await _save();
+  }
+
   /// Persist a printer's lighting config (v0.9.8): the enable flag, the on/off
   /// and toggle macros, and the optional status object. Full replace each call
   /// (the lighting screen always supplies the complete config); rides backups

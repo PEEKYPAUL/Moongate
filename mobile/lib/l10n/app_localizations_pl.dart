@@ -1845,6 +1845,155 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
+  String get macroControlsTitle => 'Moje elementy sterujące';
+
+  @override
+  String get macroControlCreate => 'Utwórz element sterujący';
+
+  @override
+  String get macroControlEdit => 'Edytuj element sterujący';
+
+  @override
+  String get macroControlLabel => 'Etykieta';
+
+  @override
+  String get macroControlIcon => 'Ikona';
+
+  @override
+  String get macroControlColor => 'Kolor';
+
+  @override
+  String get macroControlConfirm => 'Pytaj przed uruchomieniem';
+
+  @override
+  String get macroControlParameters => 'Parametry';
+
+  @override
+  String get macroControlAddParameter => 'Dodaj parametr';
+
+  @override
+  String get macroControlEditParameter => 'Edytuj parametr';
+
+  @override
+  String get macroControlParameterName => 'Nazwa parametru makra';
+
+  @override
+  String get macroControlParameterLabel => 'Wyświetlana etykieta';
+
+  @override
+  String get macroControlParameterType => 'Typ pola';
+
+  @override
+  String get macroControlTypeNumber => 'Liczba';
+
+  @override
+  String get macroControlTypeText => 'Tekst';
+
+  @override
+  String get macroControlTypeToggle => 'Przełącznik';
+
+  @override
+  String get macroControlDefaultValue => 'Wartość domyślna';
+
+  @override
+  String get macroControlParameterInvalid =>
+      'Użyj unikalnej nazwy z liter, cyfr lub podkreśleń';
+
+  @override
+  String get macroControlPreview => 'Podgląd polecenia';
+
+  @override
+  String get macroControlDeleteTitle => 'Usunąć element sterujący?';
+
+  @override
+  String macroControlDeleteBody(String label) {
+    return 'Usunąć $label z elementów sterujących makrami?';
+  }
+
+  @override
+  String macroControlParameterCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count parametrów',
+      one: '1 parametr',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get controlPanelTitle => 'Panel sterowania';
+
+  @override
+  String get controlPanelCustomize => 'Dostosuj';
+
+  @override
+  String get controlPanelPresets => 'Ustawienia panelu';
+
+  @override
+  String get controlPanelPresetEssential =>
+      'Podstawowe: temperatury, ruch i makra';
+
+  @override
+  String get controlPanelPresetMotion => 'Ruch i temperatury';
+
+  @override
+  String get controlPanelPresetMacros => 'Tylko makra';
+
+  @override
+  String get controlPanelEditModule => 'Edytuj moduł';
+
+  @override
+  String get controlPanelAddModule => 'Dodaj moduł';
+
+  @override
+  String get controlPanelTemperatures => 'Temperatury';
+
+  @override
+  String get controlPanelMotion => 'Ruch';
+
+  @override
+  String get controlPanelHeatersOff => 'Wyłącz grzałki';
+
+  @override
+  String get controlPanelHome => 'Bazowanie';
+
+  @override
+  String get controlPanelCommandSent => 'Polecenie wysłane';
+
+  @override
+  String get controlPanelHomed => 'Zbazowana';
+
+  @override
+  String get controlPanelNotHomed => 'Niezbazowana';
+
+  @override
+  String get controlPanelPositionUnknown => 'Pozycja nieznana';
+
+  @override
+  String get controlPanelSetPosition => 'Ustaw pozycję na zero';
+
+  @override
+  String get controlPanelSetPositionConfirm =>
+      'Klipper przyjmie bieżącą pozycję X, Y i Z jako zero bez ruchu drukarki. Kontynuować?';
+
+  @override
+  String get controlPanelExtruder => 'Ekstruder';
+
+  @override
+  String get controlPanelExtrude => 'Wytłocz';
+
+  @override
+  String get controlPanelRetract => 'Wycofaj';
+
+  @override
+  String get controlPanelNoMacroControls =>
+      'Utwórz elementy sterujące makrami, aby umieścić je tutaj.';
+
+  @override
+  String get controlPanelManageMacros => 'Zarządzaj makrami';
+
+  @override
   String get tileConsole => 'Konsola';
 
   @override

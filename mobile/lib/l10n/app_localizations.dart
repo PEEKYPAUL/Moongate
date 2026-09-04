@@ -3376,6 +3376,276 @@ abstract class AppLocalizations {
   /// **'Couldn\'t send {macro}'**
   String macroFailed(String macro);
 
+  /// No description provided for @macroControlsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'My controls'**
+  String get macroControlsTitle;
+
+  /// No description provided for @macroControlCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create control'**
+  String get macroControlCreate;
+
+  /// No description provided for @macroControlEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit control'**
+  String get macroControlEdit;
+
+  /// No description provided for @macroControlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Label'**
+  String get macroControlLabel;
+
+  /// No description provided for @macroControlIcon.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon'**
+  String get macroControlIcon;
+
+  /// No description provided for @macroControlColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Colour'**
+  String get macroControlColor;
+
+  /// No description provided for @macroControlConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask before running'**
+  String get macroControlConfirm;
+
+  /// No description provided for @macroControlParameters.
+  ///
+  /// In en, this message translates to:
+  /// **'Parameters'**
+  String get macroControlParameters;
+
+  /// No description provided for @macroControlAddParameter.
+  ///
+  /// In en, this message translates to:
+  /// **'Add parameter'**
+  String get macroControlAddParameter;
+
+  /// No description provided for @macroControlEditParameter.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit parameter'**
+  String get macroControlEditParameter;
+
+  /// No description provided for @macroControlParameterName.
+  ///
+  /// In en, this message translates to:
+  /// **'Macro parameter name'**
+  String get macroControlParameterName;
+
+  /// No description provided for @macroControlParameterLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Display label'**
+  String get macroControlParameterLabel;
+
+  /// No description provided for @macroControlParameterType.
+  ///
+  /// In en, this message translates to:
+  /// **'Input type'**
+  String get macroControlParameterType;
+
+  /// No description provided for @macroControlTypeNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Number'**
+  String get macroControlTypeNumber;
+
+  /// No description provided for @macroControlTypeText.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get macroControlTypeText;
+
+  /// No description provided for @macroControlTypeToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle'**
+  String get macroControlTypeToggle;
+
+  /// No description provided for @macroControlDefaultValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Default value'**
+  String get macroControlDefaultValue;
+
+  /// No description provided for @macroControlParameterInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a unique name containing letters, numbers or underscores'**
+  String get macroControlParameterInvalid;
+
+  /// No description provided for @macroControlPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Command preview'**
+  String get macroControlPreview;
+
+  /// No description provided for @macroControlDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete control?'**
+  String get macroControlDeleteTitle;
+
+  /// No description provided for @macroControlDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {label} from your macro controls?'**
+  String macroControlDeleteBody(String label);
+
+  /// No description provided for @macroControlParameterCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 parameter} other{{count} parameters}}'**
+  String macroControlParameterCount(int count);
+
+  /// No description provided for @controlPanelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Control panel'**
+  String get controlPanelTitle;
+
+  /// No description provided for @controlPanelCustomize.
+  ///
+  /// In en, this message translates to:
+  /// **'Customize'**
+  String get controlPanelCustomize;
+
+  /// No description provided for @controlPanelPresets.
+  ///
+  /// In en, this message translates to:
+  /// **'Panel presets'**
+  String get controlPanelPresets;
+
+  /// No description provided for @controlPanelPresetEssential.
+  ///
+  /// In en, this message translates to:
+  /// **'Essentials: temperatures, motion and macros'**
+  String get controlPanelPresetEssential;
+
+  /// No description provided for @controlPanelPresetMotion.
+  ///
+  /// In en, this message translates to:
+  /// **'Motion and temperatures'**
+  String get controlPanelPresetMotion;
+
+  /// No description provided for @controlPanelPresetMacros.
+  ///
+  /// In en, this message translates to:
+  /// **'Macros only'**
+  String get controlPanelPresetMacros;
+
+  /// No description provided for @controlPanelEditModule.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit module'**
+  String get controlPanelEditModule;
+
+  /// No description provided for @controlPanelAddModule.
+  ///
+  /// In en, this message translates to:
+  /// **'Add module'**
+  String get controlPanelAddModule;
+
+  /// No description provided for @controlPanelTemperatures.
+  ///
+  /// In en, this message translates to:
+  /// **'Temperatures'**
+  String get controlPanelTemperatures;
+
+  /// No description provided for @controlPanelMotion.
+  ///
+  /// In en, this message translates to:
+  /// **'Motion'**
+  String get controlPanelMotion;
+
+  /// No description provided for @controlPanelHeatersOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn heaters off'**
+  String get controlPanelHeatersOff;
+
+  /// No description provided for @controlPanelHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get controlPanelHome;
+
+  /// No description provided for @controlPanelCommandSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Command sent'**
+  String get controlPanelCommandSent;
+
+  /// No description provided for @controlPanelHomed.
+  ///
+  /// In en, this message translates to:
+  /// **'Homed'**
+  String get controlPanelHomed;
+
+  /// No description provided for @controlPanelNotHomed.
+  ///
+  /// In en, this message translates to:
+  /// **'Not homed'**
+  String get controlPanelNotHomed;
+
+  /// No description provided for @controlPanelPositionUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Position unknown'**
+  String get controlPanelPositionUnknown;
+
+  /// No description provided for @controlPanelSetPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Set position to zero'**
+  String get controlPanelSetPosition;
+
+  /// No description provided for @controlPanelSetPositionConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'This tells Klipper the current X, Y and Z position is zero without moving the printer. Continue?'**
+  String get controlPanelSetPositionConfirm;
+
+  /// No description provided for @controlPanelExtruder.
+  ///
+  /// In en, this message translates to:
+  /// **'Extruder'**
+  String get controlPanelExtruder;
+
+  /// No description provided for @controlPanelExtrude.
+  ///
+  /// In en, this message translates to:
+  /// **'Extrude'**
+  String get controlPanelExtrude;
+
+  /// No description provided for @controlPanelRetract.
+  ///
+  /// In en, this message translates to:
+  /// **'Retract'**
+  String get controlPanelRetract;
+
+  /// No description provided for @controlPanelNoMacroControls.
+  ///
+  /// In en, this message translates to:
+  /// **'Create macro controls to place them here.'**
+  String get controlPanelNoMacroControls;
+
+  /// No description provided for @controlPanelManageMacros.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage macro controls'**
+  String get controlPanelManageMacros;
+
   /// Label of the console button in a tile's tools row; opens the G-code console sheet.
   ///
   /// In en, this message translates to:
