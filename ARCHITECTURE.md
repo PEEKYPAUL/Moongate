@@ -71,6 +71,7 @@ MoongateApp                    (lib/app.dart - root widget, lifecycle observer)
 | Current access token + tunnel URL | `PrinterAccessCache` | **No** (in-memory only) | Refreshed from the middleman every few minutes |
 | Live `PrinterStatus` per tile | `PrinterStatusService.stream` | **No** | StreamController - last emission only |
 | Dashboard buttons visibility | `dashboardButtonsProvider` | Yes | `SharedPreferences` key `show_dashboard_buttons` (v0.9.41) |
+| Control panel layout + macro buttons | `PrinterConfig.controlPanelModules` / `.macroControls` | Yes | Persisted with the printer config (the `moongate_printers` JSON), so they ride backups with no extra keys; malformed or invalid entries are dropped on load (v0.9.64) |
 
 ### The service layer
 
@@ -81,7 +82,7 @@ The `services/` directory has zero UI. Each file is a focused capability:
 | `supabase_service.dart` | Talks to the cloud middleman. Anonymous sign-in, fetch the current access record for a printer, release a printer on un-pair, list-my-printers refresh |
 | `printer_access_cache.dart` | In-memory cache of `{tunnel_url, access_token}` per printer. Reuses a token until ~30 s before its expiry, then refreshes via the middleman. Used by every outbound call to the Pi |
 | `printer_status_service.dart` | The heart of the app. One instance per printer tile. Polls every 4 s. LAN-first when a cached LAN URL is known; falls back to the tunnel within a couple of seconds. Distinguishes Pi-up-but-printer-idle from totally-offline. Sniffs the printer's web UI (Mainsail / Fluidd) on first successful poll and persists it. Also reads a printer's configured light object - when lighting is enabled - so the dashboard bulb shows the light's real on/off state. Reads Moonraker's `webhooks.state` too, so the tile can tell a **shut-down** Klipper (e.g. after an emergency stop) from merely idle and offer a restart instead of the E-STOP triangle. **v0.9.39+:** builds the **multi-toolhead** temperature list. On the current Pi plugin (0.6.12+) every `extruder`/`extruderN`, the active `toolhead` and the `toolchanger` ride the one authenticated `/status` call and the app reads them straight from it (falling back to a direct per-object query for older plugins); the persistent-notification roster order follows the dashboard's **Auto-arrange by status** setting |
-| `print_control_service.dart` | Sends `pause` / `resume` / `cancel` / `firmware_restart` / `emergency_stop`, lists and runs Klipper macros (the macro sheet and the lighting on/off/toggle), and starts a stored G-code. Also sets hotend/bed target temperatures for the **preheat** sheet - one `SET_HEATER_TEMPERATURE` request **per heater** (v0.9.45), so on a multi-toolhead machine a heater that rejects a target no longer stops the others and each result is logged. **v0.9.61** adds the dashboard tools' plumbing, all core Moonraker over the same transparent proxy (plain on LAN, tokened through the auth proxy on the tunnel, LAN-only in Direct mode): the **console** (the rolling `gcode_store` history plus sends - sends deliberately never retry across LAN/tunnel, since `gcode/script` only answers when a command *finishes* and a timeout-retry could run it twice) and the **config file system** (list / read / write under the `config` root, plus the Klipper-state read that powers the editor's after-restart watch). The structured editor's line-preserving parse/splice model lives in `models/klipper_config_doc.dart`. Same per-call token retrieval, same LAN-first routing |
+| `print_control_service.dart` | Sends `pause` / `resume` / `cancel` / `firmware_restart` / `emergency_stop`, lists and runs Klipper macros (the macro sheet and the lighting on/off/toggle), and starts a stored G-code. Also sets hotend/bed target temperatures for the **preheat** sheet - one `SET_HEATER_TEMPERATURE` request **per heater** (v0.9.45), so on a multi-toolhead machine a heater that rejects a target no longer stops the others and each result is logged. **v0.9.61** adds the dashboard tools' plumbing, all core Moonraker over the same transparent proxy (plain on LAN, tokened through the auth proxy on the tunnel, LAN-only in Direct mode): the **console** (the rolling `gcode_store` history plus sends - sends deliberately never retry across LAN/tunnel, since `gcode/script` only answers when a command *finishes* and a timeout-retry could run it twice) and the **config file system** (list / read / write under the `config` root, plus the Klipper-state read that powers the editor's after-restart watch). The structured editor's line-preserving parse/splice model lives in `models/klipper_config_doc.dart`. Same per-call token retrieval, same LAN-first routing. **v0.9.64** adds the **control panel** plumbing on the same proxy: `runPanelCommand` sends jogs, homing, extrusion, heaters-off and macro buttons as **one POST on a connection resolved once and cached per module** (never the LAN-then-tunnel ladder, which could run a slow command twice), and treats a Klipper refusal (HTTP 400, e.g. "Must home axis first") as a failure since the panel has no console line to show it; `motionPanelState` reads the toolhead (plus the static force-move flag once), and `macroParameters` infers a macro's `params.*` from its own gcode |
 | `printer_webview_cache.dart` | Keeps each printer's Mainsail/Fluidd `WebViewController` warm across visits to the dashboard, so re-opening a printer is instant (no reload). **Pre-warms every printer's page in the background at app startup, so even the *first* open is instant** (v0.9.15). A session's LAN-or-tunnel choice is made when it's built, so since v0.9.57 opening a printer re-checks it against the status poll's live verdict: a tunnel session while the poll runs on LAN is dropped and rebuilt locally (the symmetric case - a dead LAN session falling back to the tunnel - was always handled). Owns the per-session token-cookie refresh (cloud printers only - a Direct printer's page needs no token cookie) and evicts least-recently-used sessions under OS memory pressure |
 | `printer_liveness_service.dart` | Tracks each printer's online/offline state from the cloud - subscribing to `last_seen` changes over **Supabase Realtime** plus a periodic RLS-scoped read as a fallback - so the dashboard and the notification service can mark a powered-off printer offline and **skip requesting access for it entirely** rather than polling it every cycle. Realtime delivery is scoped by the same "select own printers" RLS policy, so it widens nothing (v0.9.16). **On returning to the foreground it re-reads every printer's `last_seen` immediately** (a resume re-seed), so a printer powered back on while the app was frozen in the background is recognised as online before the next poll instead of staying stuck offline until a cold start (v0.9.45) |
 | `printer_registry.dart` | Persistent printer list. `addClaimed` after a successful pair, `remove` plus middleman-release on un-pair, helpers to update individual fields like LAN URL, webcam transforms, and the detected UI type from a successful poll |
@@ -299,6 +300,32 @@ with parameter metadata and serves as the offline fallback.
 Completion replaces only the token at the cursor and supports touch, Tab, and
 Up/Down history. `M112` bypasses the queued G-code endpoint and uses
 Moonraker's immediate emergency-stop endpoint.
+
+### Control panel: per-printer modules, single-shot sends (v0.9.64)
+
+The tile's macro button opens a control panel built from reorderable modules
+(temperature, motion, macros) whose layout and macro buttons are stored on the
+printer's own config, so they travel in backups without any new settings keys.
+Three rules keep it safe on a real machine:
+
+- **Every send happens exactly once.** `gcode/script` only answers when the
+  command finishes, so a heat-and-wait macro outlives any sane HTTP timeout; a
+  transport-level retry would run it again. Panel sends go over one resolved
+  connection, and a refusal from Klipper is reported as a failure rather than
+  hidden behind a console convention.
+- **Motion scripts cannot latch the printer.** Jogs and extrusions are wrapped
+  in `SAVE_GCODE_STATE` / `RESTORE_GCODE_STATE`; because Klipper abandons a
+  script at the first error, a failed move (unhomed axis, past a limit) fires a
+  best-effort restore so relative mode never stays applied.
+- **Macro buttons are validated before anything is built.** Macro and parameter
+  names must be identifiers, values must be single-line, an OFF toggle is
+  omitted rather than sent as `NAME=0` (Klipper hands params to Jinja as
+  strings, and `'0'` is truthy), and the exact command is previewed before it
+  runs.
+
+Layout follows the app-wide sheet rule: keyboard insets plus a bottom
+`SafeArea`, so the panel's lower controls clear the system navigation bar
+(v0.9.65).
 
 ### LAN-first on every poll, no skip backoff
 
