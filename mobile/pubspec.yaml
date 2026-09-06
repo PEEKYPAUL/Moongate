@@ -53,8 +53,8 @@ dependencies:
   # go2rtc/WebRTC webcams render as muted autoplaying <video> elements that
   # both platforms otherwise block.
   webview_flutter: ^4.14.1
-  webview_flutter_android: ^4.14.0
-  webview_flutter_wkwebview: ^3.26.0
+  webview_flutter_android: ^4.14.1
+  webview_flutter_wkwebview: ^3.26.1
 
   # Persistent settings
   shared_preferences: ^2.2.0
