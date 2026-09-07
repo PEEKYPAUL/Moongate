@@ -1,0 +1,5 @@
+# Powers the "Sponsor this project" box in the GitHub sidebar.
+# Ko-fi is the preferred route; the PayPal link is the same tip jar the app
+# and README already use.
+ko_fi: peekypaul
+custom: ["https://www.paypal.com/donate/?hosted_button_id=WCWAZKQ7WKQB4"]
