@@ -719,10 +719,15 @@ class _PrintTaskHandler extends TaskHandler {
 
       // Last MOONGATE_NOTIFY message (plugin 0.6.26+, /status top level) -
       // rides both return paths below so a macro message still alerts while
-      // Klipper is shut down. Absent on older plugins.
-      final lastNotify = result?['last_notify'] as Map<String, dynamic>?;
-      final notifySeq  = (lastNotify?['seq'] as num?)?.toInt();
-      final notifyText = lastNotify?['text'] as String?;
+      // Klipper is shut down. Absent on older plugins (null seq = untracked);
+      // present-but-null on a 0.6.26+ plugin with nothing sent since its
+      // start (seq 0 = the baseline that lets its first message alert).
+      final hasNotifyKey = result?.containsKey('last_notify') ?? false;
+      final lastNotify   = result?['last_notify'] as Map<String, dynamic>?;
+      final notifySeq    = lastNotify == null
+          ? (hasNotifyKey ? 0 : null)
+          : (lastNotify['seq'] as num?)?.toInt();
+      final notifyText   = lastNotify?['text'] as String?;
 
       // The plugin's /status returns ONLY print_stats / heater_bed / extruder -
       // progress lives in display_status & virtual_sdcard, which aren't in this
@@ -1380,8 +1385,10 @@ class _PrintTaskHandler extends TaskHandler {
     }
 
     // MOONGATE_NOTIFY: the plugin (0.6.26+) surfaces the last macro message in
-    // /status as `last_notify` {seq, ts, text}; a seq increase while we watch
-    // is a fresh message. Older plugins simply never send the field.
+    // /status as `last_notify` {seq, ts, text}; any seq change while we watch
+    // is a fresh message (a fall = the plugin restarted and took new ones),
+    // and a fresh plugin's null baselines at 0 so its first message alerts.
+    // Older plugins simply never send the field.
     final seq = s.notifySeq;
     if (seq != null) {
       if (shouldAlertCustom(_lastNotifySeq[p.id], seq)) {

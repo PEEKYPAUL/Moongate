@@ -68,9 +68,19 @@ void main() {
       expect(shouldAlertCustom(5, 50), isTrue);
     });
 
-    test('same seq / a plugin restart (seq reset) re-baselines silently', () {
+    test('the first message after a plugin restart alerts', () {
+      // A 0.6.26+ plugin with nothing sent since its start reports null,
+      // which the poller maps to 0: the baseline that lets seq 1 through.
+      expect(shouldAlertCustom(0, 1), isTrue);
+      // Restart missed between polls: the counter fell, the message is new.
+      expect(shouldAlertCustom(5, 1), isTrue);
+    });
+
+    test('same seq, or nothing sent since the plugin started, stays silent', () {
       expect(shouldAlertCustom(5, 5), isFalse);
-      expect(shouldAlertCustom(5, 1), isFalse);
+      expect(shouldAlertCustom(5, 0), isFalse);
+      expect(shouldAlertCustom(0, 0), isFalse);
+      expect(shouldAlertCustom(null, 0), isFalse);
     });
   });
 
