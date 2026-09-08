@@ -115,7 +115,7 @@ logger = logging.getLogger("moonraker.moongate")
 # Bumped on each release; surfaced in the /status response so the app's bug
 # reports show which plugin a Pi is actually running - the #1 triage blind spot
 # (an old plugin explains most "works on LAN / fails over tunnel" reports).
-MOONGATE_PLUGIN_VERSION = "0.6.25"
+MOONGATE_PLUGIN_VERSION = "0.6.26"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1357,6 +1357,16 @@ def _notify_text(raw: Any) -> str:
     return text[:200]
 
 
+def _next_notify(prev: Optional[dict], text: str, ts: int) -> dict:
+    """Build the /status `last_notify` record for one accepted MOONGATE_NOTIFY
+    message (v0.6.26 - the Android pickup). `seq` climbs by one per message
+    within this plugin process; the app alerts on a seq INCREASE while it is
+    watching and re-baselines silently on first sight or a reset (a Moonraker
+    restart starts the count again), so nothing ever replays."""
+    seq = int(prev["seq"]) + 1 if prev else 1
+    return {"seq": seq, "ts": ts, "text": text}
+
+
 class PrintEventWatcher:
     """Polls Moonraker's print_stats AND klippy_state locally and, on a
     meaningful state change (a print starting, finishing, or failing; the
@@ -1719,6 +1729,7 @@ class MoongatePlugin:
         self._can_self_update: Optional[bool]  = None   # update_manager manages us? None = not probed yet
         self._self_update_probe_at             = 0.0    # monotonic; retry gap for indeterminate probes
         self._notify_last: Optional[float]     = None   # monotonic; MOONGATE_NOTIFY rate limit
+        self._last_notify: Optional[dict]      = None   # /status last_notify {seq, ts, text} (v0.6.26)
 
         # HTTP endpoints
         self.server.register_endpoint("/server/moongate/pair",        ["POST"], self._handle_pair)
@@ -2184,7 +2195,13 @@ class MoongatePlugin:
         custom notification to the owner's phone(s) from any gcode - slicer
         end-gcode, filament-runout handlers, timelapse hooks. The text is the
         macro's MSG param, sanitised and capped; sends are rate-limited so a
-        macro stuck in a loop can't hose the phone (or the meter)."""
+        macro stuck in a loop can't hose the phone (or the meter).
+
+        v0.6.26: iPhones get the message as a push; Android has no push path,
+        so its foreground notification service polls /status instead and
+        alerts on a fresh `last_notify` seq while it is watching. Every
+        accepted message is recorded there BEFORE the push is attempted, so
+        a cloud hiccup can't hide it from a phone on the LAN."""
         klippy_apis: Any = self.server.lookup_component("klippy_apis")
 
         async def _say(line: str) -> None:
@@ -2193,12 +2210,6 @@ class MoongatePlugin:
             except Exception as exc:
                 logger.error("run_gcode failed: %s", exc)
 
-        if self.watcher is None:
-            why = ("LAN-only mode has no cloud push path"
-                   if self.lan_only else
-                   "cloud machinery unavailable (see moonraker.log)")
-            await _say(f"Moongate: can't send - {why}.")
-            return
         text = _notify_text(message)
         if not text:
             await _say('Moongate: nothing to send - use MOONGATE_NOTIFY MSG="your text".')
@@ -2208,12 +2219,25 @@ class MoongatePlugin:
             await _say("Moongate: notification skipped - at most one send per 10 s.")
             return
         self._notify_last = now
+        self._last_notify = _next_notify(self._last_notify, text, int(time.time()))
+        if self.watcher is None:
+            if self.lan_only:
+                # Direct-mode printers sit outside the app's Android alert
+                # service today (it skips lanOnly printers) - say so rather
+                # than promise an alert that can't arrive.
+                await _say("Moongate: LAN-only mode has no push path - "
+                           "message kept in /status only.")
+            else:
+                await _say("Moongate: no cloud push (see moonraker.log) - "
+                           "message kept for the Android app.")
+            return
         loop = asyncio.get_event_loop()
         ok = await loop.run_in_executor(
             None, self.watcher._send_event, "custom", text)
         await _say("Moongate: notification sent."
                    if ok else
-                   "Moongate: notification NOT sent - see moonraker.log.")
+                   "Moongate: push NOT sent (see moonraker.log) - "
+                   "message kept for the Android app.")
 
     async def _do_factory_reset(self) -> tuple[bool, int]:
         """Shared reset path used by the macro and the HTTP endpoint:
@@ -2595,6 +2619,11 @@ class MoongatePlugin:
         result["local_ip"]   = _get_local_ip()
         result["http_port"]  = self.http_port
         result["plugin_version"] = MOONGATE_PLUGIN_VERSION
+        # v0.6.26: the last MOONGATE_NOTIFY message {seq, ts, text} for the
+        # Android app's poll-driven alerts (iPhones get the push instead).
+        # None until a macro fires; the count restarts with the plugin
+        # process, which the app treats as a silent re-baseline.
+        result["last_notify"] = self._last_notify
         # v0.6.16: advertises the remote self-update action, so the app's
         # update dialog knows to offer one-tap "Update now" instead of the
         # Mainsail instructions it shows for older plugins. v0.6.24: only
