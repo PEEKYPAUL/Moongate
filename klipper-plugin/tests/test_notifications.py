@@ -11,12 +11,15 @@ Three pure functions carry the behaviour and are pinned here:
   - PrintEventWatcher._klippy_event_for: the transition -> event matrix
   - _error_detail: shutdown reason -> one clean push line
   - _notify_text: MOONGATE_NOTIFY MSG -> sanitised, capped text
+  - _next_notify + MoongatePlugin._klipper_notify (v0.6.26): the
+    /status `last_notify` record the Android app polls for
 
 Stdlib-only on purpose, same loader as test_lan_only_no_deps.py:
 
     python3 klipper-plugin/tests/test_notifications.py
 """
 
+import asyncio
 import importlib.util
 import sys
 from pathlib import Path
@@ -123,6 +126,115 @@ check("empty stays empty",     mod._notify_text(""),   "")
 check("None stays empty",      mod._notify_text(None), "")
 check("capped at 200", len(mod._notify_text("y" * 300)), 200)
 check("non-string input coerced", mod._notify_text(42), "42")
+
+# ── v0.6.26: /status `last_notify` - the Android pickup ─────────────────────
+#
+# Android has no push path, so the app's foreground notification service
+# polls /status and alerts on a seq INCREASE while it watches. The plugin
+# records every accepted message there BEFORE trying the push, in every mode.
+
+nxt = mod._next_notify
+
+first = nxt(None, "Spool nearly empty", 1_700_000_000)
+check("first record starts at seq 1", first,
+      {"seq": 1, "ts": 1_700_000_000, "text": "Spool nearly empty"})
+check("seq climbs by one", nxt(first, "next", 1_700_000_005)["seq"], 2)
+check("seq continues from any prior",
+      nxt({"seq": 7, "ts": 0, "text": "x"}, "y", 1)["seq"], 8)
+
+
+class _FakeKlippy:
+    def __init__(self):
+        self.lines = []
+
+    async def run_gcode(self, script):
+        self.lines.append(script)
+
+
+class _FakeServer:
+    def __init__(self, klippy):
+        self._klippy = klippy
+
+    def lookup_component(self, name):
+        assert name == "klippy_apis"
+        return self._klippy
+
+
+class _FakeWatcher:
+    def __init__(self, ok):
+        self.ok    = ok
+        self.sends = []
+
+    def _send_event(self, event, detail):
+        self.sends.append((event, detail))
+        return self.ok
+
+
+class _Stub:
+    """Just the attributes _klipper_notify touches - the method is called
+    unbound with this object as self, so no Moonraker is needed."""
+    def __init__(self, watcher, lan_only=False):
+        self.klippy       = _FakeKlippy()
+        self.server       = _FakeServer(self.klippy)
+        self.watcher      = watcher
+        self.lan_only     = lan_only
+        self._notify_last = None
+        self._last_notify = None
+
+
+def _notify(stub, msg):
+    asyncio.run(mod.MoongatePlugin._klipper_notify(stub, msg))
+    return stub.klippy.lines[-1] if stub.klippy.lines else ""
+
+
+# Cloud mode, push accepted: recorded AND pushed, console says sent.
+cloud = _Stub(_FakeWatcher(ok=True))
+ack = _notify(cloud, "Print 1 of 3 done")
+check("cloud: recorded seq 1", cloud._last_notify["seq"], 1)
+check("cloud: recorded text",  cloud._last_notify["text"], "Print 1 of 3 done")
+check("cloud: pushed as custom", cloud.watcher.sends, [("custom", "Print 1 of 3 done")])
+check("cloud: ack says sent", "notification sent" in ack, True)
+
+# Rate limit: a second message inside 10 s is dropped everywhere - no new
+# record (the app would otherwise buzz for a message the push never carried).
+ack = _notify(cloud, "again")
+check("rate-limited: ack says skipped", "skipped" in ack, True)
+check("rate-limited: record unchanged", cloud._last_notify["seq"], 1)
+check("rate-limited: nothing pushed", len(cloud.watcher.sends), 1)
+
+# Limit window over: seq climbs.
+cloud._notify_last = None
+_notify(cloud, "third")
+check("after the window: seq 2", cloud._last_notify["seq"], 2)
+check("after the window: text follows", cloud._last_notify["text"], "third")
+
+# Empty MSG: nothing recorded, nothing pushed, the usage hint instead.
+empty = _Stub(_FakeWatcher(ok=True))
+ack = _notify(empty, "   ")
+check("empty: not recorded", empty._last_notify, None)
+check("empty: not pushed",   empty.watcher.sends, [])
+check("empty: usage hint",   'MSG="your text"' in ack, True)
+
+# Push refused server-side: the record still lands (Android pickup) and the
+# console says so instead of a bare failure.
+refused = _Stub(_FakeWatcher(ok=False))
+ack = _notify(refused, "hello")
+check("push failed: still recorded", refused._last_notify["seq"], 1)
+check("push failed: ack honest",     "NOT sent" in ack and "Android" in ack, True)
+
+# Cloud machinery missing (deps), not LAN-only: recorded for the app, no push.
+nocloud = _Stub(None, lan_only=False)
+ack = _notify(nocloud, "hello")
+check("no cloud: recorded",     nocloud._last_notify["seq"], 1)
+check("no cloud: ack names the Android pickup", "Android" in ack, True)
+
+# LAN-only (Direct mode): recorded in /status, but the ack must NOT promise an
+# alert - the app's Android service skips lanOnly printers today.
+lan = _Stub(None, lan_only=True)
+ack = _notify(lan, "hello")
+check("lan-only: recorded",       lan._last_notify["seq"], 1)
+check("lan-only: ack says LAN-only", "LAN-only" in ack, True)
+check("lan-only: no Android promise", "Android" in ack, False)
 
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

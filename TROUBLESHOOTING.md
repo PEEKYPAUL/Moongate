@@ -113,6 +113,8 @@ Loud Android alerts for these moments arrived in **v0.9.61** - older versions on
 2. **The "Printer alerts" category isn't muted.** Long-press any Moongate notification → notification settings, and check the **Printer alerts** category is allowed. It's separate from the quiet status/cards categories on purpose, so it can buzz (or be silenced) on its own.
 3. **The moment happened while Moongate was watching.** Alerts fire on changes the monitoring sees as they happen. Something that went wrong while notifications were off, paused, or the phone was without any connection to the printer won't alert retroactively - the tile still shows the state and the reason when you open the app.
 
+**Custom `MOONGATE_NOTIFY MSG="..."` messages need plugin 0.6.26+ on the printer** to reach Android - older plugins push them to iPhones only. The app's monitoring picks them up from the printer itself, so the same three rules apply, and the Klipper console ack after the macro says which path it took ("notification sent" = pushed to iPhone and kept for Android; "message kept for the Android app" = no cloud push, Android still gets it). Update the plugin from Mainsail's Software Updates (the app's own update badge follows in the next app release).
+
 Direct (LAN/VPN) printers are the documented exception: no notifications in cloud-free mode.
 
 ## Chamber temperature missing on the dashboard
