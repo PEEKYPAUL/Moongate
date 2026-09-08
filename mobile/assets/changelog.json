@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.9.66",
+    "bullets": [
+      "Custom MOONGATE_NOTIFY messages now reach Android. With plugin 0.6.26 on the printer, a macro's MSG=\"your text\" buzzes through the Printer alerts category while print notifications are running, the same as it already does on iPhone. Printers still on an older plugin show the update badge on their tile, and on printers installed through Moonraker's update manager the update is one tap.",
+      "Under the hood: the Android build moves to Android Gradle Plugin 9.4.0 and the WebView packages pick up their latest patch releases."
+    ]
+  },
+  {
     "version": "v0.9.65",
     "bullets": [
       "The Control panel's lower controls no longer hide behind the phone's navigation bar or the keyboard. The Set / Heaters off row, extrude and retract, and Manage macro controls now always clear the system bars, in portrait and landscape alike.",

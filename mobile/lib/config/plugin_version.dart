@@ -8,11 +8,13 @@
 /// behind reality here (never ahead), so the badge can be late but never
 /// false.
 ///
-/// 0.6.25 catches up the 0.6.23-0.6.25 run of plugin-only releases (tunnel
-/// watchdog + MOONGATE_STATUS macro, the honestly-earned self-update
-/// capability, and the error/paused/custom notification events), which
-/// shipped while no app release was in flight.
-const String kCurrentPluginVersion = '0.6.25';
+/// 0.6.26 (v0.9.66) is the MOONGATE_NOTIFY-on-Android plugin (#309): the
+/// Android alert service reads `last_notify` from /status, so only printers
+/// that actually take the update deliver those alerts, and this badge is
+/// how the fleet hears about it. (0.6.25 caught up the 0.6.23-0.6.25 run of
+/// plugin-only releases: tunnel watchdog + MOONGATE_STATUS, the
+/// honestly-earned self-update capability, the notification events.)
+const String kCurrentPluginVersion = '0.6.26';
 
 /// True when [reported] is an older plugin version than
 /// [kCurrentPluginVersion]. A null/empty [reported] is a pre-v0.6.4 plugin
