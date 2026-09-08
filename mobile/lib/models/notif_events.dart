@@ -38,10 +38,15 @@ PrintEvent? printEventFor(String? prev, String cur) {
 
 /// Whether a freshly polled MOONGATE_NOTIFY sequence number should alert.
 /// The first observation ([prevSeq] null) is a baseline - alerting then would
-/// replay a stale message every service start. A seq that went DOWN means the
-/// plugin restarted (its counter is in-process); re-baseline silently.
+/// replay a stale message every service start. After that ANY change is a
+/// fresh message: the plugin's counter is in-process, so a seq that went DOWN
+/// means the plugin restarted and has since accepted that many new messages
+/// (the latest of which we never saw). A 0.6.26+ plugin with nothing sent
+/// since its start reports null, which the poller maps to seq 0: the baseline
+/// that lets its first message (seq 1) through instead of swallowing it - the
+/// 2.4 dogfood (08/09) lost exactly that first macro call.
 bool shouldAlertCustom(int? prevSeq, int seq) =>
-    prevSeq != null && seq > prevSeq;
+    prevSeq != null && seq > 0 && seq != prevSeq;
 
 /// Reduce Klipper's multi-line shutdown / error message to its useful first
 /// line, mirroring the plugin's `_error_detail` (control characters become

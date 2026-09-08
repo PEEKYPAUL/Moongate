@@ -24,12 +24,13 @@ void main() {
     });
   });
 
-  group('the 0.6.25 badge line this release ships', () {
-    test('everything before 0.6.25 nudges, 0.6.25+ does not', () {
+  group('the 0.6.26 badge line this release ships', () {
+    test('everything before 0.6.26 nudges, 0.6.26+ does not', () {
       expect(pluginVersionIsOutdated('0.6.22'), isTrue);
       expect(pluginVersionIsOutdated('0.6.24'), isTrue);
-      expect(pluginVersionIsOutdated('0.6.25'), isFalse);
+      expect(pluginVersionIsOutdated('0.6.25'), isTrue);
       expect(pluginVersionIsOutdated('0.6.26'), isFalse);
+      expect(pluginVersionIsOutdated('0.6.27'), isFalse);
     });
   });
 }
