@@ -117,6 +117,26 @@ Loud Android alerts for these moments arrived in **v0.9.61** - older versions on
 
 Direct (LAN/VPN) printers are the documented exception: no notifications in cloud-free mode.
 
+## The heat-soak alert never arrived (and how to be told when a heater is actually at temperature)
+
+The **heat-soak timer** in a tile's Preheat sheet (long-press the temperatures while the printer is idle, v0.9.30+) is a **countdown, not a thermometer**: enter minutes and Moongate posts a "Heat-soak complete" alert when they elapse, whatever the heaters are doing. The alert is delivered by the same Android background monitoring as the alerts above, so the same rules apply:
+
+1. **Android only.** iPhones get their alerts from the printer's push, which has no heat-soak event, so a timer set on an iPhone never fires - use the macro below instead.
+2. **Print notifications on and not paused** when the timer runs out. The sheet warns (with a one-tap "Turn on") if they're off; the timer is still armed, so switching them on within the hour lets it fire.
+3. **The "Heat soak timer" category isn't muted.** It's a separate notification category so it can buzz on its own.
+4. It fires on the next background check after the deadline, so allow up to your refresh interval (default 30 seconds). A deadline that passed more than an hour ago is dropped quietly rather than buzzing late.
+
+**Want an alert on the real temperature, for any heater or sensor?** Klipper can wait for it and the `MOONGATE_NOTIFY` macro can tell you (plugin 0.6.25+ for iPhone, 0.6.26+ for Android with print notifications on):
+
+```
+[gcode_macro BED_READY]
+gcode:
+    TEMPERATURE_WAIT SENSOR=heater_bed MINIMUM=100
+    MOONGATE_NOTIFY MSG="Bed is at 100"
+```
+
+For a chamber or other sensor use `SENSOR="temperature_sensor chamber"`. `TEMPERATURE_WAIT` holds the print queue until the temperature is reached, so use it in a "heat up, then tell me" macro or at the start of a print, not as a background watcher.
+
 ## Chamber temperature missing on the dashboard
 
 If a printer's chamber temperature doesn't appear on its tile even though it shows in Mainsail, update to **v0.9.32 or newer**. That release made chamber detection robust for combined chamber sensors (`temperature_combined`) and sensors named with capital letters, especially over the remote tunnel.
