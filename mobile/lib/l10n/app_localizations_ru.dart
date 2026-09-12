@@ -2149,11 +2149,10 @@ class AppLocalizationsRu extends AppLocalizations {
       'Оставьте поле пустым, чтобы не менять этот нагреватель.';
 
   @override
-  String get preheatSoakLabel => 'Таймер прогрева';
+  String get preheatSoakLabel => 'Время выдержки после достижения температуры';
 
   @override
-  String get preheatSoakHelp =>
-      'Уведомить через столько минут. 0 = без таймера.';
+  String get preheatSoakHelp => '0 = оповестить, как только всё прогреется.';
 
   @override
   String get preheatMinutes => 'мин';
@@ -2175,7 +2174,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String preheatSoakIn(int minutes) {
-    return 'оповещение о прогреве через $minutes мин';
+    return 'оповещение о прогреве через $minutes мин после достижения температуры';
   }
 
   @override
@@ -2185,8 +2184,41 @@ class AppLocalizationsRu extends AppLocalizations {
   String get heatsoakDoneTitle => 'Прогрев завершён';
 
   @override
-  String heatsoakDoneBody(String printer) {
-    return '$printer прогрет до температуры';
+  String get preheatChamber => 'Камера';
+
+  @override
+  String get preheatChamberHelp =>
+      'Ждать, пока камера не прогреется до этого значения. Камеру греет стол, поэтому задайте и температуру стола.';
+
+  @override
+  String get preheatChamberNeedsBed =>
+      'Задайте и температуру стола: именно стол греет камеру.';
+
+  @override
+  String get preheatSoakSwitch => 'Оповещение о прогреве';
+
+  @override
+  String get preheatSoakSwitchHelp =>
+      'Оповестит, когда все заданные здесь температуры будут достигнуты, или по истечении времени выдержки ниже.';
+
+  @override
+  String heatsoakDoneSummary(String printer, String targets, int minutes) {
+    return '$printer: $targets · выдержка $minutes мин';
+  }
+
+  @override
+  String get preheatAtTempArmed => 'оповещение о температуре включено';
+
+  @override
+  String get preheatAlertsAndroidOnly =>
+      'Оповещения о прогреве работают через службу уведомлений о печати Android, поэтому на iPhone пока недоступны.';
+
+  @override
+  String get atTempTitle => 'Температура достигнута';
+
+  @override
+  String atTempBody(String printer, String targets) {
+    return '$printer: $targets';
   }
 
   @override

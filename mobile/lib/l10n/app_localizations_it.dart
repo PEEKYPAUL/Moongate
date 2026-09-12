@@ -2159,11 +2159,10 @@ class AppLocalizationsIt extends AppLocalizations {
       'Lascia vuoto un campo per non modificare quel riscaldatore.';
 
   @override
-  String get preheatSoakLabel => 'Timer di riscaldamento';
+  String get preheatSoakLabel => 'Tempo di mantenimento dopo il raggiungimento';
 
   @override
-  String get preheatSoakHelp =>
-      'Avvisami dopo questi minuti. 0 = nessun timer.';
+  String get preheatSoakHelp => '0 = avvisa appena tutto è in temperatura.';
 
   @override
   String get preheatMinutes => 'min';
@@ -2185,7 +2184,7 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String preheatSoakIn(int minutes) {
-    return 'avviso di riscaldamento tra $minutes min';
+    return 'avviso di riscaldamento $minutes min dopo il raggiungimento della temperatura';
   }
 
   @override
@@ -2195,8 +2194,41 @@ class AppLocalizationsIt extends AppLocalizations {
   String get heatsoakDoneTitle => 'Riscaldamento completato';
 
   @override
-  String heatsoakDoneBody(String printer) {
-    return '$printer è in temperatura';
+  String get preheatChamber => 'Camera';
+
+  @override
+  String get preheatChamberHelp =>
+      'Attende che la camera raggiunga questo valore. Il piano scalda la camera, quindi imposta anche una temperatura del piano.';
+
+  @override
+  String get preheatChamberNeedsBed =>
+      'Imposta anche una temperatura del piano: è il piano a scaldare la camera.';
+
+  @override
+  String get preheatSoakSwitch => 'Avviso di riscaldamento';
+
+  @override
+  String get preheatSoakSwitchHelp =>
+      'Avvisa quando tutte le temperature impostate qui sono raggiunte, oppure dopo il tempo di mantenimento qui sotto.';
+
+  @override
+  String heatsoakDoneSummary(String printer, String targets, int minutes) {
+    return '$printer: $targets · mantenuto $minutes min';
+  }
+
+  @override
+  String get preheatAtTempArmed => 'avviso di temperatura attivo';
+
+  @override
+  String get preheatAlertsAndroidOnly =>
+      'Gli avvisi di riscaldamento usano il servizio di notifiche di stampa di Android, quindi non sono ancora disponibili su iPhone.';
+
+  @override
+  String get atTempTitle => 'In temperatura';
+
+  @override
+  String atTempBody(String printer, String targets) {
+    return '$printer: $targets';
   }
 
   @override

@@ -671,7 +671,13 @@ class PrintControlService {
   /// Reads `available_heaters` from Moonraker; on any failure returns the
   /// Klipper defaults (`extruder` / `heater_bed`) so a standard machine still
   /// works without the probe.
-  Future<({String hotend, String bed})> detectHeaters() async {
+  Future<({String hotend, String bed})> detectHeaters() async =>
+      mapHeaterNames(await availableHeaters());
+
+  /// The printer's `available_heaters` (Klipper's `heaters` object), or an
+  /// empty list when the probe fails. Public so the preheat sheet can map
+  /// the hotend / bed names AND spot a chamber heater from one round trip.
+  Future<List<String>> availableHeaters() async {
     final names =
         await _viaLanThenTunnel<List<String>>((base, token, isLan) async {
       try {
@@ -691,7 +697,19 @@ class PrintControlService {
         return null;
       }
     });
-    return mapHeaterNames(names ?? const []);
+    return names ?? const [];
+  }
+
+  /// The chamber HEATER object name (`heater_generic chamber` and the like)
+  /// when the printer actively heats its chamber, else null - most chambers
+  /// are passive (warmed by the bed) and only carry a sensor. Static + visible
+  /// for testing without a live printer.
+  static String? mapChamberHeater(List<String> available) {
+    for (final a in available) {
+      final l = a.toLowerCase();
+      if (l.startsWith('heater_generic') && l.contains('chamber')) return a;
+    }
+    return null;
   }
 
   /// Pick the hotend + bed heater object names from a printer's [available]

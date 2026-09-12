@@ -1,5 +1,13 @@
 [
   {
+    "version": "v0.9.67",
+    "bullets": [
+      "The heat-soak alert now works the way a heat soak actually does. In the preheat sheet (long-press a tile's temperatures) switch on Heat-soak alert: with a soak time of 0 Moongate alerts you the moment every temperature you set is reached, read from the printer's live thermistors; with a soak time it starts the clock only once everything is at temperature and alerts when the time is up, naming what was reached and how long it held. The old timer counted from the moment you pressed Set and never looked at a temperature. On a multi-toolhead printer it waits for every tool you set.",
+      "Printers with a chamber sensor get a Chamber field. Enter the chamber temperature you want reached and the alert waits for it too. Since the bed is what heats the chamber on nearly every printer, the sheet asks for a bed temperature alongside it; a printer with a real chamber heater has it set like any other heater. Like the rest it runs in the Android print-notification service, which the sheet reminds you to switch on, and the Android notification category is now called Heat alerts.",
+      "On iPhone the preheat sheet now says plainly that the heat-soak alert is Android-only for now, instead of offering a timer that could never fire."
+    ]
+  },
+  {
     "version": "v0.9.66",
     "bullets": [
       "Custom MOONGATE_NOTIFY messages now reach Android. With plugin 0.6.26 on the printer, a macro's MSG=\"your text\" buzzes through the Printer alerts category while print notifications are running, the same as it already does on iPhone. Printers still on an older plugin show the update badge on their tile, and on printers installed through Moonraker's update manager the update is one tap.",

@@ -2149,11 +2149,11 @@ class AppLocalizationsPl extends AppLocalizations {
       'Pozostaw pole puste, aby nie zmieniać tej grzałki.';
 
   @override
-  String get preheatSoakLabel => 'Minutnik nagrzewania';
+  String get preheatSoakLabel => 'Czas wygrzewania po osiągnięciu temperatury';
 
   @override
   String get preheatSoakHelp =>
-      'Powiadom mnie po tylu minutach. 0 = bez minutnika.';
+      '0 = alert, gdy tylko wszystko osiągnie temperaturę.';
 
   @override
   String get preheatMinutes => 'min';
@@ -2175,7 +2175,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String preheatSoakIn(int minutes) {
-    return 'alert nagrzewania za $minutes min';
+    return 'alert nagrzewania $minutes min po osiągnięciu temperatury';
   }
 
   @override
@@ -2185,8 +2185,41 @@ class AppLocalizationsPl extends AppLocalizations {
   String get heatsoakDoneTitle => 'Nagrzewanie zakończone';
 
   @override
-  String heatsoakDoneBody(String printer) {
-    return '$printer osiągnął temperaturę';
+  String get preheatChamber => 'Komora';
+
+  @override
+  String get preheatChamberHelp =>
+      'Czekaj, aż komora osiągnie tę wartość. Stół nagrzewa komorę, więc ustaw też temperaturę stołu.';
+
+  @override
+  String get preheatChamberNeedsBed =>
+      'Ustaw też temperaturę stołu: to stół nagrzewa komorę.';
+
+  @override
+  String get preheatSoakSwitch => 'Alert nagrzewania';
+
+  @override
+  String get preheatSoakSwitchHelp =>
+      'Alert, gdy wszystkie ustawione tu temperatury zostaną osiągnięte, albo po podanym niżej czasie wygrzewania.';
+
+  @override
+  String heatsoakDoneSummary(String printer, String targets, int minutes) {
+    return '$printer: $targets · wygrzewano $minutes min';
+  }
+
+  @override
+  String get preheatAtTempArmed => 'alert temperatury włączony';
+
+  @override
+  String get preheatAlertsAndroidOnly =>
+      'Alerty nagrzewania działają w usłudze powiadomień o druku na Androidzie, więc nie są jeszcze dostępne na iPhonie.';
+
+  @override
+  String get atTempTitle => 'Temperatura osiągnięta';
+
+  @override
+  String atTempBody(String printer, String targets) {
+    return '$printer: $targets';
   }
 
   @override

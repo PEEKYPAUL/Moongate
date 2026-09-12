@@ -12,6 +12,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../l10n/app_localizations.dart';
+import '../models/heat_alerts.dart';
 import '../models/notif_events.dart';
 import '../models/notif_fields.dart';
 import '../models/printer_config.dart';
@@ -53,20 +54,20 @@ const _cardsChannelDesc     =
 const _legacyCardsChannelId = 'moongate_print_alerts';
 const _serviceId            = 4711;
 
-// Discrete, attention-grabbing channel for the one-shot "Heat-soak complete"
-// alert fired when a preheat / soak timer set on a tile elapses. HIGH (it
-// buzzes) - unlike the silent status roster + cards - because the whole point is
-// to call the user back to the machine. A separate channel so it can be muted on
-// its own. See HeatsoakTimers (the armed deadlines) + _fireDueHeatsoaks.
+// Discrete, attention-grabbing channel for the one-shot heat alerts armed from
+// a tile's preheat sheet: "Heat-soak complete" when the countdown elapses and
+// "At temperature" (v0.9.67) when the heaters set there reach their targets.
+// HIGH (it buzzes) - unlike the silent status roster + cards - because the whole
+// point is to call the user back to the machine. A separate channel so it can
+// be muted on its own. Same id as the original "Heat soak timer" channel: re-
+// creating it under the new name just renames it in the user's settings, with
+// any mute they set preserved. See HeatsoakTimers (the armed alerts) and
+// _maybeFireHeatSoak.
 const _heatsoakChannelId   = 'moongate_heatsoak';
-const _heatsoakChannelName = 'Heat soak timer';
+const _heatsoakChannelName = 'Heat alerts';
 const _heatsoakChannelDesc =
-    'Alerts you when a preheat / heat-soak timer set on a printer finishes.';
-
-// A soak deadline this far past when the isolate finally sees it (e.g.
-// notifications were off across the deadline) is dropped without buzzing rather
-// than firing a confusing late alert.
-const _heatsoakStaleMs = 60 * 60 * 1000; // 1 hour
+    'Alerts you when a printer reaches the temperatures set in its preheat '
+    'sheet, or when a preheat / heat-soak timer finishes.';
 
 // Loud one-shot channel for exceptional printer events - a print pausing, a
 // print failing (with Klipper's reason), the machine erroring out, or a
@@ -292,6 +293,11 @@ class _PrintTaskHandler extends TaskHandler {
   // Last MOONGATE_NOTIFY sequence number seen per printer (from /status
   // `last_notify`, plugin 0.6.26+). Same baseline rule via shouldAlertCustom.
   final Map<String, int> _lastNotifySeq = {};
+  // Heat-soak alerts armed from the preheat sheet (UI isolate), keyed by
+  // printer - one snapshot per tick (see _tick) so _fetchStatus knows which
+  // printers need their extra hotends supplemented while idle, and
+  // _maybeFireHeatSoak can judge each live poll. See models/heat_alerts.dart.
+  Map<String, HeatSoakArm> _heatArms = const {};
   late AppLocalizations _l;
   // Which notification segments to show + their order - re-read from prefs each
   // tick (the user edits them on the main isolate). Defaults to all-on.
@@ -437,6 +443,10 @@ class _PrintTaskHandler extends TaskHandler {
       await PrinterRegistry.instance.load();
       final printers = PrinterRegistry.instance.printers;
 
+      // Armed heat-soak alerts - read once per tick, like the prefs above (the
+      // preheat sheet writes them on the main isolate).
+      _heatArms = await HeatsoakTimers.snapshot();
+
       // One cheap fleet read of last_seen (PostgREST, not an Edge call) gates the
       // per-printer token mints below, so an offline printer costs zero Edge
       // Function calls even though this service polls 24/7.
@@ -457,6 +467,7 @@ class _PrintTaskHandler extends TaskHandler {
         // (or a fresh MOONGATE_NOTIFY seq) may buzz.
         if (s != null && s.live) {
           await _maybeFireEventAlerts(p, s);
+          await _maybeFireHeatSoak(p, s);
           await _updateCardFor(p, s, postedDoneThisTick);
         }
 
@@ -494,11 +505,9 @@ class _PrintTaskHandler extends TaskHandler {
       // and the roster line settle to Ready together.
       await _detectClearedDoneCards(printers, postedDoneThisTick);
 
-      // Heat-soak timers: fire the one-shot alert for any printer whose soak
-      // deadline (armed from the tile's preheat sheet) has elapsed. Piggybacks
-      // this poll loop - so it only runs while notifications are enabled, which
-      // the preheat sheet warns about up front.
-      await _fireDueHeatsoaks(printers);
+      // Heat-soak alerts for printers that no longer exist are dropped here;
+      // the live ones were judged per printer above (_maybeFireHeatSoak).
+      await _pruneHeatArms(printers);
     } catch (e) {
       _log('tick failed: $e');
     } finally {
@@ -716,6 +725,10 @@ class _PrintTaskHandler extends TaskHandler {
       final printStats = status['print_stats'] as Map<String, dynamic>? ?? const {};
       final extruder   = status['extruder']     as Map<String, dynamic>? ?? const {};
       final bed        = status['heater_bed']   as Map<String, dynamic>? ?? const {};
+      // The chamber sensor the plugin folds into /status (a temperature_sensor
+      // / heater_generic / temperature_fan named *chamber*) - the heat-soak
+      // alert's chamber wait reads it. Absent on printers without one.
+      final chamber    = _pickChamber(status);
 
       // Last MOONGATE_NOTIFY message (plugin 0.6.26+, /status top level) -
       // rides both return paths below so a macro message still alerts while
@@ -800,7 +813,12 @@ class _PrintTaskHandler extends TaskHandler {
           target: (extruder['target']      as num?)?.toDouble() ?? 0,
         ),
       ];
-      if (state == 'printing' || state == 'paused') {
+      // ...and while a heat-soak alert armed for a tool beyond T0 waits on
+      // this printer, so an idle IDEX / tool changer's extra readings reach
+      // _maybeFireHeatSoak (the roster itself never shows them while idle).
+      final wantsExtras =
+          _heatArms[printerId]?.needsExtraHotends ?? false;
+      if (state == 'printing' || state == 'paused' || wantsExtras) {
         final extras =
             await _discoverExtruders(printerId, base, token, isLan: isLan);
         if (extras.isNotEmpty) {
@@ -837,6 +855,8 @@ class _PrintTaskHandler extends TaskHandler {
         hotendTarget:     (extruder['target']      as num?)?.toDouble() ?? 0,
         bed:              (bed['temperature']      as num?)?.toDouble() ?? 0,
         bedTarget:        (bed['target']           as num?)?.toDouble() ?? 0,
+        chamberTemp:      (chamber?['temperature'] as num?)?.toDouble() ?? 0,
+        chamberTarget:    (chamber?['target']      as num?)?.toDouble() ?? 0,
         toolheads:        toolheads,
       );
     } catch (_) {
@@ -1421,36 +1441,64 @@ class _PrintTaskHandler extends TaskHandler {
     );
   }
 
-  // ── Heat-soak timers ────────────────────────────────────────────────────────
+  // ── Heat-soak alerts ────────────────────────────────────────────────────────
 
-  /// Per-printer notification id for its one-shot heat-soak alert. High bit
-  /// 0x20000000 keeps it clear of the service id (4711) and the print-card range
-  /// (0x10000000), so the three never collide.
+  /// Per-printer notification id for its one-shot heat-soak / at-temperature
+  /// alert. High bit 0x20000000 keeps it clear of the service id (4711), the
+  /// print cards (0x10000000) and the event alerts (0x40000000) - and outside
+  /// onStart's stale-card sweep (`& 0x10000000`), so an unseen alert survives
+  /// a service restart.
   int _heatsoakId(String printerId) =>
       0x20000000 | (printerId.hashCode & 0x0FFFFFFF);
 
-  /// Fire the one-shot "Heat-soak complete" alert for any printer whose soak
-  /// deadline (armed from the tile's preheat sheet) has elapsed, then clear it. A
-  /// long-stale deadline is dropped without buzzing; deadlines for printers no
-  /// longer present are pruned.
-  Future<void> _fireDueHeatsoaks(List<PrinterConfig> printers) async {
-    final deadlines = await HeatsoakTimers.snapshot();
-    if (deadlines.isEmpty) return;
+  /// Judge one LIVE poll against the printer's armed heat-soak alert
+  /// (evaluateHeatSoak): once every temperature the sheet set is reached,
+  /// either fire (soak time 0) or start the soak clock - persisting the moment
+  /// so a service restart keeps counting; fire when the clock runs out; drop
+  /// the arm when it went stale or the heaters were switched off. Fired and
+  /// dropped arms are cleared from the store so they never repeat.
+  Future<void> _maybeFireHeatSoak(PrinterConfig p, _Poll s) async {
+    final arm = _heatArms[p.id];
+    if (arm == null) return;
+    final live  = _liveReadings(s);
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final known = {for (final p in printers) p.id};
-    for (final p in printers) {
-      final due = deadlines[p.id];
-      if (due == null || nowMs < due) continue;
-      if (nowMs - due <= _heatsoakStaleMs) await _postHeatsoakAlert(p);
-      await HeatsoakTimers.cancel(p.id);
+    switch (evaluateHeatSoak(arm: arm, live: live, nowMs: nowMs)) {
+      case HeatSoakVerdict.wait:
+        return;
+      case HeatSoakVerdict.reached:
+        final soaking = arm.copyWith(reachedAtMs: nowMs);
+        await HeatsoakTimers.arm(p.id, soaking);
+        _heatArms = {..._heatArms, p.id: soaking};
+        return;
+      case HeatSoakVerdict.fire:
+        await _postHeatsoakAlert(p, arm, live);
+      case HeatSoakVerdict.cancel:
+        break;
     }
-    for (final id in deadlines.keys) {
-      if (!known.contains(id)) await HeatsoakTimers.cancel(id);
-    }
+    await HeatsoakTimers.cancel(p.id);
+    _heatArms = {..._heatArms}..remove(p.id);
   }
 
-  /// Post the one-shot, attention-grabbing "Heat-soak complete" alert for [p].
-  Future<void> _postHeatsoakAlert(PrinterConfig p) async {
+  /// The poll's readings by role: T0 is the payload's own extruder, T1+ come
+  /// from the multi-toolhead supplement (fetched while printing, or on demand
+  /// for an arm that names one), the bed is heater_bed, the chamber whichever
+  /// *chamber* sensor the plugin folded in. A chamber reading of 0 means the
+  /// payload carried none - the role stays absent so an arm waiting on it
+  /// keeps waiting rather than misjudging.
+  Map<String, HeaterReading> _liveReadings(_Poll s) => {
+        hotendRole(0): HeaterReading(s.hotend, s.hotendTarget),
+        for (final t in s.toolheads)
+          if (t.index > 0) hotendRole(t.index): HeaterReading(t.temp, t.target),
+        bedRole: HeaterReading(s.bed, s.bedTarget),
+        if (s.chamberTemp > 0)
+          chamberRole: HeaterReading(s.chamberTemp, s.chamberTarget),
+      };
+
+  /// Post the one-shot alert: "At temperature" when the soak time was 0, else
+  /// "Heat-soak complete" - the body naming what was reached ("Bed 100° ·
+  /// Chamber 45°") and, for a soak, how long it held.
+  Future<void> _postHeatsoakAlert(
+      PrinterConfig p, HeatSoakArm arm, Map<String, HeaterReading> live) async {
     const android = AndroidNotificationDetails(
       _heatsoakChannelId,
       _heatsoakChannelName,
@@ -1460,12 +1508,59 @@ class _PrintTaskHandler extends TaskHandler {
       icon: 'ic_stat_moongate',
       autoCancel: true,
     );
+    final summary = heatSoakSummary(
+      arm,
+      live,
+      hotendLabel:  _l.preheatHotend,
+      bedLabel:     _l.preheatBed,
+      chamberLabel: _l.preheatChamber,
+    );
+    final soaked = arm.soakMinutes > 0;
     await _alerts.show(
       _heatsoakId(p.id),
-      _l.heatsoakDoneTitle,
-      _l.heatsoakDoneBody(p.name),
+      soaked ? _l.heatsoakDoneTitle : _l.atTempTitle,
+      soaked
+          ? _l.heatsoakDoneSummary(p.name, summary, arm.soakMinutes)
+          : _l.atTempBody(p.name, summary),
       const NotificationDetails(android: android),
     );
+  }
+
+  /// Drop heat-soak arms for printers no longer present. A printer that is
+  /// merely offline keeps its arm until it goes stale - it may come back
+  /// within the window.
+  Future<void> _pruneHeatArms(List<PrinterConfig> printers) async {
+    if (_heatArms.isEmpty) return;
+    final known = {for (final p in printers) p.id};
+    for (final id in _heatArms.keys) {
+      if (!known.contains(id)) await HeatsoakTimers.cancel(id);
+    }
+  }
+
+  /// The chamber object in a /status payload: a temperature_sensor /
+  /// heater_generic / temperature_fan / temperature_combined whose name
+  /// contains "chamber" - an exact "chamber" wins over partial matches, the
+  /// same preference the dashboard's own discovery applies. Null when none.
+  static Map<String, dynamic>? _pickChamber(Map<String, dynamic> status) {
+    const prefixes = [
+      'temperature_sensor ',
+      'heater_generic ',
+      'temperature_fan ',
+      'temperature_combined ',
+    ];
+    Map<String, dynamic>? partial;
+    for (final e in status.entries) {
+      final prefix =
+          prefixes.firstWhere((p) => e.key.startsWith(p), orElse: () => '');
+      if (prefix.isEmpty) continue;
+      final name = e.key.substring(prefix.length).toLowerCase();
+      if (!name.contains('chamber')) continue;
+      final v = e.value;
+      if (v is! Map<String, dynamic>) continue;
+      if (name == 'chamber') return v;
+      partial ??= v;
+    }
+    return partial;
   }
 }
 
@@ -1520,6 +1615,11 @@ class _Poll {
   final double bed;
   final double bedTarget;
 
+  /// The chamber sensor's reading (0 when the payload carried none) and its
+  /// target (0 for a passive sensor; a heater_generic chamber reports one).
+  final double chamberTemp;
+  final double chamberTarget;
+
   /// Live per-toolhead temperatures for a multi-hotend printer (IDEX / tool
   /// changer), sorted by tool number - populated only while printing / paused,
   /// and only when the printer reports extra hotends. Empty on an ordinary
@@ -1546,6 +1646,8 @@ class _Poll {
     required this.hotendTarget,
     required this.bed,
     required this.bedTarget,
+    this.chamberTemp = 0,
+    this.chamberTarget = 0,
     this.toolheads = const [],
     this.live = true,
   });

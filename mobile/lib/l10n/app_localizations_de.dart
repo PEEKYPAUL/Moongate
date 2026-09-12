@@ -2151,11 +2151,10 @@ class AppLocalizationsDe extends AppLocalizations {
       'Ein Feld leer lassen, um diesen Heizer unverändert zu lassen.';
 
   @override
-  String get preheatSoakLabel => 'Heat-Soak-Timer';
+  String get preheatSoakLabel => 'Soak-Zeit nach Erreichen der Temperatur';
 
   @override
-  String get preheatSoakHelp =>
-      'Nach so vielen Minuten benachrichtigen. 0 = kein Timer.';
+  String get preheatSoakHelp => '0 = Hinweis, sobald alles auf Temperatur ist.';
 
   @override
   String get preheatMinutes => 'Min.';
@@ -2165,7 +2164,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get preheatNotifWarning =>
-      'Heat-Soak-Hinweise erfordern aktivierte Druckbenachrichtigungen.';
+      'Heiz-Hinweise erfordern aktivierte Druckbenachrichtigungen.';
 
   @override
   String get preheatNotifEnable => 'Aktivieren';
@@ -2177,7 +2176,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String preheatSoakIn(int minutes) {
-    return 'Heat-Soak-Hinweis in $minutes Min.';
+    return 'Heat-Soak-Hinweis $minutes Min. nach Erreichen der Temperatur';
   }
 
   @override
@@ -2187,8 +2186,41 @@ class AppLocalizationsDe extends AppLocalizations {
   String get heatsoakDoneTitle => 'Heat-Soak abgeschlossen';
 
   @override
-  String heatsoakDoneBody(String printer) {
-    return '$printer hat die Temperatur erreicht';
+  String get preheatChamber => 'Kammer';
+
+  @override
+  String get preheatChamberHelp =>
+      'Warten, bis die Kammer diesen Wert erreicht. Das Bett heizt die Kammer, also auch eine Betttemperatur setzen.';
+
+  @override
+  String get preheatChamberNeedsBed =>
+      'Auch eine Betttemperatur setzen: das Bett heizt die Kammer.';
+
+  @override
+  String get preheatSoakSwitch => 'Heat-Soak-Hinweis';
+
+  @override
+  String get preheatSoakSwitchHelp =>
+      'Meldet sich, sobald alle hier gesetzten Temperaturen erreicht sind, oder nach der Soak-Zeit darunter.';
+
+  @override
+  String heatsoakDoneSummary(String printer, String targets, int minutes) {
+    return '$printer: $targets · $minutes Min. gehalten';
+  }
+
+  @override
+  String get preheatAtTempArmed => 'Temperatur-Hinweis aktiv';
+
+  @override
+  String get preheatAlertsAndroidOnly =>
+      'Heat-Soak-Hinweise laufen im Android-Druckbenachrichtigungsdienst und sind auf dem iPhone noch nicht verfügbar.';
+
+  @override
+  String get atTempTitle => 'Temperatur erreicht';
+
+  @override
+  String atTempBody(String printer, String targets) {
+    return '$printer: $targets';
   }
 
   @override

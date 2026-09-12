@@ -1,8 +1,11 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../models/heat_alerts.dart';
 import '../../models/printer_config.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/heatsoak_timers.dart';
@@ -14,26 +17,36 @@ import '../../services/print_notification_service.dart';
 /// snackbar), so this is just a fat-finger guard, not a safety limit.
 const double _maxTemp = 400;
 
-/// Ceiling on the heat-soak timer (10 hours), so a stray extra digit can't arm
-/// an absurd deadline.
+/// Ceiling on the soak time (10 hours), so a stray extra digit can't arm an
+/// absurd wait.
 const int _maxMinutes = 600;
 
-/// Bottom sheet to preheat a printer's hotend / bed and optionally arm a
-/// heat-soak timer. Opened by a long-press on a tile's temperature row (online +
-/// idle only - see `printer_tile.dart`). Sends `SET_HEATER_TEMPERATURE` to the
-/// printer's Moonraker console over the same LAN→tunnel proxy as the macro
-/// runner, so it needs no plugin change. Heater object names are auto-detected
+/// Bottom sheet to preheat a printer's hotend / bed (and chamber, where the
+/// printer has one) and optionally arm a heat-soak alert. Opened by a
+/// long-press on a tile's temperature row (online + idle only - see
+/// `printer_tile.dart`). Sends `SET_HEATER_TEMPERATURE` to the printer's
+/// Moonraker console over the same LAN→tunnel proxy as the macro runner, so it
+/// needs no plugin change. Heater object names are auto-detected
 /// (`available_heaters`) so it works whether the config calls them
 /// extruder/heater_bed or something custom.
 ///
-/// The heat-soak alert piggybacks the opt-in print-notification service (its
-/// background isolate watches the armed deadline), so the sheet warns when that
-/// service is off - otherwise the timer would never fire.
+/// The heat-soak alert (v0.9.67) rides the opt-in print-notification service:
+/// the sheet arms a [HeatSoakArm] naming the temperatures just set plus a soak
+/// time, and the service's background isolate fires once every one of them
+/// reads its target (soak time 0) or once they have held for the soak time.
+/// The chamber on nearly every printer is a passive sensor warmed by the bed,
+/// so entering a chamber temperature insists on a bed temperature too - typing
+/// 45° for the chamber alone would never get there. The service is
+/// Android-only, so on iOS the alert controls give way to a one-line note
+/// rather than offering an alert that can never fire; and the sheet warns
+/// (with a one-tap enable) when the service is off.
 Future<void> showPreheatSheet(
   BuildContext context,
   PrinterConfig printer, {
   required double hotendTarget,
   required double bedTarget,
+  double chamberTemp = 0,
+  double chamberTarget = 0,
   List<ToolheadTemp> toolheads = const [],
 }) {
   return showModalBottomSheet<void>(
@@ -52,6 +65,8 @@ Future<void> showPreheatSheet(
       printer: printer,
       hotendTarget: hotendTarget,
       bedTarget: bedTarget,
+      chamberTemp: chamberTemp,
+      chamberTarget: chamberTarget,
       toolheads: toolheads,
     ),
   );
@@ -61,11 +76,19 @@ class _PreheatSheet extends ConsumerStatefulWidget {
   final PrinterConfig printer;
   final double hotendTarget;
   final double bedTarget;
+
+  /// The tile's live chamber reading and target - 0 when the printer reports
+  /// no chamber sensor, which hides the chamber field (same rule as the
+  /// tile's chamber chip).
+  final double chamberTemp;
+  final double chamberTarget;
   final List<ToolheadTemp> toolheads;
   const _PreheatSheet({
     required this.printer,
     required this.hotendTarget,
     required this.bedTarget,
+    required this.chamberTemp,
+    required this.chamberTarget,
     required this.toolheads,
   });
 
@@ -83,15 +106,29 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
   late final List<ToolheadTemp> _tools;
   late final List<TextEditingController> _hotendCtls;
   final _bedCtl = TextEditingController();
+  final _chamberCtl = TextEditingController();
   final _timeCtl = TextEditingController(text: '0');
 
+  /// "Heat-soak alert" - off each time the sheet opens, the same way the soak
+  /// time starts at 0.
+  bool _soakOn = false;
+
   bool get _isMulti => _tools.length > 1;
+
+  /// Whether to offer the chamber field: only when the printer reports a
+  /// chamber sensor (the tile shows its chamber chip on the same test).
+  bool get _hasChamber => widget.chamberTemp > 0;
 
   /// Detected heater object names. Seeded with the Klipper defaults and replaced
   /// when the `available_heaters` probe returns, so a Set fired before the probe
   /// lands still targets the right heaters on a standard machine.
   ({String hotend, String bed}) _heaters =
       (hotend: 'extruder', bed: 'heater_bed');
+
+  /// The chamber HEATER object, on the rare printer that actively heats its
+  /// chamber (`heater_generic chamber`). Null for the usual passive sensor -
+  /// then the chamber value is only a temperature to wait for, never set.
+  String? _chamberHeater;
 
   bool _sending = false;
 
@@ -102,8 +139,12 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
     _hotendCtls = List.generate(
         _isMulti ? _tools.length : 1, (_) => TextEditingController());
     _control = PrintControlService(widget.printer);
-    _control.detectHeaters().then((h) {
-      if (mounted) setState(() => _heaters = h);
+    _control.availableHeaters().then((names) {
+      if (!mounted) return;
+      setState(() {
+        _heaters       = PrintControlService.mapHeaterNames(names);
+        _chamberHeater = PrintControlService.mapChamberHeater(names);
+      });
     });
   }
 
@@ -113,6 +154,7 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
       c.dispose();
     }
     _bedCtl.dispose();
+    _chamberCtl.dispose();
     _timeCtl.dispose();
     super.dispose();
   }
@@ -129,6 +171,15 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
     final v = int.tryParse(s.trim());
     if (v == null || v < 0) return 0;
     return v > _maxMinutes ? _maxMinutes : v;
+  }
+
+  /// A chamber temperature entered without a bed temperature: the bed is what
+  /// heats the chamber on nearly every printer, so that wait could never end.
+  /// Blocks Set and shows the reason under the chamber field.
+  bool get _chamberNeedsBed {
+    if (!_hasChamber) return false;
+    final chamber = _parseTemp(_chamberCtl.text);
+    return chamber != null && chamber > 0 && _parseTemp(_bedCtl.text) == null;
   }
 
   Future<void> _enableNotifications() async {
@@ -152,10 +203,15 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
     final l = AppLocalizations.of(context);
     final targets = <String, double>{};
     final confirmParts = <String>[];
+    // Temperatures for the heat-soak alert, by role (h0 / h1 ... / bed /
+    // chamber) - only the ones actually being heated (a 0 target is "off",
+    // nothing to reach).
+    final roles = <String, double>{};
 
     void addHotend(int index, String label, double? temp) {
       if (temp == null) return;
       targets[_hotendName(index)] = temp;
+      if (temp > 0) roles[hotendRole(index)] = temp;
       confirmParts.add('$label ${temp.round()}°');
     }
 
@@ -171,7 +227,20 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
     final bed = _parseTemp(_bedCtl.text);
     if (bed != null) {
       targets[_heaters.bed] = bed;
+      if (bed > 0) roles[bedRole] = bed;
       confirmParts.add('${l.preheatBed} ${bed.round()}°');
+    }
+
+    // The chamber: a temperature to wait for on a passive (bed-warmed)
+    // chamber, and additionally a target to SET on the rare active one.
+    final chamber = _hasChamber ? _parseTemp(_chamberCtl.text) : null;
+    if (chamber != null && chamber > 0) {
+      roles[chamberRole] = chamber;
+      final heater = _chamberHeater;
+      if (heater != null) {
+        targets[heater] = chamber;
+        confirmParts.add('${l.preheatChamber} ${chamber.round()}°');
+      }
     }
 
     if (targets.isEmpty) return; // nothing to set
@@ -192,13 +261,20 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
       return;
     }
 
-    // Arm (or clear) the soak timer. Armed even when notifications are off - the
-    // in-sheet warning already flagged that - so it still fires if the user
-    // enables them within the grace window.
-    if (minutes > 0) {
-      final at =
-          DateTime.now().add(Duration(minutes: minutes)).millisecondsSinceEpoch;
-      await HeatsoakTimers.arm(widget.printer.id, at);
+    // Arm (or clear) the heat-soak alert. Armed even when notifications are
+    // off - the in-sheet warning already flagged that - so it still fires if
+    // the user enables them before the temperatures arrive.
+    final soak = _soakOn && roles.isNotEmpty;
+    if (soak) {
+      await HeatsoakTimers.arm(
+        widget.printer.id,
+        HeatSoakArm(
+          armedAtMs:   DateTime.now().millisecondsSinceEpoch,
+          targets:     roles,
+          multi:       _isMulti,
+          soakMinutes: minutes,
+        ),
+      );
     } else {
       await HeatsoakTimers.cancel(widget.printer.id);
     }
@@ -206,15 +282,23 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
 
     Navigator.of(context).pop();
     messenger.showSnackBar(SnackBar(
-      content: Text(_confirmText(l, confirmParts, minutes)),
+      content: Text(_confirmText(l, confirmParts, soak ? minutes : null)),
       behavior: SnackBarBehavior.floating,
       duration: const Duration(seconds: 3),
     ));
   }
 
-  String _confirmText(AppLocalizations l, List<String> parts, int minutes) {
+  /// "Set Hotend 210° · Bed 60°", plus what was armed: the soak time when one
+  /// is set, "at-temperature alert on" for a 0-minute soak, nothing when the
+  /// alert is off ([soakMinutes] null).
+  String _confirmText(
+      AppLocalizations l, List<String> parts, int? soakMinutes) {
     final set = l.preheatSetConfirm(parts.join(' · '));
-    return minutes > 0 ? '$set · ${l.preheatSoakIn(minutes)}' : set;
+    if (soakMinutes == null) return set;
+    final armed = soakMinutes > 0
+        ? l.preheatSoakIn(soakMinutes)
+        : l.preheatAtTempArmed;
+    return '$set · $armed';
   }
 
   @override
@@ -224,7 +308,7 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
     final notifsOn = ref.watch(printNotificationsEnabledProvider);
     final hasTemp = _hotendCtls.any((c) => c.text.trim().isNotEmpty) ||
         _bedCtl.text.trim().isNotEmpty;
-    final soakMinutes = _parseMinutes(_timeCtl.text);
+    final chamberNeedsBed = _chamberNeedsBed;
 
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
@@ -291,6 +375,24 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
                   onChanged: (_) => setState(() {}),
                 ),
               ],
+
+              // ── Chamber (only when the printer reports a chamber sensor) ──
+              // On the usual passive chamber this is a temperature to wait
+              // for, warmed by the bed - hence the bed rule below; on a
+              // printer with a chamber heater it is set like any other.
+              if (_hasChamber) ...[
+                const SizedBox(height: 12),
+                _TempField(
+                  controller: _chamberCtl,
+                  label: l.preheatChamber,
+                  icon: Icons.sensor_window,
+                  color: Colors.teal,
+                  currentTarget: widget.chamberTarget,
+                  helperText: l.preheatChamberHelp,
+                  errorText: chamberNeedsBed ? l.preheatChamberNeedsBed : null,
+                  onChanged: (_) => setState(() {}),
+                ),
+              ],
               const SizedBox(height: 6),
               Text(
                 l.preheatHint,
@@ -299,33 +401,57 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
               ),
               const SizedBox(height: 16),
 
-              // ── Optional heat-soak timer ─────────────────────────────────
-              TextField(
-                controller: _timeCtl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  labelText: l.preheatSoakLabel,
-                  helperText: l.preheatSoakHelp,
-                  prefixIcon: const Icon(Icons.timer_outlined),
-                  suffixText: l.preheatMinutes,
-                  border: const OutlineInputBorder(),
+              // ── Optional heat-soak alert ─────────────────────────────────
+              // Runs in the Android print-notification service (its isolate
+              // watches the thermistors and the soak clock), so on iOS the
+              // controls give way to a one-line note instead of offering an
+              // alert that can never fire.
+              if (Platform.isAndroid) ...[
+                SwitchListTile(
+                  value: _soakOn,
+                  onChanged: (v) => setState(() => _soakOn = v),
+                  contentPadding: EdgeInsets.zero,
+                  secondary: const Icon(Icons.thermostat_outlined),
+                  title: Text(l.preheatSoakSwitch),
+                  subtitle: Text(l.preheatSoakSwitchHelp),
                 ),
-              ),
+                if (_soakOn) ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _timeCtl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      labelText: l.preheatSoakLabel,
+                      helperText: l.preheatSoakHelp,
+                      prefixIcon: const Icon(Icons.timer_outlined),
+                      suffixText: l.preheatMinutes,
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
 
-              // A soak timer needs the print-notification service running, so
-              // warn (with a one-tap enable) when it's off.
-              if (soakMinutes > 0 && !notifsOn) ...[
-                const SizedBox(height: 12),
-                _NotifWarning(onEnable: _enableNotifications),
-              ],
+                  // The alert needs the print-notification service running,
+                  // so warn (with a one-tap enable) when it's off.
+                  if (!notifsOn) ...[
+                    const SizedBox(height: 12),
+                    _NotifWarning(onEnable: _enableNotifications),
+                  ],
+                ],
+              ] else
+                Text(
+                  l.preheatAlertsAndroidOnly,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.outline),
+                ),
               const SizedBox(height: 20),
 
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
-                  onPressed: (_sending || !hasTemp) ? null : _submit,
+                  onPressed: (_sending || !hasTemp || chamberNeedsBed)
+                      ? null
+                      : _submit,
                   icon: _sending
                       ? const SizedBox(
                           width: 18,
@@ -346,13 +472,16 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
 
 /// One integer-°C temperature field. Empty = leave that heater alone; the
 /// current target (when set) shows as the greyed hint so the user can see what
-/// it's on now.
+/// it's on now. Optional helper / error text under the box (the chamber field
+/// uses both).
 class _TempField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final IconData icon;
   final Color color;
   final double currentTarget;
+  final String? helperText;
+  final String? errorText;
   final ValueChanged<String> onChanged;
 
   const _TempField({
@@ -361,6 +490,8 @@ class _TempField extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.currentTarget,
+    this.helperText,
+    this.errorText,
     required this.onChanged,
   });
 
@@ -376,6 +507,10 @@ class _TempField extends StatelessWidget {
         prefixIcon: Icon(icon, color: color),
         suffixText: '°C',
         hintText: currentTarget > 0 ? currentTarget.round().toString() : null,
+        helperText: helperText,
+        helperMaxLines: 3,
+        errorText: errorText,
+        errorMaxLines: 3,
         border: const OutlineInputBorder(),
       ),
     );
@@ -445,7 +580,7 @@ class _HeaterRow extends StatelessWidget {
   }
 }
 
-/// Heads-up shown when a heat-soak timer is entered but print notifications are
+/// Heads-up shown when the heat-soak alert is on but print notifications are
 /// off (so the alert can't fire), with a one-tap enable.
 class _NotifWarning extends StatelessWidget {
   final VoidCallback onEnable;

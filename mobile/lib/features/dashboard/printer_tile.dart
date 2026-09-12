@@ -179,6 +179,8 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
       widget.printer,
       hotendTarget: _status.hotendTarget,
       bedTarget: _status.bedTarget,
+      chamberTemp: _status.chamberTemp,
+      chamberTarget: _status.chamberTarget,
       toolheads: _status.toolheads,
     ).whenComplete(() => _preheatDemoOpen = false);
   }
@@ -362,6 +364,8 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
           widget.printer,
           hotendTarget: _status.hotendTarget,
           bedTarget: _status.bedTarget,
+          chamberTemp: _status.chamberTemp,
+          chamberTarget: _status.chamberTarget,
           toolheads: _status.toolheads,
         );
       },
