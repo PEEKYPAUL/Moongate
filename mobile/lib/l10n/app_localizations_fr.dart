@@ -2207,6 +2207,28 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String get preheatAtTempLabel => 'Prévenir à température';
+
+  @override
+  String get preheatAtTempHelp =>
+      'Alerte dès que chaque chauffe réglée ici atteint sa cible.';
+
+  @override
+  String get preheatAtTempArmed => 'alerte de température activée';
+
+  @override
+  String get preheatAlertsAndroidOnly =>
+      'Les alertes de chauffe et de température passent par le service de notifications d\'impression Android ; elles ne sont pas encore disponibles sur iPhone.';
+
+  @override
+  String get atTempTitle => 'À température';
+
+  @override
+  String atTempBody(String printer, String targets) {
+    return '$printer : $targets';
+  }
+
+  @override
   String get tutorialOfferTitle => 'Faire un tour rapide ?';
 
   @override

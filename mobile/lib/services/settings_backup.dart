@@ -19,8 +19,8 @@ enum _Kind { string, boolean, integer, real }
 ///     transient UI state, not preferences (so the donation nudge can still
 ///     appear once on a fresh install even after restoring a backup).
 ///   • moment-to-moment state (`print_notifications_paused`,
-///     `heatsoak_deadlines`) - a restore must never silently pause someone's
-///     alerts or resurrect a finished timer.
+///     `heatsoak_deadlines`, `attemp_alerts`) - a restore must never silently
+///     pause someone's alerts or resurrect a finished timer / temperature watch.
 ///   • `dashboard_background_path` - the image it points at lives only on this
 ///     device; the file itself can't ride a JSON backup (see its provider).
 /// The printer list is carried separately, by the backup envelope itself.

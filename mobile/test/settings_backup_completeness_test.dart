@@ -37,6 +37,7 @@ const Map<String, String> _excluded = {
   'local_only_mode':            'a restore must never silently cut remote access',
   'print_notifications_paused': 'a restore must never silently pause alerts',
   'heatsoak_deadlines':         'running timers on THIS device',
+  'attemp_alerts':              'armed at-temperature alerts on THIS device',
   // Carried elsewhere / meaningless off-device.
   'moongate_printers':          'the printer list rides the backup envelope itself',
   'dashboard_background_path':  'device-local file path; the image cannot ride a JSON backup',

@@ -2139,7 +2139,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get preheatNotifWarning =>
-      'Heat-soak alerts need print notifications switched on.';
+      'Heat alerts need print notifications switched on.';
 
   @override
   String get preheatNotifEnable => 'Turn on';
@@ -2163,6 +2163,28 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String heatsoakDoneBody(String printer) {
     return '$printer is up to temperature';
+  }
+
+  @override
+  String get preheatAtTempLabel => 'Notify when at temperature';
+
+  @override
+  String get preheatAtTempHelp =>
+      'Alerts once every heater set here reaches its target.';
+
+  @override
+  String get preheatAtTempArmed => 'at-temperature alert on';
+
+  @override
+  String get preheatAlertsAndroidOnly =>
+      'Heat-soak and at-temperature alerts run in the Android print-notification service, so they\'re not available on iPhone yet.';
+
+  @override
+  String get atTempTitle => 'At temperature';
+
+  @override
+  String atTempBody(String printer, String targets) {
+    return '$printer: $targets';
   }
 
   @override

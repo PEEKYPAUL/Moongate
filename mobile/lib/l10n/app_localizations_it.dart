@@ -2200,6 +2200,28 @@ class AppLocalizationsIt extends AppLocalizations {
   }
 
   @override
+  String get preheatAtTempLabel => 'Avvisa quando in temperatura';
+
+  @override
+  String get preheatAtTempHelp =>
+      'Avvisa quando ogni riscaldatore impostato qui raggiunge il suo obiettivo.';
+
+  @override
+  String get preheatAtTempArmed => 'avviso di temperatura attivo';
+
+  @override
+  String get preheatAlertsAndroidOnly =>
+      'Gli avvisi di riscaldamento e di temperatura usano il servizio di notifiche di stampa di Android, quindi non sono ancora disponibili su iPhone.';
+
+  @override
+  String get atTempTitle => 'In temperatura';
+
+  @override
+  String atTempBody(String printer, String targets) {
+    return '$printer: $targets';
+  }
+
+  @override
   String get tutorialOfferTitle => 'Vuoi fare un breve tour?';
 
   @override

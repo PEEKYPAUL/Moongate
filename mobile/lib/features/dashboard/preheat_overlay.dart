@@ -1,8 +1,11 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../models/heat_alerts.dart';
 import '../../models/printer_config.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/heatsoak_timers.dart';
@@ -28,7 +31,12 @@ const int _maxMinutes = 600;
 ///
 /// The heat-soak alert piggybacks the opt-in print-notification service (its
 /// background isolate watches the armed deadline), so the sheet warns when that
-/// service is off - otherwise the timer would never fire.
+/// service is off - otherwise the timer would never fire. "Notify when at
+/// temperature" (v0.9.67) rides the same service: it arms an [AtTempArm]
+/// naming the heaters just set, and the isolate's poll fires once every one
+/// of them reads its target. Both are Android-only (the service is), so on
+/// iOS the sheet shows a one-line note in their place rather than offering an
+/// alert that can never fire.
 Future<void> showPreheatSheet(
   BuildContext context,
   PrinterConfig printer, {
@@ -84,6 +92,10 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
   late final List<TextEditingController> _hotendCtls;
   final _bedCtl = TextEditingController();
   final _timeCtl = TextEditingController(text: '0');
+
+  /// "Notify when at temperature" - off each time the sheet opens, the same
+  /// way the timer field starts at 0.
+  bool _atTemp = false;
 
   bool get _isMulti => _tools.length > 1;
 
@@ -152,10 +164,14 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
     final l = AppLocalizations.of(context);
     final targets = <String, double>{};
     final confirmParts = <String>[];
+    // Heaters for the at-temperature alert, by role (h0 / h1 ... / bed) - only
+    // the ones actually being heated (a 0 target is "off", nothing to reach).
+    final roles = <String, double>{};
 
     void addHotend(int index, String label, double? temp) {
       if (temp == null) return;
       targets[_hotendName(index)] = temp;
+      if (temp > 0) roles[hotendRole(index)] = temp;
       confirmParts.add('$label ${temp.round()}°');
     }
 
@@ -171,6 +187,7 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
     final bed = _parseTemp(_bedCtl.text);
     if (bed != null) {
       targets[_heaters.bed] = bed;
+      if (bed > 0) roles[bedRole] = bed;
       confirmParts.add('${l.preheatBed} ${bed.round()}°');
     }
 
@@ -202,19 +219,39 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
     } else {
       await HeatsoakTimers.cancel(widget.printer.id);
     }
+    // Likewise the at-temperature alert: arm it for the heaters just set, or
+    // clear a previous one when the switch is off this time round.
+    final atTemp = _atTemp && roles.isNotEmpty;
+    if (atTemp) {
+      await HeatsoakTimers.armAtTemp(
+        widget.printer.id,
+        AtTempArm(
+          armedAtMs: DateTime.now().millisecondsSinceEpoch,
+          targets:   roles,
+          multi:     _isMulti,
+        ),
+      );
+    } else {
+      await HeatsoakTimers.cancelAtTemp(widget.printer.id);
+    }
     if (!mounted) return;
 
     Navigator.of(context).pop();
     messenger.showSnackBar(SnackBar(
-      content: Text(_confirmText(l, confirmParts, minutes)),
+      content: Text(_confirmText(l, confirmParts, minutes, atTemp)),
       behavior: SnackBarBehavior.floating,
       duration: const Duration(seconds: 3),
     ));
   }
 
-  String _confirmText(AppLocalizations l, List<String> parts, int minutes) {
+  String _confirmText(
+      AppLocalizations l, List<String> parts, int minutes, bool atTemp) {
     final set = l.preheatSetConfirm(parts.join(' · '));
-    return minutes > 0 ? '$set · ${l.preheatSoakIn(minutes)}' : set;
+    final alerts = <String>[
+      if (minutes > 0) l.preheatSoakIn(minutes),
+      if (atTemp) l.preheatAtTempArmed,
+    ];
+    return alerts.isEmpty ? set : '$set · ${alerts.join(' · ')}';
   }
 
   @override
@@ -299,27 +336,47 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
               ),
               const SizedBox(height: 16),
 
-              // ── Optional heat-soak timer ─────────────────────────────────
-              TextField(
-                controller: _timeCtl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  labelText: l.preheatSoakLabel,
-                  helperText: l.preheatSoakHelp,
-                  prefixIcon: const Icon(Icons.timer_outlined),
-                  suffixText: l.preheatMinutes,
-                  border: const OutlineInputBorder(),
+              // ── Optional alerts: heat-soak countdown + at-temperature ────
+              // Both run in the Android print-notification service (its
+              // isolate watches the deadline / the thermistors), so on iOS the
+              // fields give way to a one-line note instead of offering an
+              // alert that can never fire.
+              if (Platform.isAndroid) ...[
+                TextField(
+                  controller: _timeCtl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    labelText: l.preheatSoakLabel,
+                    helperText: l.preheatSoakHelp,
+                    prefixIcon: const Icon(Icons.timer_outlined),
+                    suffixText: l.preheatMinutes,
+                    border: const OutlineInputBorder(),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 4),
+                SwitchListTile(
+                  value: _atTemp,
+                  onChanged: (v) => setState(() => _atTemp = v),
+                  contentPadding: EdgeInsets.zero,
+                  secondary: const Icon(Icons.thermostat_outlined),
+                  title: Text(l.preheatAtTempLabel),
+                  subtitle: Text(l.preheatAtTempHelp),
+                ),
 
-              // A soak timer needs the print-notification service running, so
-              // warn (with a one-tap enable) when it's off.
-              if (soakMinutes > 0 && !notifsOn) ...[
-                const SizedBox(height: 12),
-                _NotifWarning(onEnable: _enableNotifications),
-              ],
+                // Either alert needs the print-notification service running,
+                // so warn (with a one-tap enable) when it's off.
+                if ((soakMinutes > 0 || _atTemp) && !notifsOn) ...[
+                  const SizedBox(height: 12),
+                  _NotifWarning(onEnable: _enableNotifications),
+                ],
+              ] else
+                Text(
+                  l.preheatAlertsAndroidOnly,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.outline),
+                ),
               const SizedBox(height: 20),
 
               SizedBox(

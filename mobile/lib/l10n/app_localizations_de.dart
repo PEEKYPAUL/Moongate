@@ -2165,7 +2165,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get preheatNotifWarning =>
-      'Heat-Soak-Hinweise erfordern aktivierte Druckbenachrichtigungen.';
+      'Heiz-Hinweise erfordern aktivierte Druckbenachrichtigungen.';
 
   @override
   String get preheatNotifEnable => 'Aktivieren';
@@ -2189,6 +2189,29 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String heatsoakDoneBody(String printer) {
     return '$printer hat die Temperatur erreicht';
+  }
+
+  @override
+  String get preheatAtTempLabel =>
+      'Bei Erreichen der Temperatur benachrichtigen';
+
+  @override
+  String get preheatAtTempHelp =>
+      'Meldet sich, sobald jeder hier gesetzte Heizer sein Ziel erreicht hat.';
+
+  @override
+  String get preheatAtTempArmed => 'Temperatur-Hinweis aktiv';
+
+  @override
+  String get preheatAlertsAndroidOnly =>
+      'Heat-Soak- und Temperatur-Hinweise laufen im Android-Druckbenachrichtigungsdienst und sind auf dem iPhone noch nicht verfügbar.';
+
+  @override
+  String get atTempTitle => 'Temperatur erreicht';
+
+  @override
+  String atTempBody(String printer, String targets) {
+    return '$printer: $targets';
   }
 
   @override

@@ -2073,6 +2073,27 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get preheatAtTempLabel => '达到温度时通知';
+
+  @override
+  String get preheatAtTempHelp => '此处设置的每个加热器都达到目标温度后提醒。';
+
+  @override
+  String get preheatAtTempArmed => '已开启温度提醒';
+
+  @override
+  String get preheatAlertsAndroidOnly =>
+      '热浸和温度提醒依赖 Android 打印通知服务，iPhone 暂不可用。';
+
+  @override
+  String get atTempTitle => '已达到温度';
+
+  @override
+  String atTempBody(String printer, String targets) {
+    return '$printer：$targets';
+  }
+
+  @override
   String get tutorialOfferTitle => '来个快速导览？';
 
   @override

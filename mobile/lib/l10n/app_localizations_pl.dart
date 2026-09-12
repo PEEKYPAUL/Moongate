@@ -2190,6 +2190,28 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
+  String get preheatAtTempLabel => 'Powiadom po osiągnięciu temperatury';
+
+  @override
+  String get preheatAtTempHelp =>
+      'Alert, gdy każda ustawiona tu grzałka osiągnie swoją wartość.';
+
+  @override
+  String get preheatAtTempArmed => 'alert temperatury włączony';
+
+  @override
+  String get preheatAlertsAndroidOnly =>
+      'Alerty nagrzewania i temperatury działają w usłudze powiadomień o druku na Androidzie, więc nie są jeszcze dostępne na iPhonie.';
+
+  @override
+  String get atTempTitle => 'Temperatura osiągnięta';
+
+  @override
+  String atTempBody(String printer, String targets) {
+    return '$printer: $targets';
+  }
+
+  @override
   String get tutorialOfferTitle => 'Chcesz szybkie wprowadzenie?';
 
   @override

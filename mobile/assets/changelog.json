@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.9.67",
+    "bullets": [
+      "The preheat sheet (long-press a tile's temperatures) gains a Notify when at temperature switch beside the heat-soak timer. Turn it on and Moongate alerts you once every heater you set there really reads its target, taken from the printer's live temperatures, rather than after a fixed number of minutes. Use either, or both: the timer still counts down from the moment you press Set. On a multi-toolhead printer it waits for every tool you set. Like the timer it runs in the Android print-notification service, which the sheet reminds you to switch on, and the Android notification category is now called Heat alerts.",
+      "On iPhone the preheat sheet now says plainly that the timer and at-temperature alerts are Android-only for now, instead of offering a timer that could never fire."
+    ]
+  },
+  {
     "version": "v0.9.66",
     "bullets": [
       "Custom MOONGATE_NOTIFY messages now reach Android. With plugin 0.6.26 on the printer, a macro's MSG=\"your text\" buzzes through the Printer alerts category while print notifications are running, the same as it already does on iPhone. Printers still on an older plugin show the update badge on their tile, and on printers installed through Moonraker's update manager the update is one tap.",

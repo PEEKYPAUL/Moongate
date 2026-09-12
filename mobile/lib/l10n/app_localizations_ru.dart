@@ -2190,6 +2190,28 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get preheatAtTempLabel => 'Уведомить при достижении температуры';
+
+  @override
+  String get preheatAtTempHelp =>
+      'Оповестит, когда каждый заданный здесь нагреватель достигнет цели.';
+
+  @override
+  String get preheatAtTempArmed => 'оповещение о температуре включено';
+
+  @override
+  String get preheatAlertsAndroidOnly =>
+      'Оповещения о прогреве и температуре работают через службу уведомлений о печати Android, поэтому на iPhone пока недоступны.';
+
+  @override
+  String get atTempTitle => 'Температура достигнута';
+
+  @override
+  String atTempBody(String printer, String targets) {
+    return '$printer: $targets';
+  }
+
+  @override
   String get tutorialOfferTitle => 'Хотите краткий обзор?';
 
   @override

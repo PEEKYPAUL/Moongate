@@ -3952,10 +3952,10 @@ abstract class AppLocalizations {
   /// **'Set'**
   String get preheatSet;
 
-  /// Warning shown when a heat-soak timer is entered but the print-notification service is off, so the alert can't fire.
+  /// Warning shown when a heat-soak timer or the at-temperature alert is set but the print-notification service is off, so the alert can't fire.
   ///
   /// In en, this message translates to:
-  /// **'Heat-soak alerts need print notifications switched on.'**
+  /// **'Heat alerts need print notifications switched on.'**
   String get preheatNotifWarning;
 
   /// Button in the preheat sheet's warning that switches print notifications on.
@@ -3993,6 +3993,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{printer} is up to temperature'**
   String heatsoakDoneBody(String printer);
+
+  /// Switch in the preheat sheet that arms a one-shot alert for when every heater set in the sheet reaches its target.
+  ///
+  /// In en, this message translates to:
+  /// **'Notify when at temperature'**
+  String get preheatAtTempLabel;
+
+  /// Subtitle under the at-temperature switch in the preheat sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Alerts once every heater set here reaches its target.'**
+  String get preheatAtTempHelp;
+
+  /// Appended to the confirmation snackbar when the at-temperature alert is armed.
+  ///
+  /// In en, this message translates to:
+  /// **'at-temperature alert on'**
+  String get preheatAtTempArmed;
+
+  /// Note shown in the preheat sheet on iOS in place of the timer field and the at-temperature switch.
+  ///
+  /// In en, this message translates to:
+  /// **'Heat-soak and at-temperature alerts run in the Android print-notification service, so they\'re not available on iPhone yet.'**
+  String get preheatAlertsAndroidOnly;
+
+  /// Title of the notification fired when the heaters set in the preheat sheet reach their targets.
+  ///
+  /// In en, this message translates to:
+  /// **'At temperature'**
+  String get atTempTitle;
+
+  /// Body of the at-temperature notification. {printer} is the printer name, {targets} a summary like 'Hotend 210° · Bed 60°'.
+  ///
+  /// In en, this message translates to:
+  /// **'{printer}: {targets}'**
+  String atTempBody(String printer, String targets);
 
   /// Title of the first-run popup offering the in-app tutorial.
   ///

@@ -666,6 +666,12 @@
   "preheatFailed": "Não foi possível definir as temperaturas",
   "heatsoakDoneTitle": "Aquecimento concluído",
   "heatsoakDoneBody": "{printer} está na temperatura",
+  "preheatAtTempLabel": "Avisar ao atingir a temperatura",
+  "preheatAtTempHelp": "Alerta quando todos os aquecedores definidos aqui atingirem o alvo.",
+  "preheatAtTempArmed": "alerta de temperatura ativado",
+  "preheatAlertsAndroidOnly": "Os alertas de aquecimento e de temperatura funcionam no serviço de notificações de impressão do Android, por isso ainda não estão disponíveis no iPhone.",
+  "atTempTitle": "Na temperatura",
+  "atTempBody": "{printer}: {targets}",
 
   "tutorialOfferTitle": "Fazer um tour rápido?",
   "tutorialOfferBody": "Gostaria de um passo a passo rápido de como o Moongate funciona?",
