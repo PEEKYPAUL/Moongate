@@ -2034,10 +2034,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preheatHint => '留空某个输入框即可保持该加热器不变。';
 
   @override
-  String get preheatSoakLabel => '热浸计时器';
+  String get preheatSoakLabel => '达到温度后的热浸时间';
 
   @override
-  String get preheatSoakHelp => '经过这些分钟后通知我。0 = 不计时。';
+  String get preheatSoakHelp => '0 = 一切达到温度后立即提醒。';
 
   @override
   String get preheatMinutes => '分钟';
@@ -2058,7 +2058,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String preheatSoakIn(int minutes) {
-    return '$minutes 分钟后提醒热浸';
+    return '达到温度 $minutes 分钟后提醒热浸';
   }
 
   @override
@@ -2068,22 +2068,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get heatsoakDoneTitle => '热浸完成';
 
   @override
-  String heatsoakDoneBody(String printer) {
-    return '$printer 已达到温度';
+  String get preheatChamber => '腔体';
+
+  @override
+  String get preheatChamberHelp => '等待腔体达到此温度。腔体由热床加热，所以也请设置热床温度。';
+
+  @override
+  String get preheatChamberNeedsBed => '请同时设置热床温度：腔体是由热床加热的。';
+
+  @override
+  String get preheatSoakSwitch => '热浸提醒';
+
+  @override
+  String get preheatSoakSwitchHelp => '此处设置的所有温度达到后提醒，或在下面的热浸时间之后提醒。';
+
+  @override
+  String heatsoakDoneSummary(String printer, String targets, int minutes) {
+    return '$printer：$targets · 已热浸 $minutes 分钟';
   }
-
-  @override
-  String get preheatAtTempLabel => '达到温度时通知';
-
-  @override
-  String get preheatAtTempHelp => '此处设置的每个加热器都达到目标温度后提醒。';
 
   @override
   String get preheatAtTempArmed => '已开启温度提醒';
 
   @override
-  String get preheatAlertsAndroidOnly =>
-      '热浸和温度提醒依赖 Android 打印通知服务，iPhone 暂不可用。';
+  String get preheatAlertsAndroidOnly => '热浸提醒依赖 Android 打印通知服务，iPhone 暂不可用。';
 
   @override
   String get atTempTitle => '已达到温度';

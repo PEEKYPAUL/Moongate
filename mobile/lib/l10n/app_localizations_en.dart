@@ -2125,11 +2125,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preheatHint => 'Leave a box empty to keep that heater unchanged.';
 
   @override
-  String get preheatSoakLabel => 'Heat-soak timer';
+  String get preheatSoakLabel => 'Soak time after reaching temperature';
 
   @override
   String get preheatSoakHelp =>
-      'Notify me after this many minutes. 0 = no timer.';
+      '0 = alert as soon as everything is at temperature.';
 
   @override
   String get preheatMinutes => 'min';
@@ -2151,7 +2151,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String preheatSoakIn(int minutes) {
-    return 'heat-soak alert in $minutes min';
+    return 'heat-soak alert $minutes min after reaching temperature';
   }
 
   @override
@@ -2161,23 +2161,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get heatsoakDoneTitle => 'Heat-soak complete';
 
   @override
-  String heatsoakDoneBody(String printer) {
-    return '$printer is up to temperature';
+  String get preheatChamber => 'Chamber';
+
+  @override
+  String get preheatChamberHelp =>
+      'Wait until the chamber reads this. The bed heats the chamber, so set a bed temperature too.';
+
+  @override
+  String get preheatChamberNeedsBed =>
+      'Set a bed temperature as well: the bed is what heats the chamber.';
+
+  @override
+  String get preheatSoakSwitch => 'Heat-soak alert';
+
+  @override
+  String get preheatSoakSwitchHelp =>
+      'Alerts once every temperature set here is reached, or after the soak time below.';
+
+  @override
+  String heatsoakDoneSummary(String printer, String targets, int minutes) {
+    return '$printer: $targets · soaked $minutes min';
   }
-
-  @override
-  String get preheatAtTempLabel => 'Notify when at temperature';
-
-  @override
-  String get preheatAtTempHelp =>
-      'Alerts once every heater set here reaches its target.';
 
   @override
   String get preheatAtTempArmed => 'at-temperature alert on';
 
   @override
   String get preheatAlertsAndroidOnly =>
-      'Heat-soak and at-temperature alerts run in the Android print-notification service, so they\'re not available on iPhone yet.';
+      'Heat-soak alerts run in the Android print-notification service, so they\'re not available on iPhone yet.';
 
   @override
   String get atTempTitle => 'At temperature';
