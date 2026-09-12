@@ -119,12 +119,14 @@ Direct (LAN/VPN) printers are the documented exception: no notifications in clou
 
 ## The heat-soak alert never arrived (and how to be told when a heater is actually at temperature)
 
-The **heat-soak timer** in a tile's Preheat sheet (long-press the temperatures while the printer is idle, v0.9.30+) is a **countdown, not a thermometer**: enter minutes and Moongate posts a "Heat-soak complete" alert when they elapse, whatever the heaters are doing. The alert is delivered by the same Android background monitoring as the alerts above, so the same rules apply:
+The **Heat-soak alert** in a tile's Preheat sheet (long-press the temperatures while the printer is idle) reads the printer's **live temperatures** on every background check (rebuilt this way in v0.9.67; before that it was a plain countdown from the moment you pressed Set). With a soak time of 0 it fires the moment every temperature you set is reached ("At temperature: Bed 100° · Chamber 45°"); with a soak time it starts the clock once everything is at temperature and fires when the time is up ("Heat-soak complete: ... · soaked 20 min"). It is delivered by the same Android background monitoring as the alerts above, so the same rules apply, plus a few of its own:
 
-1. **Android only.** iPhones get their alerts from the printer's push, which has no heat-soak event, so a timer set on an iPhone never fires - use the macro below instead.
-2. **Print notifications on and not paused** when the timer runs out. The sheet warns (with a one-tap "Turn on") if they're off; the timer is still armed, so switching them on within the hour lets it fire.
-3. **The "Heat soak timer" category isn't muted.** It's a separate notification category so it can buzz on its own.
-4. It fires on the next background check after the deadline, so allow up to your refresh interval (default 30 seconds). A deadline that passed more than an hour ago is dropped quietly rather than buzzing late.
+1. **Android only.** iPhones get their alerts from the printer's push, which has no heat-soak event, so the sheet doesn't offer the alert there - use the macro below instead.
+2. **Print notifications on and not paused** while it waits. The sheet warns (with a one-tap "Turn on") if they're off; the alert is still armed, so switching them on lets it fire, as long as the temperatures are reached within 6 hours of pressing Set.
+3. **The "Heat alerts" category isn't muted.** It's a separate notification category so it can buzz on its own (renamed from "Heat soak timer" in v0.9.67; a mute you set carries over).
+4. **"At temperature" means within 3 °C of the heater's *current* target.** A `PRINT_START` macro that retargets a heater while the alert waits moves the goal with it. A heater switched **off** (target 0) while it waits, or during the soak, cancels the alert quietly - the preheat was abandoned. A dip during the soak (a door opened) does **not** restart the clock.
+5. **The Chamber box waits, it doesn't heat.** It appears only when the printer reports a chamber sensor, and on nearly every printer the *bed* is what warms the chamber - so the sheet insists on a bed temperature alongside a chamber one, and if the chamber can't get there on bed heat alone the alert never fires (the arm is dropped quietly after 6 hours). The rare printer with a real chamber heater (`heater_generic`) has the value set as a target too.
+6. It fires on the next background check after the condition is met, so allow up to your refresh interval (default 30 seconds).
 
 **Want an alert on the real temperature, for any heater or sensor?** Klipper can wait for it and the `MOONGATE_NOTIFY` macro can tell you (plugin 0.6.25+ for iPhone, 0.6.26+ for Android with print notifications on):
 
