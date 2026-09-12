@@ -133,7 +133,8 @@ mobile/lib/
 │   ├── settings/custom_theme_screen.dart # /theme/custom - colour editor
 │   └── splash/splash_screen.dart
 ├── models/
-│   └── printer_config.dart             # PrinterConfig (persisted) + PrinterStatus (live)
+│   ├── printer_config.dart             # PrinterConfig (persisted) + PrinterStatus (live)
+│   └── heat_alerts.dart                # pure heat-soak alert rules: HeatSoakArm + evaluateHeatSoak (v0.9.67)
 ├── providers/                          # Riverpod NotifierProviders
 │   ├── settings_provider.dart          # AppThemeMode, app font (kAppFonts), font scale, grid cols, rotation
 │   ├── custom_theme_provider.dart      # 5 user-picked colours
@@ -147,6 +148,7 @@ mobile/lib/
     ├── printer_liveness_service.dart    # Realtime + RLS-scoped read of last_seen; gates polling of offline printers (v0.9.16)
     ├── printer_webview_cache.dart       # Keeps each printer's WebView warm; pre-warms all at startup (v0.9.8 / v0.9.15)
     ├── print_control_service.dart      # pause/resume/cancel/firmware_restart/emergency_stop
+    ├── heatsoak_timers.dart            # per-printer heat-soak arms; the notification isolate judges + fires them (v0.9.67)
     ├── print_progress.dart             # shared Mainsail-matching (file-relative) progress calc (v0.9.17)
     ├── ota_installer.dart              # in-app updater: download APK + launch installer (v0.9.17)
     ├── update_service.dart             # /APK/latest_version.json poll
