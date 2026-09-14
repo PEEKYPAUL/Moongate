@@ -78,6 +78,20 @@ this as a possible rejection reason. Decide before submission.
 
 > Privacy policy: https://peekypaul.github.io/Moongate/privacy-policy.html
 
+## Review lessons
+
+Things App Review has actually rejected, so they are not repeated.
+
+- **Guideline 2.3.10, Accurate Metadata (0.9.67, 14 September 2026).** The
+  "What's New" text named Android three times ("brings ... to Android too",
+  "Android-only for now", "level with Android"). Apple's note: "Revise the app's
+  What's New text to remove Android references." Never name Android, or any
+  other platform, in the What's New, the description, the promotional text or
+  the screenshots. Say "not available on iPhone yet" or "every phone in the
+  house" instead. The fix was metadata only, on the same build: the edited
+  What's New was accepted in place while the version sat in Waiting for Review,
+  so no new build or upload was needed.
+
 ## Still to do before submission
 - [x] **Privacy policy hosted** - live at https://peekypaul.github.io/Moongate/privacy-policy.html (GitHub Pages, master `/docs`).
 - [x] **Policy placeholders filled** - controller = Moongate, contact = psychoshaft@live.co.uk, effective 26 June 2026.
