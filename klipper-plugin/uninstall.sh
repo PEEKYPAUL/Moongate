@@ -40,7 +40,7 @@ echo "  • Moongate Moonraker plugin"
 echo "  • ~/moongate repository clone"
 echo "  • ~/.config/moongate (tokens + secret key + v0.4 backup dir)"
 echo "  • [moongate] entries in moonraker.conf"
-echo "  • MOONGATE_PAIR macro from printer config"
+echo "  • Moongate macros (moongate.cfg + its include line) from printer config"
 echo "  • moongate-pair.html from Mainsail"
 echo "  • Avahi mDNS service file + sudoers entry (v0.4.4)"
 echo ""
@@ -276,7 +276,7 @@ else
 fi
 
 # ── 6. Remove macro from Klipper config ──────────────────────────────────────
-info "Removing MOONGATE_PAIR macro..."
+info "Removing Moongate macros (moongate.cfg)..."
 
 PRINTER_CFG=""
 for candidate in \
