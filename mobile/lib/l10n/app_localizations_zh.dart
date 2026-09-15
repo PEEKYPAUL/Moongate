@@ -2305,21 +2305,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String tileSoaking(int minutes) {
-    return '热浸中 · 剩余 $minutes 分钟';
-  }
-
-  @override
-  String tileSoakingThenStart(int minutes, String file) {
-    return '热浸中 · 剩余 $minutes 分钟 · 然后打印 $file';
+    return '剩余 $minutes 分钟';
   }
 
   @override
   String get tileWaitingTemp => '等待到温';
-
-  @override
-  String tileWaitingTempThenStart(String file) {
-    return '等待到温 · 然后打印 $file';
-  }
 
   @override
   String get tileCoolArmed => '已设置冷却提醒';

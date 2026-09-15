@@ -2956,14 +2956,10 @@ class _TempWatchLine extends StatelessWidget {
     final IconData icon;
     switch (line.kind) {
       case TempWatchTileKind.soaking:
-        text = line.file.isEmpty
-            ? l.tileSoaking(line.minutesLeft)
-            : l.tileSoakingThenStart(line.minutesLeft, line.file);
+        text = l.tileSoaking(line.minutesLeft);
         icon = Icons.hourglass_bottom_rounded;
       case TempWatchTileKind.waitingForTemp:
-        text = line.file.isEmpty
-            ? l.tileWaitingTemp
-            : l.tileWaitingTempThenStart(line.file);
+        text = l.tileWaitingTemp;
         icon = Icons.thermostat_rounded;
       case TempWatchTileKind.coolDownArmed:
         text = l.tileCoolArmed;

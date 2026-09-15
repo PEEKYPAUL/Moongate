@@ -2459,21 +2459,17 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String tileSoaking(int minutes) {
-    return 'Stabilizzazione · $minutes min rimanenti';
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes min rimanenti',
+      one: '1 min rimanente',
+    );
+    return '$_temp0';
   }
 
   @override
-  String tileSoakingThenStart(int minutes, String file) {
-    return 'Stabilizzazione · $minutes min rimanenti · poi $file';
-  }
-
-  @override
-  String get tileWaitingTemp => 'In attesa della temperatura';
-
-  @override
-  String tileWaitingTempThenStart(String file) {
-    return 'In attesa della temperatura · poi $file';
-  }
+  String get tileWaitingTemp => 'In attesa della temp.';
 
   @override
   String get tileCoolArmed => 'Avviso di raffreddamento attivo';

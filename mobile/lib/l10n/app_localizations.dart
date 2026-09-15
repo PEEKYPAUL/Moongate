@@ -4396,29 +4396,17 @@ abstract class AppLocalizations {
   /// **'Ready to remove: Bed {bed} · {file} cooled in {mins} min'**
   String tempWatchCoolMsgBed(String bed, String file, String mins);
 
-  /// Tile line while a heat soak's clock runs. {minutes} is the whole minutes left.
+  /// Tile line while a heat soak's clock runs - just the minutes left, the hourglass icon says what it is (Paul: it must fit the tile). {minutes} is the whole minutes left.
   ///
   /// In en, this message translates to:
-  /// **'Soaking · {minutes} min left'**
+  /// **'{minutes, plural, =1{1 min left} other{{minutes} mins left}}'**
   String tileSoaking(int minutes);
 
-  /// Tile line while a heat soak's clock runs and a print is queued to start after it.
+  /// Tile line while a temperature watch waits for the heaters to get there. Short on purpose - it must fit beside the tile's icons.
   ///
   /// In en, this message translates to:
-  /// **'Soaking · {minutes} min left · then {file}'**
-  String tileSoakingThenStart(int minutes, String file);
-
-  /// Tile line while a temperature watch waits for the heaters to get there.
-  ///
-  /// In en, this message translates to:
-  /// **'Waiting for temperature'**
+  /// **'Waiting for temp'**
   String get tileWaitingTemp;
-
-  /// Tile line while a preheat waits for temperature and a print is queued to start after it.
-  ///
-  /// In en, this message translates to:
-  /// **'Waiting for temperature · then {file}'**
-  String tileWaitingTempThenStart(String file);
 
   /// Tile line while a cool-down (ready to remove) alert is armed.
   ///
