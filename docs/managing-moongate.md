@@ -74,7 +74,7 @@ This removes:
 - `~/.config/moongate` (local state - owner record, device key)
 - The `[moongate]` and `[update_manager moongate]` entries from `moonraker.conf`
 - The Moonraker `host:` override the v0.4 installer applied (restored from its pre-install backup)
-- The `MOONGATE_PAIR` macro from your Klipper config
+- The Moongate macros (`moongate.cfg` and its `[include]` line) from your Klipper config
 - The `moongate-pair.html` page from Mainsail
 - `cloudflared` itself - the binary plus its cached state (`~/.cloudflared`, `/etc/cloudflared`)
 
