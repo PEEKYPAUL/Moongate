@@ -4281,6 +4281,174 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This pauses print monitoring. When your printers will be off for a while, tap it to stop the background checks and save battery, then tap again to resume.'**
   String get tutorialPauseButton;
+
+  /// Switch in the Start-print dialog: preheat the bed (and chamber) and hold a soak before the print starts by itself. Needs plugin 0.6.27+.
+  ///
+  /// In en, this message translates to:
+  /// **'Preheat and soak first'**
+  String get gcodeSoakSwitch;
+
+  /// Helper text under the preheat-and-soak row.
+  ///
+  /// In en, this message translates to:
+  /// **'Heats the bed first, waits for the soak time, then starts the print by itself. Cancel from the printer tile.'**
+  String get gcodeSoakHelp;
+
+  /// Label of the soak-minutes field in the Start-print dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Soak (min)'**
+  String get gcodeSoakMinutes;
+
+  /// Helper line naming the slicer's first-layer bed temperature read from the file's metadata. {bed} is a whole number of degrees.
+  ///
+  /// In en, this message translates to:
+  /// **'From the file: bed {bed}°'**
+  String gcodeSoakFromFile(int bed);
+
+  /// Error under the preheat row when the soak switch is on but no bed temperature was entered; Start stays disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a bed temperature to preheat.'**
+  String get gcodeSoakNeedsBed;
+
+  /// Switch in the Start-print dialog: alert once the print has finished and the bed and chamber have cooled back down.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell me when it\'s cool enough to remove'**
+  String get gcodeCoolSwitch;
+
+  /// Helper text under the cool-down switch on a printer with a chamber sensor. {delta} is the margin in degrees, {bed} and {chamber} the temperatures the alert will wait for.
+  ///
+  /// In en, this message translates to:
+  /// **'Alerts once the bed and chamber are back within {delta}° of now (about {bed}° and {chamber}°).'**
+  String gcodeCoolHelp(int delta, int bed, int chamber);
+
+  /// Helper text under the cool-down switch on a printer without a chamber sensor.
+  ///
+  /// In en, this message translates to:
+  /// **'Alerts once the bed is back within {delta}° of now (about {bed}°).'**
+  String gcodeCoolHelpBed(int delta, int bed);
+
+  /// Shown in the Start-print dialog in place of the two optional rows when the printer's plugin is too old.
+  ///
+  /// In en, this message translates to:
+  /// **'Update the printer\'s Moongate plugin to 0.6.27 or later for preheat-and-soak and cool-down alerts.'**
+  String get gcodeNeedsPlugin;
+
+  /// Snackbar after the preheat-and-soak was armed. {printer} is the printer name, {file} the file name.
+  ///
+  /// In en, this message translates to:
+  /// **'Preheating {printer} · {file} starts after the soak'**
+  String gcodeSoakArmed(String printer, String file);
+
+  /// Snackbar when arming the preheat-and-soak failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t arm the preheat on the printer'**
+  String get gcodeSoakArmFailed;
+
+  /// Appended to the start snackbar when the cool-down alert was armed too.
+  ///
+  /// In en, this message translates to:
+  /// **'cool-down alert armed'**
+  String get gcodeCoolArmed;
+
+  /// Appended to the start snackbar when arming the cool-down alert failed.
+  ///
+  /// In en, this message translates to:
+  /// **'couldn\'t arm the cool-down alert'**
+  String get gcodeCoolArmFailed;
+
+  /// Alert text sent to the printer when the preheat-and-soak is armed; the printer fills {bed} and {chamber} with the live readings when it fires. {minutes} is the soak time.
+  ///
+  /// In en, this message translates to:
+  /// **'Heat-soak complete: Bed {bed} · Chamber {chamber} · soaked {minutes} min'**
+  String tempWatchSoakDoneMsg(String bed, String chamber, int minutes);
+
+  /// As tempWatchSoakDoneMsg, on a printer without a chamber sensor.
+  ///
+  /// In en, this message translates to:
+  /// **'Heat-soak complete: Bed {bed} · soaked {minutes} min'**
+  String tempWatchSoakDoneMsgBed(String bed, int minutes);
+
+  /// Alert text for a preheat with no soak time; the printer fills {bed} and {chamber}.
+  ///
+  /// In en, this message translates to:
+  /// **'At temperature: Bed {bed} · Chamber {chamber}'**
+  String tempWatchAtTempMsg(String bed, String chamber);
+
+  /// As tempWatchAtTempMsg, without a chamber sensor.
+  ///
+  /// In en, this message translates to:
+  /// **'At temperature: Bed {bed}'**
+  String tempWatchAtTempMsgBed(String bed);
+
+  /// Alert text for the cool-down watch; the printer fills {bed}, {chamber} and {mins} (minutes since the print ended). {file} is the file name.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready to remove: Bed {bed} · Chamber {chamber} · {file} cooled in {mins} min'**
+  String tempWatchCoolMsg(String bed, String chamber, String file, String mins);
+
+  /// As tempWatchCoolMsg, without a chamber sensor.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready to remove: Bed {bed} · {file} cooled in {mins} min'**
+  String tempWatchCoolMsgBed(String bed, String file, String mins);
+
+  /// Tile line while a heat soak's clock runs - just the minutes left, the hourglass icon says what it is (Paul: it must fit the tile). {minutes} is the whole minutes left.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes, plural, =1{1 min left} other{{minutes} mins left}}'**
+  String tileSoaking(int minutes);
+
+  /// Tile line while a temperature watch waits for the heaters to get there. Short on purpose - it must fit beside the tile's icons.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for temp'**
+  String get tileWaitingTemp;
+
+  /// Tile line while a cool-down (ready to remove) alert is armed.
+  ///
+  /// In en, this message translates to:
+  /// **'Cool-down alert armed'**
+  String get tileCoolArmed;
+
+  /// Title of the dialog offered when the tile's temperature-watch line is tapped.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel this?'**
+  String get tileWatchCancelTitle;
+
+  /// Body of the cancel dialog for a preheat that would start a print. {file} is the file name.
+  ///
+  /// In en, this message translates to:
+  /// **'The heat soak stops and {file} will not start.'**
+  String tileWatchCancelSoak(String file);
+
+  /// Body of the cancel dialog for a plain temperature alert (no print queued).
+  ///
+  /// In en, this message translates to:
+  /// **'You won\'t be told when the temperatures are reached.'**
+  String get tileWatchCancelWait;
+
+  /// Body of the cancel dialog for the cool-down alert.
+  ///
+  /// In en, this message translates to:
+  /// **'You won\'t be told when the printer has cooled down.'**
+  String get tileWatchCancelCool;
+
+  /// Confirming button of the cancel dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel it'**
+  String get tileWatchCancelAction;
+
+  /// Dismissing button of the cancel dialog: keep the watch.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep'**
+  String get tileWatchKeep;
 }
 
 class _AppLocalizationsDelegate

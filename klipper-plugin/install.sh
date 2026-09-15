@@ -572,7 +572,7 @@ while IFS= read -r f; do
     fi
 done < <(find "$KLIPPER_CFG_DIR" -maxdepth 2 -name "*.cfg" 2>/dev/null)
 
-# Build moongate.cfg. Always emits the two macros; conditionally emits
+# Build moongate.cfg. Always emits the Moongate macros; conditionally emits
 # [respond] only when no other config file already declares it
 # (declaring [respond] twice is a fatal Klipper config error).
 {
@@ -615,6 +615,11 @@ gcode:
 description: Push a custom Moongate notification to your phone (MSG="text")
 gcode:
     {action_call_remote_method("moongate_notify", message=params.MSG|default("")|string)}
+
+[gcode_macro MOONGATE_TEMP_NOTIFY]
+description: Alert your phone once temperatures are reached or cooled (BED= EXTRUDER= CHAMBER= SOAK=min MSG="text" CANCEL=1)
+gcode:
+    {action_call_remote_method("moongate_temp_notify", bed=params.BED|default("")|string, extruder=params.EXTRUDER|default("")|string, chamber=params.CHAMBER|default("")|string, soak=params.SOAK|default("")|string, msg=params.MSG|default("")|string, cancel=params.CANCEL|default("")|string)}
 MACROS
 } > "$MOONGATE_CFG"
 

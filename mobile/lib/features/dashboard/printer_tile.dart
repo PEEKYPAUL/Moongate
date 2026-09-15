@@ -8,6 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../config/plugin_version.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/printer_config.dart';
+import '../../models/temp_watch.dart';
 import '../../providers/custom_theme_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/print_control_service.dart';
@@ -816,7 +817,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                   onResume: _handleResume,
                   onStop: _handleStop,
                   onOpenFiles: () =>
-                      showGcodeFilesSheet(context, widget.printer),
+                      showGcodeFilesSheet(context, widget.printer, status: _status),
                   onOpenMacros: () =>
                       showControlPanel(context, widget.printer, _status),
                 ),
@@ -899,6 +900,8 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                             ? _multiToolheadTemps(l)
                             : _singleToolheadTemps(l),
                       ],
+                      if (_status.tempWatches.isNotEmpty)
+                        _TempWatchLine(printer: widget.printer, status: _status),
                     ],
                   ))),
                   if (_status.filename != null && _status.isPrinting)
@@ -995,7 +998,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                   onResume: _handleResume,
                   onStop: _handleStop,
                   onOpenFiles: () =>
-                      showGcodeFilesSheet(context, widget.printer),
+                      showGcodeFilesSheet(context, widget.printer, status: _status),
                   onOpenMacros: () =>
                       showControlPanel(context, widget.printer, _status),
                   lightPrinter: widget.printer,
@@ -1083,6 +1086,8 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                               ? _multiToolheadTemps(l)
                               : _singleToolheadTemps(l),
                         ),
+                      if (_status.tempWatches.isNotEmpty)
+                        _TempWatchLine(printer: widget.printer, status: _status),
                     ],
                   )),
                   // Connection-state label when there's nothing live to show.
@@ -2926,4 +2931,98 @@ Future<bool?> showCameraConfigDialog(
       );
     },
   );
+}
+
+// ── Temperature-watch line (v0.9.68) ─────────────────────────────────────────
+//
+// One quiet line under the temperatures while the plugin (0.6.27+) holds a
+// watch for this printer: "Soaking · 12 min left · then benchy.gcode",
+// "Waiting for temperature", "Cool-down alert armed". Tapping it offers to
+// cancel that watch - the escape hatch for a preheat that should not start
+// the print after all. Refreshes with every status poll.
+class _TempWatchLine extends StatelessWidget {
+  final PrinterConfig printer;
+  final PrinterStatus status;
+  const _TempWatchLine({required this.printer, required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final l     = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final line  = tempWatchTileLine(
+        status.tempWatches, DateTime.now().millisecondsSinceEpoch);
+    if (line == null) return const SizedBox.shrink();
+    final String   text;
+    final IconData icon;
+    switch (line.kind) {
+      case TempWatchTileKind.soaking:
+        text = l.tileSoaking(line.minutesLeft);
+        icon = Icons.hourglass_bottom_rounded;
+      case TempWatchTileKind.waitingForTemp:
+        text = l.tileWaitingTemp;
+        icon = Icons.thermostat_rounded;
+      case TempWatchTileKind.coolDownArmed:
+        text = l.tileCoolArmed;
+        icon = Icons.ac_unit_rounded;
+    }
+    final color = theme.colorScheme.primary;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(6),
+        onTap: () => _confirmCancel(context, l, line),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 13, color: color),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: color, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmCancel(
+      BuildContext context, AppLocalizations l, TempWatchTileLine line) async {
+    final String body;
+    switch (line.kind) {
+      case TempWatchTileKind.coolDownArmed:
+        body = l.tileWatchCancelCool;
+      case TempWatchTileKind.soaking:
+      case TempWatchTileKind.waitingForTemp:
+        body = line.file.isEmpty
+            ? l.tileWatchCancelWait
+            : l.tileWatchCancelSoak(line.file);
+    }
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.tileWatchCancelTitle),
+        content: Text(body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l.tileWatchKeep),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l.tileWatchCancelAction),
+          ),
+        ],
+      ),
+    );
+    if (yes == true) await PrintControlService(printer).cancelTempWatch(line.id);
+  }
 }

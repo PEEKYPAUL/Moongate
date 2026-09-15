@@ -14,7 +14,12 @@
 /// how the fleet hears about it. (0.6.25 caught up the 0.6.23-0.6.25 run of
 /// plugin-only releases: tunnel watchdog + MOONGATE_STATUS, the
 /// honestly-earned self-update capability, the notification events.)
-const String kCurrentPluginVersion = '0.6.26';
+///
+/// 0.6.27 (v0.9.68) runs the temperature watches on the printer - the
+/// Start-print dialog's preheat-and-soak-then-start and "ready to remove"
+/// alerts and the MOONGATE_TEMP_NOTIFY macro - so those rows only appear for
+/// a printer that has taken it (models/temp_watch.dart, kTempWatchMinPlugin).
+const String kCurrentPluginVersion = '0.6.27';
 
 /// True when [reported] is an older plugin version than
 /// [kCurrentPluginVersion]. A null/empty [reported] is a pre-v0.6.4 plugin

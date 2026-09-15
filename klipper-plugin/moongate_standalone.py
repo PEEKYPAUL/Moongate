@@ -30,6 +30,9 @@ Endpoints registered:
 Macros (in moongate.cfg via install.sh):
   MOONGATE_PAIR           - start a new pairing session
   MOONGATE_RESET_OWNER    - clear local owner state to allow re-pairing
+  MOONGATE_STATUS         - cloud + tunnel health in the console
+  MOONGATE_NOTIFY         - push a custom message to the owner's phone(s)
+  MOONGATE_TEMP_NOTIFY    - alert once temperatures are reached / cooled (v0.6.27)
 """
 from __future__ import annotations
 
@@ -115,7 +118,7 @@ logger = logging.getLogger("moonraker.moongate")
 # Bumped on each release; surfaced in the /status response so the app's bug
 # reports show which plugin a Pi is actually running - the #1 triage blind spot
 # (an old plugin explains most "works on LAN / fails over tunnel" reports).
-MOONGATE_PLUGIN_VERSION = "0.6.26"
+MOONGATE_PLUGIN_VERSION = "0.6.27"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1367,6 +1370,311 @@ def _next_notify(prev: Optional[dict], text: str, ts: int) -> dict:
     return {"seq": seq, "ts": ts, "text": text}
 
 
+# ── Temperature watches (v0.6.27) ─────────────────────────────────────────────
+#
+# A watch is "wait for these temperatures, in whichever direction each one
+# needs, optionally hold them for a soak time, then say so ONCE" - the same
+# rules the app's own Android heat-soak alert used (models/heat_alerts.dart),
+# moved onto the printer so the phone can be asleep and an iPhone gets it too.
+# Two ways to arm one: the MOONGATE_TEMP_NOTIFY macro from any gcode, and the
+# app through /server/moongate/temp-watch (the Start-print dialog's "preheat
+# and soak first" / "tell me when it's cool enough to remove"). Fired watches
+# go out through the MOONGATE_NOTIFY path (push for iPhones, `last_notify` in
+# /status for Android). Watches are plain dicts so they persist as JSON:
+#
+#   id          "macro" | "app-soak" | "app-cool" (a new arm replaces its id)
+#   wait        {role: goal °C}  roles: extruder, extruderN, bed, chamber
+#   dirs        {role: "up" | "down"} decided from the reading when armed
+#   soak        minutes every temperature must hold after being reached
+#   msg         text to send; {bed} {chamber} {extruder} {mins} {temps}
+#               {file} are filled in; "" = a default line
+#   then_start  gcodes-relative file to start when the watch fires (idle only)
+#   after_print judging waits until a print has run AND ended (cool-down)
+#   armed_ts / active_ts / reached_ts   epoch seconds; seen_print bool
+
+TEMP_WATCH_MARGIN_C = 3.0        # warming: "at temperature" within this of the goal
+TEMP_WATCH_GRACE_S  = 90         # a zero target this soon after arming = SET not landed yet
+TEMP_WATCH_STALE_S  = 6 * 3600   # a watch that never gets there is dropped silently
+TEMP_WATCH_LATE_S   = 3600       # a soak deadline noticed this late is dropped, not fired
+TEMP_WATCH_POLL_S   = 20
+TEMP_WATCH_MAX_SOAK = 600        # minutes (10 h) - a stray digit can't arm a day-long soak
+TEMP_WATCH_IDS      = ("macro", "app-soak", "app-cool")
+
+# The macro install.sh writes into moongate.cfg - kept HERE as the single
+# source of truth so the plugin can add it to an existing moongate.cfg on a
+# one-tap update (the installer only ever ran once on most printers), and a
+# test asserts install.sh carries the same text.
+STATUS_MACRO_CFG = """[gcode_macro MOONGATE_STATUS]
+description: Report Moongate cloud + tunnel health in the console
+gcode:
+    {action_call_remote_method("moongate_status")}
+"""
+
+NOTIFY_MACRO_CFG = """[gcode_macro MOONGATE_NOTIFY]
+description: Push a custom Moongate notification to your phone (MSG="text")
+gcode:
+    {action_call_remote_method("moongate_notify", message=params.MSG|default("")|string)}
+"""
+
+TEMP_NOTIFY_MACRO_CFG = """[gcode_macro MOONGATE_TEMP_NOTIFY]
+description: Alert your phone once temperatures are reached or cooled (BED= EXTRUDER= CHAMBER= SOAK=min MSG="text" CANCEL=1)
+gcode:
+    {action_call_remote_method("moongate_temp_notify", bed=params.BED|default("")|string, extruder=params.EXTRUDER|default("")|string, chamber=params.CHAMBER|default("")|string, soak=params.SOAK|default("")|string, msg=params.MSG|default("")|string, cancel=params.CANCEL|default("")|string)}
+"""
+
+
+def _temp_role_rank(role: str) -> int:
+    """Hotends by tool number, then the bed, then the chamber."""
+    if role == "extruder":
+        return 0
+    if role.startswith("extruder") and role[8:].isdigit():
+        return int(role[8:])
+    if role == "bed":
+        return 1 << 20
+    if role == "chamber":
+        return 1 << 21
+    return 1 << 22
+
+
+def _temp_role_ok(role: str) -> bool:
+    return role in ("extruder", "bed", "chamber") or (
+        role.startswith("extruder") and role[8:].isdigit())
+
+
+def _temp_label(role: str) -> str:
+    if role == "extruder":
+        return "Hotend"
+    if role.startswith("extruder"):
+        return "T" + role[8:]
+    return "Bed" if role == "bed" else "Chamber"
+
+
+def temp_watch_readings(status: dict, chamber_key: Optional[str]) -> dict:
+    """{role: (temperature, target)} from a printer/objects/query status
+    block. The bed is heater_bed, T0 is Klipper's bare `extruder`, extra
+    hotends keep their extruderN name, the chamber is whichever object the
+    discovery found (a passive sensor reports target 0)."""
+    out: dict = {}
+    if not isinstance(status, dict):
+        return out
+    for name, obj in status.items():
+        if not isinstance(obj, dict) or "temperature" not in obj:
+            continue
+        if name == "heater_bed":
+            role = "bed"
+        elif chamber_key and name == chamber_key:
+            role = "chamber"
+        elif name == "extruder" or (name.startswith("extruder") and name[8:].isdigit()):
+            role = name
+        else:
+            continue
+        try:
+            out[role] = (float(obj.get("temperature") or 0.0),
+                         float(obj.get("target") or 0.0))
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def temp_watch_new(wid: str, wait: dict, readings: dict, *, soak: int = 0,
+                   msg: str = "", then_start: str = "", after_print: bool = False,
+                   force_dir: Optional[str] = None, now: Optional[float] = None) -> dict:
+    """Build a watch. Each temperature's direction comes from the reading at
+    this moment: above the goal now means wait for it to COOL to it, else wait
+    for it to WARM to it (force_dir overrides, for the app's cool-down watch
+    whose goals are computed from readings that are still cold)."""
+    now  = time.time() if now is None else now
+    wait = {r: float(g) for r, g in wait.items() if _temp_role_ok(r) and float(g) > 0}
+    dirs = {}
+    for role, goal in wait.items():
+        if force_dir in ("up", "down"):
+            dirs[role] = force_dir
+            continue
+        cur = readings.get(role)
+        dirs[role] = "down" if cur is not None and cur[0] > goal else "up"
+    soak = max(0, min(int(soak or 0), TEMP_WATCH_MAX_SOAK))
+    return {
+        "id":          wid,
+        "wait":        wait,
+        "dirs":        dirs,
+        "soak":        soak,
+        "msg":         _notify_text(msg),
+        "then_start":  str(then_start or "")[:512],
+        "after_print": bool(after_print),
+        "armed_ts":    int(now),
+        "active_ts":   0 if after_print else int(now),
+        "reached_ts":  0,
+        "seen_print":  False,
+    }
+
+
+def judge_temp_watch(w: dict, readings: dict, print_state: Optional[str],
+                     now: float, margin: float = TEMP_WATCH_MARGIN_C) -> str:
+    """One poll's verdict for a watch: "wait", "fire" or "cancel". Mutates
+    the watch (seen_print / active_ts / reached_ts) so the caller persists it.
+
+    Warming heaters are judged against their LIVE target when the printer
+    reports one (a PRINT_START retarget moves the goal, like the app), a
+    target of 0 after the grace window means the preheat was abandoned
+    (cancel), a passive chamber is judged against the typed value. Cooling
+    goals are plain "at or below". A soak clock starts the first poll where
+    everything is reached and a sag does not reset it; the deadline noticed
+    more than an hour late is dropped rather than fired."""
+    wait = w.get("wait") or {}
+    if not wait:
+        return "cancel"
+    if w.get("after_print"):
+        if print_state in ("printing", "paused"):
+            w["seen_print"] = True
+            return "wait"
+        if not w.get("seen_print"):
+            # Armed before the print ran (the soak may still be heating).
+            return "cancel" if now - w["armed_ts"] > TEMP_WATCH_STALE_S else "wait"
+        if not w.get("active_ts"):
+            w["active_ts"] = int(now)   # the print just ended: judge from here
+    active  = w.get("active_ts") or w["armed_ts"]
+    reached = w.get("reached_ts") or 0
+    dirs    = w.get("dirs") or {}
+    if not reached:
+        if now - active > TEMP_WATCH_STALE_S:
+            return "cancel"
+        in_grace = now - active < TEMP_WATCH_GRACE_S
+        for role, goal in wait.items():
+            r = readings.get(role)
+            if r is None:
+                return "wait"
+            temp, target = r
+            if dirs.get(role) == "down":
+                if temp > goal:
+                    return "wait"
+                continue
+            if role == "chamber" and target <= 0:
+                if temp < goal - margin:
+                    return "wait"
+                continue
+            if target <= 0:
+                return "wait" if in_grace else "cancel"
+            if temp < target - margin:
+                return "wait"
+        if int(w.get("soak") or 0) > 0:
+            w["reached_ts"] = int(now)
+            return "wait"
+        return "fire"
+    # Soaking: a warming heater switched off = abandoned; a sag does not reset.
+    for role in wait:
+        if dirs.get(role) == "down" or role == "chamber":
+            continue
+        r = readings.get(role)
+        if r is not None and r[1] <= 0:
+            return "cancel"
+    due = reached + int(w.get("soak") or 0) * 60
+    if now < due:
+        return "wait"
+    if now - due > TEMP_WATCH_LATE_S:
+        return "cancel"
+    return "fire"
+
+
+def temp_watch_message(w: dict, readings: dict, now: float,
+                       started: Optional[bool] = None) -> str:
+    """The alert text: the watch's own msg with {bed} {chamber} {extruder}
+    {hotend} {mins} {temps} {file} filled in, or a default line - "At
+    temperature: Bed 100° · Chamber 45°", "Heat-soak complete: ... · soaked
+    20 min", "Cooled down: Bed 29° · Chamber 27° · after 47 min". A then_start
+    outcome is appended unless the msg placed it itself with {started}."""
+    def deg(role: str) -> str:
+        r = readings.get(role)
+        return f"{round(r[0])}°" if r else "?"
+
+    wait  = w.get("wait") or {}
+    dirs  = w.get("dirs") or {}
+    order = sorted(wait, key=_temp_role_rank)
+    temps = " · ".join(f"{_temp_label(r)} {deg(r)}" for r in order)
+    mins  = int(max(0.0, now - (w.get("active_ts") or w.get("armed_ts") or now)) // 60)
+    soak  = int(w.get("soak") or 0)
+    fname = (w.get("then_start") or "").rsplit("/", 1)[-1]
+    text  = (w.get("msg") or "").strip()
+    if not text:
+        if wait and all(dirs.get(r) == "down" for r in wait):
+            text = f"Cooled down: {temps} · after {mins} min"
+        elif soak:
+            text = f"Heat-soak complete: {temps} · soaked {soak} min"
+        else:
+            text = f"At temperature: {temps}"
+    outcome = ""
+    if started is True:
+        outcome = f"printing {fname}"
+    elif started is False:
+        outcome = "not started, printer busy"
+    subs = {
+        "{bed}":      deg("bed"),
+        "{chamber}":  deg("chamber"),
+        "{extruder}": deg("extruder"),
+        "{hotend}":   deg("extruder"),
+        "{mins}":     str(mins),
+        "{temps}":    temps,
+        "{file}":     fname,
+        "{started}":  outcome,
+    }
+    placed = "{started}" in text
+    for key, val in subs.items():
+        text = text.replace(key, val)
+    if outcome and not placed:
+        text = f"{text} · {outcome}"
+    return _notify_text(text)
+
+
+def temp_watch_snapshot(w: dict) -> dict:
+    """The /status view of a watch (what the app shows on the tile)."""
+    reached = int(w.get("reached_ts") or 0)
+    soak    = int(w.get("soak") or 0)
+    return {
+        "id":          w.get("id"),
+        "wait":        dict(w.get("wait") or {}),
+        "dirs":        dict(w.get("dirs") or {}),
+        "soak":        soak,
+        "msg":         w.get("msg") or "",
+        "then_start":  w.get("then_start") or "",
+        "after_print": bool(w.get("after_print")),
+        "armed_ts":    int(w.get("armed_ts") or 0),
+        "reached_ts":  reached,
+        "due_ts":      (reached + soak * 60) if (reached and soak) else 0,
+    }
+
+
+def parse_temp_notify_args(bed: Any = "", extruder: Any = "", chamber: Any = "",
+                           soak: Any = "", msg: Any = "", cancel: Any = "") -> dict:
+    """Turn the MOONGATE_TEMP_NOTIFY macro's params into {wait, soak, msg,
+    cancel}; a malformed number is simply ignored (the console says what was
+    understood)."""
+    def num(raw: Any) -> Optional[float]:
+        s = str(raw or "").strip()
+        if not s:
+            return None
+        try:
+            v = float(s)
+        except ValueError:
+            return None
+        return v if 0 < v <= 400 else None
+
+    wait: dict = {}
+    for role, raw in (("bed", bed), ("extruder", extruder), ("chamber", chamber)):
+        v = num(raw)
+        if v is not None:
+            wait[role] = v
+    try:
+        soak_min = max(0, min(int(float(str(soak or "0").strip() or 0)), TEMP_WATCH_MAX_SOAK))
+    except ValueError:
+        soak_min = 0
+    c = str(cancel or "").strip().lower()
+    return {
+        "wait":   wait,
+        "soak":   soak_min,
+        "msg":    _notify_text(msg),
+        "cancel": c not in ("", "0", "false", "no"),
+    }
+
+
 class PrintEventWatcher:
     """Polls Moonraker's print_stats AND klippy_state locally and, on a
     meaningful state change (a print starting, finishing, or failing; the
@@ -1730,6 +2038,12 @@ class MoongatePlugin:
         self._self_update_probe_at             = 0.0    # monotonic; retry gap for indeterminate probes
         self._notify_last: Optional[float]     = None   # monotonic; MOONGATE_NOTIFY rate limit
         self._last_notify: Optional[dict]      = None   # /status last_notify {seq, ts, text} (v0.6.26)
+        # v0.6.27: temperature watches {id: watch}, persisted so a Moonraker
+        # restart mid-soak keeps counting; the loop only runs while one exists.
+        self._temp_watch_file                  = self._data_dir / "temp_watches.json"
+        self._temp_watches: dict               = self._temp_watch_load()
+        self._temp_watch_task: Optional[asyncio.Task] = None
+        self._macros_added: list               = []     # macros appended to moongate.cfg, Klipper restart pending
 
         # HTTP endpoints
         self.server.register_endpoint("/server/moongate/pair",        ["POST"], self._handle_pair)
@@ -1738,12 +2052,14 @@ class MoongatePlugin:
         self.server.register_endpoint("/server/moongate/control",     ["POST"], self._handle_control)
         self.server.register_endpoint("/server/moongate/reset-owner", ["POST"], self._handle_reset_owner)
         self.server.register_endpoint("/server/moongate/pair-page",   ["GET"],  self._handle_pair_page)
+        self.server.register_endpoint("/server/moongate/temp-watch",  ["GET", "POST", "DELETE"], self._handle_temp_watch)
 
         # Klipper macros
         self.server.register_remote_method("moongate_generate_pair_code", self._klipper_pair)
         self.server.register_remote_method("moongate_reset_owner",        self._klipper_reset_owner)
         self.server.register_remote_method("moongate_status",             self._klipper_status)
         self.server.register_remote_method("moongate_notify",             self._klipper_notify)
+        self.server.register_remote_method("moongate_temp_notify",        self._klipper_temp_notify)
 
         # Bootstrap JWKS (best effort) and start the heartbeat + print-watch loops.
         # LAN-only mode has no cloud: skip all of it so the plugin makes zero
@@ -1774,6 +2090,11 @@ class MoongatePlugin:
         if (self.device is not None and self.owner is not None
                 and not AVAHI_SERVICE_FILE.exists()):
             self._write_avahi_service()
+
+        # v0.6.27: a watch armed before a Moonraker restart carries on, and
+        # a moongate.cfg written by an older installer gains the new macro.
+        self._temp_watch_ensure_loop()
+        self._refresh_macros_cfg()
 
     # ── Config ────────────────────────────────────────────────────────────────
 
@@ -2239,6 +2560,332 @@ class MoongatePlugin:
                    "Moongate: push NOT sent (see moonraker.log) - "
                    "message kept for the Android app.")
 
+
+    # ── Temperature watches (v0.6.27) ─────────────────────────────────────────
+
+    def _temp_watch_load(self) -> dict:
+        try:
+            if not self._temp_watch_file.exists():
+                return {}
+            raw = json.loads(self._temp_watch_file.read_text(encoding="utf-8"))
+        except Exception as exc:
+            logger.warning("Moongate: temp_watches.json unreadable (%s) - starting empty", exc)
+            return {}
+        out: dict = {}
+        if isinstance(raw, dict):
+            for wid, w in raw.items():
+                if (isinstance(w, dict) and isinstance(w.get("wait"), dict)
+                        and w.get("wait") and isinstance(w.get("armed_ts"), (int, float))):
+                    w["id"] = str(wid)
+                    out[str(wid)] = w
+        return out
+
+    def _temp_watch_save(self) -> None:
+        try:
+            if self._temp_watches:
+                self._temp_watch_file.write_text(
+                    json.dumps(self._temp_watches, indent=1), encoding="utf-8")
+            elif self._temp_watch_file.exists():
+                self._temp_watch_file.unlink()
+        except OSError as exc:
+            logger.warning("Moongate: cannot write %s: %s", self._temp_watch_file, exc)
+
+    def _temp_watch_ensure_loop(self) -> None:
+        if not self._temp_watches or self._temp_watch_task is not None:
+            return
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            return
+        self._temp_watch_task = loop.create_task(self._temp_watch_loop())
+
+    async def _temp_watch_loop(self) -> None:
+        try:
+            while self._temp_watches:
+                try:
+                    await self._temp_watch_tick()
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    logger.warning("Moongate: temperature watch tick failed: %s", exc)
+                await asyncio.sleep(TEMP_WATCH_POLL_S)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self._temp_watch_task = None
+
+    async def _temp_watch_query(self, client: Any) -> Optional[dict]:
+        """The status block every watch is judged against: print_stats plus
+        every heater and the chamber sensor the /status discovery found."""
+        from tornado.httpclient import HTTPRequest
+        if not self._chamber_key_checked:
+            self._chamber_key_checked = await self._discover_objects(client)
+        query = "print_stats&heater_bed&extruder"
+        if self._chamber_key:
+            query += "&" + urllib.parse.quote(self._chamber_key, safe="")
+        for key in self._extra_extruders:
+            query += "&" + key
+        req = HTTPRequest(
+            f"http://127.0.0.1:{self._moonraker_port}/printer/objects/query?{query}",
+            method="GET", request_timeout=5.0)
+        try:
+            resp = await client.fetch(req, raise_error=False)
+            if resp.code != 200:
+                return None
+            data = json.loads(resp.body)
+        except Exception as exc:
+            logger.debug("Moongate: temp watch query failed: %s", exc)
+            return None
+        result = data.get("result", data) if isinstance(data, dict) else {}
+        status = result.get("status") if isinstance(result, dict) else None
+        return status if isinstance(status, dict) else None
+
+    async def _temp_watch_tick(self) -> None:
+        from tornado.httpclient import AsyncHTTPClient
+        client = AsyncHTTPClient()
+        status = await self._temp_watch_query(client)
+        if status is None:
+            return
+        print_state = (status.get("print_stats") or {}).get("state")
+        readings    = temp_watch_readings(status, self._chamber_key)
+        now         = time.time()
+        before      = json.dumps(self._temp_watches, sort_keys=True)
+        for wid, w in list(self._temp_watches.items()):
+            verdict = judge_temp_watch(w, readings, print_state, now)
+            if verdict == "wait":
+                continue
+            self._temp_watches.pop(wid, None)
+            if verdict == "cancel":
+                logger.info("Moongate: temperature watch '%s' dropped", wid)
+                continue
+            started: Optional[bool] = None
+            if w.get("then_start"):
+                started = await self._temp_watch_start_print(client, w["then_start"], print_state)
+            text = temp_watch_message(w, readings, now, started)
+            logger.info("Moongate: temperature watch '%s' fired: %s", wid, text)
+            await self._dispatch_notify(text)
+        if json.dumps(self._temp_watches, sort_keys=True) != before:
+            self._temp_watch_save()
+
+    async def _temp_watch_start_print(self, client: Any, filename: str,
+                                      print_state: Optional[str]) -> bool:
+        """Start the queued file once the soak is done - ONLY if the printer
+        is idle (someone may have started something else meanwhile)."""
+        from tornado.httpclient import HTTPRequest
+        if print_state not in ("standby", "complete", "cancelled", "error"):
+            return False
+        req = HTTPRequest(
+            f"http://127.0.0.1:{self._moonraker_port}/printer/print/start"
+            f"?filename={urllib.parse.quote(filename, safe='/')}",
+            method="POST", body="{}",
+            headers={"Content-Type": "application/json"}, request_timeout=10.0)
+        try:
+            resp = await client.fetch(req, raise_error=False)
+        except Exception as exc:
+            logger.warning("Moongate: print start after soak failed: %s", exc)
+            return False
+        if resp.code != 200:
+            logger.warning("Moongate: print start after soak: Moonraker HTTP %s", resp.code)
+            return False
+        return True
+
+    async def _temp_watch_set_heaters(self, targets: dict) -> None:
+        """SET_HEATER_TEMPERATURE for each heater the app asked to preheat."""
+        klippy_apis: Any = self.server.lookup_component("klippy_apis")
+        for heater, target in targets.items():
+            h = re.sub(r"[^A-Za-z0-9_ ]", "", str(heater))[:48]
+            try:
+                t = float(target)
+            except (TypeError, ValueError):
+                continue
+            if not h or not (0 <= t <= 400):
+                continue
+            try:
+                await klippy_apis.run_gcode(
+                    f"SET_HEATER_TEMPERATURE HEATER={h} TARGET={round(t)}")
+            except Exception as exc:
+                logger.warning("Moongate: SET_HEATER_TEMPERATURE %s failed: %s", h, exc)
+
+    async def _temp_watch_arm(self, wid: str, wait: dict, *, soak: int = 0,
+                              msg: str = "", then_start: str = "",
+                              after_print: bool = False, set_targets: Optional[dict] = None,
+                              cooldown_delta: Optional[float] = None) -> dict:
+        """Arm (or replace) the watch `wid`. The reading at this moment fixes
+        each temperature's direction; a cool-down watch (`cooldown_delta`) is
+        built from those readings instead - bed and chamber goals = now + delta,
+        judged only after the print has run and ended."""
+        from tornado.httpclient import AsyncHTTPClient
+        client   = AsyncHTTPClient()
+        status   = await self._temp_watch_query(client) or {}
+        readings = temp_watch_readings(status, self._chamber_key)
+        force: Optional[str] = None
+        if cooldown_delta is not None:
+            delta = max(0.0, min(float(cooldown_delta), 50.0))
+            wait  = {}
+            if "bed" in readings:
+                wait["bed"] = round(readings["bed"][0] + delta, 1)
+            if "chamber" in readings:
+                wait["chamber"] = round(readings["chamber"][0] + delta, 1)
+            force = "down"
+            after_print = True
+        if set_targets:
+            await self._temp_watch_set_heaters(set_targets)
+            force = "up"
+        w = temp_watch_new(wid, wait, readings, soak=soak, msg=msg, then_start=then_start,
+                           after_print=after_print, force_dir=force)
+        if not w["wait"]:
+            raise self.server.error("Nothing to wait for - give at least one temperature", 400)
+        self._temp_watches[wid] = w
+        self._temp_watch_save()
+        self._temp_watch_ensure_loop()
+        logger.info("Moongate: temperature watch '%s' armed: %s", wid, temp_watch_snapshot(w))
+        return temp_watch_snapshot(w)
+
+    def _temp_watch_cancel(self, wid: Optional[str] = None) -> int:
+        if wid:
+            n = 1 if self._temp_watches.pop(wid, None) is not None else 0
+        else:
+            n = len(self._temp_watches)
+            self._temp_watches.clear()
+        if n:
+            self._temp_watch_save()
+        return n
+
+    async def _dispatch_notify(self, text: str) -> None:
+        """Record + push one alert exactly as MOONGATE_NOTIFY does (no rate
+        limit: a watch fires once). Also echoed to the console."""
+        text = _notify_text(text)
+        if not text:
+            return
+        self._last_notify = _next_notify(self._last_notify, text, int(time.time()))
+        if self.watcher is not None:
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, self.watcher._send_event, "custom", text)
+        try:
+            klippy_apis: Any = self.server.lookup_component("klippy_apis")
+            await klippy_apis.run_gcode(f"M118 Moongate: {text}")
+        except Exception as exc:
+            logger.debug("M118 echo failed: %s", exc)
+
+    async def _handle_temp_watch(self, webrequest: Any) -> dict:
+        """GET = the live watches; POST = arm one (JSON body: id, wait {role:
+        °C}, set {heater: °C} to preheat first, soak, msg, then_start,
+        after_print, cooldown_delta); DELETE = cancel (id, or all)."""
+        self._authenticate(webrequest)
+        args   = webrequest.get_args()
+        method = str(webrequest.get_action() or "GET").upper()
+        if method == "GET":
+            return {"watches": [temp_watch_snapshot(w) for w in self._temp_watches.values()]}
+        wid = re.sub(r"[^a-z0-9_-]", "", str(args.get("id", "app")).lower())[:32] or "app"
+        if method == "DELETE":
+            n = self._temp_watch_cancel(wid if args.get("id") else None)
+            return {"cancelled": n}
+        wait = args.get("wait") or {}
+        sets = args.get("set") or {}
+        if not isinstance(wait, dict) or not isinstance(sets, dict):
+            raise self.server.error("'wait' and 'set' must be objects", 400)
+        try:
+            wait = {str(k): float(v) for k, v in wait.items()}
+        except (TypeError, ValueError):
+            raise self.server.error("'wait' values must be numbers", 400)
+        cooldown = args.get("cooldown_delta")
+        try:
+            cooldown_delta = float(cooldown) if cooldown not in (None, "") else None
+            soak = int(args.get("soak") or 0)
+        except (TypeError, ValueError):
+            raise self.server.error("'soak' / 'cooldown_delta' must be numbers", 400)
+        after = args.get("after_print")
+        after_print = after is True or str(after).lower() in ("1", "true", "yes")
+        snap = await self._temp_watch_arm(
+            wid, wait, soak=soak, msg=str(args.get("msg") or ""),
+            then_start=str(args.get("then_start") or ""), after_print=after_print,
+            set_targets=sets or None, cooldown_delta=cooldown_delta)
+        return {"armed": snap}
+
+    async def _klipper_temp_notify(self, bed: Any = "", extruder: Any = "", chamber: Any = "",
+                                   soak: Any = "", msg: Any = "", cancel: Any = "") -> None:
+        """MOONGATE_TEMP_NOTIFY macro entry point (v0.6.27, a user ask): arm a
+        temperature watch from any gcode - PRINT_END's "tell me when it has
+        cooled", PRINT_START's heat soak - without blocking the queue."""
+        klippy_apis: Any = self.server.lookup_component("klippy_apis")
+
+        async def _say(line: str) -> None:
+            try:
+                await klippy_apis.run_gcode(f"M118 {line}")
+            except Exception as exc:
+                logger.error("run_gcode failed: %s", exc)
+
+        p = parse_temp_notify_args(bed, extruder, chamber, soak, msg, cancel)
+        if p["cancel"]:
+            n = self._temp_watch_cancel("macro")
+            await _say("Moongate: temperature watch cancelled." if n
+                       else "Moongate: no temperature watch to cancel.")
+            return
+        if not p["wait"]:
+            await _say('Moongate: nothing to wait for - use MOONGATE_TEMP_NOTIFY '
+                       'BED=60 CHAMBER=40 SOAK=10 MSG="Soak done" (CANCEL=1 clears).')
+            return
+        try:
+            snap = await self._temp_watch_arm("macro", p["wait"], soak=p["soak"], msg=p["msg"])
+        except Exception as exc:
+            await _say(f"Moongate: could not arm the temperature watch ({exc}).")
+            return
+        parts = []
+        for role in sorted(snap["wait"], key=_temp_role_rank):
+            arrow = "cooling to" if snap["dirs"].get(role) == "down" else "reaching"
+            parts.append(f"{_temp_label(role)} {arrow} {round(snap['wait'][role])}°")
+        line = "Moongate: will alert once " + " · ".join(parts)
+        if snap["soak"]:
+            line += f", then held {snap['soak']} min"
+        await _say(line + ".")
+
+    def _refresh_macros_cfg(self) -> None:
+        """v0.6.27: install.sh writes moongate.cfg ONCE and the one-tap
+        update never touches it, so macros added after a printer was
+        installed (MOONGATE_STATUS in 0.6.23, MOONGATE_NOTIFY in 0.6.25,
+        MOONGATE_TEMP_NOTIFY now) were
+        missing until someone re-ran the installer. Append what is missing to
+        an installer-managed moongate.cfg; Klipper picks it up on its next
+        restart (/status says so meanwhile). A hand-edited file is left alone."""
+        candidates: list = []
+        try:
+            data_path = (self.server.get_app_args() or {}).get("data_path")
+            if data_path:
+                candidates.append(Path(data_path) / "config" / "moongate.cfg")
+        except Exception:
+            pass
+        candidates.append(Path.home() / "printer_data" / "config" / "moongate.cfg")
+        candidates.append(Path.home() / "klipper_config" / "moongate.cfg")
+        for cfg in candidates:
+            try:
+                if not cfg.is_file():
+                    continue
+                text = cfg.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            if "Managed by the Moongate installer" not in text:
+                return
+            missing = []
+            if "[gcode_macro MOONGATE_STATUS]" not in text:
+                missing.append(("MOONGATE_STATUS", STATUS_MACRO_CFG))
+            if "[gcode_macro MOONGATE_NOTIFY]" not in text:
+                missing.append(("MOONGATE_NOTIFY", NOTIFY_MACRO_CFG))
+            if "[gcode_macro MOONGATE_TEMP_NOTIFY]" not in text:
+                missing.append(("MOONGATE_TEMP_NOTIFY", TEMP_NOTIFY_MACRO_CFG))
+            if not missing:
+                return
+            try:
+                with cfg.open("a", encoding="utf-8") as fh:
+                    for _name, block in missing:
+                        fh.write("\n" + block.strip("\n") + "\n")
+            except OSError as exc:
+                logger.warning("Moongate: could not add macros to %s: %s", cfg, exc)
+                return
+            self._macros_added = [name for name, _ in missing]
+            logger.info("Moongate: added %s to %s - restart Klipper to load them",
+                        ", ".join(self._macros_added), cfg)
+            return
+
     async def _do_factory_reset(self) -> tuple[bool, int]:
         """Shared reset path used by the macro and the HTTP endpoint:
         wipe local owner.json + try to release the cloud row. Returns
@@ -2624,6 +3271,11 @@ class MoongatePlugin:
         # None until a macro fires; the count restarts with the plugin
         # process, which the app treats as a silent re-baseline.
         result["last_notify"] = self._last_notify
+        # v0.6.27: live temperature watches (the tile shows "Soaking · 12 min
+        # left") and any macro appended to moongate.cfg that still needs a
+        # Klipper restart to exist.
+        result["temp_watches"] = [temp_watch_snapshot(w) for w in self._temp_watches.values()]
+        result["macros_pending_restart"] = list(self._macros_added)
         # v0.6.16: advertises the remote self-update action, so the app's
         # update dialog knows to offer one-tap "Update now" instead of the
         # Mainsail instructions it shows for older plugins. v0.6.24: only

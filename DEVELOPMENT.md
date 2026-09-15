@@ -134,7 +134,8 @@ mobile/lib/
 │   └── splash/splash_screen.dart
 ├── models/
 │   ├── printer_config.dart             # PrinterConfig (persisted) + PrinterStatus (live)
-│   └── heat_alerts.dart                # pure heat-soak alert rules: HeatSoakArm + evaluateHeatSoak (v0.9.67)
+│   ├── heat_alerts.dart                # pure heat-soak alert rules: HeatSoakArm + evaluateHeatSoak (v0.9.67)
+│   └── temp_watch.dart                 # printer-side temperature watches: /status parsing, tile line, arm payloads (v0.9.68)
 ├── providers/                          # Riverpod NotifierProviders
 │   ├── settings_provider.dart          # AppThemeMode, app font (kAppFonts), font scale, grid cols, rotation
 │   ├── custom_theme_provider.dart      # 5 user-picked colours
@@ -147,7 +148,7 @@ mobile/lib/
     ├── printer_status_service.dart     # Per-tile 4 s poll loop, LAN-first with reachability probe
     ├── printer_liveness_service.dart    # Realtime + RLS-scoped read of last_seen; gates polling of offline printers (v0.9.16)
     ├── printer_webview_cache.dart       # Keeps each printer's WebView warm; pre-warms all at startup (v0.9.8 / v0.9.15)
-    ├── print_control_service.dart      # pause/resume/cancel/firmware_restart/emergency_stop
+    ├── print_control_service.dart      # pause/resume/cancel/firmware_restart/emergency_stop + temp-watch arm/cancel, file temps (v0.9.68)
     ├── heatsoak_timers.dart            # per-printer heat-soak arms; the notification isolate judges + fires them (v0.9.67)
     ├── print_progress.dart             # shared Mainsail-matching (file-relative) progress calc (v0.9.17)
     ├── ota_installer.dart              # in-app updater: download APK + launch installer (v0.9.17)

@@ -1,5 +1,13 @@
 [
   {
+    "version": "v0.9.68",
+    "bullets": [
+      "Start print? now offers Preheat and soak first (plugin 0.6.27+): enter a bed temperature (pre-filled from the file), a chamber temperature on printers with a chamber sensor, and a soak time. The printer heats, waits until everything is really at temperature, holds it for the soak time, then starts the print by itself if it is still idle and tells you. The tile shows Soaking · 12 min left meanwhile; tap that line to cancel.",
+      "Tell me when it's cool enough to remove: Moongate notes the bed and chamber when you tap Start and, once the print has run and ended, alerts when both are back within 5° of that (Ready to remove: Bed 29° · Chamber 27° · benchy.gcode cooled in 47 min). Both rows are remembered per printer.",
+      "New MOONGATE_TEMP_NOTIFY BED= EXTRUDER= CHAMBER= SOAK= MSG= macro (plugin 0.6.27) for your own PRINT_START or PRINT_END: it returns at once, waits for each temperature to warm or cool as needed, then alerts once. Because the printer does the watching, these alerts reach iPhones as pushes and Android through the notification service, phone asleep or not. Update the plugin from the tile badge; the new plugin also adds any Moongate macro missing from an older install (restart Klipper once)."
+    ]
+  },
+  {
     "version": "v0.9.67",
     "bullets": [
       "The heat-soak alert now works the way a heat soak actually does. In the preheat sheet (long-press a tile's temperatures) switch on Heat-soak alert: with a soak time of 0 Moongate alerts you the moment every temperature you set is reached, read from the printer's live thermistors; with a soak time it starts the clock only once everything is at temperature and alerts when the time is up, naming what was reached and how long it held. The old timer counted from the moment you pressed Set and never looked at a temperature. On a multi-toolhead printer it waits for every tool you set.",

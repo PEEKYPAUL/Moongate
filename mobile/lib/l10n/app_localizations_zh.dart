@@ -2223,4 +2223,114 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get tutorialPauseButton =>
       '这会暂停打印监控。当你的打印机将有一段时间关闭时，点按它可停止后台检查以省电，再次点按即可恢复。';
+
+  @override
+  String get gcodeSoakSwitch => '先预热并热浸';
+
+  @override
+  String get gcodeSoakHelp => '先加热热床，等待热浸时间，然后自动开始打印。可从打印机卡片取消。';
+
+  @override
+  String get gcodeSoakMinutes => '热浸（分钟）';
+
+  @override
+  String gcodeSoakFromFile(int bed) {
+    return '来自文件：热床 $bed°';
+  }
+
+  @override
+  String get gcodeSoakNeedsBed => '请输入要预热的热床温度。';
+
+  @override
+  String get gcodeCoolSwitch => '冷却到可以取件时通知我';
+
+  @override
+  String gcodeCoolHelp(int delta, int bed, int chamber) {
+    return '当热床和腔体回落到当前温度 $delta° 以内时提醒（约 $bed° 和 $chamber°）。';
+  }
+
+  @override
+  String gcodeCoolHelpBed(int delta, int bed) {
+    return '当热床回落到当前温度 $delta° 以内时提醒（约 $bed°）。';
+  }
+
+  @override
+  String get gcodeNeedsPlugin =>
+      '请将打印机的 Moongate 插件更新到 0.6.27 或更高版本，以使用预热热浸和冷却提醒。';
+
+  @override
+  String gcodeSoakArmed(String printer, String file) {
+    return '$printer 正在预热 · 热浸后将开始打印 $file';
+  }
+
+  @override
+  String get gcodeSoakArmFailed => '无法在打印机上设置预热';
+
+  @override
+  String get gcodeCoolArmed => '已设置冷却提醒';
+
+  @override
+  String get gcodeCoolArmFailed => '无法设置冷却提醒';
+
+  @override
+  String tempWatchSoakDoneMsg(String bed, String chamber, int minutes) {
+    return '热浸完成：热床 $bed · 腔体 $chamber · 已保持 $minutes 分钟';
+  }
+
+  @override
+  String tempWatchSoakDoneMsgBed(String bed, int minutes) {
+    return '热浸完成：热床 $bed · 已保持 $minutes 分钟';
+  }
+
+  @override
+  String tempWatchAtTempMsg(String bed, String chamber) {
+    return '已到温：热床 $bed · 腔体 $chamber';
+  }
+
+  @override
+  String tempWatchAtTempMsgBed(String bed) {
+    return '已到温：热床 $bed';
+  }
+
+  @override
+  String tempWatchCoolMsg(
+      String bed, String chamber, String file, String mins) {
+    return '可以取件：热床 $bed · 腔体 $chamber · $file 在 $mins 分钟内冷却';
+  }
+
+  @override
+  String tempWatchCoolMsgBed(String bed, String file, String mins) {
+    return '可以取件：热床 $bed · $file 在 $mins 分钟内冷却';
+  }
+
+  @override
+  String tileSoaking(int minutes) {
+    return '剩余 $minutes 分钟';
+  }
+
+  @override
+  String get tileWaitingTemp => '等待到温';
+
+  @override
+  String get tileCoolArmed => '已设置冷却提醒';
+
+  @override
+  String get tileWatchCancelTitle => '取消吗？';
+
+  @override
+  String tileWatchCancelSoak(String file) {
+    return '热浸将停止，$file 不会开始打印。';
+  }
+
+  @override
+  String get tileWatchCancelWait => '到温后将不会通知您。';
+
+  @override
+  String get tileWatchCancelCool => '打印机冷却后将不会通知您。';
+
+  @override
+  String get tileWatchCancelAction => '取消';
+
+  @override
+  String get tileWatchKeep => '保留';
 }
