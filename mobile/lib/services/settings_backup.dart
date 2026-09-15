@@ -46,6 +46,7 @@ class SettingsBackup {
     'dashboard_camera_refresh_tunnel': _Kind.string,
     'print_notifications_enabled': _Kind.boolean,
     'notif_poll_interval':         _Kind.string,
+    'gcode_start_prefs':           _Kind.string,
     'notif_fields_order':          _Kind.string,
     'notif_fields_enabled':        _Kind.string,
     'notif_online_only':           _Kind.boolean,

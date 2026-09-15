@@ -2379,4 +2379,131 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get tutorialPauseButton =>
       'Ceci suspend la surveillance d\'impression. Quand vos imprimantes seront éteintes un moment, appuyez ici pour arrêter les vérifications en arrière-plan et économiser la batterie, puis appuyez à nouveau pour reprendre.';
+
+  @override
+  String get gcodeSoakSwitch => 'Préchauffer et stabiliser d\'abord';
+
+  @override
+  String get gcodeSoakHelp =>
+      'Chauffe d\'abord le plateau, attend le temps de chauffe, puis lance l\'impression tout seul. Annulable depuis la tuile de l\'imprimante.';
+
+  @override
+  String get gcodeSoakMinutes => 'Chauffe (min)';
+
+  @override
+  String gcodeSoakFromFile(int bed) {
+    return 'D\'après le fichier : plateau $bed°';
+  }
+
+  @override
+  String get gcodeSoakNeedsBed =>
+      'Indiquez une température de plateau à préchauffer.';
+
+  @override
+  String get gcodeCoolSwitch =>
+      'Me prévenir quand c\'est assez froid pour retirer la pièce';
+
+  @override
+  String gcodeCoolHelp(int delta, int bed, int chamber) {
+    return 'Alerte quand le plateau et le caisson sont revenus à $delta° près de maintenant (environ $bed° et $chamber°).';
+  }
+
+  @override
+  String gcodeCoolHelpBed(int delta, int bed) {
+    return 'Alerte quand le plateau est revenu à $delta° près de maintenant (environ $bed°).';
+  }
+
+  @override
+  String get gcodeNeedsPlugin =>
+      'Mettez à jour le plugin Moongate de l\'imprimante (0.6.27 ou plus) pour le préchauffage avec chauffe et les alertes de refroidissement.';
+
+  @override
+  String gcodeSoakArmed(String printer, String file) {
+    return '$printer préchauffe · $file démarrera après la chauffe';
+  }
+
+  @override
+  String get gcodeSoakArmFailed =>
+      'Impossible d\'armer le préchauffage sur l\'imprimante';
+
+  @override
+  String get gcodeCoolArmed => 'alerte de refroidissement armée';
+
+  @override
+  String get gcodeCoolArmFailed =>
+      'impossible d\'armer l\'alerte de refroidissement';
+
+  @override
+  String tempWatchSoakDoneMsg(String bed, String chamber, int minutes) {
+    return 'Chauffe terminée : plateau $bed · caisson $chamber · maintenue $minutes min';
+  }
+
+  @override
+  String tempWatchSoakDoneMsgBed(String bed, int minutes) {
+    return 'Chauffe terminée : plateau $bed · maintenue $minutes min';
+  }
+
+  @override
+  String tempWatchAtTempMsg(String bed, String chamber) {
+    return 'En température : plateau $bed · caisson $chamber';
+  }
+
+  @override
+  String tempWatchAtTempMsgBed(String bed) {
+    return 'En température : plateau $bed';
+  }
+
+  @override
+  String tempWatchCoolMsg(
+      String bed, String chamber, String file, String mins) {
+    return 'Prêt à retirer : plateau $bed · caisson $chamber · $file refroidi en $mins min';
+  }
+
+  @override
+  String tempWatchCoolMsgBed(String bed, String file, String mins) {
+    return 'Prêt à retirer : plateau $bed · $file refroidi en $mins min';
+  }
+
+  @override
+  String tileSoaking(int minutes) {
+    return 'Chauffe · $minutes min restantes';
+  }
+
+  @override
+  String tileSoakingThenStart(int minutes, String file) {
+    return 'Chauffe · $minutes min restantes · puis $file';
+  }
+
+  @override
+  String get tileWaitingTemp => 'En attente de la température';
+
+  @override
+  String tileWaitingTempThenStart(String file) {
+    return 'En attente de la température · puis $file';
+  }
+
+  @override
+  String get tileCoolArmed => 'Alerte de refroidissement armée';
+
+  @override
+  String get tileWatchCancelTitle => 'Annuler ?';
+
+  @override
+  String tileWatchCancelSoak(String file) {
+    return 'La chauffe s\'arrête et $file ne démarrera pas.';
+  }
+
+  @override
+  String get tileWatchCancelWait =>
+      'Vous ne serez pas prévenu quand les températures seront atteintes.';
+
+  @override
+  String get tileWatchCancelCool =>
+      'Vous ne serez pas prévenu quand l\'imprimante aura refroidi.';
+
+  @override
+  String get tileWatchCancelAction => 'Annuler';
+
+  @override
+  String get tileWatchKeep => 'Garder';
 }

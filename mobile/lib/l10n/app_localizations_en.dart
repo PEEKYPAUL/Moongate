@@ -2338,4 +2338,127 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get tutorialPauseButton =>
       'This pauses print monitoring. When your printers will be off for a while, tap it to stop the background checks and save battery, then tap again to resume.';
+
+  @override
+  String get gcodeSoakSwitch => 'Preheat and soak first';
+
+  @override
+  String get gcodeSoakHelp =>
+      'Heats the bed first, waits for the soak time, then starts the print by itself. Cancel from the printer tile.';
+
+  @override
+  String get gcodeSoakMinutes => 'Soak (min)';
+
+  @override
+  String gcodeSoakFromFile(int bed) {
+    return 'From the file: bed $bed°';
+  }
+
+  @override
+  String get gcodeSoakNeedsBed => 'Enter a bed temperature to preheat.';
+
+  @override
+  String get gcodeCoolSwitch => 'Tell me when it\'s cool enough to remove';
+
+  @override
+  String gcodeCoolHelp(int delta, int bed, int chamber) {
+    return 'Alerts once the bed and chamber are back within $delta° of now (about $bed° and $chamber°).';
+  }
+
+  @override
+  String gcodeCoolHelpBed(int delta, int bed) {
+    return 'Alerts once the bed is back within $delta° of now (about $bed°).';
+  }
+
+  @override
+  String get gcodeNeedsPlugin =>
+      'Update the printer\'s Moongate plugin to 0.6.27 or later for preheat-and-soak and cool-down alerts.';
+
+  @override
+  String gcodeSoakArmed(String printer, String file) {
+    return 'Preheating $printer · $file starts after the soak';
+  }
+
+  @override
+  String get gcodeSoakArmFailed => 'Couldn\'t arm the preheat on the printer';
+
+  @override
+  String get gcodeCoolArmed => 'cool-down alert armed';
+
+  @override
+  String get gcodeCoolArmFailed => 'couldn\'t arm the cool-down alert';
+
+  @override
+  String tempWatchSoakDoneMsg(String bed, String chamber, int minutes) {
+    return 'Heat-soak complete: Bed $bed · Chamber $chamber · soaked $minutes min';
+  }
+
+  @override
+  String tempWatchSoakDoneMsgBed(String bed, int minutes) {
+    return 'Heat-soak complete: Bed $bed · soaked $minutes min';
+  }
+
+  @override
+  String tempWatchAtTempMsg(String bed, String chamber) {
+    return 'At temperature: Bed $bed · Chamber $chamber';
+  }
+
+  @override
+  String tempWatchAtTempMsgBed(String bed) {
+    return 'At temperature: Bed $bed';
+  }
+
+  @override
+  String tempWatchCoolMsg(
+      String bed, String chamber, String file, String mins) {
+    return 'Ready to remove: Bed $bed · Chamber $chamber · $file cooled in $mins min';
+  }
+
+  @override
+  String tempWatchCoolMsgBed(String bed, String file, String mins) {
+    return 'Ready to remove: Bed $bed · $file cooled in $mins min';
+  }
+
+  @override
+  String tileSoaking(int minutes) {
+    return 'Soaking · $minutes min left';
+  }
+
+  @override
+  String tileSoakingThenStart(int minutes, String file) {
+    return 'Soaking · $minutes min left · then $file';
+  }
+
+  @override
+  String get tileWaitingTemp => 'Waiting for temperature';
+
+  @override
+  String tileWaitingTempThenStart(String file) {
+    return 'Waiting for temperature · then $file';
+  }
+
+  @override
+  String get tileCoolArmed => 'Cool-down alert armed';
+
+  @override
+  String get tileWatchCancelTitle => 'Cancel this?';
+
+  @override
+  String tileWatchCancelSoak(String file) {
+    return 'The heat soak stops and $file will not start.';
+  }
+
+  @override
+  String get tileWatchCancelWait =>
+      'You won\'t be told when the temperatures are reached.';
+
+  @override
+  String get tileWatchCancelCool =>
+      'You won\'t be told when the printer has cooled down.';
+
+  @override
+  String get tileWatchCancelAction => 'Cancel it';
+
+  @override
+  String get tileWatchKeep => 'Keep';
 }

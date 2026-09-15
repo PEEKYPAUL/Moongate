@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'temp_watch.dart';
+
 /// v0.3.0 printer config - minimal.
 ///
 /// In v0.2.x this held the printer's local IP, the Pi-issued HS256 token,
@@ -777,6 +779,12 @@ class PrinterStatus {
   /// resolveWebcamSource in PrinterStatusService).
   final bool configuredCameraDown;
 
+  /// Temperature watches the plugin (0.6.27+) currently holds for this
+  /// printer - the Start-print dialog's preheat-and-soak and "ready to
+  /// remove" alerts, or a MOONGATE_TEMP_NOTIFY macro's. Empty on older
+  /// plugins. The tile shows one line for them ("Soaking · 12 min left").
+  final List<TempWatchInfo> tempWatches;
+
   const PrinterStatus({
     required this.state,
     required this.progress,
@@ -807,6 +815,7 @@ class PrinterStatus {
     this.pluginCanSelfUpdate = false,
     this.customCameraDown = false,
     this.configuredCameraDown = false,
+    this.tempWatches = const [],
   });
 
   bool get isPrinting => state == 'printing' || state == 'paused';
@@ -845,6 +854,7 @@ class PrinterStatus {
     bool? pluginCanSelfUpdate,
     bool? customCameraDown,
     bool? configuredCameraDown,
+    List<TempWatchInfo>? tempWatches,
   }) {
     return PrinterStatus(
       state:            state ?? this.state,
@@ -876,6 +886,7 @@ class PrinterStatus {
       pluginCanSelfUpdate: pluginCanSelfUpdate ?? this.pluginCanSelfUpdate,
       customCameraDown: customCameraDown ?? this.customCameraDown,
       configuredCameraDown: configuredCameraDown ?? this.configuredCameraDown,
+      tempWatches: tempWatches ?? this.tempWatches,
     );
   }
 

@@ -2361,4 +2361,129 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get tutorialPauseButton =>
       'Это приостанавливает мониторинг печати. Когда принтеры будут выключены надолго, нажмите, чтобы остановить фоновые проверки и сэкономить заряд батареи, затем нажмите снова, чтобы возобновить.';
+
+  @override
+  String get gcodeSoakSwitch => 'Сначала прогреть и выдержать';
+
+  @override
+  String get gcodeSoakHelp =>
+      'Сначала греет стол, выжидает время прогрева, затем сам запускает печать. Отменить можно с плитки принтера.';
+
+  @override
+  String get gcodeSoakMinutes => 'Выдержка (мин)';
+
+  @override
+  String gcodeSoakFromFile(int bed) {
+    return 'Из файла: стол $bed°';
+  }
+
+  @override
+  String get gcodeSoakNeedsBed => 'Укажите температуру стола для прогрева.';
+
+  @override
+  String get gcodeCoolSwitch =>
+      'Сообщить, когда остынет достаточно, чтобы снять деталь';
+
+  @override
+  String gcodeCoolHelp(int delta, int bed, int chamber) {
+    return 'Уведомит, когда стол и камера вернутся в пределы $delta° от текущих (около $bed° и $chamber°).';
+  }
+
+  @override
+  String gcodeCoolHelpBed(int delta, int bed) {
+    return 'Уведомит, когда стол вернётся в пределы $delta° от текущего (около $bed°).';
+  }
+
+  @override
+  String get gcodeNeedsPlugin =>
+      'Обновите плагин Moongate на принтере до 0.6.27 или новее для прогрева с выдержкой и уведомлений об остывании.';
+
+  @override
+  String gcodeSoakArmed(String printer, String file) {
+    return '$printer греется · $file запустится после выдержки';
+  }
+
+  @override
+  String get gcodeSoakArmFailed => 'Не удалось включить прогрев на принтере';
+
+  @override
+  String get gcodeCoolArmed => 'уведомление об остывании включено';
+
+  @override
+  String get gcodeCoolArmFailed =>
+      'не удалось включить уведомление об остывании';
+
+  @override
+  String tempWatchSoakDoneMsg(String bed, String chamber, int minutes) {
+    return 'Прогрев завершён: стол $bed · камера $chamber · выдержка $minutes мин';
+  }
+
+  @override
+  String tempWatchSoakDoneMsgBed(String bed, int minutes) {
+    return 'Прогрев завершён: стол $bed · выдержка $minutes мин';
+  }
+
+  @override
+  String tempWatchAtTempMsg(String bed, String chamber) {
+    return 'Температура достигнута: стол $bed · камера $chamber';
+  }
+
+  @override
+  String tempWatchAtTempMsgBed(String bed) {
+    return 'Температура достигнута: стол $bed';
+  }
+
+  @override
+  String tempWatchCoolMsg(
+      String bed, String chamber, String file, String mins) {
+    return 'Можно снимать: стол $bed · камера $chamber · $file остыл за $mins мин';
+  }
+
+  @override
+  String tempWatchCoolMsgBed(String bed, String file, String mins) {
+    return 'Можно снимать: стол $bed · $file остыл за $mins мин';
+  }
+
+  @override
+  String tileSoaking(int minutes) {
+    return 'Выдержка · осталось $minutes мин';
+  }
+
+  @override
+  String tileSoakingThenStart(int minutes, String file) {
+    return 'Выдержка · осталось $minutes мин · затем $file';
+  }
+
+  @override
+  String get tileWaitingTemp => 'Ожидание температуры';
+
+  @override
+  String tileWaitingTempThenStart(String file) {
+    return 'Ожидание температуры · затем $file';
+  }
+
+  @override
+  String get tileCoolArmed => 'Уведомление об остывании включено';
+
+  @override
+  String get tileWatchCancelTitle => 'Отменить?';
+
+  @override
+  String tileWatchCancelSoak(String file) {
+    return 'Прогрев остановится, и $file не запустится.';
+  }
+
+  @override
+  String get tileWatchCancelWait =>
+      'Вы не получите уведомление, когда температуры будут достигнуты.';
+
+  @override
+  String get tileWatchCancelCool =>
+      'Вы не получите уведомление, когда принтер остынет.';
+
+  @override
+  String get tileWatchCancelAction => 'Отменить';
+
+  @override
+  String get tileWatchKeep => 'Оставить';
 }

@@ -2372,4 +2372,131 @@ class AppLocalizationsIt extends AppLocalizations {
   @override
   String get tutorialPauseButton =>
       'Questo sospende il monitoraggio di stampa. Quando le tue stampanti resteranno spente per un po\', toccalo per interrompere i controlli in background e risparmiare batteria, poi tocca di nuovo per riprendere.';
+
+  @override
+  String get gcodeSoakSwitch => 'Prima preriscalda e stabilizza';
+
+  @override
+  String get gcodeSoakHelp =>
+      'Scalda prima il piano, attende il tempo di stabilizzazione e poi avvia la stampa da solo. Si annulla dalla scheda della stampante.';
+
+  @override
+  String get gcodeSoakMinutes => 'Stabilizzazione (min)';
+
+  @override
+  String gcodeSoakFromFile(int bed) {
+    return 'Dal file: piano $bed°';
+  }
+
+  @override
+  String get gcodeSoakNeedsBed =>
+      'Inserisci una temperatura del piano da preriscaldare.';
+
+  @override
+  String get gcodeCoolSwitch =>
+      'Avvisami quando è abbastanza freddo per rimuovere la stampa';
+
+  @override
+  String gcodeCoolHelp(int delta, int bed, int chamber) {
+    return 'Avvisa quando piano e camera tornano entro $delta° da ora (circa $bed° e $chamber°).';
+  }
+
+  @override
+  String gcodeCoolHelpBed(int delta, int bed) {
+    return 'Avvisa quando il piano torna entro $delta° da ora (circa $bed°).';
+  }
+
+  @override
+  String get gcodeNeedsPlugin =>
+      'Aggiorna il plugin Moongate della stampante alla 0.6.27 o successiva per preriscaldo con stabilizzazione e avvisi di raffreddamento.';
+
+  @override
+  String gcodeSoakArmed(String printer, String file) {
+    return '$printer in preriscaldo · $file partirà dopo la stabilizzazione';
+  }
+
+  @override
+  String get gcodeSoakArmFailed =>
+      'Impossibile attivare il preriscaldo sulla stampante';
+
+  @override
+  String get gcodeCoolArmed => 'avviso di raffreddamento attivo';
+
+  @override
+  String get gcodeCoolArmFailed =>
+      'impossibile attivare l\'avviso di raffreddamento';
+
+  @override
+  String tempWatchSoakDoneMsg(String bed, String chamber, int minutes) {
+    return 'Stabilizzazione completata: piano $bed · camera $chamber · mantenuta $minutes min';
+  }
+
+  @override
+  String tempWatchSoakDoneMsgBed(String bed, int minutes) {
+    return 'Stabilizzazione completata: piano $bed · mantenuta $minutes min';
+  }
+
+  @override
+  String tempWatchAtTempMsg(String bed, String chamber) {
+    return 'In temperatura: piano $bed · camera $chamber';
+  }
+
+  @override
+  String tempWatchAtTempMsgBed(String bed) {
+    return 'In temperatura: piano $bed';
+  }
+
+  @override
+  String tempWatchCoolMsg(
+      String bed, String chamber, String file, String mins) {
+    return 'Pronta da rimuovere: piano $bed · camera $chamber · $file raffreddata in $mins min';
+  }
+
+  @override
+  String tempWatchCoolMsgBed(String bed, String file, String mins) {
+    return 'Pronta da rimuovere: piano $bed · $file raffreddata in $mins min';
+  }
+
+  @override
+  String tileSoaking(int minutes) {
+    return 'Stabilizzazione · $minutes min rimanenti';
+  }
+
+  @override
+  String tileSoakingThenStart(int minutes, String file) {
+    return 'Stabilizzazione · $minutes min rimanenti · poi $file';
+  }
+
+  @override
+  String get tileWaitingTemp => 'In attesa della temperatura';
+
+  @override
+  String tileWaitingTempThenStart(String file) {
+    return 'In attesa della temperatura · poi $file';
+  }
+
+  @override
+  String get tileCoolArmed => 'Avviso di raffreddamento attivo';
+
+  @override
+  String get tileWatchCancelTitle => 'Annullare?';
+
+  @override
+  String tileWatchCancelSoak(String file) {
+    return 'La stabilizzazione si ferma e $file non partirà.';
+  }
+
+  @override
+  String get tileWatchCancelWait =>
+      'Non verrai avvisato quando le temperature saranno raggiunte.';
+
+  @override
+  String get tileWatchCancelCool =>
+      'Non verrai avvisato quando la stampante si sarà raffreddata.';
+
+  @override
+  String get tileWatchCancelAction => 'Annulla';
+
+  @override
+  String get tileWatchKeep => 'Mantieni';
 }

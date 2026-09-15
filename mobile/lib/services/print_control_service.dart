@@ -953,6 +953,87 @@ class PrintControlService {
   /// until one returns non-null. Mirrors [sendAction]'s path order - including
   /// the one-shot token refresh + tunnel retry - so a fresh-paired (tunnel-
   /// less) printer still works on LAN and a stale token self-heals.
+  // ── Temperature watches (plugin 0.6.27+) ──────────────────────────────────
+  //
+  // The Start-print dialog's "preheat and soak first" and "tell me when it's
+  // cool enough to remove" are watches the PLUGIN runs (models/temp_watch.dart
+  // builds the bodies), so the phone can be asleep and iPhones get them as
+  // pushes. Same token-in-query auth as /control, JSON body. On a plugin
+  // older than 0.6.27 the endpoint doesn't exist (404 → null → next path →
+  // false); the dialog gates on the reported version before offering the rows.
+
+  /// Arm (or replace) a watch. True once the plugin accepted it.
+  Future<bool> armTempWatch(Map<String, dynamic> payload) async {
+    final ok = await _viaLanThenTunnel<bool>((base, token, isLan) async {
+      try {
+        final uri = Uri.parse('$base/server/moongate/temp-watch'
+            '?mg_token=${Uri.encodeComponent(token)}');
+        final resp = await http
+            .post(uri,
+                headers: {'Content-Type': 'application/json'},
+                body: jsonEncode(payload))
+            .timeout(Duration(seconds: isLan ? 8 : 20));
+        dev.log(
+            '${isLan ? 'lan' : 'tunnel'} temp-watch ${payload['id']} -> '
+            '${resp.statusCode} ${resp.body}',
+            name: 'MOONGATE/TEMPWATCH');
+        if (resp.statusCode == 200) return true;
+        // 400 = the plugin refused the body; no other path will do better.
+        return resp.statusCode == 400 ? false : null;
+      } catch (e) {
+        dev.log('temp-watch failed: $e', name: 'MOONGATE/TEMPWATCH');
+        return null;
+      }
+    });
+    return ok ?? false;
+  }
+
+  /// Cancel the watch [id] (the tile line's tap). True when the plugin answered.
+  Future<bool> cancelTempWatch(String id) async {
+    final ok = await _viaLanThenTunnel<bool>((base, token, isLan) async {
+      try {
+        final uri = Uri.parse('$base/server/moongate/temp-watch'
+            '?mg_token=${Uri.encodeComponent(token)}'
+            '&id=${Uri.encodeComponent(id)}');
+        final resp =
+            await http.delete(uri).timeout(Duration(seconds: isLan ? 6 : 15));
+        return resp.statusCode == 200 ? true : null;
+      } catch (_) {
+        return null;
+      }
+    });
+    return ok ?? false;
+  }
+
+  /// The slicer's first-layer bed / hotend and chamber temperatures from the
+  /// file's Moonraker metadata, to pre-fill the preheat row. Null when the
+  /// metadata can't be read; a field is null when the slicer didn't write it.
+  Future<FileTemps?> fetchFileTemps(String path) {
+    return _viaLanThenTunnel<FileTemps>((base, token, isLan) async {
+      try {
+        final uri = Uri.parse('$base/server/files/metadata'
+            '?filename=${Uri.encodeComponent(path)}');
+        final resp = await http
+            .get(uri, headers: isLan ? null : {'Authorization': 'Bearer $token'})
+            .timeout(Duration(seconds: isLan ? 5 : 15));
+        if (resp.statusCode != 200) return null;
+        final r = jsonDecode(resp.body)['result'];
+        if (r is! Map<String, dynamic>) return null;
+        double? temp(String key) {
+          final v = r[key];
+          return v is num && v > 0 ? v.toDouble() : null;
+        }
+        return FileTemps(
+          bed:     temp('first_layer_bed_temp'),
+          hotend:  temp('first_layer_extr_temp'),
+          chamber: temp('chamber_temp'),
+        );
+      } catch (_) {
+        return null;
+      }
+    });
+  }
+
   Future<T?> _viaLanThenTunnel<T>(
       Future<T?> Function(String base, String token, bool isLan) call) async {
     // Cloudless LAN-only printer: LAN only, token-free, no Supabase.
@@ -1230,4 +1311,13 @@ class PowerDevice {
         on: (j['status'] as String?) == 'on',
         lockedWhilePrinting: (j['locked_while_printing'] as bool?) ?? false,
       );
+}
+
+/// Slicer temperatures from a file's Moonraker metadata (see
+/// [PrintControlService.fetchFileTemps]).
+class FileTemps {
+  final double? bed;
+  final double? hotend;
+  final double? chamber;
+  const FileTemps({this.bed, this.hotend, this.chamber});
 }

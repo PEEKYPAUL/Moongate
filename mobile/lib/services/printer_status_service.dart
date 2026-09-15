@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/notif_fields.dart';
 import '../models/printer_config.dart';
+import '../models/temp_watch.dart';
 import 'lan_discovery_service.dart';
 import 'print_progress.dart';
 import 'printer_access_cache.dart';
@@ -1358,6 +1359,7 @@ class PrinterStatusService {
           (moongateResult?['plugin_can_self_update'] as bool?) ?? false,
       customCameraDown: source.customCameraDown,
       configuredCameraDown: source.configuredCameraDown,
+      tempWatches:      TempWatchInfo.listFromJson(moongateResult?['temp_watches']),
     );
   }
 }

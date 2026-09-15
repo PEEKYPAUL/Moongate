@@ -2363,4 +2363,129 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get tutorialPauseButton =>
       'Dies pausiert die Drucküberwachung. Wenn deine Drucker eine Weile aus sind, tippe darauf, um die Hintergrundabfragen zu stoppen und Akku zu sparen. Tippe erneut, um fortzusetzen.';
+
+  @override
+  String get gcodeSoakSwitch => 'Erst vorheizen und durchwärmen';
+
+  @override
+  String get gcodeSoakHelp =>
+      'Heizt zuerst das Bett, wartet die Heat-Soak-Zeit ab und startet den Druck dann von selbst. Abbrechen über die Druckerkachel.';
+
+  @override
+  String get gcodeSoakMinutes => 'Heat-Soak (min)';
+
+  @override
+  String gcodeSoakFromFile(int bed) {
+    return 'Aus der Datei: Bett $bed°';
+  }
+
+  @override
+  String get gcodeSoakNeedsBed => 'Gib eine Betttemperatur zum Vorheizen ein.';
+
+  @override
+  String get gcodeCoolSwitch => 'Sag mir, wenn es kühl genug zum Entnehmen ist';
+
+  @override
+  String gcodeCoolHelp(int delta, int bed, int chamber) {
+    return 'Meldet sich, sobald Bett und Kammer wieder innerhalb von $delta° des jetzigen Werts liegen (etwa $bed° und $chamber°).';
+  }
+
+  @override
+  String gcodeCoolHelpBed(int delta, int bed) {
+    return 'Meldet sich, sobald das Bett wieder innerhalb von $delta° des jetzigen Werts liegt (etwa $bed°).';
+  }
+
+  @override
+  String get gcodeNeedsPlugin =>
+      'Aktualisiere das Moongate-Plugin des Druckers auf 0.6.27 oder neuer für Vorheizen mit Heat-Soak und Abkühl-Hinweise.';
+
+  @override
+  String gcodeSoakArmed(String printer, String file) {
+    return '$printer heizt vor · $file startet nach dem Heat-Soak';
+  }
+
+  @override
+  String get gcodeSoakArmFailed =>
+      'Vorheizen konnte auf dem Drucker nicht eingerichtet werden';
+
+  @override
+  String get gcodeCoolArmed => 'Abkühl-Hinweis aktiv';
+
+  @override
+  String get gcodeCoolArmFailed =>
+      'Abkühl-Hinweis konnte nicht eingerichtet werden';
+
+  @override
+  String tempWatchSoakDoneMsg(String bed, String chamber, int minutes) {
+    return 'Heat-Soak abgeschlossen: Bett $bed · Kammer $chamber · $minutes min gehalten';
+  }
+
+  @override
+  String tempWatchSoakDoneMsgBed(String bed, int minutes) {
+    return 'Heat-Soak abgeschlossen: Bett $bed · $minutes min gehalten';
+  }
+
+  @override
+  String tempWatchAtTempMsg(String bed, String chamber) {
+    return 'Auf Temperatur: Bett $bed · Kammer $chamber';
+  }
+
+  @override
+  String tempWatchAtTempMsgBed(String bed) {
+    return 'Auf Temperatur: Bett $bed';
+  }
+
+  @override
+  String tempWatchCoolMsg(
+      String bed, String chamber, String file, String mins) {
+    return 'Bereit zum Entnehmen: Bett $bed · Kammer $chamber · $file in $mins min abgekühlt';
+  }
+
+  @override
+  String tempWatchCoolMsgBed(String bed, String file, String mins) {
+    return 'Bereit zum Entnehmen: Bett $bed · $file in $mins min abgekühlt';
+  }
+
+  @override
+  String tileSoaking(int minutes) {
+    return 'Heat-Soak · noch $minutes min';
+  }
+
+  @override
+  String tileSoakingThenStart(int minutes, String file) {
+    return 'Heat-Soak · noch $minutes min · dann $file';
+  }
+
+  @override
+  String get tileWaitingTemp => 'Wartet auf Temperatur';
+
+  @override
+  String tileWaitingTempThenStart(String file) {
+    return 'Wartet auf Temperatur · dann $file';
+  }
+
+  @override
+  String get tileCoolArmed => 'Abkühl-Hinweis aktiv';
+
+  @override
+  String get tileWatchCancelTitle => 'Abbrechen?';
+
+  @override
+  String tileWatchCancelSoak(String file) {
+    return 'Der Heat-Soak stoppt und $file wird nicht gestartet.';
+  }
+
+  @override
+  String get tileWatchCancelWait =>
+      'Du wirst nicht benachrichtigt, wenn die Temperaturen erreicht sind.';
+
+  @override
+  String get tileWatchCancelCool =>
+      'Du wirst nicht benachrichtigt, wenn der Drucker abgekühlt ist.';
+
+  @override
+  String get tileWatchCancelAction => 'Abbrechen';
+
+  @override
+  String get tileWatchKeep => 'Behalten';
 }

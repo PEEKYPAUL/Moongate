@@ -2362,4 +2362,130 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get tutorialPauseButton =>
       'To wstrzymuje monitorowanie druku. Gdy drukarki będą przez jakiś czas wyłączone, dotknij, aby zatrzymać sprawdzanie w tle i oszczędzać baterię, a następnie dotknij ponownie, aby wznowić.';
+
+  @override
+  String get gcodeSoakSwitch => 'Najpierw nagrzej i ustabilizuj';
+
+  @override
+  String get gcodeSoakHelp =>
+      'Najpierw nagrzewa stół, odczekuje czas nagrzewania, a potem sam uruchamia wydruk. Anulujesz z kafelka drukarki.';
+
+  @override
+  String get gcodeSoakMinutes => 'Nagrzewanie (min)';
+
+  @override
+  String gcodeSoakFromFile(int bed) {
+    return 'Z pliku: stół $bed°';
+  }
+
+  @override
+  String get gcodeSoakNeedsBed => 'Podaj temperaturę stołu do nagrzania.';
+
+  @override
+  String get gcodeCoolSwitch =>
+      'Powiadom mnie, gdy wystygnie na tyle, by zdjąć wydruk';
+
+  @override
+  String gcodeCoolHelp(int delta, int bed, int chamber) {
+    return 'Powiadamia, gdy stół i komora wrócą do $delta° od obecnych wartości (około $bed° i $chamber°).';
+  }
+
+  @override
+  String gcodeCoolHelpBed(int delta, int bed) {
+    return 'Powiadamia, gdy stół wróci do $delta° od obecnej wartości (około $bed°).';
+  }
+
+  @override
+  String get gcodeNeedsPlugin =>
+      'Zaktualizuj wtyczkę Moongate drukarki do wersji 0.6.27 lub nowszej, aby korzystać z nagrzewania ze stabilizacją i powiadomień o wystygnięciu.';
+
+  @override
+  String gcodeSoakArmed(String printer, String file) {
+    return '$printer nagrzewa się · $file wystartuje po nagrzewaniu';
+  }
+
+  @override
+  String get gcodeSoakArmFailed =>
+      'Nie udało się uzbroić nagrzewania na drukarce';
+
+  @override
+  String get gcodeCoolArmed => 'powiadomienie o wystygnięciu włączone';
+
+  @override
+  String get gcodeCoolArmFailed =>
+      'nie udało się włączyć powiadomienia o wystygnięciu';
+
+  @override
+  String tempWatchSoakDoneMsg(String bed, String chamber, int minutes) {
+    return 'Nagrzewanie zakończone: stół $bed · komora $chamber · utrzymane $minutes min';
+  }
+
+  @override
+  String tempWatchSoakDoneMsgBed(String bed, int minutes) {
+    return 'Nagrzewanie zakończone: stół $bed · utrzymane $minutes min';
+  }
+
+  @override
+  String tempWatchAtTempMsg(String bed, String chamber) {
+    return 'Temperatura osiągnięta: stół $bed · komora $chamber';
+  }
+
+  @override
+  String tempWatchAtTempMsgBed(String bed) {
+    return 'Temperatura osiągnięta: stół $bed';
+  }
+
+  @override
+  String tempWatchCoolMsg(
+      String bed, String chamber, String file, String mins) {
+    return 'Gotowe do zdjęcia: stół $bed · komora $chamber · $file wystygł w $mins min';
+  }
+
+  @override
+  String tempWatchCoolMsgBed(String bed, String file, String mins) {
+    return 'Gotowe do zdjęcia: stół $bed · $file wystygł w $mins min';
+  }
+
+  @override
+  String tileSoaking(int minutes) {
+    return 'Nagrzewanie · zostało $minutes min';
+  }
+
+  @override
+  String tileSoakingThenStart(int minutes, String file) {
+    return 'Nagrzewanie · zostało $minutes min · potem $file';
+  }
+
+  @override
+  String get tileWaitingTemp => 'Oczekiwanie na temperaturę';
+
+  @override
+  String tileWaitingTempThenStart(String file) {
+    return 'Oczekiwanie na temperaturę · potem $file';
+  }
+
+  @override
+  String get tileCoolArmed => 'Powiadomienie o wystygnięciu włączone';
+
+  @override
+  String get tileWatchCancelTitle => 'Anulować?';
+
+  @override
+  String tileWatchCancelSoak(String file) {
+    return 'Nagrzewanie zostanie przerwane, a $file nie wystartuje.';
+  }
+
+  @override
+  String get tileWatchCancelWait =>
+      'Nie dostaniesz powiadomienia, gdy temperatury zostaną osiągnięte.';
+
+  @override
+  String get tileWatchCancelCool =>
+      'Nie dostaniesz powiadomienia, gdy drukarka wystygnie.';
+
+  @override
+  String get tileWatchCancelAction => 'Anuluj';
+
+  @override
+  String get tileWatchKeep => 'Zostaw';
 }
