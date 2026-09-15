@@ -203,6 +203,7 @@ check("params: empty = nothing to wait for", parse()["wait"], {})
 install = INSTALL_PATH.read_text(encoding="utf-8")
 check("install.sh has the MOONGATE_TEMP_NOTIFY block", mod.TEMP_NOTIFY_MACRO_CFG.strip() in install, True)
 check("install.sh has the MOONGATE_NOTIFY block", mod.NOTIFY_MACRO_CFG.strip() in install, True)
+check("install.sh has the MOONGATE_STATUS block", mod.STATUS_MACRO_CFG.strip() in install, True)
 
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

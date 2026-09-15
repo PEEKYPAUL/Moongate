@@ -1404,6 +1404,12 @@ TEMP_WATCH_IDS      = ("macro", "app-soak", "app-cool")
 # source of truth so the plugin can add it to an existing moongate.cfg on a
 # one-tap update (the installer only ever ran once on most printers), and a
 # test asserts install.sh carries the same text.
+STATUS_MACRO_CFG = """[gcode_macro MOONGATE_STATUS]
+description: Report Moongate cloud + tunnel health in the console
+gcode:
+    {action_call_remote_method("moongate_status")}
+"""
+
 NOTIFY_MACRO_CFG = """[gcode_macro MOONGATE_NOTIFY]
 description: Push a custom Moongate notification to your phone (MSG="text")
 gcode:
@@ -2836,7 +2842,8 @@ class MoongatePlugin:
     def _refresh_macros_cfg(self) -> None:
         """v0.6.27: install.sh writes moongate.cfg ONCE and the one-tap
         update never touches it, so macros added after a printer was
-        installed (MOONGATE_NOTIFY in 0.6.25, MOONGATE_TEMP_NOTIFY now) were
+        installed (MOONGATE_STATUS in 0.6.23, MOONGATE_NOTIFY in 0.6.25,
+        MOONGATE_TEMP_NOTIFY now) were
         missing until someone re-ran the installer. Append what is missing to
         an installer-managed moongate.cfg; Klipper picks it up on its next
         restart (/status says so meanwhile). A hand-edited file is left alone."""
@@ -2859,6 +2866,8 @@ class MoongatePlugin:
             if "Managed by the Moongate installer" not in text:
                 return
             missing = []
+            if "[gcode_macro MOONGATE_STATUS]" not in text:
+                missing.append(("MOONGATE_STATUS", STATUS_MACRO_CFG))
             if "[gcode_macro MOONGATE_NOTIFY]" not in text:
                 missing.append(("MOONGATE_NOTIFY", NOTIFY_MACRO_CFG))
             if "[gcode_macro MOONGATE_TEMP_NOTIFY]" not in text:
