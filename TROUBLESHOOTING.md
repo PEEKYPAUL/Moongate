@@ -121,7 +121,7 @@ Direct (LAN/VPN) printers are the documented exception: no notifications in clou
 
 The **Heat-soak alert** in a tile's Preheat sheet (long-press the temperatures while the printer is idle) reads the printer's **live temperatures** on every background check (rebuilt this way in v0.9.67; before that it was a plain countdown from the moment you pressed Set). With a soak time of 0 it fires the moment every temperature you set is reached ("At temperature: Bed 100° · Chamber 45°"); with a soak time it starts the clock once everything is at temperature and fires when the time is up ("Heat-soak complete: ... · soaked 20 min"). It is delivered by the same Android background monitoring as the alerts above, so the same rules apply, plus a few of its own:
 
-1. **Android only.** iPhones get their alerts from the printer's push, which has no heat-soak event, so the sheet doesn't offer the alert there - use the macro below instead.
+1. **Android only.** iPhones get their alerts from the printer's push, which has no heat-soak event, so the sheet doesn't offer the alert there - use the *Start print?* dialog's rows or the `MOONGATE_TEMP_NOTIFY` macro instead (next section, plugin 0.6.27+), which the printer watches and pushes.
 2. **Print notifications on and not paused** while it waits. The sheet warns (with a one-tap "Turn on") if they're off; the alert is still armed, so switching them on lets it fire, as long as the temperatures are reached within 6 hours of pressing Set.
 3. **The "Heat alerts" category isn't muted.** It's a separate notification category so it can buzz on its own (renamed from "Heat soak timer" in v0.9.67; a mute you set carries over).
 4. **"At temperature" means within 3 °C of the heater's *current* target.** A `PRINT_START` macro that retargets a heater while the alert waits moves the goal with it. A heater switched **off** (target 0) while it waits, or during the soak, cancels the alert quietly - the preheat was abandoned. A dip during the soak (a door opened) does **not** restart the clock.
@@ -137,7 +137,33 @@ gcode:
     MOONGATE_NOTIFY MSG="Bed is at 100"
 ```
 
-For a chamber or other sensor use `SENSOR="temperature_sensor chamber"`. `TEMPERATURE_WAIT` holds the print queue until the temperature is reached, so use it in a "heat up, then tell me" macro or at the start of a print, not as a background watcher.
+For a chamber or other sensor use `SENSOR="temperature_sensor chamber"`. `TEMPERATURE_WAIT` holds the print queue until the temperature is reached, so use it in a "heat up, then tell me" macro or at the start of a print, not as a background watcher - or use `MOONGATE_TEMP_NOTIFY` (next section), which does not block.
+
+## Preheat and soak before a print, "ready to remove" after it, and the `MOONGATE_TEMP_NOTIFY` macro (v0.9.68, plugin 0.6.27+)
+
+Since v0.9.68 the **printer** can do the temperature watching (plugin 0.6.27+): a watch waits for a set of temperatures, in whichever direction each one needs, optionally holds them for a soak time, then alerts **once** - as a push on iPhone and through the print-notification service on Android (plugin 0.6.26+ rules above), with the phone asleep or not. Three ways to arm one:
+
+- **Preheat and soak first** in the *Start print?* dialog (the folder button on an idle tile, pick a file, Start). Enter a bed temperature (pre-filled from the file's slicer metadata when it has one), a chamber temperature on printers that report a chamber sensor, and a soak time. The printer heats the bed (and a real chamber heater, where one exists - a passive chamber is only waited for, warmed by the bed), waits until everything is within 3 °C of target, holds it for the soak time, then **starts the print by itself** and tells you ("Heat-soak complete: Bed 110° · Chamber 45° · soaked 20 min · printing benchy.gcode"). It only starts if the printer is still idle at that moment; otherwise the alert says "not started, printer busy".
+- **Tell me when it's cool enough to remove**, same dialog. Moongate notes the bed and chamber readings when you tap Start and, once the print has run and ended (finished, cancelled or failed), alerts when both are back within **5 °C** of those readings ("Ready to remove: Bed 29° · Chamber 27° · benchy.gcode cooled in 47 min"). The helper text under the switch names the temperatures it will wait for.
+- **`MOONGATE_TEMP_NOTIFY`** from your own gcode:
+
+```
+[gcode_macro PRINT_END]
+gcode:
+    ... park, heaters off ...
+    MOONGATE_TEMP_NOTIFY BED=35 CHAMBER=30 MSG="Print cooled - safe to remove"
+```
+
+  `BED=`, `EXTRUDER=`, `CHAMBER=` in °C (any subset), `SOAK=` minutes, `MSG=` the text (without it the alert reads "At temperature: Bed 35° · Chamber 30°" / "Cooled down: ..." / "Heat-soak complete: ..."), `CANCEL=1` clears. Each temperature's direction is decided when the macro runs: above the value now means wait for it to **cool** to it, below means wait for it to **warm** to within 3 °C. The command returns at once (the wait happens on the printer's own 20-second check, not in the print queue), so it is safe inside `PRINT_START` too - unlike `TEMPERATURE_WAIT`, which blocks. The console acks what it understood ("Moongate: will alert once Bed cooling to 35° · Chamber cooling to 30°.").
+
+If it didn't behave as expected:
+
+1. **The dialog shows "Update the printer's Moongate plugin" instead of the two rows.** The printer runs a plugin older than 0.6.27; tap the update badge on its tile (or update Moongate in Mainsail's Update Manager). The preheat sheet's own Android heat-soak alert keeps working meanwhile.
+2. **`MOONGATE_TEMP_NOTIFY` is "Unknown command".** The macro lives in `moongate.cfg`, which the installer writes once. From 0.6.27 the plugin adds any missing Moongate macro to an installer-managed `moongate.cfg` when Moonraker starts, but Klipper only reads it on its next **restart** - run `RESTART` (or Firmware Restart) once after the plugin update. A hand-edited `moongate.cfg` (header line changed) is left alone; copy the block from `klipper-plugin/install.sh`.
+3. **Nothing happened, no alert.** A watch gives up quietly when it has waited **6 hours** without getting there (a chamber that can't reach the value on bed heat alone, heaters switched off during a warm-up, notifications off across the whole wait), and a "ready to remove" watch armed for a print that never started is dropped the same way. Cooling watches never cancel on heaters-off (that is the normal state). The tile shows "Waiting for temperature", "Soaking · N min left" or "Cool-down alert armed" while one is live, so you can see whether it is still armed; a tap on that line cancels it.
+4. **The print did not start after the soak.** The printer was no longer idle when the soak ended (something else was started, or Klipper was restarted and the print queue changed); the alert says so. Start the file by hand.
+5. **A Moonraker restart mid-soak** is fine - the watch is saved to disk and the soak clock carries on from where it was. A **Klipper** restart switches the heaters off, which cancels a warm-up watch (see 3).
+6. One watch per source: a new `MOONGATE_TEMP_NOTIFY` replaces the previous macro watch, and the dialog's two rows each keep one watch per printer. The alerts land in the "Printer alerts" category on Android (the same one custom `MOONGATE_NOTIFY` messages use).
 
 ## Chamber temperature missing on the dashboard
 
