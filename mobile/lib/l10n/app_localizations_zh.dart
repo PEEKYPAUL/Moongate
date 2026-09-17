@@ -2333,4 +2333,62 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tileWatchKeep => '保留';
+
+  @override
+  String get dashboardSingleMode => '单打印机仪表盘';
+
+  @override
+  String get dashboardSingleModeOn => '一次一台打印机，全屏显示';
+
+  @override
+  String get dashboardSingleModeOff => '关闭：显示多打印机仪表盘';
+
+  @override
+  String get dashboardStyleTitle => '一台打印机还是多台？';
+
+  @override
+  String get dashboardStyleBody => '选择适合您打印方式的仪表盘。';
+
+  @override
+  String get dashboardStyleSingleTitle => '只有一台打印机';
+
+  @override
+  String get dashboardStyleSingleBody => '单打印机仪表盘：全屏显示一台打印机及其摄像头、控制和 X Y Z 位置。';
+
+  @override
+  String get dashboardStyleMultiTitle => '多台打印机';
+
+  @override
+  String get dashboardStyleMultiBody => '多打印机仪表盘：所有打印机以卡片形式并排显示。';
+
+  @override
+  String get singlePreviousPrinter => '上一台打印机';
+
+  @override
+  String get singleNextPrinter => '下一台打印机';
+
+  @override
+  String singlePrinterPosition(int index, int count) {
+    return '第 $index 台，共 $count 台';
+  }
+
+  @override
+  String get singleChoosePrinter => '选择打印机';
+
+  @override
+  String singleLayer(int current, int total) {
+    return '层 $current / $total';
+  }
+
+  @override
+  String get singlePosition => '位置';
+
+  @override
+  String get singleMove => '移动';
+
+  @override
+  String get singlePrintFiles => '打印文件';
+
+  @override
+  String get singleWebInterface => '网页界面';
 }

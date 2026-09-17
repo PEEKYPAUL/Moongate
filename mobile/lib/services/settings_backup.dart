@@ -57,6 +57,7 @@ class SettingsBackup {
     'print_eta_format':            _Kind.string,
     'fs_hide_backups_hidden':      _Kind.boolean,
     'global_power_button':         _Kind.boolean,
+    'dashboard_mode':              _Kind.string,
     // The Local-only BUTTON preference rides backups; the local-only MODE
     // itself (kLocalOnlyKey) deliberately does not - a restore should never
     // silently cut remote access.

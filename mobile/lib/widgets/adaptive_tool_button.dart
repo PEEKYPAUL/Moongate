@@ -11,7 +11,10 @@ import 'package:flutter/material.dart';
 class AdaptiveToolButton extends StatelessWidget {
   final IconData icon;
   final String label;
-  final VoidCallback onPressed;
+
+  /// Null disables the button (the Single-printer dashboard greys a tool out
+  /// while the printer can't take it).
+  final VoidCallback? onPressed;
 
   const AdaptiveToolButton({
     super.key,

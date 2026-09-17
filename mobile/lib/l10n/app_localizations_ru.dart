@@ -2482,4 +2482,66 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get tileWatchKeep => 'Оставить';
+
+  @override
+  String get dashboardSingleMode => 'Панель одного принтера';
+
+  @override
+  String get dashboardSingleModeOn => 'По одному принтеру, на весь экран';
+
+  @override
+  String get dashboardSingleModeOff =>
+      'Выкл.: показана панель нескольких принтеров';
+
+  @override
+  String get dashboardStyleTitle => 'Один принтер или несколько?';
+
+  @override
+  String get dashboardStyleBody =>
+      'Выберите панель, которая подходит для вашей печати.';
+
+  @override
+  String get dashboardStyleSingleTitle => 'Только один принтер';
+
+  @override
+  String get dashboardStyleSingleBody =>
+      'Панель одного принтера: один принтер на весь экран с камерой, управлением и положением X Y Z.';
+
+  @override
+  String get dashboardStyleMultiTitle => 'Несколько принтеров';
+
+  @override
+  String get dashboardStyleMultiBody =>
+      'Панель нескольких принтеров: все ваши принтеры рядом в виде плиток.';
+
+  @override
+  String get singlePreviousPrinter => 'Предыдущий принтер';
+
+  @override
+  String get singleNextPrinter => 'Следующий принтер';
+
+  @override
+  String singlePrinterPosition(int index, int count) {
+    return '$index из $count';
+  }
+
+  @override
+  String get singleChoosePrinter => 'Выберите принтер';
+
+  @override
+  String singleLayer(int current, int total) {
+    return 'Слой $current / $total';
+  }
+
+  @override
+  String get singlePosition => 'Положение';
+
+  @override
+  String get singleMove => 'Перемещение';
+
+  @override
+  String get singlePrintFiles => 'Файлы печати';
+
+  @override
+  String get singleWebInterface => 'Веб-интерфейс';
 }

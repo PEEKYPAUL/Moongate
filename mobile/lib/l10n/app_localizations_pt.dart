@@ -2491,4 +2491,66 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get tileWatchKeep => 'Manter';
+
+  @override
+  String get dashboardSingleMode => 'Painel de impressora única';
+
+  @override
+  String get dashboardSingleModeOn => 'Uma impressora por vez, em tela cheia';
+
+  @override
+  String get dashboardSingleModeOff =>
+      'Desligado: mostrando o painel de várias impressoras';
+
+  @override
+  String get dashboardStyleTitle => 'Uma impressora ou várias?';
+
+  @override
+  String get dashboardStyleBody =>
+      'Escolha o painel que combina com a sua forma de imprimir.';
+
+  @override
+  String get dashboardStyleSingleTitle => 'Apenas uma impressora';
+
+  @override
+  String get dashboardStyleSingleBody =>
+      'Painel de impressora única: uma impressora em tela cheia com câmera, controles e posição X Y Z.';
+
+  @override
+  String get dashboardStyleMultiTitle => 'Várias impressoras';
+
+  @override
+  String get dashboardStyleMultiBody =>
+      'Painel de várias impressoras: todas as suas impressoras lado a lado em blocos.';
+
+  @override
+  String get singlePreviousPrinter => 'Impressora anterior';
+
+  @override
+  String get singleNextPrinter => 'Próxima impressora';
+
+  @override
+  String singlePrinterPosition(int index, int count) {
+    return '$index de $count';
+  }
+
+  @override
+  String get singleChoosePrinter => 'Escolha uma impressora';
+
+  @override
+  String singleLayer(int current, int total) {
+    return 'Camada $current / $total';
+  }
+
+  @override
+  String get singlePosition => 'Posição';
+
+  @override
+  String get singleMove => 'Mover';
+
+  @override
+  String get singlePrintFiles => 'Arquivos de impressão';
+
+  @override
+  String get singleWebInterface => 'Interface web';
 }

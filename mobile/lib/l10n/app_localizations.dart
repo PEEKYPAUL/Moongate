@@ -4449,6 +4449,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Keep'**
   String get tileWatchKeep;
+
+  /// Menu checkbox (Dashboard layout section) that switches the dashboard to one printer full screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Single-printer dashboard'**
+  String get dashboardSingleMode;
+
+  /// Subtitle of the Single-printer dashboard checkbox while it is ticked.
+  ///
+  /// In en, this message translates to:
+  /// **'One printer at a time, full screen'**
+  String get dashboardSingleModeOn;
+
+  /// Subtitle of the Single-printer dashboard checkbox while it is unticked (the tile grid is showing).
+  ///
+  /// In en, this message translates to:
+  /// **'Off: showing the Multi-printer dashboard'**
+  String get dashboardSingleModeOff;
+
+  /// Title of the first-run question that picks the dashboard style.
+  ///
+  /// In en, this message translates to:
+  /// **'One printer or several?'**
+  String get dashboardStyleTitle;
+
+  /// Intro line of the first-run dashboard-style question.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the dashboard that suits how you print.'**
+  String get dashboardStyleBody;
+
+  /// First-run question option: the Single-printer dashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Just one printer'**
+  String get dashboardStyleSingleTitle;
+
+  /// Explains the Single-printer dashboard option in the first-run question.
+  ///
+  /// In en, this message translates to:
+  /// **'Single-printer dashboard: one printer full screen with its camera, controls and X Y Z position.'**
+  String get dashboardStyleSingleBody;
+
+  /// First-run question option: the Multi-printer dashboard (tile grid).
+  ///
+  /// In en, this message translates to:
+  /// **'Several printers'**
+  String get dashboardStyleMultiTitle;
+
+  /// Explains the Multi-printer dashboard option in the first-run question.
+  ///
+  /// In en, this message translates to:
+  /// **'Multi-printer dashboard: all your printers side by side as tiles.'**
+  String get dashboardStyleMultiBody;
+
+  /// Tooltip of the app-bar arrow that shows the previous printer on the Single-printer dashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous printer'**
+  String get singlePreviousPrinter;
+
+  /// Tooltip of the app-bar arrow that shows the next printer on the Single-printer dashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Next printer'**
+  String get singleNextPrinter;
+
+  /// Which printer of how many is showing on the Single-printer dashboard, e.g. '2 of 4'.
+  ///
+  /// In en, this message translates to:
+  /// **'{index} of {count}'**
+  String singlePrinterPosition(int index, int count);
+
+  /// Title of the printer list opened by tapping the printer name on the Single-printer dashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a printer'**
+  String get singleChoosePrinter;
+
+  /// Current and total layer of the running print, when the slicer reports them.
+  ///
+  /// In en, this message translates to:
+  /// **'Layer {current} / {total}'**
+  String singleLayer(int current, int total);
+
+  /// Heading of the toolhead X Y Z position card on the Single-printer dashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Position'**
+  String get singlePosition;
+
+  /// Button that opens the Control panel (jog controls) from the position card.
+  ///
+  /// In en, this message translates to:
+  /// **'Move'**
+  String get singleMove;
+
+  /// Big button that opens the printer's G-code file list to start a print.
+  ///
+  /// In en, this message translates to:
+  /// **'Print files'**
+  String get singlePrintFiles;
+
+  /// Button that opens the printer's own web page when its type (Mainsail / Fluidd) isn't known yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Web interface'**
+  String get singleWebInterface;
 }
 
 class _AppLocalizationsDelegate

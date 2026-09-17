@@ -229,6 +229,12 @@ class PrinterStatusService {
 
   String? get uiType => _uiType;
 
+  /// Ask Moonraker for the toolhead position and homed axes on every poll. Set
+  /// by the Single-printer dashboard for the printer on screen; it rides the
+  /// progress query each poll already makes, so it costs no extra request (and
+  /// no Supabase call - the query goes straight to the Pi).
+  bool wantPosition = false;
+
   // ── UI-type detection (Mainsail vs Fluidd) ───────────────────────────────
   // The tile renders the appropriate logo as a webcam placeholder when no
   // camera is configured, AND as a "the printer is currently offline" hint
@@ -846,7 +852,8 @@ class PrinterStatusService {
             isLan: isLan);
       }
       if (status['display_status'] == null ||
-          status['virtual_sdcard'] == null) {
+          status['virtual_sdcard'] == null ||
+          wantPosition) {
         await _supplementaryProgressQuery(baseUrl, access.accessToken, status,
             isLan: isLan);
       }
@@ -971,8 +978,11 @@ class PrinterStatusService {
       String baseUrl, String accessToken, Map<String, dynamic> status,
       {required bool isLan}) async {
     try {
-      final uri = Uri.parse(
-          '$baseUrl/printer/objects/query?display_status&virtual_sdcard&webhooks');
+      // The Single-printer dashboard's X Y Z readout rides this same query.
+      final query = wantPosition
+          ? 'display_status&virtual_sdcard&webhooks&toolhead=position,homed_axes'
+          : 'display_status&virtual_sdcard&webhooks';
+      final uri = Uri.parse('$baseUrl/printer/objects/query?$query');
       final response = await _authedGet(
           uri, accessToken,
           isLan: isLan,
@@ -989,6 +999,15 @@ class PrinterStatusService {
           }
           // Klipper health - drives the tile's after-E-STOP restart button.
           if (s['webhooks'] != null) status['webhooks'] = s['webhooks'];
+          // Position + homed axes merge INTO any toolhead object already
+          // folded in (a multi-toolhead printer's carries the active extruder).
+          final head = s['toolhead'];
+          if (wantPosition && head is Map<String, dynamic>) {
+            final existing = status['toolhead'];
+            status['toolhead'] = existing is Map<String, dynamic>
+                ? {...existing, ...head}
+                : head;
+          }
         }
       }
     } catch (_) {}
@@ -1328,6 +1347,15 @@ class PrinterStatusService {
     }
     toolheads.sort((a, b) => a.index.compareTo(b.index));
 
+    // Single-printer dashboard: X Y Z + homed axes (only when requested, see
+    // [wantPosition]) and the slicer's layer counts when it reports them.
+    final toolhead = status['toolhead'] as Map<String, dynamic>?;
+    final rawPos   = toolhead?['position'];
+    final position = rawPos is List && rawPos.length >= 3
+        ? [for (final v in rawPos.take(3)) (v as num?)?.toDouble() ?? 0.0]
+        : null;
+    final layerInfo = printStats['info'] as Map<String, dynamic>?;
+
     return PrinterStatus(
       state:              state,
       progress:           progress,
@@ -1360,6 +1388,10 @@ class PrinterStatusService {
       customCameraDown: source.customCameraDown,
       configuredCameraDown: source.configuredCameraDown,
       tempWatches:      TempWatchInfo.listFromJson(moongateResult?['temp_watches']),
+      position:         position,
+      homedAxes:        toolhead?['homed_axes'] as String?,
+      currentLayer:     (layerInfo?['current_layer'] as num?)?.toInt(),
+      totalLayer:       (layerInfo?['total_layer']   as num?)?.toInt(),
     );
   }
 }

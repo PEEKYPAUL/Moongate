@@ -2502,4 +2502,67 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get tileWatchKeep => 'Garder';
+
+  @override
+  String get dashboardSingleMode => 'Tableau de bord mono-imprimante';
+
+  @override
+  String get dashboardSingleModeOn =>
+      'Une imprimante à la fois, en plein écran';
+
+  @override
+  String get dashboardSingleModeOff =>
+      'Désactivé : tableau de bord multi-imprimantes affiché';
+
+  @override
+  String get dashboardStyleTitle => 'Une imprimante ou plusieurs ?';
+
+  @override
+  String get dashboardStyleBody =>
+      'Choisissez le tableau de bord adapté à votre façon d\'imprimer.';
+
+  @override
+  String get dashboardStyleSingleTitle => 'Une seule imprimante';
+
+  @override
+  String get dashboardStyleSingleBody =>
+      'Tableau de bord mono-imprimante : une imprimante en plein écran avec sa caméra, ses commandes et sa position X Y Z.';
+
+  @override
+  String get dashboardStyleMultiTitle => 'Plusieurs imprimantes';
+
+  @override
+  String get dashboardStyleMultiBody =>
+      'Tableau de bord multi-imprimantes : toutes vos imprimantes côte à côte sous forme de tuiles.';
+
+  @override
+  String get singlePreviousPrinter => 'Imprimante précédente';
+
+  @override
+  String get singleNextPrinter => 'Imprimante suivante';
+
+  @override
+  String singlePrinterPosition(int index, int count) {
+    return '$index sur $count';
+  }
+
+  @override
+  String get singleChoosePrinter => 'Choisir une imprimante';
+
+  @override
+  String singleLayer(int current, int total) {
+    return 'Couche $current / $total';
+  }
+
+  @override
+  String get singlePosition => 'Position';
+
+  @override
+  String get singleMove => 'Déplacer';
+
+  @override
+  String get singlePrintFiles => 'Fichiers d\'impression';
+
+  @override
+  String get singleWebInterface => 'Interface web';
 }
