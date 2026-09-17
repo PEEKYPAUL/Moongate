@@ -409,7 +409,7 @@ The power button (bottom-left of a tile's camera) appears only when **Moonraker 
 - **No power device configured.** Add a `[power <name>]` section to `moonraker.conf` and restart Moonraker.
 - **Moonraker isn't reachable.** The button needs to reach Moonraker over WiFi or the tunnel. A printer powered *off* by its own device is fine - Moonraker stays up, so the button shows (dim) and can switch it back on. But if the whole **Pi** is off, nothing answers and no button shows.
 
-Mid-print, the button is **greyed out** for a device Moonraker marks `locked_while_printing` - it won't cut power to a running print.
+Tapping it opens a popup offering **Turn on** and **Turn off** (the one that changes the current state is highlighted), so a wrong on/off reading never stops you sending the command you meant. While the printer is **printing or paused** the button is **greyed out** (v0.9.69+; older versions only greyed it for a `locked_while_printing` device), so power can't be cut mid-job. On the Single-printer dashboard it sits in the same bottom-left corner of the camera.
 
 ## "Power all machines" skips a printer, or won't switch a macro printer
 
@@ -422,6 +422,19 @@ If a printer's power is a **Klipper macro** (the Advanced Power Switch) rather t
 Every **online** tile shows a small red warning triangle by its temperatures - it's an **emergency stop**. **Double-tap** it to halt the printer immediately with Klipper's `M112`; a single tap does nothing, so a stray touch can't fire it, and there's no confirm dialog (the double-tap *is* the safeguard).
 
 After an emergency stop the machine is **shut down**, not just idle - so the triangle turns into an **orange restart button**. Tap it once to run `FIRMWARE_RESTART` and bring the printer back online; the triangle returns once it's healthy. The restart is a deliberate manual tap rather than automatic, since an emergency stop can mean something's worth checking first.
+
+On the Single-printer dashboard the same triangle (and the restart button after a stop) sits at the right of the header, larger, and stays on screen while you scroll.
+
+## The Single-printer dashboard (v0.9.69+): missing menu options, no arrows, or the position shows "--"
+
+**Menu → Dashboard layout → Single-printer dashboard** shows one printer full screen instead of the tile grid (a fresh install asks "One printer or several?" straight after the language). Untick it any time to go back to the tiles, the Multi-printer dashboard.
+
+- **The column picker, "Auto-arrange by status" and "Show dashboard buttons" disappeared from the menu.** They only apply to the tile grid, so they hide while the Single-printer dashboard is ticked. Untick it and they come back with your settings unchanged.
+- **No ‹ › arrows next to the menu.** They appear only when you have two or more printers. Tap the printer name at the top to pick from the full list, which also has **Add printer**.
+- **The arrows follow your own order, not the status order.** They use the order you arranged the tiles in (or the order you added the printers), never "Auto-arrange by status", so they don't reshuffle while prints start and finish.
+- **The buttons are greyed out for a moment after switching printers.** Only the printer on screen is refreshed, so the screen waits for that printer's first fresh reading (a thin bar under the header) before it lets you pause, start or home anything. On your home network that takes a second or two, over the tunnel a few seconds.
+- **The position shows "--", "Position unknown" or "Not homed".** The X Y Z readout comes from the printer on every refresh. "--" means no reading yet; "Position unknown" means Klipper is shut down or not ready (restart it with the orange button in the header); "Not homed" means the printer hasn't homed since it started - tap **Home** (only while the printer is idle) or use **Move** for the Control panel's jog pad.
+- **No temperatures or position at all, just "Connected - Printer idle" or "Offline".** Same meaning as on a tile: see [Tile shows "Connected - Printer idle"](#tile-shows-connected---printer-idle) and [Tile shows "Offline - Printer unreachable"](#tile-shows-offline---printer-unreachable).
 
 ## In-app update didn't install, or asks for a permission
 
