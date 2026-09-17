@@ -93,6 +93,16 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
   PrinterStatus? _realBehindDemo;
   bool _preheatDemoOpen = false;
 
+  /// True while a tutorial runs - the only time the tour's GlobalKey anchors
+  /// are mounted. A GlobalKey carries its subtree's State wherever it mounts
+  /// next, so permanent anchors moved the previous printer's camera block
+  /// (its last frame, and power / light buttons bound to THAT printer) into
+  /// the next printer's view on ‹ ›. Set at the top of build.
+  bool _tourOn = false;
+
+  Widget _anchor(GlobalKey key, Widget child) =>
+      _tourOn ? KeyedSubtree(key: key, child: child) : child;
+
   @override
   void initState() {
     super.initState();
@@ -331,6 +341,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
       tutorialControllerProvider,
       (_, next) => _applyDemoForStep(next),
     );
+    _tourOn = ref.watch(tutorialControllerProvider.select((s) => s.active));
     // The nav bar / gesture bar / home indicator: the last card must clear it
     // on BOTH platforms (the tile grid pads it on Android only).
     final bottomInset = MediaQuery.paddingOf(context).bottom;
@@ -417,9 +428,9 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          KeyedSubtree(
-            key: TutorialAnchors.instance.connectionBar,
-            child: Container(height: 4, color: conn),
+          _anchor(
+            TutorialAnchors.instance.connectionBar,
+            Container(height: 4, color: conn),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
@@ -514,9 +525,9 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
 
   Widget _connectionLabel(ThemeData theme, AppLocalizations l, Color conn) {
     final local = _status.connection == PrinterConnection.local;
-    return KeyedSubtree(
-      key: TutorialAnchors.instance.connectionLabel,
-      child: Row(
+    return _anchor(
+      TutorialAnchors.instance.connectionLabel,
+      Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(local ? Icons.wifi_rounded : Icons.cloud_outlined,
@@ -528,9 +539,9 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
                 ?.copyWith(color: conn, fontWeight: FontWeight.w600),
           ),
           if (local)
-            KeyedSubtree(
-              key: TutorialAnchors.instance.tunnelDot,
-              child: TileTunnelStatusDot(ready: _status.tunnelReady),
+            _anchor(
+              TutorialAnchors.instance.tunnelDot,
+              TileTunnelStatusDot(ready: _status.tunnelReady),
             ),
         ],
       ),
@@ -576,9 +587,9 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
         size: 40,
       );
     }
-    return KeyedSubtree(
-      key: TutorialAnchors.instance.estop,
-      child: TileEstopButton(
+    return _anchor(
+      TutorialAnchors.instance.estop,
+      TileEstopButton(
         tooltip: l.tileEmergencyStop,
         onFire: _handleEmergencyStop,
         size: 40,
@@ -593,9 +604,9 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
     final hasFeed = _live && (s.webcamSnapshotUrl ?? '').isNotEmpty;
     final overlay = _overlay;
     final p       = widget.printer;
-    return KeyedSubtree(
-      key: TutorialAnchors.instance.webcam,
-      child: GestureDetector(
+    return _anchor(
+      TutorialAnchors.instance.webcam,
+      GestureDetector(
         behavior: HitTestBehavior.opaque,
         // Tap the picture for the full-screen camera (pinch zoom, rotation).
         onTap: hasFeed ? () => showPrinterCameraOverlay(context, p) : null,
@@ -911,12 +922,12 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
           label: 'T${t.index}',
           emphasise: t.active,
         );
-        cells.add(t.index == 0 ? KeyedSubtree(key: a.tempHotend, child: cell) : cell);
+        cells.add(t.index == 0 ? _anchor(a.tempHotend, cell) : cell);
       }
     } else {
-      cells.add(KeyedSubtree(
-        key: a.tempHotend,
-        child: _TempCell(
+      cells.add(_anchor(
+        a.tempHotend,
+        _TempCell(
           icon: Icons.whatshot,
           color: Colors.deepOrange,
           temp: s.hotendTemp,
@@ -925,9 +936,9 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
         ),
       ));
     }
-    cells.add(KeyedSubtree(
-      key: a.tempBed,
-      child: _TempCell(
+    cells.add(_anchor(
+      a.tempBed,
+      _TempCell(
         icon: Icons.bed,
         color: Colors.blue,
         temp: s.bedTemp,
@@ -936,9 +947,9 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
       ),
     ));
     if (s.chamberTemp > 0) {
-      cells.add(KeyedSubtree(
-        key: a.tempChamber,
-        child: _TempCell(
+      cells.add(_anchor(
+        a.tempChamber,
+        _TempCell(
           icon: Icons.sensor_window,
           color: Colors.teal,
           temp: s.chamberTemp,
@@ -963,9 +974,9 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
       ));
     }
 
-    return KeyedSubtree(
-      key: a.preheatArea,
-      child: _card(
+    return _anchor(
+      a.preheatArea,
+      _card(
         context,
         // Tap or hold anywhere on the temperatures to preheat (idle only).
         onTap: _canPreheat ? _openPreheat : null,
@@ -995,9 +1006,9 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
       'fluidd'   => 'Fluidd',
       _          => l.singleWebInterface,
     };
-    return KeyedSubtree(
-      key: TutorialAnchors.instance.toolsRow,
-      child: Padding(
+    return _anchor(
+      TutorialAnchors.instance.toolsRow,
+      Padding(
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1101,37 +1112,88 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
     String value(int i, int digits) =>
         pos == null ? '--' : pos[i].toStringAsFixed(digits);
 
+    const gap = 8.0;
+
     return _card(
       context,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(l.singlePosition,
-                    style: theme.textTheme.labelLarge?.copyWith(color: muted)),
-              ),
-              Icon(stripIcon, size: 16, color: stripColor),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(strip,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelMedium
-                        ?.copyWith(color: stripColor)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(child: _AxisValue(axis: 'X', value: value(0, 2), homed: axes.contains('x'))),
-              const SizedBox(width: 8),
-              Expanded(child: _AxisValue(axis: 'Y', value: value(1, 2), homed: axes.contains('y'))),
-              const SizedBox(width: 8),
-              Expanded(child: _AxisValue(axis: 'Z', value: value(2, 3), homed: axes.contains('z'))),
-            ],
+          // One grid, two rows: X / Y / Z on top; "Position" in an X-wide box
+          // under X, and the homed state centred in one box spanning Y and Z
+          // (Paul, 17/09). The cell width is measured once, so both rows line
+          // up to the pixel.
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cell = (constraints.maxWidth - 2 * gap) / 3;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: cell,
+                        child: _AxisValue(axis: 'X', value: value(0, 2), homed: axes.contains('x')),
+                      ),
+                      const SizedBox(width: gap),
+                      SizedBox(
+                        width: cell,
+                        child: _AxisValue(axis: 'Y', value: value(1, 2), homed: axes.contains('y')),
+                      ),
+                      const SizedBox(width: gap),
+                      SizedBox(
+                        width: cell,
+                        child: _AxisValue(axis: 'Z', value: value(2, 3), homed: axes.contains('z')),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: gap),
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(
+                          width: cell,
+                          child: _ReadoutBox(
+                            child: Center(
+                              child: Text(
+                                l.singlePosition,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.labelLarge
+                                    ?.copyWith(color: muted),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: gap),
+                        Expanded(
+                          child: _ReadoutBox(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(stripIcon, size: 18, color: stripColor),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    strip,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.labelLarge?.copyWith(
+                                        color: stripColor,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 10),
           Row(
@@ -1361,12 +1423,7 @@ class _AxisValue extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(8),
-      ),
+    return _ReadoutBox(
       child: Row(
         children: [
           Text(
@@ -1386,6 +1443,25 @@ class _AxisValue extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The shaded rounded box every position readout sits in - the axis values,
+/// the "Position" label and the homed state share it, so the grid reads as one.
+class _ReadoutBox extends StatelessWidget {
+  final Widget child;
+  const _ReadoutBox({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: child,
     );
   }
 }

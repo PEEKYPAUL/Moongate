@@ -81,6 +81,10 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
   /// can be closed again when the step moves on.
   bool _preheatDemoOpen = false;
 
+  /// Whether this build mounts the tutorial's GlobalKey anchors: the tile the
+  /// tour targets, and only while a tour is running. Set at the top of build.
+  bool _anchorsOn = false;
+
   /// Web UI type - 'mainsail', 'fluidd', or null. Seeded from the persisted
   /// config (so a cold launch shows the logo immediately even if the
   /// printer is currently offline) and updated whenever the status service
@@ -219,10 +223,11 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
   }
 
   /// Wrap [child] with a tutorial spotlight anchor, but only on the tile the
-  /// tour targets (a GlobalKey must be mounted exactly once). Other tiles and
-  /// the off-tour case pass the child straight through.
+  /// tour targets and only while a tour runs (a GlobalKey must be mounted
+  /// exactly once). Other tiles and the off-tour case pass the child straight
+  /// through.
   Widget _anchor(GlobalKey key, Widget child) =>
-      widget.anchorForTutorial ? KeyedSubtree(key: key, child: child) : child;
+      _anchorsOn ? KeyedSubtree(key: key, child: child) : child;
 
   @override
   void dispose() {
@@ -580,6 +585,13 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
         (_, next) => _applyDemoForStep(next),
       );
     }
+    // Anchors only while a tour runs. A GlobalKey takes its whole subtree -
+    // State included - wherever it mounts next, so an always-anchored first
+    // tile handed its camera block (the last frame, and the power and light
+    // buttons bound to ITS printer) to whichever printer auto-arrange moved
+    // into first place.
+    _anchorsOn = widget.anchorForTutorial &&
+        ref.watch(tutorialControllerProvider.select((s) => s.active));
 
     // Colours used for the connection indicator throughout the tile.
     final connColor = switch (_status.connection) {
@@ -624,9 +636,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
           children: [
             // ── Connection accent bar (clipped to card corners at top) ────
             Container(
-              key: widget.anchorForTutorial
-                  ? TutorialAnchors.instance.connectionBar
-                  : null,
+              key: _anchorsOn ? TutorialAnchors.instance.connectionBar : null,
               height: 3,
               color: connColor,
             ),
@@ -971,9 +981,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
           children: [
             // Connection accent bar (matches the full tile).
             Container(
-              key: widget.anchorForTutorial
-                  ? TutorialAnchors.instance.connectionBar
-                  : null,
+              key: _anchorsOn ? TutorialAnchors.instance.connectionBar : null,
               height: 3,
               color: connColor,
             ),
@@ -2543,8 +2551,9 @@ class _LightBulbButtonState extends State<TileLightBulbButton> {
 // printer exposes a Moonraker power device (a [power …] section - any type).
 // Crucially it works while the printer it controls is OFF, because Moonraker
 // stays up: that's the "wake the printer from its idle/offline tile" case. A
-// tap asks to confirm (on or off) so it isn't fired by accident; the icon glows
-// green when on. Off is blocked mid-print for a locked_while_printing device.
+// tap opens a popup offering Turn on and Turn off, so it isn't fired by
+// accident and a stale reading can't trap the user; the icon glows green when
+// on. Greyed out while the printer is printing or paused (Paul, 17/09).
 
 class TilePowerButton extends StatefulWidget {
   final PrinterConfig printer;
@@ -2625,29 +2634,46 @@ class _PowerButtonState extends State<TilePowerButton> {
     });
   }
 
-  Future<void> _confirmAndToggle() async {
+  /// Offer both directions: the one that changes the current state is the
+  /// filled button, the other stays available, so a stale on/off reading never
+  /// leaves the user unable to send the command they meant.
+  Future<void> _choosePowerAndSet() async {
     final d = _device;
-    if (d == null || _busy) return;
-    final target = !_displayOn;
+    if (d == null || _busy || _isPrinting) return;
+    final on = _displayOn;
     final l = AppLocalizations.of(context);
-    final confirmed = await showDialog<bool>(
+    final target = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(
-            target ? l.powerConfirmOn(d.name) : l.powerConfirmOff(d.name)),
+        title: Text(l.powerMacroChooseTitle(widget.printer.name)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop(ctx),
             child: Text(l.commonCancel),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(target ? l.powerTurnOn : l.powerTurnOff),
-          ),
+          if (on) ...[
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l.powerTurnOn),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l.powerTurnOff),
+            ),
+          ] else ...[
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l.powerTurnOff),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l.powerTurnOn),
+            ),
+          ],
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (target == null || !mounted) return;
     setState(() {
       _busy = true;
       _pending = target;
@@ -2674,7 +2700,7 @@ class _PowerButtonState extends State<TilePowerButton> {
   // (the real state isn't knowable); a single-direction macro (off-only is the
   // common case - a Klipper power-off macro) confirms then runs that direction.
   Future<void> _macroTap() async {
-    if (_busy) return;
+    if (_busy || _isPrinting) return;
     final p = widget.printer;
     final l = AppLocalizations.of(context);
     final hasToggle = p.powerToggleMacro?.isNotEmpty ?? false;
@@ -2822,11 +2848,17 @@ class _PowerButtonState extends State<TilePowerButton> {
 
   Widget _buildMacroButton() {
     final l = AppLocalizations.of(context);
+    final cs = Theme.of(context).colorScheme;
+    // Greyed out mid-print, like the device button.
     return _chrome(
-      tooltip: l.powerMacroTooltip,
-      onTap: _busy ? null : _macroTap,
-      overlayIconColor: Colors.white.withValues(alpha: 0.85),
-      surfaceIconColor: Theme.of(context).colorScheme.onSurfaceVariant,
+      tooltip: _isPrinting ? l.powerLockedWhilePrinting : l.powerMacroTooltip,
+      onTap: _busy || _isPrinting ? null : _macroTap,
+      overlayIconColor: _isPrinting
+          ? Colors.white24
+          : Colors.white.withValues(alpha: 0.85),
+      surfaceIconColor: _isPrinting
+          ? cs.onSurface.withValues(alpha: 0.3)
+          : cs.onSurfaceVariant,
     );
   }
 
@@ -2838,16 +2870,16 @@ class _PowerButtonState extends State<TilePowerButton> {
     if (_device == null) return const SizedBox.shrink();
     final l = AppLocalizations.of(context);
     final on = _displayOn;
-    // Moonraker refuses to cut a locked device mid-print, so grey-out the off
-    // action then rather than let the tap fail.
-    final blocked = on && _isPrinting && _device!.lockedWhilePrinting;
+    // Greyed out whenever the printer is busy printing or paused - not just
+    // for a locked_while_printing device - so power can't be cut mid-job.
+    final blocked = _isPrinting;
     final enabled = !_busy && !blocked;
     final cs = Theme.of(context).colorScheme;
     return _chrome(
       tooltip: blocked
           ? l.powerLockedWhilePrinting
           : (on ? l.powerTurnOff : l.powerTurnOn),
-      onTap: enabled ? _confirmAndToggle : null,
+      onTap: enabled ? _choosePowerAndSet : null,
       overlayIconColor: !enabled
           ? Colors.white24
           : on
