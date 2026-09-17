@@ -11,6 +11,7 @@
 [![Platform](https://img.shields.io/badge/platform-iPhone%20%7C%20Android-6C63FF)](#quick-start)
 [![App Store](https://img.shields.io/badge/iPhone-on%20the%20App%20Store-0D96F6?logo=apple&logoColor=white)](https://apps.apple.com/gb/app/moongate-klipper-control/id6785038887)
 [![Google Play](https://img.shields.io/badge/Android-on%20Google%20Play-34A853?logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.moongate.app.moongate)
+[![Website](https://img.shields.io/badge/website-peekypaul.github.io%2FMoongate-6C63FF)](https://peekypaul.github.io/Moongate/)
 
 <img src="docs/screenshots/generated/hero-ios.png" width="820" alt="Moongate on iPhone and Android - fleet dashboard with per-printer console and file tools, the full Mainsail UI in-app, and printing straight from stored G-code"/>
 
@@ -68,6 +69,13 @@ Free, source-available **iPhone and Android** control for your **Klipper 3D prin
 ---
 
 ## Screenshots
+
+<div align="center">
+  <img src="docs/screenshots/generated/framed-single-printer.png" width="26%" alt="The Single-printer dashboard - one printer full screen, with the pinned header and emergency stop, the camera, the print job, temperatures, big Macros / Console / Print files buttons and the live X Y Z position"/>
+  <br/><sub><em><b>New in v0.9.69 - the Single-printer dashboard.</b> One machine, full screen: header, camera, job, temperatures, the big tool buttons and live X Y Z. Tick it in menu → Dashboard Layout, and use the arrows beside the menu to step between printers.</em></sub>
+</div>
+
+<br/>
 
 <div align="center">
   <img src="docs/screenshots/generated/framed-pairing.png" width="19%" alt="Secure LAN pairing"/>
@@ -225,6 +233,7 @@ Direct mode isn't picky about the host, either: from plugin 0.6.17 it needs **ze
 
 | Document | What's inside |
 |---|---|
+| [Moongate website](https://peekypaul.github.io/Moongate/) | The features, screenshots and setup steps on one page - the friendliest place to send someone new |
 | [Updating &amp; removing](docs/managing-moongate.md) | Updating the app &amp; plugin, reinstalling / moving to a new phone, full uninstall |
 | [3rd-party printer support](docs/third-party-printers.md) | Direct (LAN/VPN) mode on non-Pi hosts - the one-file install, supported machines, VPN notes |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Building from source, repo layout, debugging, release signing, CI |
