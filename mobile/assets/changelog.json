@@ -4,7 +4,9 @@
     "bullets": [
       "New Single-printer dashboard: one printer full screen, with a status header that stays put while you scroll (Local / Tunnel colour, print state, E-STOP), the camera, the print job, temperatures, big Macros, Console and Print files buttons, and the live X Y Z position with Home.",
       "Switch any time with the Single-printer dashboard checkbox under Menu, Dashboard layout. The arrows next to the menu move between printers; tap the printer name to pick one from the list. Today's tiles are now the Multi-printer dashboard and stay as they are.",
-      "A fresh install now asks One printer or several? straight after the language, then opens Add Printer for you."
+      "A fresh install now asks One printer or several? straight after the language, then opens Add Printer for you.",
+      "The power button now opens a popup offering Turn on and Turn off, and is greyed out while the printer is printing or paused.",
+      "Fixed: when auto-arrange moved a different printer into the first tile, that tile's camera, power and light buttons could carry over from the previous printer."
     ]
   },
   {

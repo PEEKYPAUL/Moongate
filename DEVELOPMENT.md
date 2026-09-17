@@ -126,8 +126,10 @@ mobile/lib/
 ├── app.dart                    # MoongateApp + GoRouter + theme builders
 ├── features/
 │   ├── auth/pairing_screen.dart        # /pair - QR scanner + manual code entry
-│   ├── dashboard/dashboard_screen.dart # /dashboard - grid + drawer (incl. About section)
-│   ├── dashboard/printer_tile.dart     # One card on the dashboard
+│   ├── dashboard/dashboard_screen.dart # /dashboard - tile grid or single-printer view + drawer (incl. About section)
+│   ├── dashboard/printer_tile.dart     # One card on the dashboard (+ the public Tile* pieces the single view reuses)
+│   ├── dashboard/single_printer_view.dart # Single-printer dashboard: one printer full screen (v0.9.69)
+│   ├── onboarding/dashboard_style_prompt.dart # First-run "One printer or several?" question (v0.9.69)
 │   ├── printer/printer_screen.dart     # /printer/:id - WebView with cookie/Bearer auth
 │   ├── settings/settings_screen.dart   # /settings
 │   ├── settings/custom_theme_screen.dart # /theme/custom - colour editor
@@ -383,6 +385,7 @@ revision. Do not hand-edit the generated JSON.
 | **State management** | Riverpod `NotifierProvider`. Avoid `StatefulWidget` for app-wide state |
 | **Colour API** | `withValues(alpha: 0.5)`, **not** the deprecated `withOpacity()` |
 | **Bottom sheets** | Every `showModalBottomSheet` body wraps in `Padding(bottom: MediaQuery.viewInsetsOf(context).bottom)` (keyboard) **and** `SafeArea(top: false)` (navigation / gesture bars), or adds `MediaQuery.paddingOf(context).bottom` to its scroll padding. `useSafeArea: true` on the sheet protects only the top and sides; the v0.9.64 control panel relied on it and its bottom row sat behind 3-button navigation (fixed v0.9.65). Reference implementations: `preheat_overlay.dart`, `console_overlay.dart`, `file_system_overlay.dart`, `control_panel_overlay.dart`. Device-check every new sheet with the nav bar in 3-button mode, in landscape, and with the keyboard up |
+| **Tutorial anchors** | Mount the `TutorialAnchors` GlobalKeys only while a tour runs (`tutorialControllerProvider` active), never permanently. A GlobalKey carries its subtree's State to wherever it mounts next, so an always-anchored widget hands its camera block (the last frame, and power / light buttons bound to ITS printer) to the next printer that takes the anchor - it bled between printers on the first v0.9.69 single-printer build and was latent on the first dashboard tile whenever auto-arrange changed which printer sat first |
 | **Button grids** | Rows of labelled buttons (macro chips, tool buttons) are measured, not guessed: a `LayoutBuilder` plus `TextPainter` at `MediaQuery.textScalerOf(context)` decides whether a label fits its cell, with a chrome allowance for the button's padding and icon (`AdaptiveToolButton`, the control panel's macro grid). A free-flowing `Wrap` of intrinsic-width buttons rags the right edge |
 | **Python** | PEP 8, type hints on public functions, zero runtime deps beyond what Moonraker already pulls in |
 | **Plugin lint** | CI runs `ruff check klipper-plugin/` with ruff **pinned** (see `.github/workflows/ci.yml`) - new ruff releases change default rules, so unpin only together with a deliberate lint cleanup |

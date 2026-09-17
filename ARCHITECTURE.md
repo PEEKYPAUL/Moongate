@@ -47,7 +47,7 @@ MoongateApp                    (lib/app.dart - root widget, lifecycle observer)
 │   └─ appVersionProvider      (PackageInfo lookup)
 └─ GoRouter
     ├─ /splash       → SplashScreen
-    ├─ /dashboard    → DashboardScreen → many PrinterTile widgets
+    ├─ /dashboard    → DashboardScreen → many PrinterTile widgets, or one SinglePrinterView (single-printer style, v0.9.69)
     ├─ /pair         → PairingScreen
     ├─ /printer/:id  → PrinterScreen (WebView, kept warm by PrinterWebViewCache)
     ├─ /lighting     → LightingScreen (per-printer light setup)
@@ -71,6 +71,8 @@ MoongateApp                    (lib/app.dart - root widget, lifecycle observer)
 | Current access token + tunnel URL | `PrinterAccessCache` | **No** (in-memory only) | Refreshed from the middleman every few minutes |
 | Live `PrinterStatus` per tile | `PrinterStatusService.stream` | **No** | StreamController - last emission only |
 | Dashboard buttons visibility | `dashboardButtonsProvider` | Yes | `SharedPreferences` key `show_dashboard_buttons` (v0.9.41) |
+| Dashboard style (multi / single) | `dashboardModeProvider` | Yes | `SharedPreferences` key `dashboard_mode`, rides backups; unset means not chosen yet, which gates the first-run "One printer or several?" question (v0.9.69) |
+| Printer shown on the single-printer dashboard | `singleDashboardPrinterProvider` | Yes | `SharedPreferences` key `single_dashboard_printer`; deliberately not in backups (v0.9.69) |
 | Control panel layout + macro buttons | `PrinterConfig.controlPanelModules` / `.macroControls` | Yes | Persisted with the printer config (the `moongate_printers` JSON), so they ride backups with no extra keys; malformed or invalid entries are dropped on load (v0.9.64) |
 
 ### The service layer
