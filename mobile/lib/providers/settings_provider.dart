@@ -645,6 +645,76 @@ final tileEtaFormatProvider =
 );
 
 // ---------------------------------------------------------------------------
+// Dashboard style  (the multi-printer tile grid or the single-printer screen)
+// ---------------------------------------------------------------------------
+
+/// The two dashboard styles: the tile grid of every printer (multi), or one
+/// printer full screen with ‹ › to move between printers (single).
+enum DashboardMode { multi, single }
+
+/// Which dashboard style the app shows. Multi by default - including for
+/// anyone updating, who never sees the first-run question. A fresh install
+/// picks it in that question; the menu's "Single-printer dashboard" checkbox
+/// changes it any time. Travels in backups.
+class DashboardModeNotifier extends Notifier<DashboardMode> {
+  static const _key = 'dashboard_mode';
+
+  @override
+  DashboardMode build() => DashboardMode.multi;
+
+  Future<void> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getString(_key) == 'single'
+        ? DashboardMode.single
+        : DashboardMode.multi;
+  }
+
+  /// True once a style has been saved - by the first-run question or the menu.
+  Future<bool> hasSavedChoice() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.containsKey(_key);
+  }
+
+  Future<void> set(DashboardMode mode) async {
+    state = mode;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_key, mode.name);
+  }
+}
+
+final dashboardModeProvider =
+    NotifierProvider<DashboardModeNotifier, DashboardMode>(
+  DashboardModeNotifier.new,
+);
+
+/// The printer the Single-printer dashboard shows: the last one picked with
+/// ‹ › or the printer list, so the app reopens where the user left off. Null,
+/// or an id that is no longer paired, falls back to the first printer. Not in
+/// backups - it is where the user was, not a preference.
+class SingleDashboardPrinterNotifier extends Notifier<String?> {
+  static const _key = 'single_dashboard_printer';
+
+  @override
+  String? build() => null;
+
+  Future<void> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getString(_key);
+  }
+
+  Future<void> set(String printerId) async {
+    state = printerId;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_key, printerId);
+  }
+}
+
+final singleDashboardPrinterProvider =
+    NotifierProvider<SingleDashboardPrinterNotifier, String?>(
+  SingleDashboardPrinterNotifier.new,
+);
+
+// ---------------------------------------------------------------------------
 // Print notifications  (opt-in foreground-service progress + state alerts)
 // ---------------------------------------------------------------------------
 

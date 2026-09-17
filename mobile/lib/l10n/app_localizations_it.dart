@@ -2495,4 +2495,67 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get tileWatchKeep => 'Mantieni';
+
+  @override
+  String get dashboardSingleMode => 'Dashboard stampante singola';
+
+  @override
+  String get dashboardSingleModeOn =>
+      'Una stampante alla volta, a schermo intero';
+
+  @override
+  String get dashboardSingleModeOff =>
+      'Disattivato: viene mostrata la dashboard multi-stampante';
+
+  @override
+  String get dashboardStyleTitle => 'Una stampante o più di una?';
+
+  @override
+  String get dashboardStyleBody =>
+      'Scegli la dashboard più adatta al tuo modo di stampare.';
+
+  @override
+  String get dashboardStyleSingleTitle => 'Solo una stampante';
+
+  @override
+  String get dashboardStyleSingleBody =>
+      'Dashboard stampante singola: una stampante a schermo intero con videocamera, comandi e posizione X Y Z.';
+
+  @override
+  String get dashboardStyleMultiTitle => 'Più stampanti';
+
+  @override
+  String get dashboardStyleMultiBody =>
+      'Dashboard multi-stampante: tutte le tue stampanti affiancate come riquadri.';
+
+  @override
+  String get singlePreviousPrinter => 'Stampante precedente';
+
+  @override
+  String get singleNextPrinter => 'Stampante successiva';
+
+  @override
+  String singlePrinterPosition(int index, int count) {
+    return '$index di $count';
+  }
+
+  @override
+  String get singleChoosePrinter => 'Scegli una stampante';
+
+  @override
+  String singleLayer(int current, int total) {
+    return 'Strato $current / $total';
+  }
+
+  @override
+  String get singlePosition => 'Posizione';
+
+  @override
+  String get singleMove => 'Muovi';
+
+  @override
+  String get singlePrintFiles => 'File di stampa';
+
+  @override
+  String get singleWebInterface => 'Interfaccia web';
 }

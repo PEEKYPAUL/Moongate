@@ -2457,4 +2457,66 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tileWatchKeep => 'Keep';
+
+  @override
+  String get dashboardSingleMode => 'Single-printer dashboard';
+
+  @override
+  String get dashboardSingleModeOn => 'One printer at a time, full screen';
+
+  @override
+  String get dashboardSingleModeOff =>
+      'Off: showing the Multi-printer dashboard';
+
+  @override
+  String get dashboardStyleTitle => 'One printer or several?';
+
+  @override
+  String get dashboardStyleBody =>
+      'Pick the dashboard that suits how you print.';
+
+  @override
+  String get dashboardStyleSingleTitle => 'Just one printer';
+
+  @override
+  String get dashboardStyleSingleBody =>
+      'Single-printer dashboard: one printer full screen with its camera, controls and X Y Z position.';
+
+  @override
+  String get dashboardStyleMultiTitle => 'Several printers';
+
+  @override
+  String get dashboardStyleMultiBody =>
+      'Multi-printer dashboard: all your printers side by side as tiles.';
+
+  @override
+  String get singlePreviousPrinter => 'Previous printer';
+
+  @override
+  String get singleNextPrinter => 'Next printer';
+
+  @override
+  String singlePrinterPosition(int index, int count) {
+    return '$index of $count';
+  }
+
+  @override
+  String get singleChoosePrinter => 'Choose a printer';
+
+  @override
+  String singleLayer(int current, int total) {
+    return 'Layer $current / $total';
+  }
+
+  @override
+  String get singlePosition => 'Position';
+
+  @override
+  String get singleMove => 'Move';
+
+  @override
+  String get singlePrintFiles => 'Print files';
+
+  @override
+  String get singleWebInterface => 'Web interface';
 }

@@ -2484,4 +2484,67 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get tileWatchKeep => 'Behalten';
+
+  @override
+  String get dashboardSingleMode => 'Einzeldrucker-Dashboard';
+
+  @override
+  String get dashboardSingleModeOn =>
+      'Ein Drucker nach dem anderen, im Vollbild';
+
+  @override
+  String get dashboardSingleModeOff =>
+      'Aus: Mehrdrucker-Dashboard wird angezeigt';
+
+  @override
+  String get dashboardStyleTitle => 'Ein Drucker oder mehrere?';
+
+  @override
+  String get dashboardStyleBody =>
+      'Wähle das Dashboard, das zu deiner Arbeitsweise passt.';
+
+  @override
+  String get dashboardStyleSingleTitle => 'Nur ein Drucker';
+
+  @override
+  String get dashboardStyleSingleBody =>
+      'Einzeldrucker-Dashboard: ein Drucker im Vollbild mit Kamera, Steuerung und X-Y-Z-Position.';
+
+  @override
+  String get dashboardStyleMultiTitle => 'Mehrere Drucker';
+
+  @override
+  String get dashboardStyleMultiBody =>
+      'Mehrdrucker-Dashboard: alle deine Drucker nebeneinander als Kacheln.';
+
+  @override
+  String get singlePreviousPrinter => 'Vorheriger Drucker';
+
+  @override
+  String get singleNextPrinter => 'Nächster Drucker';
+
+  @override
+  String singlePrinterPosition(int index, int count) {
+    return '$index von $count';
+  }
+
+  @override
+  String get singleChoosePrinter => 'Drucker auswählen';
+
+  @override
+  String singleLayer(int current, int total) {
+    return 'Schicht $current / $total';
+  }
+
+  @override
+  String get singlePosition => 'Position';
+
+  @override
+  String get singleMove => 'Bewegen';
+
+  @override
+  String get singlePrintFiles => 'Druckdateien';
+
+  @override
+  String get singleWebInterface => 'Weboberfläche';
 }

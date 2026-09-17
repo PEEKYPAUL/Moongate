@@ -2484,4 +2484,66 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get tileWatchKeep => 'Zostaw';
+
+  @override
+  String get dashboardSingleMode => 'Pulpit jednej drukarki';
+
+  @override
+  String get dashboardSingleModeOn => 'Jedna drukarka naraz, na pełnym ekranie';
+
+  @override
+  String get dashboardSingleModeOff =>
+      'Wyłączone: widoczny pulpit wielu drukarek';
+
+  @override
+  String get dashboardStyleTitle => 'Jedna drukarka czy kilka?';
+
+  @override
+  String get dashboardStyleBody =>
+      'Wybierz pulpit, który pasuje do Twojego sposobu drukowania.';
+
+  @override
+  String get dashboardStyleSingleTitle => 'Tylko jedna drukarka';
+
+  @override
+  String get dashboardStyleSingleBody =>
+      'Pulpit jednej drukarki: jedna drukarka na pełnym ekranie z kamerą, sterowaniem i pozycją X Y Z.';
+
+  @override
+  String get dashboardStyleMultiTitle => 'Kilka drukarek';
+
+  @override
+  String get dashboardStyleMultiBody =>
+      'Pulpit wielu drukarek: wszystkie Twoje drukarki obok siebie jako kafelki.';
+
+  @override
+  String get singlePreviousPrinter => 'Poprzednia drukarka';
+
+  @override
+  String get singleNextPrinter => 'Następna drukarka';
+
+  @override
+  String singlePrinterPosition(int index, int count) {
+    return '$index z $count';
+  }
+
+  @override
+  String get singleChoosePrinter => 'Wybierz drukarkę';
+
+  @override
+  String singleLayer(int current, int total) {
+    return 'Warstwa $current / $total';
+  }
+
+  @override
+  String get singlePosition => 'Pozycja';
+
+  @override
+  String get singleMove => 'Ruch';
+
+  @override
+  String get singlePrintFiles => 'Pliki do druku';
+
+  @override
+  String get singleWebInterface => 'Interfejs WWW';
 }

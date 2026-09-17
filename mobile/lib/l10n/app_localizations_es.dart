@@ -2498,4 +2498,67 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get tileWatchKeep => 'Mantener';
+
+  @override
+  String get dashboardSingleMode => 'Panel de una impresora';
+
+  @override
+  String get dashboardSingleModeOn =>
+      'Una impresora cada vez, a pantalla completa';
+
+  @override
+  String get dashboardSingleModeOff =>
+      'Desactivado: se muestra el panel de varias impresoras';
+
+  @override
+  String get dashboardStyleTitle => '¿Una impresora o varias?';
+
+  @override
+  String get dashboardStyleBody =>
+      'Elige el panel que mejor se adapte a tu forma de imprimir.';
+
+  @override
+  String get dashboardStyleSingleTitle => 'Solo una impresora';
+
+  @override
+  String get dashboardStyleSingleBody =>
+      'Panel de una impresora: una impresora a pantalla completa con su cámara, controles y posición X Y Z.';
+
+  @override
+  String get dashboardStyleMultiTitle => 'Varias impresoras';
+
+  @override
+  String get dashboardStyleMultiBody =>
+      'Panel de varias impresoras: todas tus impresoras juntas en mosaicos.';
+
+  @override
+  String get singlePreviousPrinter => 'Impresora anterior';
+
+  @override
+  String get singleNextPrinter => 'Impresora siguiente';
+
+  @override
+  String singlePrinterPosition(int index, int count) {
+    return '$index de $count';
+  }
+
+  @override
+  String get singleChoosePrinter => 'Elige una impresora';
+
+  @override
+  String singleLayer(int current, int total) {
+    return 'Capa $current / $total';
+  }
+
+  @override
+  String get singlePosition => 'Posición';
+
+  @override
+  String get singleMove => 'Mover';
+
+  @override
+  String get singlePrintFiles => 'Archivos de impresión';
+
+  @override
+  String get singleWebInterface => 'Interfaz web';
 }

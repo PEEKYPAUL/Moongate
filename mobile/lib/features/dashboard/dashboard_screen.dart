@@ -33,11 +33,13 @@ import '../donation/donation_prompt.dart';
 import '../info/ui_guide.dart';
 import '../language/language_picker.dart';
 import '../notifications/notifications_prompt.dart';
+import '../onboarding/dashboard_style_prompt.dart';
 import '../tutorial/tutorial_anchors.dart';
 import '../tutorial/tutorial_controller.dart';
 import '../tutorial/tutorial_offer.dart';
 import 'feedback_sheet.dart';
 import 'printer_tile.dart';
+import 'single_printer_view.dart';
 import 'camera_feeds_overlay.dart';
 import 'webcams_overlay.dart';
 import 'power_all_sheet.dart';
@@ -252,6 +254,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final tileOpacity =
         isCustomTheme ? ref.watch(customThemeProvider).tileOpacity : 1.0;
 
+    // Dashboard style: the tile grid, or one printer full screen. The single
+    // view shows the remembered printer (the first, if that one is gone) and
+    // ‹ › follow the SAVED order - never the status sort, which would reshuffle
+    // the arrows whenever a print changes state.
+    final singleMode =
+        ref.watch(dashboardModeProvider) == DashboardMode.single &&
+            _printers.isNotEmpty;
+    final singleId = ref.watch(singleDashboardPrinterProvider);
+    final singleIndex = singleMode
+        ? _printers
+            .indexWhere((p) => p.id == singleId)
+            .clamp(0, _printers.length - 1)
+        : 0;
+
     // Reload after the printer screen pops so any rename done in the app bar
     // there propagates to the tile.
     void openPrinter(PrinterConfig p) =>
@@ -261,6 +277,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (_printers.isEmpty) {
       body = _EmptyState(
           onAddPrinter: () => context.push('/pair').then((_) => _load()));
+    } else if (singleMode) {
+      final printer = _printers[singleIndex];
+      body = SinglePrinterView(
+        // Keyed by printer, so ‹ › swap in a fresh view with its own poller.
+        key: ValueKey('single-${printer.id}'),
+        printer: printer,
+        index: singleIndex,
+        count: _printers.length,
+        tileOpacity: tileOpacity,
+        onChoosePrinter: () => _showPrinterPicker(printer.id),
+        onOpenPrinterPage: () => openPrinter(printer),
+      );
     } else if (autoArrange) {
       // Re-sort tiles by live status (active prints float up) whenever a
       // printer's state changes - printerStatusRank, shared with the
@@ -315,7 +343,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             SvgPicture.asset('assets/icons/moongate_icon.svg',
                 width: 26, height: 26),
             const SizedBox(width: 8),
-            const Text('Moongate'),
+            // Fades rather than overflows when the single-printer arrows and
+            // every optional button share a narrow app bar.
+            const Flexible(
+              child: Text('Moongate', softWrap: false, overflow: TextOverflow.fade),
+            ),
           ],
         ),
         actions: [
@@ -354,6 +386,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               tooltip: l.localOnlyTooltip,
               onPressed: _toggleLocalOnly,
             ),
+          // Single-printer dashboard: step through the printers, next to the
+          // menu. Hidden with only one printer; greyed at either end.
+          if (singleMode && _printers.length > 1) ...[
+            IconButton(
+              icon: const Icon(Icons.chevron_left),
+              tooltip: l.singlePreviousPrinter,
+              visualDensity: VisualDensity.compact,
+              onPressed: singleIndex > 0
+                  ? () => _showSinglePrinter(_printers[singleIndex - 1])
+                  : null,
+            ),
+            IconButton(
+              icon: const Icon(Icons.chevron_right),
+              tooltip: l.singleNextPrinter,
+              visualDensity: VisualDensity.compact,
+              onPressed: singleIndex < _printers.length - 1
+                  ? () => _showSinglePrinter(_printers[singleIndex + 1])
+                  : null,
+            ),
+          ],
           Builder(
             builder: (ctx) => IconButton(
               key: TutorialAnchors.instance.menuIcon,
@@ -385,7 +437,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           );
         },
       ),
-      floatingActionButton: (_printers.isEmpty || !showDashboardButtons)
+      // No floating buttons on the Single-printer dashboard: nothing to
+      // reorder, Add printer lives in the menu and the printer list, and the
+      // last card must never sit under a button.
+      floatingActionButton:
+          (_printers.isEmpty || !showDashboardButtons || singleMode)
           ? null
           : SizedBox(
               width: double.infinity,
@@ -552,6 +608,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final showTileEta   = ref.watch(tileEtaProvider);
     final tileEtaFormat = ref.watch(tileEtaFormatProvider);
     final showLocalOnlyButton = ref.watch(showLocalOnlyButtonProvider);
+    final singleMode    =
+        ref.watch(dashboardModeProvider) == DashboardMode.single;
 
     return Drawer(
       child: SafeArea(
@@ -816,7 +874,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               .labelMedium
                               ?.copyWith(color: Colors.white54)),
                     ),
-                    // Column count picker
+                    // Dashboard style: ticked = one printer full screen (the
+                    // Single-printer dashboard), unticked = the tile grid (the
+                    // Multi-printer dashboard). The subtitle always names the
+                    // style on screen, so the checkbox reads either way.
+                    CheckboxListTile(
+                      dense: true,
+                      secondary: const Icon(Icons.crop_portrait),
+                      title: Text(l.dashboardSingleMode),
+                      subtitle: Text(singleMode
+                          ? l.dashboardSingleModeOn
+                          : l.dashboardSingleModeOff),
+                      value: singleMode,
+                      onChanged: (v) => ref
+                          .read(dashboardModeProvider.notifier)
+                          .set(v == true
+                              ? DashboardMode.single
+                              : DashboardMode.multi),
+                    ),
+                    // Column count picker - tiles only.
+                    if (!singleMode)
                     Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 4),
@@ -854,7 +931,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                     // Auto-arrange vs. manual drag-to-reorder. ON (default)
                     // keeps the historic status sort; OFF freezes the order and
-                    // unlocks long-press drag on the grid.
+                    // unlocks long-press drag on the grid. Tiles only.
+                    if (!singleMode)
                     SwitchListTile(
                       dense: true,
                       secondary: const Icon(Icons.swap_vert),
@@ -902,6 +980,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     // default; users with many printers hide them so they stop
                     // covering the bottom tiles - adding a printer stays in the
                     // menu, and reordering by turning the buttons back on.
+                    // Tiles only - the single-printer screen has no buttons.
+                    if (!singleMode)
                     SwitchListTile(
                       dense: true,
                       secondary: const Icon(Icons.smart_button_outlined),
@@ -1419,6 +1499,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     await ref.read(dashboardButtonsProvider.notifier).load();
     await ref.read(tileEtaProvider.notifier).load();
     await ref.read(tileEtaFormatProvider.notifier).load();
+    await ref.read(dashboardModeProvider.notifier).load();
+    await ref.read(singleDashboardPrinterProvider.notifier).load();
     // The local-only MODE isn't in backups, but reload both anyway so the
     // button preference lands and the mode reflects whatever this device had.
     await ref.read(showLocalOnlyButtonProvider.notifier).load();
@@ -1598,7 +1680,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       await showLanguagePicker(context, firstRun: true);
       await prefs.setBool(_languageSelectedKey, true);
     }
+    // A fresh install picks its dashboard style next - already in the chosen
+    // language - then gets the pairing help and goes straight into Add Printer
+    // instead of landing on an empty dashboard. The rest of the chain waits
+    // for the next launch, as it always has for a brand-new user; returning
+    // from pairing offers the tutorial via _load().
+    final askedStyle = await _maybeAskDashboardStyle();
     await _maybeShowPairingHelp();
+    if (askedStyle && PrinterRegistry.instance.printers.isEmpty) {
+      if (!mounted) return;
+      await context.push('/pair');
+      _load();
+      return;
+    }
     await _maybeOfferNotifications();
     await _maybeShowDonationPrompt();
     await _maybeOfferTutorial();
@@ -1651,6 +1745,139 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   /// Launch the walkthrough now (from the offer popup or the drawer entry).
   void _startTutorial() {
     ref.read(tutorialControllerProvider.notifier).start();
+  }
+
+  /// First launch only: one printer or several? Sets the dashboard style to
+  /// match. Skipped once a style is saved, and for anyone who already has
+  /// printers - an update keeps the Multi-printer dashboard they know. Returns
+  /// true when the question was shown.
+  Future<bool> _maybeAskDashboardStyle() async {
+    final style = ref.read(dashboardModeProvider.notifier);
+    if (await style.hasSavedChoice()) return false;
+    if (PrinterRegistry.instance.printers.isNotEmpty) return false;
+    if (!mounted) return false;
+    final picked = await showDashboardStylePrompt(context);
+    await style.set(picked ?? DashboardMode.multi);
+    return true;
+  }
+
+  /// Show [printer] on the Single-printer dashboard (the ‹ › arrows and the
+  /// printer list). Remembered, so the app reopens on it.
+  void _showSinglePrinter(PrinterConfig printer) {
+    ref.read(singleDashboardPrinterProvider.notifier).set(printer.id).ignore();
+  }
+
+  /// The Single-printer dashboard's printer list, opened by tapping the name:
+  /// every printer with its colour bar and last known state, then Add printer.
+  Future<void> _showPrinterPicker(String currentId) async {
+    final l = AppLocalizations.of(context);
+    const addPrinter = '__add_printer__'; // never a printer id (UUID / lan-…)
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        // House sheet rule: lift with the keyboard AND clear the nav bar.
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+          child: SafeArea(
+            top: false,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(ctx).height * 0.72),
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                    child: Text(l.singleChoosePrinter,
+                        style: theme.textTheme.titleMedium),
+                  ),
+                  for (final p in _printers)
+                    _printerPickerRow(ctx, l, p, selected: p.id == currentId),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.add_circle_outline),
+                    title: Text(l.dashboardAddPrinter),
+                    onTap: () => Navigator.pop(ctx, addPrinter),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    if (!mounted || picked == null) return;
+    if (picked == addPrinter) {
+      await context.push('/pair');
+      _load();
+      return;
+    }
+    await ref.read(singleDashboardPrinterProvider.notifier).set(picked);
+  }
+
+  Widget _printerPickerRow(
+    BuildContext ctx,
+    AppLocalizations l,
+    PrinterConfig printer, {
+    required bool selected,
+  }) {
+    // Only the printer on screen is polled, so this is each one's last known
+    // state - the Local / Tunnel bar and the badge the tile would show.
+    final snap = PrinterStatusRegistry.instance.snapshot(printer.id);
+    final conn = snap?.connection ?? PrinterConnection.offline;
+    final bar  = switch (conn) {
+      PrinterConnection.local   => Colors.green,
+      PrinterConnection.remote  => Colors.orange,
+      PrinterConnection.offline => Theme.of(ctx).colorScheme.outlineVariant,
+    };
+    final state = snap == null
+        ? 'connecting'
+        : (conn == PrinterConnection.offline &&
+                snap.state != 'waiting' &&
+                snap.state != 'starting_up')
+            ? 'offline'
+            : snap.state;
+    final (label, badge) = tileStatusLabel(l, state);
+    return ListTile(
+      selected: selected,
+      leading: Container(
+        width: 4,
+        height: 28,
+        decoration: BoxDecoration(
+            color: bar, borderRadius: BorderRadius.circular(2)),
+      ),
+      title: Text(printer.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              // The badge's black54 "Offline" is for a camera backdrop; on a
+              // sheet it needs the neutral blue-grey to read.
+              color: (state == 'offline' ? Colors.blueGrey : badge)
+                  .withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              label,
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
+            ),
+          ),
+          if (selected) ...[
+            const SizedBox(width: 8),
+            const Icon(Icons.check),
+          ],
+        ],
+      ),
+      onTap: () => Navigator.pop(ctx, printer.id),
+    );
   }
 
   /// Pick the app typeface from the bundled set, grouped by style. Each option

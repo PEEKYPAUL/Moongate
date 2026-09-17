@@ -81,6 +81,10 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
   /// can be closed again when the step moves on.
   bool _preheatDemoOpen = false;
 
+  /// Whether this build mounts the tutorial's GlobalKey anchors: the tile the
+  /// tour targets, and only while a tour is running. Set at the top of build.
+  bool _anchorsOn = false;
+
   /// Web UI type - 'mainsail', 'fluidd', or null. Seeded from the persisted
   /// config (so a cold launch shows the logo immediately even if the
   /// printer is currently offline) and updated whenever the status service
@@ -219,10 +223,11 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
   }
 
   /// Wrap [child] with a tutorial spotlight anchor, but only on the tile the
-  /// tour targets (a GlobalKey must be mounted exactly once). Other tiles and
-  /// the off-tour case pass the child straight through.
+  /// tour targets and only while a tour runs (a GlobalKey must be mounted
+  /// exactly once). Other tiles and the off-tour case pass the child straight
+  /// through.
   Widget _anchor(GlobalKey key, Widget child) =>
-      widget.anchorForTutorial ? KeyedSubtree(key: key, child: child) : child;
+      _anchorsOn ? KeyedSubtree(key: key, child: child) : child;
 
   @override
   void dispose() {
@@ -399,14 +404,14 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
   /// E-STOP carries the tutorial anchor (a no-op on non-tutorial tiles).
   Widget _estopWidget(AppLocalizations l) {
     if (_status.klippyShutdown) {
-      return _RestartButton(
+      return TileRestartButton(
         tooltip: l.tileFirmwareRestart,
         onTap: _handleFirmwareRestart,
       );
     }
     return _anchor(
       TutorialAnchors.instance.estop,
-      _EstopButton(
+      TileEstopButton(
         tooltip: l.tileEmergencyStop,
         onFire: _handleEmergencyStop,
       ),
@@ -580,6 +585,13 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
         (_, next) => _applyDemoForStep(next),
       );
     }
+    // Anchors only while a tour runs. A GlobalKey takes its whole subtree -
+    // State included - wherever it mounts next, so an always-anchored first
+    // tile handed its camera block (the last frame, and the power and light
+    // buttons bound to ITS printer) to whichever printer auto-arrange moved
+    // into first place.
+    _anchorsOn = widget.anchorForTutorial &&
+        ref.watch(tutorialControllerProvider.select((s) => s.active));
 
     // Colours used for the connection indicator throughout the tile.
     final connColor = switch (_status.connection) {
@@ -624,9 +636,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
           children: [
             // ── Connection accent bar (clipped to card corners at top) ────
             Container(
-              key: widget.anchorForTutorial
-                  ? TutorialAnchors.instance.connectionBar
-                  : null,
+              key: _anchorsOn ? TutorialAnchors.instance.connectionBar : null,
               height: 3,
               color: connColor,
             ),
@@ -670,7 +680,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                   // hint instead of a generic spinner - so a powered-off
                   // K3 still looks like the K3, not a blank loading tile.
                   if (_overlayState(_status) case final overlay?)
-                    _ConnectionProbe(state: overlay, uiType: _uiType),
+                    TileConnectionProbe(state: overlay, uiType: _uiType),
                   // ── Status badge ───────────────────────────────────────────
                   // Only shown when connected - the probe overlay provides the
                   // status context while offline/connecting.
@@ -679,7 +689,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                     Positioned(
                       top: 8,
                       left: 8,
-                      child: _StatusBadge(
+                      child: TileStatusBadge(
                         printer: widget.printer,
                         status: _status,
                         onCleared: _statusService.pollNow,
@@ -700,7 +710,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                     Positioned(
                       top: 36,
                       left: 8,
-                      child: _CameraDownNotice(
+                      child: TileCameraDownNotice(
                         printer: widget.printer,
                         configured: !_status.customCameraDown,
                         onApplied: _statusService.pollNow,
@@ -727,20 +737,20 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                         // "show camera icons" decluttering setting that hides
                         // the config gear.
                         if (cameraSwitchAvailable(widget.printer, _status)) ...[
-                          _CameraSwitchButton(
+                          TileCameraSwitchButton(
                             printer:    widget.printer,
                             status:     _status,
                             onSwitched: _statusService.pollNow,
                           ),
                           const SizedBox(width: 6),
                         ],
-                        _CameraConfigButton(
+                        TileCameraConfigButton(
                           printer: widget.printer,
                           onApplied: _statusService.pollNow,
                         ),
-                        if (_hasLighting(widget.printer)) ...[
+                        if (printerHasLighting(widget.printer)) ...[
                           const SizedBox(width: 6),
-                          _LightBulbButton(
+                          TileLightBulbButton(
                             printer: widget.printer,
                             status: _status,
                           ),
@@ -758,7 +768,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                     Positioned(
                       bottom: 8,
                       right: 8,
-                      child: _CameraExpandButton(printer: widget.printer),
+                      child: TileCameraExpandButton(printer: widget.printer),
                     ),
                   // Bottom-left cluster: the plugin-update badge, then power.
                   // The amber update badge takes the corner while this printer
@@ -779,13 +789,13 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                       children: [
                         if (_status.connection != PrinterConnection.offline &&
                             pluginVersionIsOutdated(_status.pluginVersion)) ...[
-                          _PluginUpdateButton(
+                          TilePluginUpdateButton(
                             printer: widget.printer,
                             status: _status,
                           ),
                           const SizedBox(width: 6),
                         ],
-                        _PowerButton(
+                        TilePowerButton(
                           printer: widget.printer,
                           status: _status,
                         ),
@@ -883,7 +893,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                                   if (_status.connection == PrinterConnection.local)
                                     _anchor(
                                       TutorialAnchors.instance.tunnelDot,
-                                      _TunnelStatusDot(ready: _status.tunnelReady),
+                                      TileTunnelStatusDot(ready: _status.tunnelReady),
                                     ),
                                 ],
                               ),
@@ -901,7 +911,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                             : _singleToolheadTemps(l),
                       ],
                       if (_status.tempWatches.isNotEmpty)
-                        _TempWatchLine(printer: widget.printer, status: _status),
+                        TileTempWatchLine(printer: widget.printer, status: _status),
                     ],
                   ))),
                   if (_status.filename != null && _status.isPrinting)
@@ -971,9 +981,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
           children: [
             // Connection accent bar (matches the full tile).
             Container(
-              key: widget.anchorForTutorial
-                  ? TutorialAnchors.instance.connectionBar
-                  : null,
+              key: _anchorsOn ? TutorialAnchors.instance.connectionBar : null,
               height: 3,
               color: connColor,
             ),
@@ -1028,7 +1036,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                       // host it); it self-hides when the printer has no power control.
                       Row(
                         children: [
-                          _PowerButton(
+                          TilePowerButton(
                             printer: widget.printer,
                             status: _status,
                             onSurface: true,
@@ -1039,7 +1047,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                           // full tile's corner badge.
                           if (_status.connection != PrinterConnection.offline &&
                               pluginVersionIsOutdated(_status.pluginVersion))
-                            _PluginUpdateButton(
+                            TilePluginUpdateButton(
                               printer: widget.printer,
                               status: _status,
                               onSurface: true,
@@ -1072,7 +1080,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                               ),
                             ),
                             if (_status.connection == PrinterConnection.local)
-                              _TunnelStatusDot(ready: _status.tunnelReady),
+                              TileTunnelStatusDot(ready: _status.tunnelReady),
                           ],
                         ],
                       ),
@@ -1087,7 +1095,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                               : _singleToolheadTemps(l),
                         ),
                       if (_status.tempWatches.isNotEmpty)
-                        _TempWatchLine(printer: widget.printer, status: _status),
+                        TileTempWatchLine(printer: widget.printer, status: _status),
                     ],
                   )),
                   // Connection-state label when there's nothing live to show.
@@ -1172,7 +1180,7 @@ class _ActionRow extends StatelessWidget {
 
   /// Compact (webcam-hidden) tiles have no camera corner to host the lighting
   /// bulb, so they pass their printer here and the bulb leads this row's
-  /// buttons instead - same [_hasLighting] rule as the full tile's overlay.
+  /// buttons instead - same [printerHasLighting] rule as the full tile's overlay.
   /// The full tile leaves this null and keeps its bulb on the webcam.
   final PrinterConfig? lightPrinter;
 
@@ -1259,8 +1267,8 @@ class _ActionRow extends StatelessWidget {
           // ── Right: icon buttons ────────────────────────────────────────
           // Lighting bulb (compact tiles only - see [lightPrinter]). Leads
           // the cluster so pause/stop keep their accustomed spot at the end.
-          if (lightPrinter != null && _hasLighting(lightPrinter!)) ...[
-            _LightBulbButton(
+          if (lightPrinter != null && printerHasLighting(lightPrinter!)) ...[
+            TileLightBulbButton(
               printer: lightPrinter!,
               status: status,
               onSurface: true,
@@ -1366,7 +1374,7 @@ class _IdleLabel extends StatelessWidget {
 
 /// Connection-state label for a compact tile with no live reading (offline /
 /// connecting / starting up / waiting). Reuses the same strings the full tile's
-/// [_ConnectionProbe] shows, so the wording stays consistent across both.
+/// [TileConnectionProbe] shows, so the wording stays consistent across both.
 class _CompactStateLabel extends StatelessWidget {
   final String state; // 'offline' | 'connecting' | 'starting_up' | 'waiting'
   const _CompactStateLabel({required this.state});
@@ -1438,10 +1446,15 @@ class _Btn extends StatelessWidget {
 /// dialog; the double-tap is the safety. A single tap is swallowed
 /// (HitTestBehavior.opaque + a no-op onTap) so a stray touch neither halts the
 /// print nor opens the printer screen.
-class _EstopButton extends ConsumerWidget {
+class TileEstopButton extends ConsumerWidget {
   final String tooltip;
   final VoidCallback onFire;
-  const _EstopButton({required this.tooltip, required this.onFire});
+
+  /// Ring diameter before the display-size scale: the tile's compact 24, or
+  /// the Single-printer dashboard's larger header ring.
+  final double size;
+  const TileEstopButton(
+      {super.key, required this.tooltip, required this.onFire, this.size = 24});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1453,7 +1466,7 @@ class _EstopButton extends ConsumerWidget {
     // Scale the ring with the display-size slider so it tracks its icon (which
     // scales via applyTextScaling). Base kept compact - it was oversized and
     // frozen before.
-    final ring = MediaQuery.textScalerOf(context).scale(24);
+    final ring = MediaQuery.textScalerOf(context).scale(size);
     return Tooltip(
       message: tooltip,
       child: GestureDetector(
@@ -1470,7 +1483,7 @@ class _EstopButton extends ConsumerWidget {
             shape: BoxShape.circle,
             border: Border.all(color: c, width: 2),
           ),
-          child: Icon(Icons.warning_rounded, color: c, size: 14),
+          child: Icon(Icons.warning_rounded, color: c, size: size * 14 / 24),
         ),
       ),
     );
@@ -1481,10 +1494,14 @@ class _EstopButton extends ConsumerWidget {
 /// down (e.g. after an emergency stop): a single tap fires FIRMWARE_RESTART to
 /// bring the machine back online. Single tap, not double - recovery isn't
 /// destructive, so it doesn't need the accidental-press guard.
-class _RestartButton extends StatelessWidget {
+class TileRestartButton extends StatelessWidget {
   final String tooltip;
   final VoidCallback onTap;
-  const _RestartButton({required this.tooltip, required this.onTap});
+
+  /// Ring diameter before the display-size scale (see [TileEstopButton.size]).
+  final double size;
+  const TileRestartButton(
+      {super.key, required this.tooltip, required this.onTap, this.size = 24});
 
   @override
   Widget build(BuildContext context) {
@@ -1495,15 +1512,15 @@ class _RestartButton extends StatelessWidget {
         onTap: onTap,
         onLongPress: () {}, // swallow long-press - stays out of the preheat gesture
         child: Container(
-          width: MediaQuery.textScalerOf(context).scale(24),
-          height: MediaQuery.textScalerOf(context).scale(24),
+          width: MediaQuery.textScalerOf(context).scale(size),
+          height: MediaQuery.textScalerOf(context).scale(size),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: Colors.orange.withValues(alpha: 0.15),
             shape: BoxShape.circle,
             border: Border.all(color: Colors.orange, width: 2),
           ),
-          child: const Icon(Icons.restart_alt, color: Colors.orange, size: 14),
+          child: Icon(Icons.restart_alt, color: Colors.orange, size: size * 14 / 24),
         ),
       ),
     );
@@ -1521,7 +1538,7 @@ class _RestartButton extends StatelessWidget {
 // tile. When the UI type is unknown we fall back to a generic spinner /
 // wifi-off icon.
 
-class _ConnectionProbe extends StatelessWidget {
+class TileConnectionProbe extends StatelessWidget {
   /// 'connecting'  - first poll in flight
   /// 'starting_up' - Pi hasn't heartbeated to Supabase yet
   /// 'waiting'     - Pi reachable but its printer-side stack isn't
@@ -1530,7 +1547,7 @@ class _ConnectionProbe extends StatelessWidget {
   final String  state;
   final String? uiType; // 'mainsail' | 'fluidd' | null
 
-  const _ConnectionProbe({required this.state, this.uiType});
+  const TileConnectionProbe({super.key, required this.state, this.uiType});
 
   @override
   Widget build(BuildContext context) {
@@ -1637,9 +1654,9 @@ class _ConnectionProbe extends StatelessWidget {
 // the tile goes Local instantly, and the tunnel finishes establishing in the
 // background without blocking anything.
 
-class _TunnelStatusDot extends StatelessWidget {
+class TileTunnelStatusDot extends StatelessWidget {
   final bool ready;
-  const _TunnelStatusDot({required this.ready});
+  const TileTunnelStatusDot({super.key, required this.ready});
 
   @override
   Widget build(BuildContext context) {
@@ -1660,7 +1677,28 @@ class _TunnelStatusDot extends StatelessWidget {
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 
-class _StatusBadge extends StatefulWidget {
+/// The status badge's words and colour for a printer [state] - shared by the
+/// tile badge and the Single-printer dashboard's printer list.
+(String, Color) tileStatusLabel(AppLocalizations l, String state) =>
+    switch (state) {
+      'printing'    => (l.tilePrinting,        Colors.green),
+      'paused'      => (l.tilePaused,          Colors.orange),
+      'standby'     => (l.tileIdle,            Colors.blueGrey),
+      'complete'    => (l.tileDone,            Colors.teal),
+      'cancelled'   => (l.tileCancelled,       Colors.blueGrey),
+      'error'       => (l.tileError,           Colors.red),
+      // Klipper is reachable but hasn't finished initialising yet
+      'startup'     => (l.tileStarting,        Colors.blueGrey),
+      // Before the first poll completes
+      'connecting'  => (l.tileConnectingBadge, Colors.blueGrey),
+      // The Pi answers but Klipper doesn't / no heartbeat yet - the tile shows
+      // these on its camera overlay; the printer list needs words for them
+      'waiting'     => (l.tileConnected,       Colors.blueGrey),
+      'starting_up' => (l.tileStartingUp,      Colors.blueGrey),
+      _             => (l.tileOffline,         Colors.black54),
+    };
+
+class TileStatusBadge extends StatefulWidget {
   final PrinterConfig printer;
   final PrinterStatus status;
 
@@ -1668,17 +1706,18 @@ class _StatusBadge extends StatefulWidget {
   /// back to "Idle" without waiting a full cycle.
   final VoidCallback onCleared;
 
-  const _StatusBadge({
+  const TileStatusBadge({
+    super.key,
     required this.printer,
     required this.status,
     required this.onCleared,
   });
 
   @override
-  State<_StatusBadge> createState() => _StatusBadgeState();
+  State<TileStatusBadge> createState() => _StatusBadgeState();
 }
 
-class _StatusBadgeState extends State<_StatusBadge> {
+class _StatusBadgeState extends State<TileStatusBadge> {
   late final PrintControlService _control = PrintControlService(widget.printer);
   bool _clearing = false;
 
@@ -1712,19 +1751,7 @@ class _StatusBadgeState extends State<_StatusBadge> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    final (label, color) = switch (widget.status.state) {
-      'printing'   => (l.tilePrinting,      Colors.green),
-      'paused'     => (l.tilePaused,        Colors.orange),
-      'standby'    => (l.tileIdle,          Colors.blueGrey),
-      'complete'   => (l.tileDone,          Colors.teal),
-      'cancelled'  => (l.tileCancelled,     Colors.blueGrey),
-      'error'      => (l.tileError,         Colors.red),
-      // Klipper is reachable but hasn't finished initialising yet
-      'startup'    => (l.tileStarting,      Colors.blueGrey),
-      // Before the first poll completes
-      'connecting' => (l.tileConnectingBadge, Colors.blueGrey),
-      _            => (l.tileOffline,       Colors.black54),
-    };
+    final (label, color) = tileStatusLabel(l, widget.status.state);
     final pill = Container(
       padding: EdgeInsets.only(
           left: 8, right: _dismissable ? 5 : 8, top: 3, bottom: 3),
@@ -1962,11 +1989,12 @@ class _ToolheadChip extends StatelessWidget {
 // an old phone running an IP-webcam app. Watches the "show camera icons"
 // setting and renders nothing when it's off, so it never overlaps the feed.
 
-class _CameraConfigButton extends ConsumerWidget {
+class TileCameraConfigButton extends ConsumerWidget {
   final PrinterConfig printer;
   final VoidCallback onApplied;
 
-  const _CameraConfigButton({required this.printer, required this.onApplied});
+  const TileCameraConfigButton(
+      {super.key, required this.printer, required this.onApplied});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -2019,12 +2047,13 @@ class _CameraConfigButton extends ConsumerWidget {
 // dialog on tap - the override (or Mainsail's webcam entry) is the user's to
 // fix, never auto-edited.
 
-class _CameraDownNotice extends StatelessWidget {
+class TileCameraDownNotice extends StatelessWidget {
   final PrinterConfig printer;
   final bool configured;
   final VoidCallback onApplied;
-  const _CameraDownNotice(
-      {required this.printer,
+  const TileCameraDownNotice(
+      {super.key,
+      required this.printer,
       required this.configured,
       required this.onApplied});
 
@@ -2079,12 +2108,13 @@ class _CameraDownNotice extends StatelessWidget {
 // the pick persists per printer and pollNow re-resolves the feed immediately.
 // Same dark-chip chrome as the neighbouring gear.
 
-class _CameraSwitchButton extends StatelessWidget {
+class TileCameraSwitchButton extends StatelessWidget {
   final PrinterConfig printer;
   final PrinterStatus status;
   final VoidCallback onSwitched;
 
-  const _CameraSwitchButton({
+  const TileCameraSwitchButton({
+    super.key,
     required this.printer,
     required this.status,
     required this.onSwitched,
@@ -2130,10 +2160,10 @@ class _CameraSwitchButton extends StatelessWidget {
 // page first. Matches the corner-gear's chrome (same dark chip), eye dimmed so
 // it sits quietly over the feed.
 
-class _CameraExpandButton extends StatelessWidget {
+class TileCameraExpandButton extends StatelessWidget {
   final PrinterConfig printer;
 
-  const _CameraExpandButton({required this.printer});
+  const TileCameraExpandButton({super.key, required this.printer});
 
   @override
   Widget build(BuildContext context) {
@@ -2172,15 +2202,16 @@ class _CameraExpandButton extends StatelessWidget {
 // remote-update action. The one-tap path is refused while the printer is
 // mid-print (the update restarts Moonraker; not worth the gamble).
 
-class _PluginUpdateButton extends StatelessWidget {
+class TilePluginUpdateButton extends StatelessWidget {
   final PrinterConfig printer;
   final PrinterStatus status;
 
   /// True on the compact tile's name row (plain surface icon, no dark chip) -
-  /// same convention as [_PowerButton.onSurface].
+  /// same convention as [TilePowerButton.onSurface].
   final bool onSurface;
 
-  const _PluginUpdateButton({
+  const TilePluginUpdateButton({
+    super.key,
     required this.printer,
     required this.status,
     this.onSurface = false,
@@ -2306,7 +2337,7 @@ class _PluginUpdateButton extends StatelessWidget {
 //
 // A small bulb in the webcam's top-right corner, shown only when this printer
 // has lighting configured (enabled + at least an on/off pair or a toggle macro
-// - see [_hasLighting]). A tap runs the appropriate macro; the icon glows amber
+// - see [printerHasLighting]). A tap runs the appropriate macro; the icon glows amber
 // when the light is on and is dimmed when off. State comes from the configured
 // status object's live value ([PrinterStatus.lightOn]) when set, falling back
 // to tracking taps optimistically when it isn't. The tap flips the icon at once
@@ -2314,7 +2345,7 @@ class _PluginUpdateButton extends StatelessWidget {
 
 /// Whether to show the bulb for [p]: lighting enabled AND a usable control path
 /// (an on+off pair, or a single toggle macro).
-bool _hasLighting(PrinterConfig p) {
+bool printerHasLighting(PrinterConfig p) {
   if (!p.lightingEnabled) return false;
   final hasPair = (p.lightOnMacro?.isNotEmpty ?? false) &&
       (p.lightOffMacro?.isNotEmpty ?? false);
@@ -2322,25 +2353,26 @@ bool _hasLighting(PrinterConfig p) {
   return hasPair || hasToggle;
 }
 
-class _LightBulbButton extends StatefulWidget {
+class TileLightBulbButton extends StatefulWidget {
   final PrinterConfig printer;
   final PrinterStatus status;
 
   /// When true, render for the compact tile's action row: the same tinted
   /// rounded-square chrome as [_Btn] (folder/macros), instead of the dark
-  /// webcam-overlay chip. Same convention as [_PowerButton.onSurface].
+  /// webcam-overlay chip. Same convention as [TilePowerButton.onSurface].
   final bool onSurface;
-  const _LightBulbButton({
+  const TileLightBulbButton({
+    super.key,
     required this.printer,
     required this.status,
     this.onSurface = false,
   });
 
   @override
-  State<_LightBulbButton> createState() => _LightBulbButtonState();
+  State<TileLightBulbButton> createState() => _LightBulbButtonState();
 }
 
-class _LightBulbButtonState extends State<_LightBulbButton> {
+class _LightBulbButtonState extends State<TileLightBulbButton> {
   late final PrintControlService _control = PrintControlService(widget.printer);
 
   /// Optimistic target set the instant the user taps, so the icon flips
@@ -2361,7 +2393,7 @@ class _LightBulbButtonState extends State<_LightBulbButton> {
   }
 
   @override
-  void didUpdateWidget(covariant _LightBulbButton old) {
+  void didUpdateWidget(covariant TileLightBulbButton old) {
     super.didUpdateWidget(old);
     // Real state reached our optimistic target → hand control back to it.
     if (_pending != null && widget.status.lightOn == _pending) {
@@ -2519,10 +2551,11 @@ class _LightBulbButtonState extends State<_LightBulbButton> {
 // printer exposes a Moonraker power device (a [power …] section - any type).
 // Crucially it works while the printer it controls is OFF, because Moonraker
 // stays up: that's the "wake the printer from its idle/offline tile" case. A
-// tap asks to confirm (on or off) so it isn't fired by accident; the icon glows
-// green when on. Off is blocked mid-print for a locked_while_printing device.
+// tap opens a popup offering Turn on and Turn off, so it isn't fired by
+// accident and a stale reading can't trap the user; the icon glows green when
+// on. Greyed out while the printer is printing or paused (Paul, 17/09).
 
-class _PowerButton extends StatefulWidget {
+class TilePowerButton extends StatefulWidget {
   final PrinterConfig printer;
   final PrinterStatus status;
 
@@ -2530,17 +2563,18 @@ class _PowerButton extends StatefulWidget {
   /// theme-coloured icon with trailing space, instead of the dark webcam-overlay
   /// chip. Self-hides the same way when the printer has no power control.
   final bool onSurface;
-  const _PowerButton({
+  const TilePowerButton({
+    super.key,
     required this.printer,
     required this.status,
     this.onSurface = false,
   });
 
   @override
-  State<_PowerButton> createState() => _PowerButtonState();
+  State<TilePowerButton> createState() => _PowerButtonState();
 }
 
-class _PowerButtonState extends State<_PowerButton> {
+class _PowerButtonState extends State<TilePowerButton> {
   late final PrintControlService _control = PrintControlService(widget.printer);
 
   /// The power device this tile controls (the one named "printer" if present,
@@ -2570,7 +2604,7 @@ class _PowerButtonState extends State<_PowerButton> {
   }
 
   @override
-  void didUpdateWidget(covariant _PowerButton old) {
+  void didUpdateWidget(covariant TilePowerButton old) {
     super.didUpdateWidget(old);
     if (_macroMode) return; // macro mode tracks no Moonraker device
     // Re-fetch when the printer becomes reachable, or its Klipper state changes
@@ -2600,29 +2634,46 @@ class _PowerButtonState extends State<_PowerButton> {
     });
   }
 
-  Future<void> _confirmAndToggle() async {
+  /// Offer both directions: the one that changes the current state is the
+  /// filled button, the other stays available, so a stale on/off reading never
+  /// leaves the user unable to send the command they meant.
+  Future<void> _choosePowerAndSet() async {
     final d = _device;
-    if (d == null || _busy) return;
-    final target = !_displayOn;
+    if (d == null || _busy || _isPrinting) return;
+    final on = _displayOn;
     final l = AppLocalizations.of(context);
-    final confirmed = await showDialog<bool>(
+    final target = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(
-            target ? l.powerConfirmOn(d.name) : l.powerConfirmOff(d.name)),
+        title: Text(l.powerMacroChooseTitle(widget.printer.name)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop(ctx),
             child: Text(l.commonCancel),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(target ? l.powerTurnOn : l.powerTurnOff),
-          ),
+          if (on) ...[
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l.powerTurnOn),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l.powerTurnOff),
+            ),
+          ] else ...[
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l.powerTurnOff),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l.powerTurnOn),
+            ),
+          ],
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (target == null || !mounted) return;
     setState(() {
       _busy = true;
       _pending = target;
@@ -2649,7 +2700,7 @@ class _PowerButtonState extends State<_PowerButton> {
   // (the real state isn't knowable); a single-direction macro (off-only is the
   // common case - a Klipper power-off macro) confirms then runs that direction.
   Future<void> _macroTap() async {
-    if (_busy) return;
+    if (_busy || _isPrinting) return;
     final p = widget.printer;
     final l = AppLocalizations.of(context);
     final hasToggle = p.powerToggleMacro?.isNotEmpty ?? false;
@@ -2797,11 +2848,17 @@ class _PowerButtonState extends State<_PowerButton> {
 
   Widget _buildMacroButton() {
     final l = AppLocalizations.of(context);
+    final cs = Theme.of(context).colorScheme;
+    // Greyed out mid-print, like the device button.
     return _chrome(
-      tooltip: l.powerMacroTooltip,
-      onTap: _busy ? null : _macroTap,
-      overlayIconColor: Colors.white.withValues(alpha: 0.85),
-      surfaceIconColor: Theme.of(context).colorScheme.onSurfaceVariant,
+      tooltip: _isPrinting ? l.powerLockedWhilePrinting : l.powerMacroTooltip,
+      onTap: _busy || _isPrinting ? null : _macroTap,
+      overlayIconColor: _isPrinting
+          ? Colors.white24
+          : Colors.white.withValues(alpha: 0.85),
+      surfaceIconColor: _isPrinting
+          ? cs.onSurface.withValues(alpha: 0.3)
+          : cs.onSurfaceVariant,
     );
   }
 
@@ -2813,16 +2870,16 @@ class _PowerButtonState extends State<_PowerButton> {
     if (_device == null) return const SizedBox.shrink();
     final l = AppLocalizations.of(context);
     final on = _displayOn;
-    // Moonraker refuses to cut a locked device mid-print, so grey-out the off
-    // action then rather than let the tap fail.
-    final blocked = on && _isPrinting && _device!.lockedWhilePrinting;
+    // Greyed out whenever the printer is busy printing or paused - not just
+    // for a locked_while_printing device - so power can't be cut mid-job.
+    final blocked = _isPrinting;
     final enabled = !_busy && !blocked;
     final cs = Theme.of(context).colorScheme;
     return _chrome(
       tooltip: blocked
           ? l.powerLockedWhilePrinting
           : (on ? l.powerTurnOff : l.powerTurnOn),
-      onTap: enabled ? _confirmAndToggle : null,
+      onTap: enabled ? _choosePowerAndSet : null,
       overlayIconColor: !enabled
           ? Colors.white24
           : on
@@ -2940,10 +2997,10 @@ Future<bool?> showCameraConfigDialog(
 // "Waiting for temperature", "Cool-down alert armed". Tapping it offers to
 // cancel that watch - the escape hatch for a preheat that should not start
 // the print after all. Refreshes with every status poll.
-class _TempWatchLine extends StatelessWidget {
+class TileTempWatchLine extends StatelessWidget {
   final PrinterConfig printer;
   final PrinterStatus status;
-  const _TempWatchLine({required this.printer, required this.status});
+  const TileTempWatchLine({super.key, required this.printer, required this.status});
 
   @override
   Widget build(BuildContext context) {

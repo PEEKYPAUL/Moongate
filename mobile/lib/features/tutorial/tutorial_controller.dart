@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../providers/settings_provider.dart';
 import 'tutorial_anchors.dart';
 
 /// One step of the live walkthrough.
@@ -83,6 +84,10 @@ class TutorialController extends Notifier<TutorialState> {
   /// dashboard tile fakes the matching state for each step and restores after.
   List<TutorialStep> _buildSteps() {
     final a = TutorialAnchors.instance;
+    // The Single-printer dashboard has no floating add-printer button and no
+    // column picker, so those two steps sit out there; its header, camera,
+    // temperatures and buttons carry the same anchors as the first tile.
+    final single = ref.read(dashboardModeProvider) == DashboardMode.single;
     return [
       TutorialStep(id: 'localBar', anchors: [a.connectionBar, a.connectionLabel]),
       TutorialStep(id: 'tunnelBar', anchors: [a.connectionBar, a.connectionLabel]),
@@ -103,7 +108,7 @@ class TutorialController extends Notifier<TutorialState> {
       // scrim and floats the card above the sheet.
       TutorialStep(id: 'preheatPress', anchors: [a.preheatArea]),
       const TutorialStep(id: 'preheatSheet', dimScreen: false, forceCardTop: true),
-      TutorialStep(id: 'addPrinter', anchors: [a.addPrinter]),
+      if (!single) TutorialStep(id: 'addPrinter', anchors: [a.addPrinter]),
       // Hamburger menu. First point at the menu button (drawer still closed),
       // then the drawer opens and we walk its entries top to bottom; the
       // dashboard auto-scrolls each entry into view.
@@ -111,7 +116,8 @@ class TutorialController extends Notifier<TutorialState> {
       TutorialStep(id: 'menuPrinters', anchors: [a.menuPrinters], requiresDrawer: true),
       TutorialStep(id: 'menuBackup', anchors: [a.menuBackup], requiresDrawer: true),
       TutorialStep(id: 'menuDisplaySize', anchors: [a.menuDisplaySize], requiresDrawer: true),
-      TutorialStep(id: 'menuColumns', anchors: [a.menuColumns], requiresDrawer: true),
+      if (!single)
+        TutorialStep(id: 'menuColumns', anchors: [a.menuColumns], requiresDrawer: true),
       TutorialStep(id: 'menuCameras', anchors: [a.menuCameras], requiresDrawer: true),
       TutorialStep(id: 'menuLanguage', anchors: [a.menuLanguage], requiresDrawer: true),
     ];

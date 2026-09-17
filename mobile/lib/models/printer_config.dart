@@ -785,6 +785,18 @@ class PrinterStatus {
   /// plugins. The tile shows one line for them ("Soaking · 12 min left").
   final List<TempWatchInfo> tempWatches;
 
+  /// Toolhead position `[x, y, z]` in mm (Moonraker's `toolhead.position`) and
+  /// the homed axes (`toolhead.homed_axes`, e.g. 'xyz'). Only fetched for the
+  /// printer on the Single-printer dashboard (see
+  /// PrinterStatusService.wantPosition); null elsewhere or until known.
+  final List<double>? position;
+  final String?       homedAxes;
+
+  /// `print_stats.info.current_layer` / `total_layer` - present only when the
+  /// slicer reports layers (SET_PRINT_STATS_INFO). Null otherwise.
+  final int? currentLayer;
+  final int? totalLayer;
+
   const PrinterStatus({
     required this.state,
     required this.progress,
@@ -816,6 +828,10 @@ class PrinterStatus {
     this.customCameraDown = false,
     this.configuredCameraDown = false,
     this.tempWatches = const [],
+    this.position,
+    this.homedAxes,
+    this.currentLayer,
+    this.totalLayer,
   });
 
   bool get isPrinting => state == 'printing' || state == 'paused';
@@ -855,6 +871,10 @@ class PrinterStatus {
     bool? customCameraDown,
     bool? configuredCameraDown,
     List<TempWatchInfo>? tempWatches,
+    List<double>? position,
+    String? homedAxes,
+    int? currentLayer,
+    int? totalLayer,
   }) {
     return PrinterStatus(
       state:            state ?? this.state,
@@ -887,6 +907,10 @@ class PrinterStatus {
       customCameraDown: customCameraDown ?? this.customCameraDown,
       configuredCameraDown: configuredCameraDown ?? this.configuredCameraDown,
       tempWatches: tempWatches ?? this.tempWatches,
+      position:     position ?? this.position,
+      homedAxes:    homedAxes ?? this.homedAxes,
+      currentLayer: currentLayer ?? this.currentLayer,
+      totalLayer:   totalLayer ?? this.totalLayer,
     );
   }
 

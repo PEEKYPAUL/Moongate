@@ -55,6 +55,8 @@ void main() async {
   await container.read(dashboardButtonsProvider.notifier).load();
   await container.read(tileEtaProvider.notifier).load();
   await container.read(tileEtaFormatProvider.notifier).load();
+  await container.read(dashboardModeProvider.notifier).load();
+  await container.read(singleDashboardPrinterProvider.notifier).load();
   await container.read(showLocalOnlyButtonProvider.notifier).load();
   await container.read(localOnlyProvider.notifier).load();
 
