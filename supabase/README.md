@@ -91,10 +91,10 @@ Expect two rows.
 ```sql
 SELECT relname, relrowsecurity, relforcerowsecurity
 FROM pg_class
-WHERE relname IN ('printers', 'enrollment_tokens', 'feedback', 'restore_grants');
+WHERE relname IN ('printers', 'enrollment_tokens', 'feedback', 'restore_grants', 'device_push_tokens');
 ```
 
-All four rows should show `relrowsecurity = t`. (`feedback` and `restore_grants` were added in v0.6.x and are locked down the same way - RLS on, all client privileges revoked, writes only via Edge Functions.)
+All five rows should show `relrowsecurity = t`. (`feedback`, `restore_grants` and `device_push_tokens` were added in v0.6.x and are locked down the same way - RLS on, all client privileges revoked, writes only via Edge Functions.)
 
 ### 3.3 Cron job scheduled
 
@@ -115,6 +115,40 @@ SELECT public.moongate_cleanup_inactive();
 
 You should see `NOTICE: moongate_cleanup: 0 stale, 0 revoked, 0 tokens` in
 the output (empty tables, nothing to clean).
+
+### 3.5 Table grants are explicit
+
+Supabase stopped granting Data API access to **new** tables in `public`
+automatically (new projects since 30 May 2026, existing projects from
+30 October 2026). Existing tables keep what they hold, so nothing changed on
+the live project, but a rebuild from `migrations/` (a new project, a preview
+branch, a local `supabase db reset`) would come up with tables nobody can
+reach unless the grants are in the migrations. Since
+`20260923120000_explicit_table_grants.sql` they are, and that file documents
+the whole posture in one place.
+
+```sql
+SELECT table_name, grantee,
+       string_agg(privilege_type, ',' ORDER BY privilege_type) AS privs
+FROM information_schema.role_table_grants
+WHERE table_schema = 'public'
+  AND grantee IN ('anon', 'authenticated', 'service_role')
+GROUP BY table_name, grantee
+ORDER BY table_name, grantee;
+```
+
+Expect exactly six rows and nothing for `anon`: `service_role` with
+`DELETE,INSERT,SELECT,UPDATE` on each of the five tables, and `authenticated`
+with `SELECT` on `printers` only (the app's anonymous session, filtered by the
+"select own printers" policy). The Pi never touches the Data API; it only calls
+Edge Functions, which use `service_role` and the `SECURITY DEFINER` RPCs.
+
+**Rule for every new table:** the migration that creates it also carries its
+`GRANT`s, enables row-level security and defines the policies - all three in
+the same file, as one unit. A missing grant shows up as `permission denied`
+from the Data API even when RLS would allow the row. No sequences are needed
+while every primary key stays a `uuid`; a `serial` or identity column would
+also need `GRANT USAGE, SELECT ON SEQUENCE`.
 
 ---
 
