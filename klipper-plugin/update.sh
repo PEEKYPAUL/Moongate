@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# Moongate - post-update hook
+# Moongate - post-update chores, the manual edition
 #
-# Called automatically by Moonraker's update manager after every git pull.
-# Ensures the plugin symlink is in place and refreshes the QR pair page.
-# Does NOT re-install cloudflared or the systemd service - those only run
-# once during the initial install.sh.
+# Moonraker does NOT run this file. The [update_manager] install_script
+# option it is registered under is deprecated and only scanned for PKGLIST
+# lines (Moonraker's docs: "Moonraker will not run this script"), so a
+# panel or badge update is a git pull plus a Moonraker restart and nothing
+# more. Since plugin 0.6.28 the chores here that need no sudo (symlink, git
+# exclude, pair page, moonraker.asvc, macro blocks) also run inside the
+# plugin every time Moonraker starts. Run this by hand after a git pull for
+# the one chore that needs root, the pre-0.6.14 authproxy log migration:
+#     bash ~/moongate/klipper-plugin/update.sh
+# It never restarts services itself, and never touches cloudflared or the
+# systemd units beyond that migration - those belong to install.sh.
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
