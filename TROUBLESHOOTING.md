@@ -75,7 +75,13 @@ Plugin versions before **0.6.14** kept the remote-access proxy's request log on 
 df -h /run
 ```
 
-If it shows 100% (and `du -sh /run/*` blames `moongate-authproxy.log`), that's this. Fix: **update the Moongate plugin to 0.6.14 or later** (Mainsail → Machine → Software Updates), which stops the log growing for good, then **reboot the Pi once** to empty the memory disk. After that it can't recur: the proxy now logs almost nothing, and what it does log goes to the system journal, which cleans up after itself.
+If it shows 100% (and `du -sh /run/*` blames `moongate-authproxy.log`), that's this. Fix: with the plugin on 0.6.14 or later, run the update chores **once by hand** over SSH (this step edits the proxy's service file, so it needs `sudo`, which is why a panel update cannot do it for you), then **reboot the Pi once** to empty the memory disk:
+
+```bash
+bash ~/moongate/klipper-plugin/update.sh
+```
+
+Re-running the installer does the same. After that it can't recur: the proxy now logs almost nothing, and what it does log goes to the system journal, which cleans up after itself. (Until 25 September 2026 this page said a plugin update alone fixed it; it does not, because Moonraker never runs Moongate's update script, it only restarts Moonraker after the pull.)
 
 ## All your printers suddenly show offline (and you use a VPN)
 
@@ -545,7 +551,7 @@ The usual cause: `http_port` points at **Moonraker directly (port 7125)**, which
 
 **Cause:** Moonraker only loads components from its own `moonraker/components/` folder, so every add-on has to put a file there, and the installer links `moongate.py` into it. Moonraker's update manager then runs `git status` inside its own checkout and lists any `.py` file git doesn't know about. It is an observation, not a fault: Moonraker still updates normally and the plugin is unaffected.
 
-**Fix:** Installs made from 25 September 2026 register the link in git's per-clone ignore list, `~/moonraker/.git/info/exclude` (never committed, untouched by Moonraker updates), so the badge never appears. An existing install picks that up the next time you update Moongate from the panel (the update hook adds the line). To clear it right now, or for another add-on's file, add the path to the same file:
+**Fix:** From plugin **0.6.28** the plugin adds the line itself every time Moonraker starts, so any install picks it up on its next Moongate update (Mainsail/Fluidd → Software Update, or the app's amber plugin badge; the update restarts Moonraker). Installs made from 25 September 2026 have it from the installer as well. The line lives in git's per-clone ignore list, `~/moonraker/.git/info/exclude`, never committed and untouched by Moonraker's own updates. On an older plugin, or for another add-on's file, add the path by hand:
 
 ```bash
 echo "/moonraker/components/moongate.py" >> ~/moonraker/.git/info/exclude
