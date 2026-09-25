@@ -19,7 +19,13 @@
 /// Start-print dialog's preheat-and-soak-then-start and "ready to remove"
 /// alerts and the MOONGATE_TEMP_NOTIFY macro - so those rows only appear for
 /// a printer that has taken it (models/temp_watch.dart, kTempWatchMinPlugin).
-const String kCurrentPluginVersion = '0.6.27';
+///
+/// 0.6.28 runs the post-update chores inside the plugin at every Moonraker
+/// start, because Moonraker never runs update.sh: the .git/info/exclude
+/// line that keeps the Software Update panel quiet, the moonraker.asvc
+/// entry the tunnel watchdog needs, and a fresh copy of the pairing page.
+/// Nothing in the app keys off it; the badge simply carries the fleet there.
+const String kCurrentPluginVersion = '0.6.28';
 
 /// True when [reported] is an older plugin version than
 /// [kCurrentPluginVersion]. A null/empty [reported] is a pre-v0.6.4 plugin

@@ -19,6 +19,11 @@ Supabase Edge Functions. The Pi:
 
 Deploy as ~/moonraker/moonraker/components/moongate.py (install.sh symlinks).
 
+Post-update chores run HERE, at component load (0.6.28+): Moonraker never
+executes an extension's install_script (it only scans it for PKGLIST
+lines), so klipper-plugin/update.sh is a manual tool and everything that
+must follow a git pull without sudo lives in _post_update_chores().
+
 Endpoints registered:
   POST /server/moongate/pair          - start a pairing session (called by macro)
   GET  /server/moongate/qr            - return the current QR URL
@@ -118,7 +123,7 @@ logger = logging.getLogger("moonraker.moongate")
 # Bumped on each release; surfaced in the /status response so the app's bug
 # reports show which plugin a Pi is actually running - the #1 triage blind spot
 # (an old plugin explains most "works on LAN / fails over tunnel" reports).
-MOONGATE_PLUGIN_VERSION = "0.6.27"
+MOONGATE_PLUGIN_VERSION = "0.6.28"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1919,6 +1924,127 @@ def _self_update_decision(status: Optional[int], body: Any) -> Optional[bool]:
 # Plugin entry point
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# Post-update chores (0.6.28) - the pieces of klipper-plugin/update.sh that
+# need no sudo, run by the plugin itself every time Moonraker starts.
+#
+# Moonraker's update manager never executes an extension's install_script:
+# the option is deprecated and only scanned for PKGLIST lines (its docs:
+# "Moonraker will not run this script"). So a panel or badge update is a
+# `git pull` plus a Moonraker restart and nothing else - every migration
+# update.sh carried since 0.6.14 only ever ran where someone re-ran
+# install.sh or invoked update.sh by hand. Component load is the one hook
+# every update path shares, so the idempotent chores on user-owned files
+# live here. The authproxy journal migration needs root and stays in
+# update.sh.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _has_line(path: Path, line: str) -> bool:
+    try:
+        return any(entry.strip() == line
+                   for entry in path.read_text(encoding="utf-8").splitlines())
+    except OSError:
+        return False
+
+
+def _append_line(path: Path, line: str) -> None:
+    """Append `line` to `path` (creating it), never gluing it onto a last
+    line that lacks its newline - seen in the field with another tool's
+    moonraker.asvc entry, where a bare append corrupted both names."""
+    text = path.read_text(encoding="utf-8") if path.exists() else ""
+    if text and not text.endswith("\n"):
+        text += "\n"
+    path.write_text(text + line + "\n", encoding="utf-8")
+
+
+def moonraker_git_exclude_file(component_path: Path) -> Optional[Path]:
+    """The .git/info/exclude of the Moonraker checkout `component_path` sits
+    in (this file as Moonraker imported it: the symlink, never its target),
+    or None when it is not inside a git checkout - package and vendor
+    installs never show the untracked-files note. Understands a `.git` file
+    (worktree, submodule) as well as the usual directory."""
+    root = component_path.absolute().parent.parent.parent
+    git  = root / ".git"
+    if git.is_dir():
+        return git / "info" / "exclude"
+    if not git.is_file():
+        return None
+    try:
+        head = git.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    if not head.startswith("gitdir:"):
+        return None
+    gitdir = Path(head[len("gitdir:"):].strip())
+    if not gitdir.is_absolute():
+        gitdir = root / gitdir
+    parts = gitdir.parts
+    if "worktrees" in parts:
+        # A worktree's own dir carries no info/; git reads the common dir's.
+        gitdir = Path(*parts[:parts.index("worktrees")])
+    return gitdir / "info" / "exclude"
+
+
+def ensure_moonraker_git_exclude(component_path: Path) -> Optional[bool]:
+    """Put this component's path on Moonraker's per-clone ignore list so its
+    Software Update panel stops reporting "Repo has untracked source files"
+    (the panel re-reads the repo on its next refresh). The list is never
+    committed, Moonraker's own pulls never touch it, and an ignored file
+    also survives the `git clean -d -f` of a hard recovery. Returns True
+    when the line was added, False when it was already there, None when
+    there is nothing to do (no git checkout, unexpected layout)."""
+    parts = component_path.absolute().parts
+    if len(parts) < 3 or parts[-3:-1] != ("moonraker", "components"):
+        return None
+    exclude = moonraker_git_exclude_file(component_path)
+    if exclude is None:
+        return None
+    line = "/moonraker/components/" + parts[-1]
+    if _has_line(exclude, line):
+        return False
+    exclude.parent.mkdir(parents=True, exist_ok=True)
+    _append_line(exclude, line)
+    return True
+
+
+def ensure_asvc_entry(asvc_file: Path, unit_file: Path,
+                      name: str = "moongate-tunnel") -> Optional[bool]:
+    """List the tunnel unit in moonraker.asvc so the tunnel watchdog may ask
+    Moonraker to restart it - Moonraker only touches units listed there and
+    reads the file when it starts. Only where the unit exists (a LAN-only
+    box has none). True = added, False = present, None = no unit."""
+    if not unit_file.is_file():
+        return None
+    if _has_line(asvc_file, name):
+        return False
+    _append_line(asvc_file, name)
+    return True
+
+
+def refresh_pair_page(src: Path, webroots: list) -> list:
+    """Copy the QR pairing page into every web root that exists when the
+    copy there is missing or differs (a Mainsail/Fluidd update replaces its
+    folder, and before 0.6.28 a panel update of Moongate never re-copied
+    the page). Returns the paths written."""
+    try:
+        data = src.read_bytes()
+    except OSError:
+        return []
+    written: list = []
+    for root in webroots:
+        if not root.is_dir():
+            continue
+        dest = root / src.name
+        try:
+            if dest.is_file() and dest.read_bytes() == data:
+                continue
+            dest.write_bytes(data)
+            written.append(dest)
+        except OSError as exc:
+            logger.warning("Moongate: could not refresh %s: %s", dest, exc)
+    return written
+
+
 def load_component(config: Any) -> "MoongatePlugin":
     return MoongatePlugin(config)
 
@@ -2095,6 +2221,8 @@ class MoongatePlugin:
         # a moongate.cfg written by an older installer gains the new macro.
         self._temp_watch_ensure_loop()
         self._refresh_macros_cfg()
+        # 0.6.28: what update.sh would do if Moonraker ran it (it never does).
+        self._post_update_chores()
 
     # ── Config ────────────────────────────────────────────────────────────────
 
@@ -2140,7 +2268,7 @@ class MoongatePlugin:
         """Restart moongate-tunnel through Moonraker's machine component - the
         same allowed-services path the web UIs use for service buttons, so no
         sudoers of our own. Needs `moongate-tunnel` in moonraker.asvc
-        (install.sh writes it; update.sh migrates existing installs). Called
+        (install.sh writes it; the plugin adds it at load since 0.6.28). Called
         sync from the heartbeat loop; the real work runs on the event loop."""
 
         async def _do() -> None:
@@ -2152,18 +2280,18 @@ class MoongatePlugin:
                     "URL reaches the cloud with the next heartbeat")
             except Exception as exc:
                 if "not allowed" in str(exc).lower():
-                    # Moonraker refused: moonraker.asvc lacks our entry (an
-                    # install that predates the watchdog and has not run
-                    # update.sh). Permanent for this session - disable, so the
-                    # loop does not strike/heal forever without being able to
-                    # act.
+                    # Moonraker refused: moonraker.asvc lacked our entry when
+                    # Moonraker read it at startup (an install that predates
+                    # the watchdog; 0.6.28 adds the line at load, honoured
+                    # from the next restart). Permanent for this session -
+                    # disable, so the loop does not strike/heal forever
+                    # without being able to act.
                     logger.error(
                         "Tunnel watchdog: Moonraker refused to manage "
                         "moongate-tunnel (%s). Add a 'moongate-tunnel' line "
-                        "to ~/printer_data/moonraker.asvc and restart "
-                        "Moonraker, or update via Mainsail's Software "
-                        "Updates (which runs the migration). Watchdog "
-                        "disabled until then.", exc)
+                        "to ~/printer_data/moonraker.asvc (plugin 0.6.28+ "
+                        "does that itself) and restart Moonraker once more. "
+                        "Watchdog disabled until then.", exc)
                     self.tunnel_watchdog = None
                     if self.heartbeat is not None:
                         self.heartbeat.watchdog = None
@@ -2885,6 +3013,77 @@ class MoongatePlugin:
             logger.info("Moongate: added %s to %s - restart Klipper to load them",
                         ", ".join(self._macros_added), cfg)
             return
+
+    def _post_update_chores(self) -> None:
+        """0.6.28: the no-sudo half of klipper-plugin/update.sh, run at every
+        component load because Moonraker never runs that script (see the
+        module comment above load_component). Each chore stands alone and
+        is best effort; a failure is logged, never fatal."""
+        here = Path(__file__)
+        try:
+            if ensure_moonraker_git_exclude(here):
+                logger.info("Moongate: added /moonraker/components/%s to "
+                            "Moonraker's .git/info/exclude - the Software "
+                            "Update panel drops its 'untracked source files' "
+                            "note at its next refresh", here.name)
+        except Exception as exc:
+            logger.warning("Moongate: could not update Moonraker's git "
+                           "exclude: %s", exc)
+        try:
+            asvc = self._printer_data_dir() / "moonraker.asvc"
+            unit = Path("/etc/systemd/system/moongate-tunnel.service")
+            if ensure_asvc_entry(asvc, unit):
+                now = self._allow_service_now("moongate-tunnel")
+                logger.info("Moongate: added moongate-tunnel to %s - the tunnel "
+                            "watchdog can self-heal %s", asvc,
+                            "from now on" if now else
+                            "from Moonraker's next restart")
+        except Exception as exc:
+            logger.warning("Moongate: could not update moonraker.asvc: %s", exc)
+        try:
+            src  = here.resolve().parent / "moongate-pair.html"
+            home = Path.home()
+            roots = [home / "mainsail", self._printer_data_dir() / "www",
+                     home / "printer_data" / "www", home / "fluidd"]
+            seen: list = []
+            for root in roots:
+                if root not in seen:
+                    seen.append(root)
+            for dest in refresh_pair_page(src, seen):
+                logger.info("Moongate: refreshed %s", dest)
+        except Exception as exc:
+            logger.warning("Moongate: could not refresh the pairing page: %s",
+                           exc)
+
+    def _allow_service_now(self, name: str) -> bool:
+        """Moonraker reads moonraker.asvc once, at startup - before this
+        component wrote its line on a first run. Add the unit to the running
+        machine component's list as well, so the watchdog is not refused
+        until the next restart. The list is Moonraker-private, hence the
+        guard: if it is not the plain list it has always been, do nothing
+        and let the file take effect on the next restart."""
+        try:
+            machine: Any = self.server.lookup_component("machine")
+            if machine.is_service_allowed(name):
+                return True
+            allowed = getattr(machine, "_allowed_services", None)
+            if isinstance(allowed, list):
+                allowed.append(name)
+                return True
+        except Exception:
+            pass
+        return False
+
+    def _printer_data_dir(self) -> Path:
+        """Moonraker's data path (printer_data), from its own arguments when
+        it says, else the MainsailOS default."""
+        try:
+            data_path = (self.server.get_app_args() or {}).get("data_path")
+            if data_path:
+                return Path(data_path)
+        except Exception:
+            pass
+        return Path.home() / "printer_data"
 
     async def _do_factory_reset(self) -> tuple[bool, int]:
         """Shared reset path used by the macro and the HTTP endpoint:
