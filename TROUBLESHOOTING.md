@@ -539,6 +539,20 @@ The usual cause: `http_port` points at **Moonraker directly (port 7125)**, which
 
 **Fix:** point Moongate at the origin that serves the Mainsail/Fluidd page *and* proxies `/server`, `/websocket`, `/printer` to Moonraker. Quickest is in the app - open the printer, tap ✏️, and set **Printer address** to the address you open the web page at. Server-side, set `http_port` to that same port and restart Moonraker. Then re-open the printer.
 
+## Software Update panel says Moonraker has "untracked source files" (`moongate.py`)
+
+**Symptom:** In Mainsail/Fluidd → **Settings → Software Update**, the **Moonraker** entry (not the Moongate one) carries an info badge reading `Repo has untracked source files: ['moonraker/components/moongate.py']`, sometimes with other add-ons in the same list (`timelapse.py` is a common neighbour).
+
+**Cause:** Moonraker only loads components from its own `moonraker/components/` folder, so every add-on has to put a file there, and the installer links `moongate.py` into it. Moonraker's update manager then runs `git status` inside its own checkout and lists any `.py` file git doesn't know about. It is an observation, not a fault: Moonraker still updates normally and the plugin is unaffected.
+
+**Fix:** Installs made from 25 September 2026 register the link in git's per-clone ignore list, `~/moonraker/.git/info/exclude` (never committed, untouched by Moonraker updates), so the badge never appears. An existing install picks that up the next time you update Moongate from the panel (the update hook adds the line). To clear it right now, or for another add-on's file, add the path to the same file:
+
+```bash
+echo "/moonraker/components/moongate.py" >> ~/moonraker/.git/info/exclude
+```
+
+Then press **Refresh** in the Software Update panel: Moonraker only re-reads its own repo when it refreshes (that button, or its own schedule, weekly by default), so the badge can outlive the fix by a while otherwise.
+
 ## Software Update panel shows an `inferred` version for Moongate
 
 **Symptom:** In Mainsail/Fluidd → **Settings → Software Update**, the Moongate entry shows something like `v0.0.0-1-gff62f74f-inferred` or a bare commit hash instead of a clean `v0.6.5`.

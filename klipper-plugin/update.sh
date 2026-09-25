@@ -21,10 +21,37 @@ PLUGIN_SRC="$SCRIPT_DIR/moongate_standalone.py"
 MOONRAKER_DIR="${MOONRAKER_DIR:-$HOME/moonraker}"
 COMPONENTS_DIR="$MOONRAKER_DIR/moonraker/components"
 
+# Moonraker's update manager runs `git status` inside its own checkout and
+# reports every untracked *.py it finds there in the Software Update panel:
+#   "Repo has untracked source files: ['moonraker/components/moongate.py']"
+# An anomaly, not an error (updates still run), but our symlink is exactly
+# such a file. git's per-clone ignore list, .git/info/exclude, is the clean
+# answer: it is never committed, `git pull` never touches it, and an ignored
+# path also survives the `git clean -d -f` Moonraker runs during a hard
+# recovery. Skipped silently when Moonraker is not a git checkout (a package
+# or vendor install shows no such warning).
+MOONRAKER_EXCLUDE_LINE="/moonraker/components/moongate.py"
+exclude_plugin_from_moonraker_git() {
+    local exclude_file
+    exclude_file="$(git -C "$MOONRAKER_DIR" rev-parse --git-path info/exclude 2>/dev/null)" || return 0
+    [[ -n "$exclude_file" ]] || return 0
+    [[ "$exclude_file" == /* ]] || exclude_file="$MOONRAKER_DIR/$exclude_file"
+    if grep -qxF "$MOONRAKER_EXCLUDE_LINE" "$exclude_file" 2>/dev/null; then
+        return 0
+    fi
+    if mkdir -p "$(dirname "$exclude_file")" 2>/dev/null \
+        && echo "$MOONRAKER_EXCLUDE_LINE" >> "$exclude_file" 2>/dev/null; then
+        ok "Moonraker's git checkout now ignores the plugin link (no 'untracked source files' warning)"
+    else
+        warn "Could not write $exclude_file - Moonraker's Software Update panel may list moongate.py as an untracked file (harmless)."
+    fi
+}
+
 # ── 1. Re-create symlink (in case it was removed) ────────────────────────────
 if [[ -d "$COMPONENTS_DIR" ]]; then
     ln -sf "$PLUGIN_SRC" "$COMPONENTS_DIR/moongate.py"
     ok "Plugin symlink updated → $COMPONENTS_DIR/moongate.py"
+    exclude_plugin_from_moonraker_git
 else
     warn "Moonraker components dir not found at $COMPONENTS_DIR"
     warn "Set MOONRAKER_DIR= if Moonraker is installed elsewhere."
