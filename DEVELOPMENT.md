@@ -192,6 +192,8 @@ cd Moongate/klipper-plugin
 ./install.sh
 ```
 
+The plugin reaches Moonraker as a **symlink**, `~/moonraker/moonraker/components/moongate.py` → `klipper-plugin/moongate_standalone.py`, so a `git pull` of the clone is the update. Moonraker's update manager runs `git status` in its own checkout and would flag that link as an untracked source file in the Software Update panel, so `install.sh` also writes the link's path to Moonraker's per-clone ignore list, `.git/info/exclude` (never committed, survives Moonraker's own updates and its hard-recovery `git clean`). `update.sh`, the update-manager hook, re-asserts both after every pull; `uninstall.sh` removes both. See [TROUBLESHOOTING.md](TROUBLESHOOTING.md#software-update-panel-says-moonraker-has-untracked-source-files-moongatepy).
+
 To develop against the cloud-free path (v0.9.51's Direct mode), install the box in **LAN-only mode** instead - no cloudflared, no auth proxy, no clock check, and the plugin's `lan_only` config flag set so `/status` + `/control` are token-free on the LAN. Run interactively with no flag, the installer asks which mode you want (the default keeps an already-installed box's current mode, so an idle Enter never converts anything); to preselect and skip the question:
 
 ```bash
