@@ -24,14 +24,15 @@ void main() {
     });
   });
 
-  group('the 0.6.27 badge line this release ships', () {
-    test('everything before 0.6.27 nudges, 0.6.27+ does not', () {
+  group('the 0.6.28 badge line this release ships', () {
+    test('everything before 0.6.28 nudges, 0.6.28+ does not', () {
       expect(pluginVersionIsOutdated('0.6.22'), isTrue);
       expect(pluginVersionIsOutdated('0.6.24'), isTrue);
       expect(pluginVersionIsOutdated('0.6.25'), isTrue);
       expect(pluginVersionIsOutdated('0.6.26'), isTrue);
-      expect(pluginVersionIsOutdated('0.6.27'), isFalse);
+      expect(pluginVersionIsOutdated('0.6.27'), isTrue);
       expect(pluginVersionIsOutdated('0.6.28'), isFalse);
+      expect(pluginVersionIsOutdated('0.6.29'), isFalse);
     });
   });
 }
