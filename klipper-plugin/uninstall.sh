@@ -235,6 +235,20 @@ if [[ -e "$COMPONENTS_DIR/moongate.py" ]]; then
 else
     warn "Plugin not found at $COMPONENTS_DIR/moongate.py"
 fi
+# install.sh / update.sh add the link's path to Moonraker's per-clone ignore
+# list (.git/info/exclude) so the Software Update panel doesn't flag it as an
+# untracked source file. Take that line out again; everything else there stays.
+exclude_file="$(git -C "$MOONRAKER_DIR" rev-parse --git-path info/exclude 2>/dev/null || true)"
+if [[ -n "$exclude_file" ]]; then
+    [[ "$exclude_file" == /* ]] || exclude_file="$MOONRAKER_DIR/$exclude_file"
+    if [[ -f "$exclude_file" ]] && grep -qxF "/moonraker/components/moongate.py" "$exclude_file"; then
+        if sed -i '\|^/moonraker/components/moongate\.py$|d' "$exclude_file"; then
+            success "Removed the plugin's ignore line from $exclude_file"
+        else
+            warn "Could not edit $exclude_file - remove the moongate.py line by hand (harmless if left)"
+        fi
+    fi
+fi
 
 # ── 3. Remove repo clone ──────────────────────────────────────────────────────
 info "Removing repo clone at $MOONGATE_DIR..."
