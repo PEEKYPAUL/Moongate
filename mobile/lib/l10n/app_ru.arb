@@ -410,6 +410,7 @@
   "printerAddressCleared": "Свой адрес сброшен",
   "printerAddressUpdated": "Адрес принтера обновлён",
   "printerTunnelUnreachable": "Туннель Cloudflare недоступен.\n{description}",
+  "printerLinkPrinterNetworkOnly": "Эта ссылка ведёт в сеть принтера ({host}) и отсюда недоступна. Откройте её, когда будете в той же сети.",
   "printerWebUiRetry": "Веб-интерфейс принтера пока не отвечает. В течение минуты после включения это нормально. Повтор через {seconds} с…",
   "printerLocalOnlyNoLan": "Удалённый доступ выключен (Только локально), и этот принтер недоступен в вашей сети.",
   "localOnlyButtonTitle": "Кнопка «Только локально»",

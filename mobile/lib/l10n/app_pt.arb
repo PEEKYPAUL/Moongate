@@ -398,6 +398,7 @@
   "printerAddressCleared": "Endereço personalizado limpo",
   "printerAddressUpdated": "Endereço da impressora atualizado",
   "printerTunnelUnreachable": "Túnel da Cloudflare inacessível.\n{description}",
+  "printerLinkPrinterNetworkOnly": "Esse link está na rede da própria impressora ({host}) e não pode ser aberto daqui. Abra-o quando estiver na mesma rede.",
   "printerWebUiRetry": "A interface web da impressora ainda não está respondendo. Isso é normal por cerca de um minuto depois de ligar. Tentando novamente em {seconds}s…",
   "printerLocalOnlyNoLan": "O acesso remoto está desligado (Somente local) e esta impressora não está acessível na sua rede.",
   "localOnlyButtonTitle": "Botão somente local",

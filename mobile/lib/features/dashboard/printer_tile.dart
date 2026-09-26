@@ -667,6 +667,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                     webcamRotation:  _status.webcamRotation,
                     webcamTargetFps: _status.webcamTargetFps,
                     webcamIsExternal: _status.webcamIsExternal,
+                    cameraIsGuess:   _status.webcamIsGuess,
                     uiType: _uiType,
                     printerId: widget.printer.id,
                     pluginOutdated: _status.connection !=

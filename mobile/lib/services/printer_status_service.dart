@@ -1125,6 +1125,31 @@ class PrinterStatusService {
     ];
   }
 
+  /// True when the plugin found no camera entry at all - a 0.6.22+ plugin
+  /// sends `webcams` as an empty list - and its flat fields hold only the
+  /// defaults it fills in for that case: the standard snapshot path and no
+  /// external address. [parseWebcamList] still synthesises one entry from
+  /// them, so the tile gets a quiet try at the standard path (a stock
+  /// Crowsnest answers there with no entry), but a failure on such an entry
+  /// means "no camera", not "check its address". A plugin older than 0.6.22
+  /// sends no list, so its default path is taken at face value.
+  @visibleForTesting
+  static bool webcamIsUnconfiguredGuess(Map<String, dynamic>? moongateResult) {
+    if (moongateResult == null) return false;
+    final raw = moongateResult['webcams'];
+    if (raw is! List || raw.isNotEmpty) return false;
+    String? nonEmpty(Object? v) {
+      final t = (v as String?)?.trim();
+      return (t == null || t.isEmpty) ? null : t;
+    }
+    if (nonEmpty(moongateResult['webcam_stream_external'])   != null ||
+        nonEmpty(moongateResult['webcam_snapshot_external']) != null) {
+      return false;
+    }
+    return nonEmpty(moongateResult['webcam_snapshot_path']) ==
+        kDefaultWebcamPath;
+  }
+
   /// The camera [key] names, else the first (a deleted/renamed pick must
   /// fall back to camera 1 rather than blank the tile). Null only when
   /// [cams] is empty. Also used by the camera picker sheet to mark the
@@ -1302,6 +1327,12 @@ class PrinterStatusService {
     _nativeDownForUrl = source.configuredCameraDown ? nativeValue : null;
     final webcamSnapshotUrl = source.url;
     final webcamIsExternal  = source.isExternal;
+    // No entry anywhere: the URL above is the plugin's standard-path
+    // default, tried quietly. A failure on it reads as "no camera" in the
+    // tile, not as an address to check (webcamIsUnconfiguredGuess).
+    final webcamIsGuess = (customUrl == null || customUrl.isEmpty) &&
+        !webcamIsExternal &&
+        webcamIsUnconfiguredGuess(moongateResult);
 
     final lightObj = _liveLightStatusObject;
     final bool? lightOn =
@@ -1379,6 +1410,7 @@ class PrinterStatusService {
       webcamRotation:  selected?.rotation  ?? 0,
       webcamTargetFps: selected?.targetFps ?? 15,
       webcamIsExternal: webcamIsExternal,
+      webcamIsGuess:    webcamIsGuess,
       webcams:          webcams,
       lightOn:          lightOn,
       klippyShutdown:   klippyShutdown,

@@ -781,6 +781,8 @@
   "@printerAddressUpdated": {"description": "Snackbar confirming the custom printer address override was saved."},
   "printerTunnelUnreachable": "Cloudflare tunnel unreachable.\n{description}",
   "@printerTunnelUnreachable": {"description": "Error-overlay text when the WebView fails to load over the Cloudflare tunnel. 'Cloudflare' is a product name.", "placeholders": {"description": {"type": "String"}}},
+  "printerLinkPrinterNetworkOnly": "That link is on the printer's own network ({host}) and can't be reached from here. Open it when you're on the same network.",
+  "@printerLinkPrinterNetworkOnly": {"description": "Snack bar shown when, over the tunnel, a link inside the printer page points at a private / local address (Spoolman on the Pi, a camera's LAN address) that cannot be reached from away. {host} is that address.", "placeholders": {"host": {"type": "String"}}},
   "printerWebUiRetry": "The printer's web interface isn't answering yet. This is normal for a minute or so after switching on. Retrying in {seconds}s…",
   "@printerWebUiRetry": {"description": "Error-overlay text when the main page returns a server error (e.g. Cloudflare 502 while the Pi's web stack is still booting behind a live tunnel); auto-retries after the given number of seconds.", "placeholders": {"seconds": {"type": "int"}}},
   "printerLocalOnlyNoLan": "Remote access is switched off (Local only) and this printer isn't reachable on your network.",

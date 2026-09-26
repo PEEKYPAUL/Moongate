@@ -150,6 +150,7 @@ mobile/lib/
     ├── printer_status_service.dart     # Per-tile 4 s poll loop, LAN-first with reachability probe
     ├── printer_liveness_service.dart    # Realtime + RLS-scoped read of last_seen; gates polling of offline printers (v0.9.16)
     ├── printer_webview_cache.dart       # Keeps each printer's WebView warm; pre-warms all at startup (v0.9.8 / v0.9.15)
+    ├── webview_link_policy.dart        # Which links the printer WebView keeps and which open outside it (v0.9.70)
     ├── print_control_service.dart      # pause/resume/cancel/firmware_restart/emergency_stop + temp-watch arm/cancel, file temps (v0.9.68)
     ├── heatsoak_timers.dart            # per-printer heat-soak arms; the notification isolate judges + fires them (v0.9.67)
     ├── print_progress.dart             # shared Mainsail-matching (file-relative) progress calc (v0.9.17)

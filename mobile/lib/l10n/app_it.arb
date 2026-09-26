@@ -410,6 +410,7 @@
   "printerAddressCleared": "Indirizzo personalizzato cancellato",
   "printerAddressUpdated": "Indirizzo stampante aggiornato",
   "printerTunnelUnreachable": "Tunnel Cloudflare irraggiungibile.\n{description}",
+  "printerLinkPrinterNetworkOnly": "Questo link è sulla rete della stampante ({host}) e non è raggiungibile da qui. Aprilo quando sei sulla stessa rete.",
   "printerWebUiRetry": "L'interfaccia web della stampante non risponde ancora. È normale per circa un minuto dopo l'accensione. Nuovo tentativo tra {seconds} s…",
   "printerLocalOnlyNoLan": "L'accesso remoto è disattivato (Solo locale) e questa stampante non è raggiungibile sulla tua rete.",
   "localOnlyButtonTitle": "Pulsante solo locale",

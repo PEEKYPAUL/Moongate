@@ -1247,6 +1247,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String printerLinkPrinterNetworkOnly(String host) {
+    return '该链接位于打印机所在的本地网络（$host），从这里无法访问。请在同一网络下打开。';
+  }
+
+  @override
   String printerWebUiRetry(int seconds) {
     return '打印机的网页界面尚未响应。开机后一分钟左右属于正常现象。将在 $seconds 秒后重试…';
   }

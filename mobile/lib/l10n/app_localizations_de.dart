@@ -1318,6 +1318,11 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
+  String printerLinkPrinterNetworkOnly(String host) {
+    return 'Dieser Link liegt im eigenen Netzwerk des Druckers ($host) und ist von hier aus nicht erreichbar. Öffne ihn, wenn du im selben Netzwerk bist.';
+  }
+
+  @override
   String printerWebUiRetry(int seconds) {
     return 'Die Weboberfläche des Druckers antwortet noch nicht. Kurz nach dem Einschalten ist das für etwa eine Minute normal. Erneuter Versuch in ${seconds}s…';
   }

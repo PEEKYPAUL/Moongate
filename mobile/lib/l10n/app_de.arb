@@ -410,6 +410,7 @@
   "printerAddressCleared": "Benutzerdefinierte Adresse entfernt",
   "printerAddressUpdated": "Druckeradresse aktualisiert",
   "printerTunnelUnreachable": "Cloudflare-Tunnel nicht erreichbar.\n{description}",
+  "printerLinkPrinterNetworkOnly": "Dieser Link liegt im eigenen Netzwerk des Druckers ({host}) und ist von hier aus nicht erreichbar. Öffne ihn, wenn du im selben Netzwerk bist.",
   "printerWebUiRetry": "Die Weboberfläche des Druckers antwortet noch nicht. Kurz nach dem Einschalten ist das für etwa eine Minute normal. Erneuter Versuch in {seconds}s…",
   "printerLocalOnlyNoLan": "Der Fernzugriff ist ausgeschaltet (Nur lokal) und dieser Drucker ist in deinem Netzwerk nicht erreichbar.",
   "localOnlyButtonTitle": "Nur-lokal-Taste",

@@ -1300,6 +1300,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String printerLinkPrinterNetworkOnly(String host) {
+    return 'That link is on the printer\'s own network ($host) and can\'t be reached from here. Open it when you\'re on the same network.';
+  }
+
+  @override
   String printerWebUiRetry(int seconds) {
     return 'The printer\'s web interface isn\'t answering yet. This is normal for a minute or so after switching on. Retrying in ${seconds}s…';
   }
