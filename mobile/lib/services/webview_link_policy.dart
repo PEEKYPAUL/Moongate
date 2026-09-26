@@ -70,3 +70,63 @@ WebLinkTarget classifyWebLink({required String baseUrl, required String url}) {
 bool _onStandardPort(Uri u) =>
     (u.scheme == 'http' && u.port == 80) ||
     (u.scheme == 'https' && u.port == 443);
+
+/// True when [url] is an http(s) link into a private / local network - the
+/// printer's own network. Over the tunnel the phone is away from that
+/// network, so such a link (Spoolman on the Pi, a camera's LAN address)
+/// cannot be reached; the printer screen says so instead of opening a
+/// browser tab that fails. Non-web schemes are never "on a network".
+bool linkIsOnPrinterNetwork(String url) {
+  final u = Uri.tryParse(url);
+  if (u == null || (u.scheme != 'http' && u.scheme != 'https')) return false;
+  return isPrinterNetworkHost(u.host);
+}
+
+/// True for a host that only exists on a private / local network: RFC 1918
+/// IPv4 (10/8, 172.16/12, 192.168/16), link-local 169.254/16 and loopback,
+/// IPv6 unique-local (fc00::/7), link-local (fe80::/10) and `::1`,
+/// `localhost`, mDNS `.local`, the `.lan` / `.home` / `.internal` /
+/// `.localdomain` conventions, and any bare single-label name (`voron24`).
+bool isPrinterNetworkHost(String host) {
+  var h = host.trim().toLowerCase();
+  if (h.startsWith('[') && h.endsWith(']')) h = h.substring(1, h.length - 1);
+  if (h.isEmpty) return false;
+
+  final v4 = _ipv4Octets(h);
+  if (v4 != null) {
+    final a = v4[0], b = v4[1];
+    return a == 10 ||
+        (a == 172 && b >= 16 && b <= 31) ||
+        (a == 192 && b == 168) ||
+        (a == 169 && b == 254) ||
+        a == 127;
+  }
+  if (h.contains(':')) {
+    // IPv6: unique-local fc00::/7, link-local fe80::/10, loopback.
+    if (h == '::1') return true;
+    if (h.startsWith('fc') || h.startsWith('fd')) return true;
+    return h.startsWith('fe8') ||
+        h.startsWith('fe9') ||
+        h.startsWith('fea') ||
+        h.startsWith('feb');
+  }
+  if (h == 'localhost') return true;
+  for (final suffix in const [
+    '.local', '.lan', '.home', '.internal', '.localdomain'
+  ]) {
+    if (h.endsWith(suffix)) return true;
+  }
+  return !h.contains('.'); // a bare hostname only resolves on its own LAN
+}
+
+List<int>? _ipv4Octets(String h) {
+  final parts = h.split('.');
+  if (parts.length != 4) return null;
+  final out = <int>[];
+  for (final p in parts) {
+    final n = int.tryParse(p);
+    if (n == null || n < 0 || n > 255) return null;
+    out.add(n);
+  }
+  return out;
+}

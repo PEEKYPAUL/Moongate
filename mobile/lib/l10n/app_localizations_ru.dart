@@ -1316,6 +1316,11 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String printerLinkPrinterNetworkOnly(String host) {
+    return 'Эта ссылка ведёт в сеть принтера ($host) и отсюда недоступна. Откройте её, когда будете в той же сети.';
+  }
+
+  @override
   String printerWebUiRetry(int seconds) {
     return 'Веб-интерфейс принтера пока не отвечает. В течение минуты после включения это нормально. Повтор через $seconds с…';
   }

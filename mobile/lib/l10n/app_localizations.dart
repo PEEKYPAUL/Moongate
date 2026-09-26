@@ -2410,6 +2410,12 @@ abstract class AppLocalizations {
   /// **'Cloudflare tunnel unreachable.\n{description}'**
   String printerTunnelUnreachable(String description);
 
+  /// Snack bar shown when, over the tunnel, a link inside the printer page points at a private / local address (Spoolman on the Pi, a camera's LAN address) that cannot be reached from away. {host} is that address.
+  ///
+  /// In en, this message translates to:
+  /// **'That link is on the printer\'s own network ({host}) and can\'t be reached from here. Open it when you\'re on the same network.'**
+  String printerLinkPrinterNetworkOnly(String host);
+
   /// Error-overlay text when the main page returns a server error (e.g. Cloudflare 502 while the Pi's web stack is still booting behind a live tunnel); auto-retries after the given number of seconds.
   ///
   /// In en, this message translates to:

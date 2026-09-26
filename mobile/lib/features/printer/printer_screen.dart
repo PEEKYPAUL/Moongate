@@ -320,6 +320,19 @@ class _PrinterScreenState extends State<PrinterScreen>
     final uri = Uri.tryParse(url);
     if (uri == null) return;
     final web = uri.scheme == 'http' || uri.scheme == 'https';
+    // Over the tunnel the phone is away from the printer's network, so a
+    // link into that network (Spoolman on the Pi, a camera's LAN address)
+    // can't be reached from here - say so instead of opening a tab that
+    // fails. On LAN and Direct (VPN included) the phone's browser reaches
+    // it, so those go straight through.
+    if (web && !_usingLan && linkIsOnPrinterNetwork(url)) {
+      if (!mounted) return;
+      final l = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.printerLinkPrinterNetworkOnly(uri.host))),
+      );
+      return;
+    }
     try {
       if (web && await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) {
         return;

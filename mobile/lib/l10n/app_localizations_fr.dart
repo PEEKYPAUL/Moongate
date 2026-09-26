@@ -1329,6 +1329,11 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String printerLinkPrinterNetworkOnly(String host) {
+    return 'Ce lien se trouve sur le réseau de l\'imprimante ($host) et n\'est pas joignable d\'ici. Ouvrez-le quand vous serez sur le même réseau.';
+  }
+
+  @override
   String printerWebUiRetry(int seconds) {
     return 'L\'interface web de l\'imprimante ne répond pas encore. C\'est normal pendant environ une minute après la mise en marche. Nouvelle tentative dans $seconds s…';
   }

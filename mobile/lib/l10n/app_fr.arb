@@ -410,6 +410,7 @@
   "printerAddressCleared": "Adresse personnalisée effacée",
   "printerAddressUpdated": "Adresse de l'imprimante mise à jour",
   "printerTunnelUnreachable": "Tunnel Cloudflare injoignable.\n{description}",
+  "printerLinkPrinterNetworkOnly": "Ce lien se trouve sur le réseau de l'imprimante ({host}) et n'est pas joignable d'ici. Ouvrez-le quand vous serez sur le même réseau.",
   "printerWebUiRetry": "L'interface web de l'imprimante ne répond pas encore. C'est normal pendant environ une minute après la mise en marche. Nouvelle tentative dans {seconds} s…",
   "printerLocalOnlyNoLan": "L'accès à distance est désactivé (Local uniquement) et cette imprimante n'est pas joignable sur votre réseau.",
   "localOnlyButtonTitle": "Bouton local uniquement",

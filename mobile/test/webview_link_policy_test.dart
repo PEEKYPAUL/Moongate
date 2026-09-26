@@ -147,4 +147,58 @@ void main() {
           WebLinkTarget.externalBrowser);
     });
   });
+
+  // Over the tunnel a link into the printer's own network cannot be reached,
+  // so the printer screen shows a note instead of a browser tab that fails.
+  group('links into the printer\'s own network', () {
+    test('private, link-local and loopback IPv4 hosts', () {
+      for (final host in [
+        '192.168.1.251',
+        '10.0.0.5',
+        '172.16.0.1',
+        '172.31.255.254',
+        '169.254.1.1',
+        '127.0.0.1',
+      ]) {
+        expect(isPrinterNetworkHost(host), isTrue, reason: host);
+      }
+    });
+
+    test('public IPv4 and the 172.x neighbours outside /12', () {
+      for (final host in ['8.8.8.8', '172.15.0.1', '172.32.0.1', '1.1.1.1']) {
+        expect(isPrinterNetworkHost(host), isFalse, reason: host);
+      }
+    });
+
+    test('IPv6 unique-local, link-local and loopback, with or without []', () {
+      for (final host in ['fd12:3456::1', 'fc00::1', 'fe80::1', '::1',
+          '[fe80::1]']) {
+        expect(isPrinterNetworkHost(host), isTrue, reason: host);
+      }
+      expect(isPrinterNetworkHost('2001:db8::1'), isFalse);
+    });
+
+    test('local names: mDNS, LAN conventions, a bare hostname, localhost', () {
+      for (final host in ['voron24.local', 'VORON24.LOCAL', 'k3.lan',
+          'printer.home', 'pi.internal', 'voron24', 'localhost']) {
+        expect(isPrinterNetworkHost(host), isTrue, reason: host);
+      }
+    });
+
+    test('internet names are not', () {
+      for (final host in ['github.com', 'docs.mainsail.xyz',
+          'calm-otter-flying.trycloudflare.com']) {
+        expect(isPrinterNetworkHost(host), isFalse, reason: host);
+      }
+    });
+
+    test('only web links count', () {
+      expect(linkIsOnPrinterNetwork('http://192.168.1.251:7912/'), isTrue);
+      expect(linkIsOnPrinterNetwork('http://voron24.local:1984/'), isTrue);
+      expect(linkIsOnPrinterNetwork('https://github.com/PEEKYPAUL/Moongate'),
+          isFalse);
+      expect(linkIsOnPrinterNetwork('mailto:pi@192.168.1.251'), isFalse);
+      expect(linkIsOnPrinterNetwork('not a url'), isFalse);
+    });
+  });
 }

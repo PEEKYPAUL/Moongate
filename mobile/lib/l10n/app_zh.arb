@@ -410,6 +410,7 @@
   "printerAddressCleared": "已清除自定义地址",
   "printerAddressUpdated": "已更新打印机地址",
   "printerTunnelUnreachable": "无法连接 Cloudflare 隧道。\n{description}",
+  "printerLinkPrinterNetworkOnly": "该链接位于打印机所在的本地网络（{host}），从这里无法访问。请在同一网络下打开。",
   "printerWebUiRetry": "打印机的网页界面尚未响应。开机后一分钟左右属于正常现象。将在 {seconds} 秒后重试…",
   "printerLocalOnlyNoLan": "远程访问已关闭（仅本地），且此打印机在你的网络中不可达。",
   "localOnlyButtonTitle": "仅本地按钮",
