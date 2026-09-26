@@ -60,6 +60,10 @@ If none of those is valid, the proxy returns `401 Unauthorized` with:
 
 If the token IS valid, the proxy forwards to nginx, which routes to Mainsail / Moonraker / the webcam stream / the Moongate plugin exactly as it always did on LAN.
 
+### The printer page never leaves the printer (v0.9.70)
+
+The app's printer page is a web view whose only job is the printer's own web UI. Since v0.9.70 a link inside it that points anywhere other than the printer's own address - a commit in the Update Manager, a Spoolman panel link, the docs - is handed to the phone's own browser instead of loading inside that web view. No third-party page is ever rendered inside the app with the printer session's context, and the tunnel's token cookie stays where it was scoped: on the tunnel host. Links to the printer itself still open in place.
+
 ### Verifying the promise
 
 The "tunnel URL leak → nothing" promise was empirically tested across a 35-vector attack matrix on a live tunnel during v0.4.0 testing. Covered:
