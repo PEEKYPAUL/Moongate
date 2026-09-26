@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -16,6 +17,7 @@ import '../../services/printer_registry.dart';
 import '../../services/printer_status_registry.dart';
 import '../../services/printer_webview_cache.dart';
 import '../../services/supabase_service.dart';
+import '../../services/webview_link_policy.dart';
 import '../../widgets/keyboard_affordance.dart';
 import 'printer_camera_screen.dart';
 
@@ -63,6 +65,10 @@ class _PrinterScreenState extends State<PrinterScreen>
   bool    _localOnly = false;
   String? _errorMsg;
   String? _tunnelUrl;
+  // The origin this WebView is meant to show - the LAN, Direct or tunnel
+  // address as loaded. The navigation delegate keeps the page on it (see
+  // webview_link_policy.dart) and a warm session is checked against it.
+  String? _baseUrl;
   Timer?  _retryTimer;
 
   // Discoverability hint pointing at the camera icon. Shown ONLY when this
@@ -153,8 +159,10 @@ class _PrinterScreenState extends State<PrinterScreen>
       _webController!.setNavigationDelegate(_navDelegate());
       _usingLan  = warm.usingLan;
       _tunnelUrl = warm.tunnelUrl;
+      _baseUrl   = warm.baseUrl;
       setState(() { _loading = false; _errorMsg = null; });
       _revalidateWarm(warm);
+      _returnIfStrayed(warm);
       _maybeShowCameraHint();
       return;
     }
@@ -187,6 +195,7 @@ class _PrinterScreenState extends State<PrinterScreen>
         _errorMsg  = null;
       });
       _initControllerIfNeeded();
+      _baseUrl = lanUrl;
       await _webController!.loadRequest(Uri.parse('$lanUrl/'));
       PrinterWebViewCache.instance.store(
         widget.printer.id,
@@ -255,6 +264,7 @@ class _PrinterScreenState extends State<PrinterScreen>
       }
 
       _initControllerIfNeeded();
+      _baseUrl = useUrl;
       await _webController!.loadRequest(Uri.parse('$useUrl/'));
 
       // Keep this controller warm so the next open is instant. The cache starts
@@ -298,6 +308,50 @@ class _PrinterScreenState extends State<PrinterScreen>
     PrinterWebViewCache.instance.invalidate(widget.printer.id);
     PrinterAccessCache.instance.invalidate(widget.printer.id);
     _start();
+  }
+
+  /// Open [url] outside the printer WebView. http(s) goes to an in-app
+  /// browser tab (Android Custom Tab / iOS Safari view) whose own close
+  /// control lands the user straight back on the printer page - the phone
+  /// equivalent of the new tab a desktop browser would open. Anything else
+  /// (mailto:, tel:) and any phone without an in-app tab goes to the app
+  /// that handles it.
+  Future<void> _openOutside(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    final web = uri.scheme == 'http' || uri.scheme == 'https';
+    try {
+      if (web && await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) {
+        return;
+      }
+    } catch (_) {
+      // No in-app tab on this phone - fall through to the external app.
+    }
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // Nothing handles it - the printer page stays as it is.
+    }
+  }
+
+  /// Belt and braces for a re-attached warm session: if the WebView is not
+  /// on the printer's own origin (a navigation the delegate never saw), put
+  /// it back on the printer page instead of re-showing wherever it strayed.
+  /// Before the link policy existed this was the reported state: a GitHub
+  /// commit page kept warm as "the printer", with no way back to Mainsail.
+  Future<void> _returnIfStrayed(LiveWebSession warm) async {
+    String? current;
+    try {
+      current = await warm.controller.currentUrl();
+    } catch (_) {
+      return;
+    }
+    if (current == null || !mounted) return;
+    if (classifyWebLink(baseUrl: warm.baseUrl, url: current) ==
+        WebLinkTarget.inWebView) {
+      return;
+    }
+    await warm.controller.loadRequest(Uri.parse('${warm.baseUrl}/'));
   }
 
   static const _cameraHintSeenKey = 'camera_hint_seen';
@@ -399,6 +453,7 @@ class _PrinterScreenState extends State<PrinterScreen>
     }
     setState(() { _loading = true; _errorMsg = null; _usingLan = false; });
     _initControllerIfNeeded();
+    _baseUrl = _tunnelUrl;
     await _webController!.loadRequest(Uri.parse('$_tunnelUrl/'));
     // Re-store as a tunnel session so the warm cache reflects reality.
     PrinterWebViewCache.instance.store(
@@ -413,6 +468,24 @@ class _PrinterScreenState extends State<PrinterScreen>
   }
 
   NavigationDelegate _navDelegate() => NavigationDelegate(
+        // A main-frame navigation the page asks for is the user tapping a
+        // link - Mainsail / Fluidd never navigate the main frame themselves.
+        // The printer's own origin loads here; anything else (a GitHub
+        // commit in the Update Manager, the AFC panel's Spoolman link, the
+        // docs) opens outside, so this kept-warm WebView never "becomes"
+        // another site. Sub-frames are left alone: the platform can't
+        // redirect those anyway. Policy: webview_link_policy.dart.
+        onNavigationRequest: (req) {
+          if (!req.isMainFrame) return NavigationDecision.navigate;
+          final base = _baseUrl;
+          if (base == null ||
+              classifyWebLink(baseUrl: base, url: req.url) ==
+                  WebLinkTarget.inWebView) {
+            return NavigationDecision.navigate;
+          }
+          _openOutside(req.url);
+          return NavigationDecision.prevent;
+        },
         onPageStarted: (_) {
           if (mounted) setState(() { _loading = true; _errorMsg = null; });
         },

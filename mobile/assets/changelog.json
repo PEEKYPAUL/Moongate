@@ -1,5 +1,14 @@
 [
   {
+    "version": "v0.9.70",
+    "bullets": [
+      "Links inside the printer page now open in an in-app browser tab with its own Close, and the printer page stays put. A commit in Mainsail's Update Manager, the AFC panel's Spoolman link or the docs used to load inside the printer page itself, and because Moongate keeps each printer's page alive, opening the printer again showed GitHub or Spoolman with no way back. Links to the printer's own pages still open in place.",
+      "A printer page that has ended up somewhere other than the printer is put back on the printer when you open it.",
+      "Plugin 0.6.28: Mainsail's Software Update panel no longer flags moongate.py as an untracked source file after an update, and the plugin does its post-update housekeeping itself now. Printers on an older plugin show the update badge.",
+      "Under the hood: Android Gradle Plugin 9.4.1 and mobile_scanner 7.4.2."
+    ]
+  },
+  {
     "version": "v0.9.69",
     "bullets": [
       "New Single-printer dashboard: one printer full screen, with a status header that stays put while you scroll (Local / Tunnel colour, print state, E-STOP), the camera, the print job, temperatures, big Macros, Console and Print files buttons, and the live X Y Z position with Home.",
