@@ -735,6 +735,13 @@ class PrinterStatus {
   /// cameras usually expose only a stream (e.g. .../video), not a snapshot.
   final bool webcamIsExternal;
 
+  /// True when [webcamSnapshotUrl] is nothing more than the standard snapshot
+  /// path the plugin fills in when the printer has no camera entry and the
+  /// gear holds no address. The tile still tries it (a stock Crowsnest
+  /// answers there without any entry) but treats a failure as "no camera"
+  /// and shows the logo, since there is no address for anyone to correct.
+  final bool webcamIsGuess;
+
   /// Every camera this printer reports (plugin 0.6.22+ sends the full list;
   /// older plugins yield one synthesised entry). The webcam* fields above are
   /// always the SELECTED camera's, resolved by the service - the tile shows
@@ -820,6 +827,7 @@ class PrinterStatus {
     this.webcamRotation = 0,
     this.webcamTargetFps = 15,
     this.webcamIsExternal = false,
+    this.webcamIsGuess = false,
     this.webcams = const [],
     this.lightOn,
     this.klippyShutdown = false,
@@ -863,6 +871,7 @@ class PrinterStatus {
     int? webcamRotation,
     int? webcamTargetFps,
     bool? webcamIsExternal,
+    bool? webcamIsGuess,
     List<PrinterWebcam>? webcams,
     bool? lightOn,
     bool? klippyShutdown,
@@ -899,6 +908,7 @@ class PrinterStatus {
       webcamRotation:   webcamRotation ?? this.webcamRotation,
       webcamTargetFps:  webcamTargetFps ?? this.webcamTargetFps,
       webcamIsExternal: webcamIsExternal ?? this.webcamIsExternal,
+      webcamIsGuess:    webcamIsGuess ?? this.webcamIsGuess,
       webcams:          webcams ?? this.webcams,
       lightOn:          lightOn ?? this.lightOn,
       klippyShutdown:   klippyShutdown ?? this.klippyShutdown,

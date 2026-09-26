@@ -401,7 +401,7 @@ To tell the two apart, ask go2rtc itself: `curl -s "http://<pi>:1984/api/streams
 Newer app versions show a small **"Camera waking up…"** spinner in the camera box while the first picture is still being fetched - on-demand cameras (like go2rtc) genuinely take a moment to start when nobody was watching. The spinner gives up after about half a minute, and what replaces it tells you what's wrong:
 
 - **"Camera unreachable, check its address"** - every attempt got an error back: the address set in the tile's **gear** is wrong or stale (a camera that moved to a new IP), or nothing is listening there any more. Fix the address in the gear (or power the camera back on) and the picture returns by itself - nothing to restart. The spinner also stays gone on a camera the app already knows is dead, instead of pretending afresh every time you scroll past it.
-- The plain **Mainsail/Fluidd logo** - the feed really isn't coming for a quieter reason: the printer is offline or connecting, it has no camera configured, or the camera never answered at all.
+- The plain **Mainsail/Fluidd logo** - the feed really isn't coming for a quieter reason: the printer is offline or connecting, it has no camera configured, or the camera never answered at all. From v0.9.70 a printer with no camera entry in Mainsail / Fluidd and nothing in the gear always lands here: the app quietly tries the standard `/webcam/` path in case a stock Crowsnest answers, and when nothing does that is simply a printer without a camera. "Check its address" is kept for a camera somebody actually set up.
 
 The full-screen camera view (the eye on a tile, or the camera icon on the printer page) still works whenever there's a feed.
 

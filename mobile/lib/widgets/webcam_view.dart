@@ -69,6 +69,12 @@ class WebcamView extends ConsumerStatefulWidget {
   /// 0.6.16 `_get_webcam_info` bug) instead of only blaming the address.
   final bool pluginOutdated;
 
+  /// True when [webcamSnapshotUrl] is only the standard snapshot path the
+  /// plugin fills in for a printer with no camera entry. The fetch loop still
+  /// gives it a quiet try, but once the wake window gives up the box shows
+  /// the logo rather than "check its address" - nobody set an address.
+  final bool cameraIsGuess;
+
   /// How a frame fills its box. The dashboard tile crops to fill
   /// ([BoxFit.cover]); the full-screen camera letterboxes the whole frame
   /// ([BoxFit.contain]).
@@ -91,6 +97,7 @@ class WebcamView extends ConsumerStatefulWidget {
     this.uiType,
     this.printerId,
     this.pluginOutdated = false,
+    this.cameraIsGuess = false,
     this.fit = BoxFit.cover,
     this.respectDashboardThrottle = true,
   });
@@ -400,9 +407,12 @@ class _WebcamViewState extends ConsumerState<WebcamView>
     // Unreachable = the window gave up AND the fetch history holds nothing
     // but failures for this camera - say so instead of showing a logo that
     // reads as "still loading". Without recorded failures (no printerId, or
-    // a fetch still in flight at expiry) the plain placeholder stays.
+    // a fetch still in flight at expiry) the plain placeholder stays. A
+    // guessed standard path (no camera set up anywhere) never says so
+    // either: there is no address to check, the logo is the honest answer.
     final unreachable = bytes == null && url != null && url.isNotEmpty &&
         _wakeExpired &&
+        !widget.cameraIsGuess &&
         WebcamFetchDiag.consecutiveFailures(widget.printerId, url) > 0;
     WebcamFetchDiag.recordShowing(
         widget.printerId,

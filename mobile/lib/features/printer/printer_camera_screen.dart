@@ -116,6 +116,7 @@ class _PrinterCameraOverlayState extends ConsumerState<_PrinterCameraOverlay> {
           webcamRotation: s.webcamRotation,
           webcamTargetFps: s.webcamTargetFps,
           webcamIsExternal: s.webcamIsExternal,
+          cameraIsGuess: s.webcamIsGuess,
           uiType: _service.uiType ?? widget.printer.uiType,
           printerId: widget.printer.id,
           fit: BoxFit.contain,

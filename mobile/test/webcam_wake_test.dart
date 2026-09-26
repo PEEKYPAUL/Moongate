@@ -204,4 +204,30 @@ void main() {
 
     await _teardown(tester);
   });
+
+  testWidgets('a guessed standard path that fails shows the logo, no message',
+      (tester) async {
+    // A printer with no camera entry still gets the standard snapshot path
+    // from the plugin. The widget tries it, but a failing guess has no
+    // address anyone could correct, so the box must fall back to the plain
+    // logo rather than tell the user to check one.
+    const url = 'http://192.0.2.7/webcam/?action=snapshot';
+    for (var i = 0; i < 6; i++) {
+      WebcamFetchDiag.record('guesscam',
+          url: url, external: false, result: 'http 502');
+    }
+
+    await tester.pumpWidget(_host(const WebcamView(
+      webcamSnapshotUrl: url,
+      printerId: 'guesscam',
+      uiType: 'mainsail',
+      cameraIsGuess: true,
+    )));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Camera unreachable, check its address'), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+
+    await _teardown(tester);
+  });
 }

@@ -624,6 +624,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
                 webcamRotation:   s.webcamRotation,
                 webcamTargetFps:  s.webcamTargetFps,
                 webcamIsExternal: s.webcamIsExternal,
+                cameraIsGuess:    s.webcamIsGuess,
                 uiType:           _uiType,
                 printerId:        p.id,
                 pluginOutdated:   s.connection != PrinterConnection.offline &&
