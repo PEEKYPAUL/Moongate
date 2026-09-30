@@ -164,7 +164,9 @@ section.plain{border-top:none}
 @media(max-width:780px){.spotlight{grid-template-columns:1fr;gap:28px}}
 
 /* ---------- features ---------- */
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(285px,1fr));gap:18px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:1fr;gap:18px}
+@media(max-width:1180px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.grid{grid-template-columns:1fr}}
 .card{
   background:var(--card);border:1px solid var(--card-edge);
   border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);
@@ -407,7 +409,6 @@ footer{
       <div class="card">
         <h3>Single-printer dashboard</h3>
         <p>One printer, full screen: camera, job, temperatures, big Macros / Console / Print files buttons and the live X Y Z position. Step between printers with the arrows beside the menu.</p>
-        <span class="tag">v0.9.69</span>
       </div>
       <div class="card">
         <h3>The full Mainsail / Fluidd UI</h3>
