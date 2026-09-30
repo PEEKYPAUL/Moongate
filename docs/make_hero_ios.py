@@ -74,10 +74,26 @@ def android_head(draw, x, y, s):
         draw.ellipse([cxx - er, cyy - er, cxx + er, cyy + er], fill=(255, 255, 255, 255))
 
 
-def iphone_screen(path, top_cut=72, bot_cut=94):
-    """Crop the Android system bars off a dashboard shot and add iPhone chrome."""
+def nav_bar_height(shot):
+    """Rows from the bottom that are the Android navigation bar: both edge columns
+    stay the bar's own colour (black) until the app's grey background begins."""
+    px = shot.convert("RGB")
+    W, H = px.size
+    bar = px.getpixel((28, H - 1))
+    n = 0
+    while n < H // 4 and px.getpixel((28, H - 1 - n)) == bar and px.getpixel((W - 28, H - 1 - n)) == bar:
+        n += 1
+    return n
+
+
+def iphone_screen(path, top_cut=72, bot_cut=None):
+    """Crop the Android system bars off a dashboard shot and add iPhone chrome.
+    The navigation bar is measured, not guessed: a 3-button bar is taller than a
+    gesture bar, and a fixed cut used to leave a black stripe above the home indicator."""
     shot = Image.open(path).convert("RGBA")
     W, H = shot.size
+    if bot_cut is None:
+        bot_cut = nav_bar_height(shot)
     content = shot.crop((0, top_cut, W, H - bot_cut))
     ch = content.height
     bg = content.getpixel((28, 28))
