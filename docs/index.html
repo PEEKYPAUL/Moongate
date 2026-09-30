@@ -594,12 +594,12 @@ footer{
 
     <div class="routes">
       <div class="card">
-        <h3>Route 1 &mdash; Moongate cloud</h3>
+        <h3>Route 1 - Moongate cloud</h3>
         <p>Your Pi runs Klipper, Moonraker, the Moongate plugin and an <b>auth proxy</b> that gates everything reachable from the internet. A minimal access broker handles anonymous sign-in, no email and no password, and tracks the current tunnel URL. The app fetches a fresh signed token before each request, and tries home WiFi first, then the tunnel.</p>
         <p style="margin-top:10px"><b>The headline:</b> leaking the tunnel URL alone gives an attacker nothing. Every path through it returns <code>401</code> without revealing what is underneath.</p>
       </div>
       <div class="card">
-        <h3>Route 2 &mdash; Direct (LAN/VPN)</h3>
+        <h3>Route 2 - Direct (LAN/VPN)</h3>
         <p>No broker, no tunnel, no heartbeats. The app talks straight to Moonraker on your network, or across your own VPN, gated by Moonraker's <code>trusted_clients</code>, exactly like Mainsail in a desktop browser. The Pi makes <b>zero outbound calls</b> and the whole thing works with no internet at all.</p>
       </div>
     </div>
