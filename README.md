@@ -44,26 +44,26 @@ Free, source-available **iPhone and Android** control for your **Klipper 3D prin
 
 ## Features
 
-- 📊 **Fleet dashboard** - every printer on one screen: live webcam, progress and time left, temperatures, status. Sort by activity or drag your own order.
-- 📱 **Single-printer dashboard** - one printer full screen: camera, job, temperatures, macros, console, files and live X Y Z. Arrows step through your printers.
-- 🖥️ **Full Mainsail / Fluidd** - tap a tile for the complete web UI, kept loaded so it opens instantly, even over the tunnel.
-- 📡 **Home and away, automatically** - home WiFi first, the secure tunnel when you're out. No port forwarding, no setup.
-- 🔌 **Direct (LAN/VPN) mode** - cloud-free: the app talks straight to Moonraker, and away from home over your own WireGuard or Tailscale. [Compare the two modes ›](#run-it-your-way)
-- 🎛️ **Print controls** - pause, resume, stop, firmware restart, a double-tap emergency stop, and a power button for printers with a power device or power macro.
-- 🎚️ **Control panel** - arrange temperature, motion and macro modules per printer, and turn any Klipper macro into a labelled button.
-- 🛠️ **Console and config editor** - a live G-code console with command completions, and a Klipper-aware `printer.cfg` editor with a backup and one-tap restore.
-- 📂 **Print from the printer** - browse the G-code already on it, with slicer thumbnails, and start a print. No re-upload.
-- 📷 **Cameras** - Mainsail cameras auto-detected, go2rtc included; add an external IP camera; full-screen view with pinch-to-zoom; switch between several on one printer.
-- 🧰 **Multi-toolhead** - IDEX and tool changers show every hotend as its own chip, active tool highlighted, preheat for all at once.
-- 🔔 **Notifications** - opt-in start / finish / pause / error alerts with the reason, live progress in the shade, heat-soak and "cool enough to remove" alerts, and a `MOONGATE_NOTIFY` macro for your own gcode.
-- 💡 **Lighting** - a bulb on the tile drives your light macros and shows the real on/off state.
-- 🔒 **App lock** - PIN or biometric, auto-lock, screenshot protection. Off by default.
-- 🎨 **Themes and layout** - light, dark or custom colours and background, Material You on Android, a 36-font picker, 1-3 columns, landscape.
-- 🌍 **9 languages** - English, German, French, Spanish, Italian, Chinese, Russian, Polish and Brazilian Portuguese.
-- 💾 **Backup and restore** - move to a new phone and your printers come back with no re-pairing.
-- 🔄 **In-app updates** - the early-access APK updates itself, and a tile badge updates the printer's plugin from your phone.
-- 🎓 **Guided tour** - an optional walkthrough that points out each part of the app on your first printer.
-- 🔐 **Hardened remote access** - every internet request needs a short-lived signed token; a leaked tunnel URL gives an attacker only `401`s. [How it works ›](#how-it-works)
+- **Fleet dashboard** - every printer on one screen: live webcam, progress and time left, temperatures, status. Sort by activity or drag your own order.
+- **Single-printer dashboard** - one printer full screen: camera, job, temperatures, macros, console, files and live X Y Z. Arrows step through your printers.
+- **Full Mainsail / Fluidd** - tap a tile for the complete web UI, kept loaded so it opens instantly, even over the tunnel.
+- **Home and away, automatically** - home WiFi first, the secure tunnel when you're out. No port forwarding, no setup.
+- **Direct (LAN/VPN) mode** - cloud-free: the app talks straight to Moonraker, and away from home over your own WireGuard or Tailscale. [Compare the two modes ›](#run-it-your-way)
+- **Print controls** - pause, resume, stop, firmware restart, a double-tap emergency stop, and a power button for printers with a power device or power macro.
+- **Control panel** - arrange temperature, motion and macro modules per printer, and turn any Klipper macro into a labelled button.
+- **Console and config editor** - a live G-code console with command completions, and a Klipper-aware `printer.cfg` editor with a backup and one-tap restore.
+- **Print from the printer** - browse the G-code already on it, with slicer thumbnails, and start a print. No re-upload.
+- **Cameras** - Mainsail cameras auto-detected, go2rtc included; add an external IP camera; full-screen view with pinch-to-zoom; switch between several on one printer.
+- **Multi-toolhead** - IDEX and tool changers show every hotend as its own chip, active tool highlighted, preheat for all at once.
+- **Notifications** - opt-in start / finish / pause / error alerts with the reason, live progress in the shade, heat-soak and "cool enough to remove" alerts, and a `MOONGATE_NOTIFY` macro for your own gcode.
+- **Lighting** - a bulb on the tile drives your light macros and shows the real on/off state.
+- **App lock** - PIN or biometric, auto-lock, screenshot protection. Off by default.
+- **Themes and layout** - light, dark or custom colours and background, Material You on Android, a 36-font picker, 1-3 columns, landscape.
+- **9 languages** - English, German, French, Spanish, Italian, Chinese, Russian, Polish and Brazilian Portuguese.
+- **Backup and restore** - move to a new phone and your printers come back with no re-pairing.
+- **In-app updates** - the early-access APK updates itself, and a tile badge updates the printer's plugin from your phone.
+- **Guided tour** - an optional walkthrough that points out each part of the app on your first printer.
+- **Hardened remote access** - every internet request needs a short-lived signed token; a leaked tunnel URL gives an attacker only `401`s. [How it works ›](#how-it-works)
 
 Every feature in depth, with the version it arrived in: **[Feature guide ›](docs/features.md)**
 
