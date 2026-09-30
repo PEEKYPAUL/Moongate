@@ -72,24 +72,21 @@ Every feature in depth, with the version it arrived in: **[Feature guide ›](do
 ## Screenshots
 
 <div align="center">
-  <img src="docs/screenshots/generated/framed-single-printer.png" width="26%" alt="The Single-printer dashboard - one printer full screen, with the pinned header and emergency stop, the camera, the print job, temperatures, big Macros / Console / Print files buttons and the live X Y Z position"/>
-  <br/><sub><em><b>New in v0.9.69 - the Single-printer dashboard.</b> One machine, full screen: header, camera, job, temperatures, the big tool buttons and live X Y Z. Tick it in menu → Dashboard Layout, and use the arrows beside the menu to step between printers.</em></sub>
-</div>
-
-<br/>
-
-<div align="center">
-  <img src="docs/screenshots/generated/framed-pairing.png" width="19%" alt="Secure LAN pairing"/>
-  <img src="docs/screenshots/generated/framed-drawer.png" width="19%" alt="Menu"/>
-  <img src="docs/screenshots/generated/framed-icon-guide.png" width="19%" alt="Icon guide - what every dashboard icon means"/>
-  <img src="docs/screenshots/generated/framed-custom-theme.png" width="19%" alt="Custom theme editor"/>
-  <img src="docs/screenshots/generated/framed-gcode-viewer.png" width="19%" alt="Print a stored G-code file"/>
+  <img src="docs/screenshots/generated/framed-single-printer.png" width="31%" alt="The Single-printer dashboard - one printer full screen with the camera, the print job, temperatures, the tool buttons and live X Y Z"/>
+  <img src="docs/screenshots/generated/framed-pairing.png" width="31%" alt="Secure LAN pairing"/>
+  <img src="docs/screenshots/generated/framed-drawer.png" width="31%" alt="Menu"/>
 </div>
 
 <div align="center">
-  <img src="docs/screenshots/generated/framed-console.png" width="19%" alt="Per-printer G-code console - history pre-filled, quick-command chips"/>
-  <img src="docs/screenshots/generated/framed-file-system.png" width="19%" alt="File System - browse the printer's configuration folder"/>
-  <img src="docs/screenshots/generated/framed-config-editor.png" width="19%" alt="Structured printer.cfg editor - names fixed, values editable, backup before the first change"/>
+  <img src="docs/screenshots/generated/framed-icon-guide.png" width="31%" alt="Icon guide - what every dashboard icon means"/>
+  <img src="docs/screenshots/generated/framed-custom-theme.png" width="31%" alt="Custom theme editor"/>
+  <img src="docs/screenshots/generated/framed-gcode-viewer.png" width="31%" alt="Print a stored G-code file"/>
+</div>
+
+<div align="center">
+  <img src="docs/screenshots/generated/framed-console.png" width="31%" alt="Per-printer G-code console - history pre-filled, quick-command chips"/>
+  <img src="docs/screenshots/generated/framed-file-system.png" width="31%" alt="File System - browse the printer's configuration folder"/>
+  <img src="docs/screenshots/generated/framed-config-editor.png" width="31%" alt="Structured printer.cfg editor - names fixed, values editable, backup before the first change"/>
 </div>
 
 <div align="center">
