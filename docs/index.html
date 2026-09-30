@@ -198,6 +198,21 @@ section.plain{border-top:none}
 .shots-nav.prev{left:18px}
 .shots-nav.next{right:18px}
 .shots-hint{margin:6px 0 0;font-size:13px;color:var(--ink-faint);text-align:center}
+.shots button{
+  display:block;width:100%;padding:0;margin:0;border:0;background:none;cursor:zoom-in;
+  border-radius:12px;font:inherit;color:inherit;
+}
+.shots button:focus-visible{outline:3px solid var(--brand);outline-offset:3px}
+.lightbox{
+  position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:14px;padding:24px;background:rgba(8,10,16,.9);cursor:zoom-out;
+}
+.lightbox[hidden]{display:none}
+.lightbox img{
+  display:block;width:auto;height:auto;max-width:calc(100vw - 48px);max-height:calc(100vh - 96px);
+  border-radius:16px;box-shadow:0 30px 80px rgba(0,0,0,.6);
+}
+.lightbox figcaption{color:#eceef7;font-size:15px;text-align:center}
 @media(max-width:820px){
   .shots figure{flex-basis:260px}
   .shots-nav{display:none}
@@ -454,45 +469,45 @@ footer{
       <button class="shots-nav prev" type="button" data-dir="-1" aria-label="Previous screenshots">&#8249;</button>
       <div class="shots" id="shots" aria-label="Screenshots of the app">
         <figure>
-          <img src="screenshots/generated/framed-single-printer.png" loading="lazy" width="628" height="1165" alt="The single-printer dashboard: a pinned header with the print state and emergency stop, the camera, the print job, temperatures, big Macros, Console and Print files buttons, and the live X Y Z position.">
+          <button type="button"><img src="screenshots/generated/framed-single-printer.png" loading="lazy" width="628" height="1165" alt="The single-printer dashboard: a pinned header with the print state and emergency stop, the camera, the print job, temperatures, big Macros, Console and Print files buttons, and the live X Y Z position."></button>
           <figcaption>The single-printer dashboard</figcaption>
         </figure>
         <figure>
-          <img src="screenshots/generated/framed-pairing.png" loading="lazy" width="628" height="1165" alt="The pairing screen, scanning a QR code on the local network.">
+          <button type="button"><img src="screenshots/generated/framed-pairing.png" loading="lazy" width="628" height="1165" alt="The pairing screen, scanning a QR code on the local network."></button>
           <figcaption>Secure LAN pairing</figcaption>
         </figure>
         <figure>
-          <img src="screenshots/generated/framed-drawer.png" loading="lazy" width="628" height="1165" alt="The Moongate menu drawer with its settings sections.">
+          <button type="button"><img src="screenshots/generated/framed-drawer.png" loading="lazy" width="628" height="1165" alt="The Moongate menu drawer with its settings sections."></button>
           <figcaption>The menu</figcaption>
         </figure>
         <figure>
-          <img src="screenshots/generated/framed-icon-guide.png" loading="lazy" width="628" height="1165" alt="The icon guide, explaining what every dashboard icon means.">
+          <button type="button"><img src="screenshots/generated/framed-icon-guide.png" loading="lazy" width="628" height="1165" alt="The icon guide, explaining what every dashboard icon means."></button>
           <figcaption>Icon guide</figcaption>
         </figure>
         <figure>
-          <img src="screenshots/generated/framed-custom-theme.png" loading="lazy" width="628" height="1165" alt="The custom theme editor with colour pickers.">
+          <button type="button"><img src="screenshots/generated/framed-custom-theme.png" loading="lazy" width="628" height="1165" alt="The custom theme editor with colour pickers."></button>
           <figcaption>Custom themes</figcaption>
         </figure>
         <figure>
-          <img src="screenshots/generated/framed-gcode-viewer.png" loading="lazy" width="628" height="1165" alt="A stored G-code file with its slicer thumbnail and a Start print button.">
+          <button type="button"><img src="screenshots/generated/framed-gcode-viewer.png" loading="lazy" width="628" height="1165" alt="A stored G-code file with its slicer thumbnail and a Start print button."></button>
           <figcaption>Print a stored file</figcaption>
         </figure>
         <figure>
-          <img src="screenshots/generated/framed-console.png" loading="lazy" width="628" height="1165" alt="The per-printer G-code console with history and quick-command chips.">
+          <button type="button"><img src="screenshots/generated/framed-console.png" loading="lazy" width="628" height="1165" alt="The per-printer G-code console with history and quick-command chips."></button>
           <figcaption>G-code console</figcaption>
         </figure>
         <figure>
-          <img src="screenshots/generated/framed-file-system.png" loading="lazy" width="628" height="1165" alt="The File System browser showing the printer's configuration folder.">
+          <button type="button"><img src="screenshots/generated/framed-file-system.png" loading="lazy" width="628" height="1165" alt="The File System browser showing the printer's configuration folder."></button>
           <figcaption>File system</figcaption>
         </figure>
         <figure>
-          <img src="screenshots/generated/framed-config-editor.png" loading="lazy" width="628" height="1165" alt="The structured printer.cfg editor with setting names fixed and values editable.">
+          <button type="button"><img src="screenshots/generated/framed-config-editor.png" loading="lazy" width="628" height="1165" alt="The structured printer.cfg editor with setting names fixed and values editable."></button>
           <figcaption>Config editor</figcaption>
         </figure>
       </div>
       <button class="shots-nav next" type="button" data-dir="1" aria-label="Next screenshots">&#8250;</button>
     </div>
-    <p class="shots-hint">Rolls by itself. Hover or touch to pause, swipe or use the arrows to browse.</p>
+    <p class="shots-hint">Rolls by itself and pauses while you point at a picture. Click a picture to see it large, click again to come back.</p>
 
     <figure class="shot-wide">
       <img src="screenshots/notification.png" loading="lazy" alt="Moongate print notifications in the Android notification shade, showing live per-printer progress and temperatures.">
@@ -656,6 +671,10 @@ footer{
   </div>
 </section>
 
+<figure class="lightbox" id="lightbox" hidden>
+  <img src="" alt="">
+  <figcaption></figcaption>
+</figure>
 </main>
 
 <footer>
@@ -746,11 +765,44 @@ document.addEventListener('click', function (e) {
   }
   window.requestAnimationFrame(frame);
 
-  track.addEventListener('mouseenter', function () { hover = true; });
-  track.addEventListener('mouseleave', function () { hover = false; hold = 1500; });
-  ['pointerdown', 'touchstart', 'focusin', 'wheel'].forEach(function (e) {
-    track.addEventListener(e, function () { hold = 4000; }, { passive: true });
+  // Only a pointer resting on a picture pauses the roll.
+  track.addEventListener('mouseover', function (e) { if (e.target.closest('img')) hover = true; });
+  track.addEventListener('mouseout', function (e) { if (e.target.closest('img')) hover = false; });
+  // A finger dragging the strip gets a moment before the roll resumes.
+  track.addEventListener('pointerdown', function () { hold = 1500; }, { passive: true });
+  track.addEventListener('focusin', function () { hold = 1500; });
+
+  // Click a picture: a large overlay. Click again (or Escape): back to the page, same spot.
+  var box = document.getElementById('lightbox');
+  var boxImg = box.querySelector('img');
+  var boxCap = box.querySelector('figcaption');
+  var savedY = 0, open = false;
+  track.addEventListener('click', function (e) {
+    var img = e.target.closest('img');
+    if (!img) return;
+    var fig = img.closest('figure');
+    var idx = Array.prototype.indexOf.call(track.children, fig) % items.length;
+    var orig = items[idx] || fig;
+    savedY = window.scrollY;
+    boxImg.src = img.currentSrc || img.src;
+    boxImg.alt = orig.querySelector('img').alt;
+    boxCap.textContent = (orig.querySelector('figcaption') || {}).textContent || '';
+    box.hidden = false;
+    open = true; hover = true;
+    document.documentElement.style.overflow = 'hidden';
   });
+  function closeBox() {
+    if (!open) return;
+    box.hidden = true;
+    open = false; hover = false; hold = 1200;
+    document.documentElement.style.overflow = '';
+    var root = document.documentElement, was = root.style.scrollBehavior;
+    root.style.scrollBehavior = 'auto';
+    window.scrollTo(0, savedY);
+    root.style.scrollBehavior = was;
+  }
+  box.addEventListener('click', closeBox);
+  document.addEventListener('keydown', function (e) { if (open && e.key === 'Escape') closeBox(); });
   Array.prototype.forEach.call(document.querySelectorAll('.shots-nav'), function (b) {
     b.addEventListener('click', function () {
       hold = 6000; quiet = 800;
