@@ -33,7 +33,7 @@ dependencies:
   # v0.3.0 routes every printer call through Supabase: app signs in
   # anonymously, gets a JWT, calls /printer-access to fetch the current
   # tunnel URL + a short-lived EdDSA access token, then hits the Pi.
-  supabase_flutter: ^2.17.2
+  supabase_flutter: ^2.18.0
 
   # Secure storage (token / pairing data)
   flutter_secure_storage: ^9.0.0
@@ -54,7 +54,7 @@ dependencies:
   # both platforms otherwise block.
   webview_flutter: ^4.14.1
   webview_flutter_android: ^4.14.1
-  webview_flutter_wkwebview: ^3.26.1
+  webview_flutter_wkwebview: ^3.27.0
 
   # Persistent settings
   shared_preferences: ^2.2.0
