@@ -478,8 +478,12 @@ class PrinterStatusService {
       //    offline-but-still-paired printer (whose stale tunnel URL keeps this
       //    branch alive) was the dominant source of /printer-access Edge
       //    Function calls - so we skip it unless the failure was an auth reject.
-      if (_lastEndpointReason == 'http_401') {
-        PrinterAccessCache.instance.invalidate(config.id);
+      //    v0.9.71: the drop is a held one - a Pi that rejects EVERY token
+      //    (clock skew) on a 3 s poll made one phone mint 1,110 times an
+      //    hour; under the hold the cached token stays and the poll goes
+      //    straight to the offline/waiting verdict below (step 6).
+      if (_lastEndpointReason == 'http_401' &&
+          PrinterAccessCache.instance.invalidateAfterReject(config.id)) {
         try {
           access = await PrinterAccessCache.instance.get(config.id);
         } catch (_) {

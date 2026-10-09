@@ -1,5 +1,13 @@
 [
   {
+    "version": "v0.9.71",
+    "bullets": [
+      "Renaming a printer now reaches your iPhone notifications. The app only ever changed the name on the phone, while the notification title is built from the name you gave at pairing, so a typo corrected in the app still headed every alert. A rename now updates the server as well, and any name you changed before this update is sent up the first time the dashboard opens. No re-pair needed. Android alerts use the phone's own list and were never affected.",
+      "The app no longer asks the server for a fresh access token on every poll when a printer keeps rejecting the one it has (usually a Pi whose clock is wrong). The first rejection still gets a fresh token at once; repeats are held, one minute doubling to fifteen. One such printer was costing over a thousand server calls an hour.",
+      "Under the hood: Gradle 9.8.0, supabase_flutter 2.18.0 and webview_flutter_wkwebview 3.27.0."
+    ]
+  },
+  {
     "version": "v0.9.70",
     "bullets": [
       "Links inside the printer page now open in an in-app browser tab with its own Close, and the printer page stays put. A commit in Mainsail's Update Manager, the AFC panel's Spoolman link or the docs used to load inside the printer page itself, and because Moongate keeps each printer's page alive, opening the printer again showed GitHub or Spoolman with no way back. Links to the printer's own pages still open in place.",

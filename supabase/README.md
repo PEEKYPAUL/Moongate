@@ -325,11 +325,12 @@ supabase functions deploy printer-claim     --project-ref <ref>
 supabase functions deploy printer-access    --project-ref <ref>
 supabase functions deploy printer-heartbeat --project-ref <ref> --no-verify-jwt
 supabase functions deploy jwks              --project-ref <ref> --no-verify-jwt
+supabase functions deploy rename-printer    --project-ref <ref>
 ```
 
 `--no-verify-jwt` disables Supabase's automatic gateway JWT check for the
 endpoints that handle their own auth (Pi-signed payloads or public JWKS).
-`printer-claim` and `printer-access` keep the gateway check on for
+`printer-claim`, `printer-access` and `rename-printer` keep the gateway check on for
 defence-in-depth even though they also re-verify the JWT internally.
 
 ### Phase 2.7 - Smoke tests (curl)

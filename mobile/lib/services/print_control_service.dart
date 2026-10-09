@@ -119,7 +119,7 @@ class PrintControlService {
 
     // 401 / network blip - drop the cache and retry tunnel once with a
     // fresh token. LAN already tried.
-    PrinterAccessCache.instance.invalidate(config.id);
+    PrinterAccessCache.instance.invalidateAfterReject(config.id);
     try {
       access = await PrinterAccessCache.instance.get(config.id);
     } catch (_) {
@@ -1067,7 +1067,7 @@ class PrintControlService {
     }
 
     // 401 / network blip - drop the cache, refresh the token, retry tunnel once.
-    PrinterAccessCache.instance.invalidate(config.id);
+    PrinterAccessCache.instance.invalidateAfterReject(config.id);
     try {
       access = await PrinterAccessCache.instance.get(config.id);
     } catch (_) {

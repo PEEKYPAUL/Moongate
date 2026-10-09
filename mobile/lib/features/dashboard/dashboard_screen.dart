@@ -90,6 +90,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     // out ("Don't show again"). Post-frame so the dialog has a mounted context.
     WidgetsBinding.instance
         .addPostFrameCallback((_) => _runFirstRunOnboarding().ignore());
+    // Bring each cloud-paired printer's row name in line with the phone's,
+    // so the server-built iPhone push title follows renames (including
+    // ones made before v0.9.71, when a rename stayed on the phone).
+    PrinterRegistry.instance.syncNamesToCloud().ignore();
   }
 
   @override

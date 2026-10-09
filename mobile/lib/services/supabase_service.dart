@@ -223,6 +223,37 @@ class SupabaseService {
     }
   }
 
+  // ── Rename (cloud row) ─────────────────────────────────────────────────────
+
+  /// Write a cloud-paired printer's display name to its Supabase row through
+  /// the rename-printer Edge Function (clients can't update the table
+  /// directly). The iPhone push title is built server-side from that row, so
+  /// without this an in-app rename never reached notifications.
+  ///
+  /// Returns true once the row carries [name]; a 404 (row gone, or never
+  /// ours) also returns true since there is nothing left to rename. False on
+  /// network/auth failure so the caller can try again at the next launch.
+  Future<bool> renamePrinterInCloud(String printerId, String name) async {
+    try {
+      await client.functions.invoke(
+        'rename-printer',
+        body: {'printer_id': printerId, 'name': name},
+      );
+      _log('Renamed printer $printerId in cloud');
+      return true;
+    } on FunctionException catch (e) {
+      if (e.status == 404) {
+        _log('rename-printer 404 for $printerId - no row to rename');
+        return true;
+      }
+      _log('rename-printer HTTP ${e.status}: ${e.details}');
+      return false;
+    } catch (e) {
+      _log('rename-printer failed: $e');
+      return false;
+    }
+  }
+
   // ── Printers list (RLS-scoped to current user) ─────────────────────────────
 
   /// Returns the current user's printers as `[(id, name, last_seen)]`.
