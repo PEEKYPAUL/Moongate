@@ -111,6 +111,10 @@ If print notifications were on but the ongoing status notification is gone and y
 
 If you were **inside the Moongate app** (or any app, with Moongate in the foreground) when the alert fired, that's normal iPhone behaviour: iOS doesn't show a banner for a push notification while the app it belongs to is on screen. The alert still exists - swipe down from the top of the screen (Notification Centre) and it's there. Lock the phone or switch apps and the next one will banner normally.
 
+## iPhone notifications show an old name for a printer (fixed in v0.9.71)
+
+Renaming a printer in the app only changed the name on the phone, while the notification title is built from the name you gave when you paired it, so a typo corrected in the app kept heading every alert. From **v0.9.71** a rename updates the server copy too, and the first time the dashboard opens after the update any name you changed earlier is sent up. Nothing to do beyond updating and opening the app once; no re-pair. Android alerts are built on the phone and were never affected.
+
 ## Android didn't alert when a print paused or failed, or the printer errored
 
 Loud Android alerts for these moments arrived in **v0.9.61** - older versions only re-labelled the quiet status bar. On v0.9.61+, three things have to be true, and each has an easy check:
@@ -341,6 +345,10 @@ curl -fsSL https://raw.githubusercontent.com/PEEKYPAUL/Moongate/master/klipper-p
 ```
 
 A bug report (see above) now shows the **Pi's plugin version**, so you can confirm the Pi is on v0.6.4+ afterwards.
+
+## Works on home WiFi, never away from home, and the Pi's clock is wrong
+
+Every remote request carries a short-lived signed token and the Pi checks its timestamp against its own clock. A Pi whose clock is more than a minute out (no time sync after a power cut, or a network that blocks NTP) rejects every token, so the printer works on the LAN and never over the tunnel. Check on the Pi with `timedatectl` - you want `System clock synchronized: yes`. If NTP is blocked, `sudo apt install htpdate` sets the clock over plain HTTP instead. Until v0.9.71 the app also reacted to each rejection by fetching a fresh token on every poll, which cost you nothing but hammered the server; the app now backs off after the first retry, so the printer simply shows offline until the clock is right.
 
 ## Remote shows "500 Internal Server Error" but LAN works (plugin 0.6.20)
 
