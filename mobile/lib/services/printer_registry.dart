@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:developer' as dev;
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/printer_config.dart';
@@ -86,32 +87,52 @@ class PrinterRegistry {
     if (changed) await _save();
   }
 
-  /// Pulls the current user's printers from Supabase (RLS-scoped) and
-  /// merges them into the local cache. Local-only additions made during
-  /// the same session (e.g. just-claimed printers) are preserved.
-  ///
-  /// Called from the dashboard on launch and on pull-to-refresh.
-  Future<void> refreshFromSupabase() async {
+  /// The phone's list is the source of truth for a printer's NAME (it is
+  /// what every tile and Android notification shows). The iPhone push title
+  /// is built server-side from the printer's Supabase row, so a cloud-paired
+  /// printer's row is brought into line with the phone: on every rename
+  /// ([renamePrinter]) and, as a catch-up, once per dashboard launch here.
+  /// The catch-up is what fixes renames made before v0.9.71 (local-only
+  /// until then) and any rename whose cloud write missed (offline, no
+  /// session yet). Costs one RLS-scoped list read; no Edge call when
+  /// nothing differs.
+  Future<void> syncNamesToCloud() async {
     if (!SupabaseService.instance.ready) {
-      _log('Supabase not ready, skipping refresh');
+      _log('Supabase not ready, skipping name sync');
       return;
     }
     try {
-      final rows = await SupabaseService.instance.listMyPrinters();
-      final newList = <PrinterConfig>[];
-      for (final r in rows) {
-        // Preserve cached webcam settings if we already know this printer.
-        final existing = _printers.where((p) => p.id == r.id).firstOrNull;
-        newList.add(existing != null
-            ? existing.copyWith(name: r.name)
-            : PrinterConfig(id: r.id, name: r.name));
+      final rows    = await SupabaseService.instance.listMyPrinters();
+      final pending = cloudRenamesNeeded(_printers, rows);
+      for (final e in pending.entries) {
+        await SupabaseService.instance.renamePrinterInCloud(e.key, e.value);
       }
-      _printers = newList;
-      await _save();
-      _log('Refreshed: ${_printers.length} printer(s) from Supabase');
+      if (pending.isNotEmpty) {
+        _log('Synced ${pending.length} printer name(s) to cloud');
+      }
     } catch (e) {
-      _log('refreshFromSupabase failed: $e');
+      _log('syncNamesToCloud failed: $e');
     }
+  }
+
+  /// Pure: `{printerId: localName}` for every cloud-paired local printer
+  /// whose row exists under this account with a different name. Direct-mode
+  /// (`lan-`) printers have no row and are skipped; so is a printer the
+  /// account's row list doesn't hold (released elsewhere, or a restore
+  /// still in flight) - nothing to rename there.
+  @visibleForTesting
+  static Map<String, String> cloudRenamesNeeded(
+      List<PrinterConfig> local, List<RemotePrinterRow> rows) {
+    final byId = {for (final r in rows) r.id: r.name};
+    final out  = <String, String>{};
+    for (final p in local) {
+      if (!p.cloudPaired) continue;
+      final remote = byId[p.id];
+      final name   = p.name.trim();
+      if (remote == null || name.isEmpty || remote == name) continue;
+      out[p.id] = name;
+    }
+    return out;
   }
 
   /// Add a printer locally after a successful claim. The Supabase row
@@ -290,9 +311,13 @@ class PrinterRegistry {
     await _save();
   }
 
-  /// Rename a printer locally. Note: the Supabase row's `name` field is
-  /// left unchanged - the local rename is cosmetic only. Re-pairing would
-  /// reset to whatever name was sent during the claim.
+  /// Rename a printer. Saved locally first (the phone's list is what the
+  /// tiles and Android notifications show), then a cloud-paired printer's
+  /// Supabase row is updated too, because the iPhone push title is built
+  /// server-side from that row - before v0.9.71 the row kept the
+  /// pairing-time name for ever. The cloud write is best-effort here; a
+  /// miss (offline, no session) is picked up by [syncNamesToCloud] at the
+  /// next launch.
   Future<void> renamePrinter(String printerId, String newName) async {
     final trimmed = newName.trim();
     if (trimmed.isEmpty) return;
@@ -302,6 +327,10 @@ class PrinterRegistry {
     _printers = List.of(_printers)
       ..[idx] = _printers[idx].copyWith(name: trimmed);
     await _save();
+    if (_printers[idx].cloudPaired && SupabaseService.instance.ready) {
+      unawaited(
+          SupabaseService.instance.renamePrinterInCloud(printerId, trimmed));
+    }
   }
 
   /// Flip a printer between cloud and Direct (LAN/VPN) mode. Only meaningful
