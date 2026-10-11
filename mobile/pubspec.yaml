@@ -57,7 +57,7 @@ dependencies:
   webview_flutter_wkwebview: ^3.27.0
 
   # Persistent settings
-  shared_preferences: ^2.2.0
+  shared_preferences: ^2.5.6
 
   # Material You "dynamic colour" - reads the wallpaper-derived palette on
   # Android 12+ for the optional "Phone colours" theme. The builder returns
@@ -78,7 +78,7 @@ dependencies:
   device_info_plus: ^10.1.0
 
   # Open URLs in the browser (used for the in-app update download prompt)
-  url_launcher: ^6.3.0
+  url_launcher: ^6.3.3
 
   # SVG rendering (Mainsail / Fluidd logos in webcam placeholder)
   flutter_svg: ^2.0.0
