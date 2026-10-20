@@ -949,6 +949,110 @@ class PrintControlService {
     }
   }
 
+  /// Moonraker's metadata for a stored G-code file, the bits the layer viewer
+  /// shows before the body arrives: the layer count, layer height and object
+  /// height the slicer wrote, and `gcode_start_byte` (where the commands start,
+  /// after the embedded thumbnails) so the download can skip the preamble.
+  /// Null when the metadata can't be read; fields are null when absent.
+  Future<GcodeMeta?> fetchGcodeMeta(GcodeFile file,
+      {required String base, required bool isLan}) async {
+    final headers = await _headersFor(isLan);
+    if (headers == null && !isLan) return null;
+    try {
+      final uri = Uri.parse('$base/server/files/metadata'
+          '?filename=${Uri.encodeComponent(file.path)}');
+      final resp = await http
+          .get(uri, headers: headers)
+          .timeout(Duration(seconds: isLan ? 5 : 15));
+      if (resp.statusCode != 200) return null;
+      final r = jsonDecode(resp.body)['result'];
+      if (r is! Map<String, dynamic>) return null;
+      double? d(String k) => (r[k] is num) ? (r[k] as num).toDouble() : null;
+      int? n(String k) => (r[k] is num) ? (r[k] as num).toInt() : null;
+      return GcodeMeta(
+        layerCount:     n('layer_count'),
+        layerHeight:    d('layer_height'),
+        objectHeight:   d('object_height'),
+        gcodeStartByte: n('gcode_start_byte'),
+        size:           n('size') ?? file.size,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Download a stored G-code file's body over the already-resolved
+  /// [base]/[isLan] connection (what [listGcodes] answered on), streaming so
+  /// [onProgress] can drive a bar: `received` bytes so far and `total` (-1 when
+  /// the server sent no length). With [startByte] the request carries a
+  /// `Range` header so the slicer's thumbnail preamble stays on the Pi; a
+  /// server that ignores it answers 200 with the whole file, which the parser
+  /// handles just the same. [cancel] completing aborts the stream and the
+  /// result is null. Null on any failure (logged).
+  Future<Uint8List?> downloadGcode(GcodeFile file,
+      {required String base,
+      required bool isLan,
+      int startByte = 0,
+      void Function(int received, int total)? onProgress,
+      Future<void>? cancel}) async {
+    final headers = await _headersFor(isLan);
+    if (headers == null && !isLan) return null;
+    final where = isLan ? 'lan' : 'tunnel';
+    final encoded = file.path.split('/').map(Uri.encodeComponent).join('/');
+    final uri = Uri.parse('$base/server/files/gcodes/$encoded');
+    final client = http.Client();
+    try {
+      final req = http.Request('GET', uri);
+      if (headers != null) req.headers.addAll(headers);
+      if (startByte > 0) req.headers['Range'] = 'bytes=$startByte-';
+      final resp = await client
+          .send(req)
+          .timeout(Duration(seconds: isLan ? 8 : 25));
+      if (resp.statusCode != 200 && resp.statusCode != 206) {
+        dev.log('gcode HTTP ${resp.statusCode} ($where) ${file.path}',
+            name: 'MOONGATE/GCODE');
+        return null;
+      }
+      final total = resp.contentLength ?? -1;
+      final out = BytesBuilder(copy: false);
+      var received = 0;
+      var cancelled = false;
+      final sub = resp.stream.listen((chunk) {
+        out.add(chunk);
+        received += chunk.length;
+        onProgress?.call(received, total);
+      });
+      final done = sub.asFuture<void>();
+      if (cancel != null) {
+        unawaited(cancel.then((_) {
+          cancelled = true;
+          sub.cancel();
+        }));
+      }
+      await done.timeout(const Duration(minutes: 5));
+      if (cancelled) return null;
+      return out.takeBytes();
+    } catch (e) {
+      dev.log('gcode error ($where) ${file.path}: $e', name: 'MOONGATE/GCODE');
+      return null;
+    } finally {
+      client.close();
+    }
+  }
+
+  /// Bearer header for the tunnel, or null on LAN (Moonraker trusts the
+  /// subnet). Returns null on the tunnel too when the token can't be fetched -
+  /// callers check [isLan] to tell the two apart.
+  Future<Map<String, String>?> _headersFor(bool isLan) async {
+    if (isLan) return null;
+    try {
+      final access = await PrinterAccessCache.instance.get(config.id);
+      return {'Authorization': 'Bearer ${access.accessToken}'};
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Resolve the freshest LAN base then the tunnel, running [call] against each
   /// until one returns non-null. Mirrors [sendAction]'s path order - including
   /// the one-shot token refresh + tunnel retry - so a fresh-paired (tunnel-
@@ -1078,6 +1182,24 @@ class PrintControlService {
     }
     return null;
   }
+}
+
+/// The slice of Moonraker's file metadata the layer viewer uses
+/// ([PrintControlService.fetchGcodeMeta]). Every field but [size] is what the
+/// slicer wrote and may be missing.
+class GcodeMeta {
+  final int? layerCount;
+  final double? layerHeight;
+  final double? objectHeight;
+  final int? gcodeStartByte;
+  final int size;
+  const GcodeMeta({
+    this.layerCount,
+    this.layerHeight,
+    this.objectHeight,
+    this.gcodeStartByte,
+    required this.size,
+  });
 }
 
 /// Result of [PrintControlService.listGcodes]: the files plus the connection

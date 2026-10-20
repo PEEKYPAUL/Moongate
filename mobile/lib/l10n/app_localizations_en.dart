@@ -1789,6 +1789,66 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gcodeStartFailed => 'Couldn\'t start the print';
 
   @override
+  String get gcodeViewTooltip => 'View layers';
+
+  @override
+  String get gcodeViewerDownloading => 'Downloading file…';
+
+  @override
+  String get gcodeViewerParsing => 'Building layers…';
+
+  @override
+  String get gcodeViewerError => 'Couldn\'t load this file';
+
+  @override
+  String get gcodeViewerNoLayers => 'No printable moves found in this file';
+
+  @override
+  String gcodeViewerLargeFile(String size) {
+    return 'This file is $size. Download it over the internet?';
+  }
+
+  @override
+  String get gcodeViewerDownload => 'Download';
+
+  @override
+  String get gcodeViewerModeCooling => 'Cooling';
+
+  @override
+  String get gcodeViewerModeHotend => 'Hotend';
+
+  @override
+  String get gcodeViewerLegendFan => 'Part cooling fan';
+
+  @override
+  String get gcodeViewerLegendTemp => 'Hotend target';
+
+  @override
+  String get gcodeViewerTempUnset => 'Not set in this file (a macro sets it)';
+
+  @override
+  String gcodeViewerLayer(int n, int total) {
+    return 'Layer $n / $total';
+  }
+
+  @override
+  String gcodeViewerLayers(int count) {
+    return '$count layers';
+  }
+
+  @override
+  String get gcodeViewerOnlyLayer => 'Only this layer';
+
+  @override
+  String get gcodeViewerTopDown => 'Straight down';
+
+  @override
+  String get gcodeViewerLayerUp => 'Layer up';
+
+  @override
+  String get gcodeViewerLayerDown => 'Layer down';
+
+  @override
   String get tileMacros => 'Macros';
 
   @override

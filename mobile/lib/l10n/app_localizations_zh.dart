@@ -1710,6 +1710,66 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gcodeStartFailed => '无法开始打印';
 
   @override
+  String get gcodeViewTooltip => '查看层';
+
+  @override
+  String get gcodeViewerDownloading => '正在下载文件…';
+
+  @override
+  String get gcodeViewerParsing => '正在生成层…';
+
+  @override
+  String get gcodeViewerError => '无法加载此文件';
+
+  @override
+  String get gcodeViewerNoLayers => '此文件中没有可打印的移动';
+
+  @override
+  String gcodeViewerLargeFile(String size) {
+    return '此文件大小为 $size，要通过互联网下载吗？';
+  }
+
+  @override
+  String get gcodeViewerDownload => '下载';
+
+  @override
+  String get gcodeViewerModeCooling => '冷却';
+
+  @override
+  String get gcodeViewerModeHotend => '热端';
+
+  @override
+  String get gcodeViewerLegendFan => '模型冷却风扇';
+
+  @override
+  String get gcodeViewerLegendTemp => '热端目标温度';
+
+  @override
+  String get gcodeViewerTempUnset => '此文件未设置（由宏设置）';
+
+  @override
+  String gcodeViewerLayer(int n, int total) {
+    return '第 $n / $total 层';
+  }
+
+  @override
+  String gcodeViewerLayers(int count) {
+    return '$count 层';
+  }
+
+  @override
+  String get gcodeViewerOnlyLayer => '仅此层';
+
+  @override
+  String get gcodeViewerTopDown => '俯视';
+
+  @override
+  String get gcodeViewerLayerUp => '上一层';
+
+  @override
+  String get gcodeViewerLayerDown => '下一层';
+
+  @override
   String get tileMacros => '宏';
 
   @override

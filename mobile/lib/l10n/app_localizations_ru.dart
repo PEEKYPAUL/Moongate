@@ -1808,6 +1808,66 @@ class AppLocalizationsRu extends AppLocalizations {
   String get gcodeStartFailed => 'Не удалось начать печать';
 
   @override
+  String get gcodeViewTooltip => 'Показать слои';
+
+  @override
+  String get gcodeViewerDownloading => 'Загрузка файла…';
+
+  @override
+  String get gcodeViewerParsing => 'Построение слоёв…';
+
+  @override
+  String get gcodeViewerError => 'Не удалось загрузить этот файл';
+
+  @override
+  String get gcodeViewerNoLayers => 'В этом файле нет печатающих перемещений';
+
+  @override
+  String gcodeViewerLargeFile(String size) {
+    return 'Размер файла $size. Загрузить через интернет?';
+  }
+
+  @override
+  String get gcodeViewerDownload => 'Загрузить';
+
+  @override
+  String get gcodeViewerModeCooling => 'Обдув';
+
+  @override
+  String get gcodeViewerModeHotend => 'Хотенд';
+
+  @override
+  String get gcodeViewerLegendFan => 'Обдув детали';
+
+  @override
+  String get gcodeViewerLegendTemp => 'Цель хотенда';
+
+  @override
+  String get gcodeViewerTempUnset => 'В файле не задана (её задаёт макрос)';
+
+  @override
+  String gcodeViewerLayer(int n, int total) {
+    return 'Слой $n / $total';
+  }
+
+  @override
+  String gcodeViewerLayers(int count) {
+    return 'Слоёв: $count';
+  }
+
+  @override
+  String get gcodeViewerOnlyLayer => 'Только этот слой';
+
+  @override
+  String get gcodeViewerTopDown => 'Вид сверху';
+
+  @override
+  String get gcodeViewerLayerUp => 'Слой выше';
+
+  @override
+  String get gcodeViewerLayerDown => 'Слой ниже';
+
+  @override
   String get tileMacros => 'Макросы';
 
   @override

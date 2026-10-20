@@ -3310,6 +3310,114 @@ abstract class AppLocalizations {
   /// **'Couldn\'t start the print'**
   String get gcodeStartFailed;
 
+  /// Tooltip for the layers button on a G-code row; opens the 3D layer viewer.
+  ///
+  /// In en, this message translates to:
+  /// **'View layers'**
+  String get gcodeViewTooltip;
+
+  /// Viewer: shown while the G-code file is downloading from the printer.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading file…'**
+  String get gcodeViewerDownloading;
+
+  /// Viewer: shown while the downloaded file is being turned into layers.
+  ///
+  /// In en, this message translates to:
+  /// **'Building layers…'**
+  String get gcodeViewerParsing;
+
+  /// Viewer: the file could not be downloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load this file'**
+  String get gcodeViewerError;
+
+  /// Viewer: the file parsed but contained no extrusion moves.
+  ///
+  /// In en, this message translates to:
+  /// **'No printable moves found in this file'**
+  String get gcodeViewerNoLayers;
+
+  /// Viewer: asks before downloading a big file over the internet. {size} is like '85 MB'.
+  ///
+  /// In en, this message translates to:
+  /// **'This file is {size}. Download it over the internet?'**
+  String gcodeViewerLargeFile(String size);
+
+  /// Viewer: button that starts the big-file download.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get gcodeViewerDownload;
+
+  /// Viewer: heat-map mode showing the part-cooling fan speed.
+  ///
+  /// In en, this message translates to:
+  /// **'Cooling'**
+  String get gcodeViewerModeCooling;
+
+  /// Viewer: heat-map mode showing the hotend target temperature.
+  ///
+  /// In en, this message translates to:
+  /// **'Hotend'**
+  String get gcodeViewerModeHotend;
+
+  /// Viewer: legend title in cooling mode.
+  ///
+  /// In en, this message translates to:
+  /// **'Part cooling fan'**
+  String get gcodeViewerLegendFan;
+
+  /// Viewer: legend title in hotend mode.
+  ///
+  /// In en, this message translates to:
+  /// **'Hotend target'**
+  String get gcodeViewerLegendTemp;
+
+  /// Viewer: legend note when the file never sets a hotend temperature (a macro does it).
+  ///
+  /// In en, this message translates to:
+  /// **'Not set in this file (a macro sets it)'**
+  String get gcodeViewerTempUnset;
+
+  /// Viewer: current layer readout. {n} is the layer number, {total} the layer count.
+  ///
+  /// In en, this message translates to:
+  /// **'Layer {n} / {total}'**
+  String gcodeViewerLayer(int n, int total);
+
+  /// Viewer header: layer count. {count} is a number.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} layers'**
+  String gcodeViewerLayers(int count);
+
+  /// Viewer: toggle that hides every layer below the current one.
+  ///
+  /// In en, this message translates to:
+  /// **'Only this layer'**
+  String get gcodeViewerOnlyLayer;
+
+  /// Viewer: toggle that looks straight down at the current layer.
+  ///
+  /// In en, this message translates to:
+  /// **'Straight down'**
+  String get gcodeViewerTopDown;
+
+  /// Viewer: tooltip of the layer-up button (hold to repeat).
+  ///
+  /// In en, this message translates to:
+  /// **'Layer up'**
+  String get gcodeViewerLayerUp;
+
+  /// Viewer: tooltip of the layer-down button (hold to repeat).
+  ///
+  /// In en, this message translates to:
+  /// **'Layer down'**
+  String get gcodeViewerLayerDown;
+
   /// Tooltip for the macro button on an online printer tile; opens the macro list.
   ///
   /// In en, this message translates to:

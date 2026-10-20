@@ -1,5 +1,13 @@
 [
   {
+    "version": "v0.9.72",
+    "bullets": [
+      "New: a View button on every file in Start a print opens the sliced file as a 3D layer stack. Spin it with one finger, pinch to zoom, two fingers to pan, double tap to reset, and step through the layers with the rail on the right (hold the arrows to run). Start the print from the viewer when you like what you see.",
+      "Every line is coloured by the part-cooling fan the slicer asked for at that point, so overhang and bridge cooling show up as bands. Switch to Hotend to see the temperature instead. The legend ranges itself to the file, so small differences stay visible.",
+      "Works on every printer the app can list files from, including Direct-mode and third-party printers. Big files over the internet ask before downloading."
+    ]
+  },
+  {
     "version": "v0.9.71",
     "bullets": [
       "Renaming a printer now reaches your iPhone notifications. The app only ever changed the name on the phone, while the notification title is built from the name you gave at pairing, so a typo corrected in the app still headed every alert. A rename now updates the server as well, and any name you changed before this update is sent up the first time the dashboard opens. No re-pair needed. Android alerts use the phone's own list and were never affected.",
