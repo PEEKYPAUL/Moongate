@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
-import 'dart:ui' show PointMode;
+import 'dart:ui' show Vertices, VertexMode;
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,6 +25,14 @@ import '../../services/print_control_service.dart';
 /// occlusion while the camera stays above the top layer, so the tilt is
 /// clamped to 5..88 degrees. One finger orbits, pinch zooms around the pinch,
 /// two fingers pan, double tap resets; the rail steps layers.
+///
+/// Each layer is ONE triangle mesh ([Vertices]): every extrusion segment is a
+/// thin quad at its real width (0.42 mm, widened when zoomed far out so it
+/// still covers a pixel), coloured per vertex from the heat map. One
+/// `drawVertices` per layer, so a 180-layer, 300k-segment file is 180 GPU
+/// draws a frame. NOT `drawRawPoints(lines)`: Impeller splits that into one
+/// draw op per line pair, which froze and then killed the app on the first
+/// S24 build.
 ///
 /// Pops `true` when the user taps Start print, so the sheet selects the file
 /// and runs its normal confirm dialog (soak / cool-down rows included).
@@ -58,6 +66,8 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
   static const _defAz = -35 * math.pi / 180;
   static const _defEl = 35 * math.pi / 180;
   static const _canvasBg = Color(0xFF141414); // slicer-dark in every theme
+  static const _lineWidthMm = 0.42; // a typical extrusion width
+  static const _minLinePx = 1.4; // never thinner than this on screen
 
   late final PrintControlService _control;
   _Phase _phase = _Phase.downloading;
@@ -69,7 +79,12 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
   Completer<void>? _cancel;
 
   GcodeModel? _model;
-  List<List<_Bucket>>? _buckets; // per layer, for the current mode
+  /// One COARSE mesh per layer (decimated segments) for the stack below the
+  /// current layer; the current layer gets a full-detail mesh on demand.
+  List<Vertices>? _coarse;
+  Vertices? _curMesh;
+  int _curMeshIndex = -1;
+  double _meshWidth = _lineWidthMm; // model-space width the meshes were built at
   int _cur = 0;
   bool _cooling = true;
   bool _only = false;
@@ -95,7 +110,21 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
   void dispose() {
     _repeat?.cancel();
     _cancel?.complete();
+    _disposeMeshes();
     super.dispose();
+  }
+
+  void _disposeMeshes() {
+    final m = _coarse;
+    _coarse = null;
+    if (m != null) {
+      for (final v in m) {
+        v.dispose();
+      }
+    }
+    _curMesh?.dispose();
+    _curMesh = null;
+    _curMeshIndex = -1;
   }
 
   Future<void> _boot() async {
@@ -181,9 +210,9 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
     setState(() {
       _model = model;
       _cur = model.layers.length - 1;
-      _rebucket();
       _phase = _Phase.ready;
-      _resetView();
+      _resetView(); // sets the scale, which the mesh width depends on
+      _rebuildMeshes();
     });
   }
 
@@ -223,10 +252,22 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
     return Color.lerp(stops[i], stops[i + 1], t * n - i)!;
   }
 
-  /// Re-bucket every layer's segments into 16 colour bands for the current
-  /// mode. Done once per mode switch (tens of ms for a 12 MB file), never
-  /// per frame.
-  void _rebucket() {
+  /// The model-space line width for the current zoom: the real extrusion
+  /// width, widened when zoomed far out so a line still covers a pixel.
+  double get _wantedWidth =>
+      math.max(_lineWidthMm, _minLinePx / math.max(_scale, 1e-6));
+
+  static const _bands = 16;
+  Int32List _lut = Int32List(0);
+
+  /// Build the coarse mesh of every layer for the current mode and width.
+  /// Each segment becomes a quad (two triangles, six vertices) coloured from
+  /// a 16-step lookup. The stack below the current layer is drawn from these
+  /// decimated meshes (see [_decimate]); the current layer's full-detail mesh
+  /// is built on demand in [_currentMesh]. Done once per mode switch or when
+  /// the zoom has moved the wanted width by more than a third, never per
+  /// frame.
+  void _rebuildMeshes() {
     final m = _model!;
     if (_cooling) {
       _lo = 0;
@@ -235,48 +276,109 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
       _lo = m.tempMin;
       _hi = m.tempMax <= m.tempMin ? m.tempMin + 10 : m.tempMax;
     }
-    const bands = 16;
-    final colors = [for (var q = 0; q < bands; q++) _colorAt(q / (bands - 1))];
-    final span = (_hi - _lo) == 0 ? 1.0 : (_hi - _lo);
-    _buckets = m.layers.map((layer) {
-      final v = _cooling ? layer.fan : layer.temp;
-      final counts = List<int>.filled(bands, 0);
-      final q = Uint8List(v.length);
-      for (var i = 0; i < v.length; i++) {
-        final b = (((v[i] - _lo) / span) * (bands - 1)).round().clamp(0, bands - 1);
-        q[i] = b;
-        counts[b]++;
+    _lut = Int32List.fromList([
+      for (var q = 0; q < _bands; q++) _colorAt(q / (_bands - 1)).toARGB32()
+    ]);
+    final width = _wantedWidth;
+    _disposeMeshes();
+    _meshWidth = width;
+    // Chord error of about half a device pixel at the current zoom (never
+    // under 0.1 mm), chords up to 4 mm: the dimmed stack reads the same.
+    // A file that still exceeds the segment budget after that gets a looser
+    // tolerance, up to three times, so a huge print stays drawable.
+    var tol = math.max(0.1, 0.5 / math.max(_scale, 1e-6));
+    const budget = 600000;
+    List<(Float32List, Float32List)> coarse;
+    var pass = 0;
+    do {
+      coarse = [
+        for (final layer in m.layers)
+          decimateSegments(layer.points, _cooling ? layer.fan : layer.temp,
+              lo: _lo, hi: _hi, bands: _bands, maxLen: 4.0, tol: tol),
+      ];
+      final total = coarse.fold(0, (n, s) => n + s.$2.length);
+      if (total <= budget || ++pass > 3) break;
+      tol *= 2;
+    } while (true);
+    _coarse = [for (final s in coarse) _meshFrom(s, _lo, _hi, _lut, width)];
+  }
+
+  /// Full-detail mesh of the current layer, rebuilt when the layer changes
+  /// (one layer is a few thousand segments: well under a frame).
+  Vertices _currentMesh() {
+    if (_curMesh == null || _curMeshIndex != _cur) {
+      _curMesh?.dispose();
+      final layer = _model!.layers[_cur];
+      _curMesh = _meshFrom(
+          (layer.points, _cooling ? layer.fan : layer.temp),
+          _lo, _hi, _lut, _meshWidth);
+      _curMeshIndex = _cur;
+    }
+    return _curMesh!;
+  }
+
+  static Vertices _meshFrom((Float32List, Float32List) seg, double lo,
+      double hi, Int32List lut, double width) {
+    final p = seg.$1;
+    final values = seg.$2;
+    final n = values.length;
+    final pos = Float32List(n * 12);
+    final col = Int32List(n * 6);
+    final hw = width / 2;
+    final span = (hi - lo) == 0 ? 1.0 : (hi - lo);
+    final top = lut.length - 1;
+    var k = 0, c = 0;
+    for (var i = 0; i < n; i++) {
+      final x1 = p[i * 4], y1 = p[i * 4 + 1], x2 = p[i * 4 + 2], y2 = p[i * 4 + 3];
+      var dx = x2 - x1, dy = y2 - y1;
+      final len = math.sqrt(dx * dx + dy * dy);
+      if (len < 1e-6) {
+        dx = hw;
+        dy = 0;
+      } else {
+        dx = dx / len * hw;
+        dy = dy / len * hw;
       }
-      final out = <_Bucket>[];
-      final fill = List<Float32List?>.filled(bands, null);
-      final at = List<int>.filled(bands, 0);
-      for (var b = 0; b < bands; b++) {
-        if (counts[b] > 0) fill[b] = Float32List(counts[b] * 4);
-      }
-      final p = layer.points;
-      for (var i = 0; i < v.length; i++) {
-        final b = q[i];
-        final f = fill[b]!;
-        final k = at[b];
-        f[k] = p[i * 4];
-        f[k + 1] = p[i * 4 + 1];
-        f[k + 2] = p[i * 4 + 2];
-        f[k + 3] = p[i * 4 + 3];
-        at[b] = k + 4;
-      }
-      for (var b = 0; b < bands; b++) {
-        final f = fill[b];
-        if (f != null) out.add(_Bucket(colors[b], f));
-      }
-      return out;
-    }).toList(growable: false);
+      // Normal of half-width, plus a half-width cap at each end so adjacent
+      // segments of a perimeter meet without a notch.
+      final nx = -dy, ny = dx;
+      final ax = x1 - dx, ay = y1 - dy, bx = x2 + dx, by = y2 + dy;
+      pos[k] = ax + nx;      pos[k + 1] = ay + ny;
+      pos[k + 2] = bx + nx;  pos[k + 3] = by + ny;
+      pos[k + 4] = bx - nx;  pos[k + 5] = by - ny;
+      pos[k + 6] = ax + nx;  pos[k + 7] = ay + ny;
+      pos[k + 8] = bx - nx;  pos[k + 9] = by - ny;
+      pos[k + 10] = ax - nx; pos[k + 11] = ay - ny;
+      k += 12;
+      var q = (((values[i] - lo) / span) * top).round();
+      if (q < 0) q = 0;
+      if (q > top) q = top;
+      final color = lut[q];
+      col[c] = color;
+      col[c + 1] = color;
+      col[c + 2] = color;
+      col[c + 3] = color;
+      col[c + 4] = color;
+      col[c + 5] = color;
+      c += 6;
+    }
+    return Vertices.raw(VertexMode.triangles, pos, colors: col);
+  }
+
+  /// After a zoom: rebuild when the wanted width drifted more than a third
+  /// from what the meshes were built at (lines zoomed far out would vanish,
+  /// lines zoomed in would look too fat).
+  void _maybeRebuildForWidth() {
+    if (_model == null) return;
+    final r = _wantedWidth / _meshWidth;
+    if (r > 1.34 || r < 0.75) setState(_rebuildMeshes);
   }
 
   Future<void> _setMode(bool cooling) async {
     if (_cooling == cooling) return;
     setState(() {
       _cooling = cooling;
-      if (_model != null) _rebucket();
+      if (_model != null) _rebuildMeshes();
     });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefMode, cooling ? 'cool' : 'hot');
@@ -287,12 +389,17 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
   void _resetView() {
     final m = _model;
     if (m == null || _size == Size.zero) return;
-    final extent = math.max(math.max(m.width, m.depth), m.height) * 1.25;
-    _fit = math.min(_size.width, _size.height) / math.max(extent, 1);
-    _scale = _fit;
-    _pan = const Offset(0, 10);
     _az = _defAz;
     _el = _defEl;
+    // Fit the part's projected footprint at the default tilt: the XY
+    // diagonal (any azimuth) foreshortened by sin(el), plus the height by
+    // cos(el). 12 % margin each way; the legend and rail sit over the edges.
+    final diag = math.sqrt(m.width * m.width + m.depth * m.depth);
+    final pw = math.max(diag, 1.0);
+    final ph = math.max(diag * math.sin(_el) + m.height * math.cos(_el), 1.0);
+    _fit = math.min((_size.width - 64) / (pw * 1.12), (_size.height - 48) / (ph * 1.12));
+    _scale = _fit;
+    _pan = Offset.zero;
   }
 
   void _zoomAt(Offset focal, double f) {
@@ -305,6 +412,8 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
   }
 
   void _onScaleStart(ScaleStartDetails d) => _lastGestureScale = 1;
+
+  void _onScaleEnd(ScaleEndDetails d) => _maybeRebuildForWidth();
 
   void _onScaleUpdate(ScaleUpdateDetails d) {
     setState(() {
@@ -514,7 +623,14 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
             if (size != _size) {
               final first = _size == Size.zero;
               _size = size;
-              if (first) _resetView();
+              if (first) {
+                _resetView();
+                // The meshes were built before the first layout knew the
+                // size; rebuild if the fit moved the wanted width (deferred:
+                // we are inside build).
+                WidgetsBinding.instance
+                    .addPostFrameCallback((_) => _maybeRebuildForWidth());
+              }
             }
             return Stack(
               fit: StackFit.expand,
@@ -523,11 +639,16 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
                   behavior: HitTestBehavior.opaque,
                   onScaleStart: _onScaleStart,
                   onScaleUpdate: _onScaleUpdate,
-                  onDoubleTap: () => setState(_resetView),
+                  onScaleEnd: _onScaleEnd,
+                  onDoubleTap: () => setState(() {
+                    _resetView();
+                    _maybeRebuildForWidth();
+                  }),
                   child: CustomPaint(
                     painter: _LayerPainter(
                       model:   m,
-                      buckets: _buckets!,
+                      below:   _coarse!,
+                      current: _currentMesh(),
                       cur:     _cur,
                       only:    _only,
                       az:      _az,
@@ -730,13 +851,6 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
   }
 }
 
-/// One colour band of one layer: the segments (x1,y1,x2,y2 ...) that share it.
-class _Bucket {
-  final Color color;
-  final Float32List points;
-  const _Bucket(this.color, this.points);
-}
-
 /// Translucent dark card for the overlays on the picture (always dark, like
 /// the canvas, whatever the app theme).
 class _Glass extends StatelessWidget {
@@ -759,7 +873,8 @@ class _Glass extends StatelessWidget {
 
 class _LayerPainter extends CustomPainter {
   final GcodeModel model;
-  final List<List<_Bucket>> buckets;
+  final List<Vertices> below; // coarse, one per layer
+  final Vertices current; // full detail, the current layer
   final int cur;
   final bool only;
   final double az, el, scale;
@@ -768,7 +883,8 @@ class _LayerPainter extends CustomPainter {
 
   _LayerPainter({
     required this.model,
-    required this.buckets,
+    required this.below,
+    required this.current,
     required this.cur,
     required this.only,
     required this.az,
@@ -800,13 +916,10 @@ class _LayerPainter extends CustomPainter {
     final baseTx = tx - (a * cx + c * cy);
     final baseTy = ty - (b * cx + d * cy);
 
-    // Stroke is in model units (the canvas transform scales it), chosen so a
-    // line stays about 1.3 device px however far in or out the view is.
-    final wBelow = 1.3 / scale;
-    final wCur = 2.1 / scale;
-    final paint = Paint()
-      ..strokeCap = StrokeCap.round
-      ..isAntiAlias = true;
+    // Vertex colours carry the heat map; the paint only dims the layers
+    // below the current one (modulate: colour x white-at-alpha).
+    final dim = Paint()..color = const Color(0x9EFFFFFF); // alpha 0.62
+    final full = Paint()..color = const Color(0xFFFFFFFF);
 
     final from = only ? cur : 0;
     for (var i = from; i <= cur; i++) {
@@ -815,11 +928,10 @@ class _LayerPainter extends CustomPainter {
       m[13] = baseTy - scale * (z - zc) * ce;
       canvas.save();
       canvas.transform(m);
-      final isCur = i == cur;
-      paint.strokeWidth = isCur ? wCur : wBelow;
-      for (final bk in buckets[i]) {
-        paint.color = isCur ? bk.color : bk.color.withValues(alpha: 0.62);
-        canvas.drawRawPoints(PointMode.lines, bk.points, paint);
+      if (i == cur) {
+        canvas.drawVertices(current, BlendMode.modulate, full);
+      } else {
+        canvas.drawVertices(below[i], BlendMode.modulate, dim);
       }
       canvas.restore();
     }
@@ -828,7 +940,8 @@ class _LayerPainter extends CustomPainter {
   @override
   bool shouldRepaint(_LayerPainter o) =>
       o.model != model ||
-      o.buckets != buckets ||
+      o.below != below ||
+      o.current != current ||
       o.cur != cur ||
       o.only != only ||
       o.az != az ||

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -152,6 +153,45 @@ G2 X10 Y10 I10 J0 E1
       final e = parseGcode(Uint8List(0));
       expect(e.layers, isEmpty);
       expect(e.height, 0);
+    });
+
+    test('decimateSegments merges straight chains, keeps corners and bands', () {
+      // Five 1 mm steps along X (collinear), then a 90 degree corner up Y,
+      // then two more steps along Y at a different fan value.
+      final pts = Float32List.fromList([
+        0, 0, 1, 0, 1, 0, 2, 0, 2, 0, 3, 0, 3, 0, 4, 0, 4, 0, 5, 0, // chain A
+        5, 0, 5, 1, 5, 1, 5, 2, // corner, chain B (same fan)
+        5, 2, 5, 3, 5, 3, 5, 4, // chain C (other fan)
+      ]);
+      final fan = Float32List.fromList([1, 1, 1, 1, 1, 1, 1, 0, 0]);
+      final d = decimateSegments(pts, fan,
+          lo: 0, hi: 1, bands: 16, maxLen: 10, tol: 0.05);
+      expect(d.$2.length, 3);
+      expect(d.$1.sublist(0, 4), [0, 0, 5, 0]); // A as one chord
+      expect(d.$1.sublist(4, 8), [5, 0, 5, 2]); // B
+      expect(d.$1.sublist(8, 12), [5, 2, 5, 4]); // C
+      expect(d.$2, [1, 1, 0]);
+      // maxLen splits a long straight chain.
+      final short = decimateSegments(pts, fan,
+          lo: 0, hi: 1, bands: 16, maxLen: 2, tol: 0.05);
+      expect(short.$2.length, greaterThan(3));
+      // A gentle arc: 36 chords of 10 degrees on a 10 mm radius merge while
+      // the sagitta stays under tol, so a loose tol merges more than a tight one.
+      final arc = <double>[];
+      for (var i = 0; i < 36; i++) {
+        final a0 = i * 10 * 3.14159265 / 180, a1 = (i + 1) * 10 * 3.14159265 / 180;
+        arc.addAll([
+          10 * math.cos(a0), 10 * math.sin(a0), 10 * math.cos(a1), 10 * math.sin(a1)
+        ]);
+      }
+      final arcP = Float32List.fromList(arc);
+      final arcV = Float32List(36);
+      final tight = decimateSegments(arcP, arcV,
+          lo: 0, hi: 1, bands: 16, maxLen: 100, tol: 0.05);
+      final loose = decimateSegments(arcP, arcV,
+          lo: 0, hi: 1, bands: 16, maxLen: 100, tol: 0.5);
+      expect(tight.$2.length, 36); // 10 degree chords already exceed 0.05
+      expect(loose.$2.length, lessThan(18));
     });
 
     test('relative XYZ (G91) accumulates', () {

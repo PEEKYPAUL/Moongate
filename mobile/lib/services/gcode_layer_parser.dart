@@ -75,6 +75,82 @@ class GcodeModel {
   double get centerY => (minY + maxY) / 2;
 }
 
+/// Level of detail for the viewer's layer stack: merge chains of consecutive
+/// segments that continue each other (end meets start) and fall in the same
+/// colour band (of [bands] between [lo] and [hi]) into one chord, as long as
+/// every point the chord skips stays within [tol] mm of it and the chord is
+/// no longer than [maxLen] mm. With [tol] around half a screen pixel the
+/// dimmed stack looks the same while curved perimeters, arcs and textured
+/// walls, where a slicer writes thousands of sub-millimetre segments,
+/// collapse several-fold; straight infill is left alone. Returns the merged
+/// (points, values) in the same layout as [GcodeLayer.points] /
+/// [GcodeLayer.fan].
+(Float32List, Float32List) decimateSegments(Float32List p, Float32List v,
+    {required double lo,
+    required double hi,
+    required int bands,
+    required double maxLen,
+    required double tol}) {
+  final n = v.length;
+  final outP = Float32List(n * 4);
+  final outV = Float32List(n);
+  final span = (hi - lo) == 0 ? 1.0 : (hi - lo);
+  final top = bands - 1;
+  final tol2 = tol * tol;
+  final maxLen2 = maxLen * maxLen;
+  int band(double x) {
+    final q = (((x - lo) / span) * top).round();
+    return q < 0 ? 0 : (q > top ? top : q);
+  }
+
+  var k = 0;
+  var i = 0;
+  while (i < n) {
+    final sx = p[i * 4], sy = p[i * 4 + 1];
+    var ex = p[i * 4 + 2], ey = p[i * 4 + 3];
+    final q = band(v[i]);
+    var j = i + 1;
+    while (j < n) {
+      if ((p[j * 4] - ex).abs() > 1e-3 || (p[j * 4 + 1] - ey).abs() > 1e-3) {
+        break; // not a continuation
+      }
+      if (band(v[j]) != q) break;
+      final nex = p[j * 4 + 2], ney = p[j * 4 + 3];
+      final cx = nex - sx, cy = ney - sy;
+      final c2 = cx * cx + cy * cy;
+      if (c2 > maxLen2) break;
+      // Every skipped vertex (the ends of segments i..j-1) must lie within
+      // tol of the new chord s -> ne.
+      var ok = true;
+      if (c2 > 1e-12) {
+        for (var t = i; t < j; t++) {
+          final px = p[t * 4 + 2] - sx, py = p[t * 4 + 3] - sy;
+          final cross = px * cy - py * cx;
+          if (cross * cross > tol2 * c2) {
+            ok = false;
+            break;
+          }
+        }
+      }
+      if (!ok) break;
+      ex = nex;
+      ey = ney;
+      j++;
+    }
+    outP[k * 4] = sx;
+    outP[k * 4 + 1] = sy;
+    outP[k * 4 + 2] = ex;
+    outP[k * 4 + 3] = ey;
+    outV[k] = v[i];
+    k++;
+    i = j;
+  }
+  return (
+    Float32List.sublistView(outP, 0, k * 4),
+    Float32List.sublistView(outV, 0, k),
+  );
+}
+
 /// Growable Float32 buffer (the per-layer segment store while parsing).
 class _F32Buf {
   Float32List _d = Float32List(256);
