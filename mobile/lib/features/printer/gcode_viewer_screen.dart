@@ -62,6 +62,7 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
   late final PrintControlService _control;
   _Phase _phase = _Phase.downloading;
   bool _noLayers = false;
+  String? _errorDetail; // shown small under the error, for field reports
   GcodeMeta? _meta;
   int _received = 0;
   int _total = -1;
@@ -150,15 +151,23 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
     if (!mounted || cancel.isCompleted) return;
     _cancel = null;
     if (bytes == null) {
-      setState(() => _phase = _Phase.error);
+      setState(() {
+        _errorDetail = 'download';
+        _phase = _Phase.error;
+      });
       return;
     }
     setState(() => _phase = _Phase.parsing);
     final GcodeModel model;
     try {
-      model = await Isolate.run(() => parseGcode(bytes));
-    } catch (_) {
-      if (mounted) setState(() => _phase = _Phase.error);
+      model = await _parseOffThread(bytes);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorDetail = e.toString();
+          _phase = _Phase.error;
+        });
+      }
       return;
     }
     if (!mounted) return;
@@ -177,6 +186,15 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
       _resetView();
     });
   }
+
+  /// Parse in a background isolate. A STATIC helper on purpose: a closure
+  /// written inside the State's async method shares that method's context,
+  /// and the progress callback in the same scope references the State, so
+  /// the whole State would be captured and `Isolate.run` would refuse to
+  /// send it ("Illegal argument in isolate message"). The first on-device
+  /// build hit exactly that, as "Couldn't load this file".
+  static Future<GcodeModel> _parseOffThread(Uint8List bytes) =>
+      Isolate.run(() => parseGcode(bytes));
 
   void _cancelDownload() {
     _cancel?.complete();
@@ -440,6 +458,15 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
               const SizedBox(height: 12),
               Text(_noLayers ? l.gcodeViewerNoLayers : l.gcodeViewerError,
                   textAlign: TextAlign.center),
+              if (!_noLayers && _errorDetail != null) ...[
+                const SizedBox(height: 6),
+                Text(_errorDetail!,
+                    textAlign: TextAlign.center,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.outline)),
+              ],
               if (!_noLayers) ...[
                 const SizedBox(height: 16),
                 FilledButton.tonal(
