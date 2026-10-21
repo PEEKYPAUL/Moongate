@@ -131,6 +131,7 @@ mobile/lib/
 │   ├── dashboard/single_printer_view.dart # Single-printer dashboard: one printer full screen (v0.9.69)
 │   ├── onboarding/dashboard_style_prompt.dart # First-run "One printer or several?" question (v0.9.69)
 │   ├── printer/printer_screen.dart     # /printer/:id - WebView with cookie/Bearer auth
+│   ├── printer/gcode_viewer_screen.dart # G-code layer viewer: 3D orbit, five Orca-coloured heat maps (v0.9.72)
 │   ├── settings/settings_screen.dart   # /settings
 │   ├── settings/custom_theme_screen.dart # /theme/custom - colour editor
 │   └── splash/splash_screen.dart
@@ -150,6 +151,7 @@ mobile/lib/
     ├── printer_status_service.dart     # Per-tile 4 s poll loop, LAN-first with reachability probe
     ├── printer_liveness_service.dart    # Realtime + RLS-scoped read of last_seen; gates polling of offline printers (v0.9.16)
     ├── printer_webview_cache.dart       # Keeps each printer's WebView warm; pre-warms all at startup (v0.9.8 / v0.9.15)
+    ├── gcode_layer_parser.dart         # stored G-code -> layers of segments with fan/temp/speed/flow + layer time; isolate-safe (v0.9.72)
     ├── webview_link_policy.dart        # Which links the printer WebView keeps and which open outside it (v0.9.70)
     ├── print_control_service.dart      # pause/resume/cancel/firmware_restart/emergency_stop + temp-watch arm/cancel, file temps (v0.9.68)
     ├── heatsoak_timers.dart            # per-printer heat-soak arms; the notification isolate judges + fires them (v0.9.67)

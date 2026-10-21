@@ -356,6 +356,18 @@ If every **remote (tunnel)** request answers a plain "500 Internal Server Error 
 
 **Fix:** update the plugin to **0.6.21 or newer** (*Mainsail → Machine → Update Manager* - refresh, then update **moongate**; or re-run the installer). Remote access returns as soon as the services restart - no re-pairing and no app update needed.
 
+## The G-code layer viewer (v0.9.72+): what it shows, and when it says it can't
+
+The layers button on a file in **Start a print** opens it as a 3D layer stack. One finger spins and tilts, pinch zooms, two fingers pan, double tap resets, and the rail on the right steps through the layers (hold an arrow to run). The chips above the picture pick the heat map: **Temperature**, **Flow rate**, **Layer time**, **Speed** or **Fan speed**, coloured like Orca's preview from the file's lowest value (blue) to its highest (red). Things that are normal:
+
+- **Everything is one colour.** The file holds a single value for that map - one temperature all the way through, or the fan at 80 % on every layer. The legend shows that value at both ends. Orca does the same.
+- **Temperature says "Not set in this file (a macro sets it)".** The file never states a hotend temperature the viewer can read: no `M104` / `M109`, no `SET_HEATER_TEMPERATURE`, and no temperature argument on `PRINT_START` (`HOTEND=`, `EXTRUDER_TEMP=` and the usual spellings are all read; an opening `M104 S0` does not hide them). Typically the macro on the Pi has the temperature hard-coded. The other four maps still work.
+- **Fan speed shows the commanded value**, so a fan Klipper scales with `max_power` reads higher here than on the printer.
+- **Over the internet a big file asks first** (above 40 MB). On home WiFi it never asks. A 12 MB file takes about a second on WiFi and a few seconds over the tunnel.
+- **Not shown by design:** start and end markers, the nozzle position, travel moves.
+
+**"Couldn't load this file":** the download or the parse failed; the small line under the message says which. *download* means the printer did not hand the file over (the same reasons a thumbnail would not load: the printer went offline, the tunnel dropped, the file was deleted or renamed meanwhile) - Retry once the tile is back online. Anything else is a parsing error worth sending with a bug report (Settings → Send feedback) together with the file name and the slicer that made it. **"No printable moves found"** means the file has no extrusion moves the viewer understands - a binary `.bgcode`, or a file that only runs macros.
+
 ## Webcam not showing
 
 - The app uses the snapshot path Moonraker reports for your webcam - typically `/webcam/?action=snapshot` for mjpg-streamer setups.
