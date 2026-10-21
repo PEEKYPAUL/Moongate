@@ -665,7 +665,11 @@ class _Parser {
         final v = double.tryParse(m.group(2)!);
         if (v != null && v > 0) {
           // The macro sets the hotend for the active tool (tool 0 normally).
-          toolTemp.putIfAbsent(tool, () => v);
+          // It wins over an earlier zero: Orca profiles often open with
+          // "M104 S0" to stop the slicer injecting its own temperature waits,
+          // then hand the real value to PRINT_START (Paul's seat file).
+          final have = toolTemp[tool];
+          if (have == null || have <= 0) toolTemp[tool] = v;
           return;
         }
       }

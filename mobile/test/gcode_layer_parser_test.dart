@@ -89,6 +89,26 @@ G1 X20 Y10 E1 F6000
       expect(m.timeMin, m.timeMax);
     });
 
+    test('M104 S0 before PRINT_START does not hide the macro temperature', () {
+      // The seat file: Orca's "stop the slicer injecting temp waits" trick,
+      // then the real value as a macro argument.
+      final m = parseGcode(_b('''
+M104 S0 ; stops the slicer injecting its own temp waits
+M140 S0
+PRINT_START HOTEND=260 BED=120
+G90
+M83
+G1 X0 Y0 Z0.2 F3000
+G1 X10 Y0 E1
+M104 S250
+G1 X20 Y0 E1
+'''));
+      expect(m.layers[0].temp[0], 260);
+      expect(m.layers[0].temp[1], 250); // a later explicit M104 still wins
+      expect(m.tempMin, 250);
+      expect(m.tempMax, 260);
+    });
+
     test('a 2.85 filament diameter changes the flow', () {
       final m = parseGcode(_b('''
 ; filament_diameter = 2.85
