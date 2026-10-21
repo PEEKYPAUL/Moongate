@@ -1808,6 +1808,69 @@ class AppLocalizationsPl extends AppLocalizations {
   String get gcodeStartFailed => 'Nie udało się rozpocząć druku';
 
   @override
+  String get gcodeViewTooltip => 'Pokaż warstwy';
+
+  @override
+  String get gcodeViewerDownloading => 'Pobieranie pliku…';
+
+  @override
+  String get gcodeViewerParsing => 'Budowanie warstw…';
+
+  @override
+  String get gcodeViewerError => 'Nie udało się wczytać tego pliku';
+
+  @override
+  String get gcodeViewerNoLayers => 'Brak ruchów drukujących w tym pliku';
+
+  @override
+  String gcodeViewerLargeFile(String size) {
+    return 'Ten plik ma $size. Pobrać go przez internet?';
+  }
+
+  @override
+  String get gcodeViewerDownload => 'Pobierz';
+
+  @override
+  String get gcodeViewerModeTemp => 'Temperatura';
+
+  @override
+  String get gcodeViewerModeFlow => 'Przepływ';
+
+  @override
+  String get gcodeViewerModeTime => 'Czas warstwy';
+
+  @override
+  String get gcodeViewerModeSpeed => 'Prędkość';
+
+  @override
+  String get gcodeViewerModeFan => 'Wentylator';
+
+  @override
+  String get gcodeViewerTempUnset => 'Nieustawione w tym pliku (robi to makro)';
+
+  @override
+  String gcodeViewerLayer(int n, int total) {
+    return 'Warstwa $n / $total';
+  }
+
+  @override
+  String gcodeViewerLayers(int count) {
+    return '$count warstw';
+  }
+
+  @override
+  String get gcodeViewerOnlyLayer => 'Tylko ta warstwa';
+
+  @override
+  String get gcodeViewerTopDown => 'Widok z góry';
+
+  @override
+  String get gcodeViewerLayerUp => 'Warstwa wyżej';
+
+  @override
+  String get gcodeViewerLayerDown => 'Warstwa niżej';
+
+  @override
   String get tileMacros => 'Makra';
 
   @override

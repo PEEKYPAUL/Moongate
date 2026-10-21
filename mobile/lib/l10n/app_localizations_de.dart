@@ -1813,6 +1813,71 @@ class AppLocalizationsDe extends AppLocalizations {
   String get gcodeStartFailed => 'Druck konnte nicht gestartet werden';
 
   @override
+  String get gcodeViewTooltip => 'Schichten ansehen';
+
+  @override
+  String get gcodeViewerDownloading => 'Datei wird geladen…';
+
+  @override
+  String get gcodeViewerParsing => 'Schichten werden aufgebaut…';
+
+  @override
+  String get gcodeViewerError => 'Datei konnte nicht geladen werden';
+
+  @override
+  String get gcodeViewerNoLayers =>
+      'Keine druckbaren Bewegungen in dieser Datei';
+
+  @override
+  String gcodeViewerLargeFile(String size) {
+    return 'Diese Datei ist $size groß. Über das Internet herunterladen?';
+  }
+
+  @override
+  String get gcodeViewerDownload => 'Herunterladen';
+
+  @override
+  String get gcodeViewerModeTemp => 'Temperatur';
+
+  @override
+  String get gcodeViewerModeFlow => 'Flussrate';
+
+  @override
+  String get gcodeViewerModeTime => 'Schichtzeit';
+
+  @override
+  String get gcodeViewerModeSpeed => 'Geschwindigkeit';
+
+  @override
+  String get gcodeViewerModeFan => 'Lüfter';
+
+  @override
+  String get gcodeViewerTempUnset =>
+      'In dieser Datei nicht gesetzt (ein Makro übernimmt das)';
+
+  @override
+  String gcodeViewerLayer(int n, int total) {
+    return 'Schicht $n / $total';
+  }
+
+  @override
+  String gcodeViewerLayers(int count) {
+    return '$count Schichten';
+  }
+
+  @override
+  String get gcodeViewerOnlyLayer => 'Nur diese Schicht';
+
+  @override
+  String get gcodeViewerTopDown => 'Senkrecht von oben';
+
+  @override
+  String get gcodeViewerLayerUp => 'Schicht hoch';
+
+  @override
+  String get gcodeViewerLayerDown => 'Schicht runter';
+
+  @override
   String get tileMacros => 'Makros';
 
   @override

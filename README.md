@@ -53,6 +53,7 @@ Free, source-available **iPhone and Android** control for your **Klipper 3D prin
 - **Control panel** - arrange temperature, motion and macro modules per printer, and turn any Klipper macro into a labelled button.
 - **Console and config editor** - a live G-code console with command completions, and a Klipper-aware `printer.cfg` editor with a backup and one-tap restore.
 - **Print from the printer** - browse the G-code already on it, with slicer thumbnails, and start a print. No re-upload.
+- **G-code layer viewer** - open any stored file as a 3D layer stack you spin with a finger, coloured like Orca's preview: temperature, flow rate, layer time, speed or fan speed, layer by layer, then start the print from there.
 - **Cameras** - Mainsail cameras auto-detected, go2rtc included; add an external IP camera; full-screen view with pinch-to-zoom; switch between several on one printer.
 - **Multi-toolhead** - IDEX and tool changers show every hotend as its own chip, active tool highlighted, preheat for all at once.
 - **Notifications** - opt-in start / finish / pause / error alerts with the reason, live progress in the shade, heat-soak and "cool enough to remove" alerts, and a `MOONGATE_NOTIFY` macro for your own gcode.
@@ -80,7 +81,7 @@ Every feature in depth, with the version it arrived in: **[Feature guide ›](do
 <div align="center">
   <img src="docs/screenshots/generated/framed-icon-guide.png" width="31%" alt="Icon guide - what every dashboard icon means"/>
   <img src="docs/screenshots/generated/framed-custom-theme.png" width="31%" alt="Custom theme editor"/>
-  <img src="docs/screenshots/generated/framed-gcode-viewer.png" width="31%" alt="Print a stored G-code file"/>
+  <img src="docs/screenshots/generated/framed-layer-viewer.png" width="31%" alt="G-code layer viewer - a stored file as a 3D layer stack, coloured by fan speed with Orca's ramp, with the layer rail and a Start print button"/>
 </div>
 
 <div align="center">

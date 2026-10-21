@@ -1815,6 +1815,71 @@ class AppLocalizationsPt extends AppLocalizations {
   String get gcodeStartFailed => 'Não foi possível iniciar a impressão';
 
   @override
+  String get gcodeViewTooltip => 'Ver camadas';
+
+  @override
+  String get gcodeViewerDownloading => 'A transferir o ficheiro…';
+
+  @override
+  String get gcodeViewerParsing => 'A construir as camadas…';
+
+  @override
+  String get gcodeViewerError => 'Não foi possível carregar este ficheiro';
+
+  @override
+  String get gcodeViewerNoLayers =>
+      'Este ficheiro não tem movimentos de impressão';
+
+  @override
+  String gcodeViewerLargeFile(String size) {
+    return 'Este ficheiro tem $size. Transferir pela internet?';
+  }
+
+  @override
+  String get gcodeViewerDownload => 'Transferir';
+
+  @override
+  String get gcodeViewerModeTemp => 'Temperatura';
+
+  @override
+  String get gcodeViewerModeFlow => 'Caudal';
+
+  @override
+  String get gcodeViewerModeTime => 'Tempo por camada';
+
+  @override
+  String get gcodeViewerModeSpeed => 'Velocidade';
+
+  @override
+  String get gcodeViewerModeFan => 'Ventoinha';
+
+  @override
+  String get gcodeViewerTempUnset =>
+      'Não definido neste ficheiro (uma macro trata disso)';
+
+  @override
+  String gcodeViewerLayer(int n, int total) {
+    return 'Camada $n / $total';
+  }
+
+  @override
+  String gcodeViewerLayers(int count) {
+    return '$count camadas';
+  }
+
+  @override
+  String get gcodeViewerOnlyLayer => 'Só esta camada';
+
+  @override
+  String get gcodeViewerTopDown => 'Vista de cima';
+
+  @override
+  String get gcodeViewerLayerUp => 'Camada acima';
+
+  @override
+  String get gcodeViewerLayerDown => 'Camada abaixo';
+
+  @override
   String get tileMacros => 'Macros';
 
   @override

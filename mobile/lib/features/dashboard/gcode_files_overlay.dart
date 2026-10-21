@@ -9,6 +9,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/printer_config.dart';
 import '../../models/temp_watch.dart';
 import '../../services/print_control_service.dart';
+import '../printer/gcode_viewer_screen.dart';
 
 /// Bottom-sheet G-code browser. Lists the files already stored on the printer
 /// (Moonraker's `gcodes` root), lets the user pick one, and starts it after a
@@ -69,6 +70,25 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
           f.path,
           () => _control.fetchThumbnail(f,
               base: listing.base, isLan: listing.isLan));
+
+  /// Open the layer viewer for [f] on top of the sheet. It pops `true` when
+  /// the user taps its Start print, which selects the file here and runs the
+  /// normal confirm flow (soak / cool-down rows and all).
+  Future<void> _view(GcodeFile f, GcodeListing listing) async {
+    final start = await Navigator.of(context, rootNavigator: true)
+        .push<bool>(MaterialPageRoute(
+      builder: (_) => GcodeViewerScreen(
+        printer: widget.printer,
+        file:    f,
+        base:    listing.base,
+        isLan:   listing.isLan,
+      ),
+    ));
+    if (start == true && mounted) {
+      setState(() => _selected = f.path);
+      await _start();
+    }
+  }
 
   Future<void> _start() async {
     final path = _selected;
@@ -259,10 +279,22 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
                           style: theme.textTheme.bodySmall
                               ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                         ),
-                        trailing: selected
-                            ? Icon(Icons.check_circle,
-                                color: theme.colorScheme.primary)
-                            : null,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (selected)
+                              Icon(Icons.check_circle,
+                                  color: theme.colorScheme.primary),
+                            // View button: the 3D layer viewer with the
+                            // cooling / hotend heat map. Tapping the row
+                            // itself still just selects the file.
+                            IconButton(
+                              icon: const Icon(Icons.layers_outlined),
+                              tooltip: l.gcodeViewTooltip,
+                              onPressed: () => _view(f, listing),
+                            ),
+                          ],
+                        ),
                         onTap: () => setState(
                             () => _selected = selected ? null : f.path),
                       );

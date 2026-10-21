@@ -1822,6 +1822,71 @@ class AppLocalizationsEs extends AppLocalizations {
   String get gcodeStartFailed => 'No se pudo iniciar la impresión';
 
   @override
+  String get gcodeViewTooltip => 'Ver capas';
+
+  @override
+  String get gcodeViewerDownloading => 'Descargando archivo…';
+
+  @override
+  String get gcodeViewerParsing => 'Construyendo capas…';
+
+  @override
+  String get gcodeViewerError => 'No se pudo cargar este archivo';
+
+  @override
+  String get gcodeViewerNoLayers =>
+      'No hay movimientos imprimibles en este archivo';
+
+  @override
+  String gcodeViewerLargeFile(String size) {
+    return 'Este archivo ocupa $size. ¿Descargarlo por internet?';
+  }
+
+  @override
+  String get gcodeViewerDownload => 'Descargar';
+
+  @override
+  String get gcodeViewerModeTemp => 'Temperatura';
+
+  @override
+  String get gcodeViewerModeFlow => 'Caudal';
+
+  @override
+  String get gcodeViewerModeTime => 'Tiempo por capa';
+
+  @override
+  String get gcodeViewerModeSpeed => 'Velocidad';
+
+  @override
+  String get gcodeViewerModeFan => 'Ventilador';
+
+  @override
+  String get gcodeViewerTempUnset =>
+      'No definido en este archivo (lo fija una macro)';
+
+  @override
+  String gcodeViewerLayer(int n, int total) {
+    return 'Capa $n / $total';
+  }
+
+  @override
+  String gcodeViewerLayers(int count) {
+    return '$count capas';
+  }
+
+  @override
+  String get gcodeViewerOnlyLayer => 'Solo esta capa';
+
+  @override
+  String get gcodeViewerTopDown => 'Vista cenital';
+
+  @override
+  String get gcodeViewerLayerUp => 'Capa arriba';
+
+  @override
+  String get gcodeViewerLayerDown => 'Capa abajo';
+
+  @override
   String get tileMacros => 'Macros';
 
   @override

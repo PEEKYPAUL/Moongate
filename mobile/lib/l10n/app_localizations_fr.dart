@@ -1827,6 +1827,71 @@ class AppLocalizationsFr extends AppLocalizations {
   String get gcodeStartFailed => 'Impossible de lancer l\'impression';
 
   @override
+  String get gcodeViewTooltip => 'Voir les couches';
+
+  @override
+  String get gcodeViewerDownloading => 'Téléchargement du fichier…';
+
+  @override
+  String get gcodeViewerParsing => 'Construction des couches…';
+
+  @override
+  String get gcodeViewerError => 'Impossible de charger ce fichier';
+
+  @override
+  String get gcodeViewerNoLayers =>
+      'Aucun mouvement imprimable dans ce fichier';
+
+  @override
+  String gcodeViewerLargeFile(String size) {
+    return 'Ce fichier fait $size. Le télécharger via internet ?';
+  }
+
+  @override
+  String get gcodeViewerDownload => 'Télécharger';
+
+  @override
+  String get gcodeViewerModeTemp => 'Température';
+
+  @override
+  String get gcodeViewerModeFlow => 'Débit';
+
+  @override
+  String get gcodeViewerModeTime => 'Temps par couche';
+
+  @override
+  String get gcodeViewerModeSpeed => 'Vitesse';
+
+  @override
+  String get gcodeViewerModeFan => 'Ventilateur';
+
+  @override
+  String get gcodeViewerTempUnset =>
+      'Non défini dans ce fichier (une macro s\'en charge)';
+
+  @override
+  String gcodeViewerLayer(int n, int total) {
+    return 'Couche $n / $total';
+  }
+
+  @override
+  String gcodeViewerLayers(int count) {
+    return '$count couches';
+  }
+
+  @override
+  String get gcodeViewerOnlyLayer => 'Cette couche seule';
+
+  @override
+  String get gcodeViewerTopDown => 'Vue du dessus';
+
+  @override
+  String get gcodeViewerLayerUp => 'Couche suivante';
+
+  @override
+  String get gcodeViewerLayerDown => 'Couche précédente';
+
+  @override
   String get tileMacros => 'Macros';
 
   @override
