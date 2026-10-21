@@ -2,9 +2,10 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 /// Turns a sliced G-code file into layers of extrusion segments, each segment
-/// tagged with the part-cooling fan and hotend target in force when the slicer
-/// wrote it. Feeds the layer viewer's heat map (features/printer/
-/// gcode_viewer_screen.dart).
+/// tagged with what was in force when the slicer wrote it: part-cooling fan,
+/// hotend target, speed and volumetric flow, plus an estimated time per
+/// layer. Feeds the layer viewer's heat maps (features/printer/
+/// gcode_viewer_screen.dart), which colour them the way Orca's preview does.
 ///
 /// Pure Dart over the raw bytes (no String decode of a 12 MB file, no
 /// per-line allocation on the hot path), so it runs inside `Isolate.run`.
@@ -22,6 +23,13 @@ import 'dart:typed_data';
 /// Hotend: `M104` / `M109 S`, `SET_HEATER_TEMPERATURE HEATER=extruder* TARGET=`
 /// and the temperature argument on `PRINT_START` / `START_PRINT`, because most
 /// Klipper files set the first temperature inside that macro.
+///
+/// Speed: the `F` feedrate in force (mm/min -> mm/s). Flow: the filament
+/// pushed per second of the move, `E * filament area / (length / speed)`, in
+/// mm³/s, with the diameter from the slicer's `; filament_diameter =` comment
+/// (1.75 when absent). Layer time: the sum of length / speed over every move
+/// in the layer, travels included, plus `G4` dwells - no acceleration model,
+/// so a few percent under Klipper's estimate, which is fine for colouring.
 class GcodeLayer {
   /// Height of this layer in mm (the Z of its first extrusion).
   final double z;
@@ -35,11 +43,24 @@ class GcodeLayer {
   /// Hotend target per segment, degrees C (0 when the file never set one).
   final Float32List temp;
 
-  const GcodeLayer(
-      {required this.z,
-      required this.points,
-      required this.fan,
-      required this.temp});
+  /// Speed per segment, mm/s (0 when the file never set a feedrate).
+  final Float32List speed;
+
+  /// Volumetric flow per segment, mm³/s (0 when speed is unknown).
+  final Float32List flow;
+
+  /// Estimated time spent in this layer, seconds.
+  final double time;
+
+  const GcodeLayer({
+    required this.z,
+    required this.points,
+    required this.fan,
+    required this.temp,
+    required this.speed,
+    required this.flow,
+    required this.time,
+  });
 
   int get segmentCount => fan.length;
 }
@@ -48,6 +69,7 @@ class GcodeModel {
   final List<GcodeLayer> layers;
   final double minX, minY, maxX, maxY;
   final double fanMin, fanMax, tempMin, tempMax;
+  final double speedMin, speedMax, flowMin, flowMax, timeMin, timeMax;
 
   /// True when the file carried slicer layer markers (else the Z heuristic
   /// built the layers).
@@ -63,6 +85,12 @@ class GcodeModel {
     required this.fanMax,
     required this.tempMin,
     required this.tempMax,
+    required this.speedMin,
+    required this.speedMax,
+    required this.flowMin,
+    required this.flowMax,
+    required this.timeMin,
+    required this.timeMax,
     required this.markers,
   });
 
@@ -80,9 +108,9 @@ class GcodeModel {
 /// colour band (of [bands] between [lo] and [hi]) into one chord, as long as
 /// every point the chord skips stays within [tol] mm of it and the chord is
 /// no longer than [maxLen] mm. With [tol] around half a screen pixel the
-/// dimmed stack looks the same while curved perimeters, arcs and textured
-/// walls, where a slicer writes thousands of sub-millimetre segments,
-/// collapse several-fold; straight infill is left alone. Returns the merged
+/// stack looks the same while curved perimeters, arcs and textured walls,
+/// where a slicer writes thousands of sub-millimetre segments, collapse
+/// several-fold; straight infill is left alone. Returns the merged
 /// (points, values) in the same layout as [GcodeLayer.points] /
 /// [GcodeLayer.fan].
 (Float32List, Float32List) decimateSegments(Float32List p, Float32List v,
@@ -173,12 +201,21 @@ class _LayerBuf {
   final _F32Buf pts = _F32Buf();
   final _F32Buf fan = _F32Buf();
   final _F32Buf temp = _F32Buf();
+  final _F32Buf speed = _F32Buf();
+  final _F32Buf flow = _F32Buf();
+  double time = 0;
   _LayerBuf(this.z);
 
   bool get isEmpty => fan.length == 0;
 
   GcodeLayer build() => GcodeLayer(
-      z: z, points: pts.take(), fan: fan.take(), temp: temp.take());
+      z: z,
+      points: pts.take(),
+      fan: fan.take(),
+      temp: temp.take(),
+      speed: speed.take(),
+      flow: flow.take(),
+      time: time);
 }
 
 // Byte constants.
@@ -196,6 +233,7 @@ class _Parser {
 
   // Motion state.
   double x = 0, y = 0, z = 0, e = 0;
+  double feed = 0; // mm/min, 0 = never set
   bool absXyz = true, absE = true;
   bool havePos = false; // an XY has been seen (so the first move isn't a line from 0,0)
 
@@ -203,6 +241,9 @@ class _Parser {
   double fan = 0;
   final Map<int, double> toolTemp = {};
   int tool = 0;
+
+  // Filament cross-section for flow, mm² (1.75 mm default).
+  double area = math.pi * 0.875 * 0.875;
 
   // Layers.
   bool markers = false;
@@ -216,6 +257,8 @@ class _Parser {
   double maxX = double.negativeInfinity, maxY = double.negativeInfinity;
   double fanMin = double.infinity, fanMax = double.negativeInfinity;
   double tempMin = double.infinity, tempMax = double.negativeInfinity;
+  double speedMin = double.infinity, speedMax = double.negativeInfinity;
+  double flowMin = double.infinity, flowMax = double.negativeInfinity;
 
   // Scratch for the current line's params (indexed by letter A..Z).
   final Float64List pv = Float64List(26);
@@ -250,14 +293,26 @@ class _Parser {
           layers: [],
           minX: 0, minY: 0, maxX: 0, maxY: 0,
           fanMin: 0, fanMax: 0, tempMin: 0, tempMax: 0,
+          speedMin: 0, speedMax: 0, flowMin: 0, flowMax: 0,
+          timeMin: 0, timeMax: 0,
           markers: false);
     }
+    var tMin = double.infinity, tMax = double.negativeInfinity;
+    for (final l in layers) {
+      if (l.time > 0) {
+        if (l.time < tMin) tMin = l.time;
+        if (l.time > tMax) tMax = l.time;
+      }
+    }
+    double fin(double v) => v.isFinite ? v : 0;
     return GcodeModel(
       layers: layers,
       minX: minX, minY: minY, maxX: maxX, maxY: maxY,
-      fanMin: fanMin, fanMax: fanMax,
-      tempMin: tempMin.isFinite ? tempMin : 0,
-      tempMax: tempMax.isFinite ? tempMax : 0,
+      fanMin: fin(fanMin), fanMax: fin(fanMax),
+      tempMin: fin(tempMin), tempMax: fin(tempMax),
+      speedMin: fin(speedMin), speedMax: fin(speedMax),
+      flowMin: fin(flowMin), flowMax: fin(flowMax),
+      timeMin: fin(tMin), timeMax: fin(tMax),
       markers: markers,
     );
   }
@@ -300,6 +355,11 @@ class _Parser {
         case 3:
           _params(s, ce);
           _arc(code == 2);
+          break;
+        case 4:
+          _params(s, ce);
+          if (_has('P')) _addTime(_p('P') / 1000);
+          if (_has('S')) _addTime(_p('S'));
           break;
         case 90:
           absXyz = true;
@@ -393,6 +453,13 @@ class _Parser {
           (_startsWith(s, e, 'LAYER ') && _s3dLayer(s, e))) {
         _marker();
       }
+    } else if (c == 0x46 /* F */ && _startsWith(s, e, 'FILAMENT_DIAMETER')) {
+      // "; filament_diameter = 1.75" (Orca / Prusa settings block; Orca may
+      // list one per filament: "1.75,1.75" - the first is fine).
+      final line = String.fromCharCodes(b, s, e);
+      final m = RegExp(r'=\s*([0-9.]+)').firstMatch(line);
+      final d = m == null ? null : double.tryParse(m.group(1)!);
+      if (d != null && d > 0.5 && d < 5) area = math.pi * (d / 2) * (d / 2);
     }
   }
 
@@ -416,7 +483,10 @@ class _Parser {
 
   // ── Moves ────────────────────────────────────────────────────────────────
 
+  double get _speed => feed / 60; // mm/s
+
   void _linear() {
+    if (_has('F')) feed = _p('F');
     final nx = _has('X') ? (absXyz ? _p('X') : x + _p('X')) : x;
     final ny = _has('Y') ? (absXyz ? _p('Y') : y + _p('Y')) : y;
     final nz = _has('Z') ? (absXyz ? _p('Z') : z + _p('Z')) : z;
@@ -426,10 +496,18 @@ class _Parser {
       de = ne - e;
       e = ne;
     }
+    final dx = nx - x, dy = ny - y, dz = nz - z;
+    final len = math.sqrt(dx * dx + dy * dy);
+    final len3 = math.sqrt(dx * dx + dy * dy + dz * dz);
+    final sp = _speed;
     final moved = (nx != x || ny != y);
     if (de > 1e-6 && moved && havePos) {
-      _segment(x, y, nx, ny, nz);
+      final flow = sp > 0 && len > 0 ? de * area * sp / len : 0.0;
+      _segment(x, y, nx, ny, nz, sp, flow);
     }
+    // After the segment, so an extrusion that opens a new layer books its
+    // time there (travels before the first layer have nowhere to go).
+    if (sp > 0 && len3 > 0) _addTime(len3 / sp);
     x = nx;
     y = ny;
     z = nz;
@@ -437,6 +515,7 @@ class _Parser {
   }
 
   void _arc(bool clockwise) {
+    if (_has('F')) feed = _p('F');
     final nx = _has('X') ? (absXyz ? _p('X') : x + _p('X')) : x;
     final ny = _has('Y') ? (absXyz ? _p('Y') : y + _p('Y')) : y;
     final nz = _has('Z') ? (absXyz ? _p('Z') : z + _p('Z')) : z;
@@ -446,6 +525,7 @@ class _Parser {
       de = ne - e;
       e = ne;
     }
+    final sp = _speed;
     final extruding = de > 1e-6 && havePos;
     double cx, cy;
     if (_has('I') || _has('J')) {
@@ -456,10 +536,7 @@ class _Parser {
       final dx = nx - x, dy = ny - y;
       final d = math.sqrt(dx * dx + dy * dy);
       if (d == 0 || d > 2 * r.abs()) {
-        if (extruding) _segment(x, y, nx, ny, nz);
-        x = nx;
-        y = ny;
-        z = nz;
+        _straight(nx, ny, nz, de, sp, extruding);
         return;
       }
       final h = math.sqrt(math.max(0, r * r - (d / 2) * (d / 2)));
@@ -468,43 +545,63 @@ class _Parser {
       cx = mx - sgn * h * dy / d;
       cy = my + sgn * h * dx / d;
     } else {
-      if (extruding) _segment(x, y, nx, ny, nz);
-      x = nx;
-      y = ny;
-      z = nz;
+      _straight(nx, ny, nz, de, sp, extruding);
       return;
     }
+    final r = math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+    final a0 = math.atan2(y - cy, x - cx);
+    final a1 = math.atan2(ny - cy, nx - cx);
+    var sweep = a1 - a0;
+    if (clockwise) {
+      if (sweep >= 0) sweep -= 2 * math.pi;
+    } else {
+      if (sweep <= 0) sweep += 2 * math.pi;
+    }
+    // Full circle (start == end).
+    if ((nx - x).abs() < 1e-6 && (ny - y).abs() < 1e-6) {
+      sweep = clockwise ? -2 * math.pi : 2 * math.pi;
+    }
+    final arcLen = r * sweep.abs();
     if (extruding) {
-      final r = math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
-      var a0 = math.atan2(y - cy, x - cx);
-      var a1 = math.atan2(ny - cy, nx - cx);
-      var sweep = a1 - a0;
-      if (clockwise) {
-        if (sweep >= 0) sweep -= 2 * math.pi;
-      } else {
-        if (sweep <= 0) sweep += 2 * math.pi;
-      }
-      // Full circle (start == end).
-      if ((nx - x).abs() < 1e-6 && (ny - y).abs() < 1e-6) {
-        sweep = clockwise ? -2 * math.pi : 2 * math.pi;
-      }
+      final flow = sp > 0 && arcLen > 0 ? de * area * sp / arcLen : 0.0;
       final steps = math.max(1, (sweep.abs() / (5 * math.pi / 180)).ceil());
       var px = x, py = y;
       for (var k = 1; k <= steps; k++) {
         final a = a0 + sweep * k / steps;
         final qx = k == steps ? nx : cx + r * math.cos(a);
         final qy = k == steps ? ny : cy + r * math.sin(a);
-        _segment(px, py, qx, qy, nz);
+        _segment(px, py, qx, qy, nz, sp, flow);
         px = qx;
         py = qy;
       }
     }
+    if (sp > 0 && arcLen > 0) _addTime(arcLen / sp);
     x = nx;
     y = ny;
     z = nz;
   }
 
-  void _segment(double x1, double y1, double x2, double y2, double zz) {
+  /// An arc we can't resolve (no centre, impossible radius): treat as a line.
+  void _straight(
+      double nx, double ny, double nz, double de, double sp, bool extruding) {
+    final dx = nx - x, dy = ny - y;
+    final len = math.sqrt(dx * dx + dy * dy);
+    if (extruding && len > 0) {
+      _segment(x, y, nx, ny, nz, sp, sp > 0 ? de * area * sp / len : 0.0);
+    }
+    if (sp > 0 && len > 0) _addTime(len / sp);
+    x = nx;
+    y = ny;
+    z = nz;
+  }
+
+  void _addTime(double seconds) {
+    final c = cur;
+    if (c != null && seconds > 0 && seconds.isFinite) c.time += seconds;
+  }
+
+  void _segment(double x1, double y1, double x2, double y2, double zz,
+      double sp, double flow) {
     final layer = _layerFor(zz);
     layer.pts
       ..add(x1)
@@ -514,6 +611,8 @@ class _Parser {
     layer.fan.add(fan);
     final t = toolTemp[tool] ?? toolTemp[0] ?? 0.0;
     layer.temp.add(t);
+    layer.speed.add(sp);
+    layer.flow.add(flow);
     if (x1 < minX) minX = x1;
     if (x2 < minX) minX = x2;
     if (x1 > maxX) maxX = x1;
@@ -527,6 +626,14 @@ class _Parser {
     if (t > 0) {
       if (t < tempMin) tempMin = t;
       if (t > tempMax) tempMax = t;
+    }
+    if (sp > 0) {
+      if (sp < speedMin) speedMin = sp;
+      if (sp > speedMax) speedMax = sp;
+    }
+    if (flow > 0 && flow.isFinite) {
+      if (flow < flowMin) flowMin = flow;
+      if (flow > flowMax) flowMax = flow;
     }
   }
 
@@ -568,8 +675,7 @@ class _Parser {
   // ── Tokens ───────────────────────────────────────────────────────────────
 
   /// Read `A12.5 B-3 ...` from [s] to [e] into pv/pset (letters only; the
-  /// command word itself is skipped by the caller passing its start - the
-  /// first token is the command, which we also record harmlessly).
+  /// command word itself is skipped).
   void _params(int s, int e) {
     pset.fillRange(0, 26, 0);
     var i = s;

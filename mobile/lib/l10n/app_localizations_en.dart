@@ -1812,16 +1812,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gcodeViewerDownload => 'Download';
 
   @override
-  String get gcodeViewerModeCooling => 'Cooling';
+  String get gcodeViewerModeTemp => 'Temperature';
 
   @override
-  String get gcodeViewerModeHotend => 'Hotend';
+  String get gcodeViewerModeFlow => 'Flow rate';
 
   @override
-  String get gcodeViewerLegendFan => 'Part cooling fan';
+  String get gcodeViewerModeTime => 'Layer time';
 
   @override
-  String get gcodeViewerLegendTemp => 'Hotend target';
+  String get gcodeViewerModeSpeed => 'Speed';
+
+  @override
+  String get gcodeViewerModeFan => 'Fan speed';
 
   @override
   String get gcodeViewerTempUnset => 'Not set in this file (a macro sets it)';

@@ -1839,16 +1839,19 @@ class AppLocalizationsPt extends AppLocalizations {
   String get gcodeViewerDownload => 'Transferir';
 
   @override
-  String get gcodeViewerModeCooling => 'Arrefecimento';
+  String get gcodeViewerModeTemp => 'Temperatura';
 
   @override
-  String get gcodeViewerModeHotend => 'Hotend';
+  String get gcodeViewerModeFlow => 'Caudal';
 
   @override
-  String get gcodeViewerLegendFan => 'Ventoinha da peça';
+  String get gcodeViewerModeTime => 'Tempo por camada';
 
   @override
-  String get gcodeViewerLegendTemp => 'Alvo do hotend';
+  String get gcodeViewerModeSpeed => 'Velocidade';
+
+  @override
+  String get gcodeViewerModeFan => 'Ventoinha';
 
   @override
   String get gcodeViewerTempUnset =>

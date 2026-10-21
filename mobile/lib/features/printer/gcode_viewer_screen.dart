@@ -17,22 +17,28 @@ import '../../services/print_control_service.dart';
 ///
 /// The file is downloaded over the connection the sheet's listing answered on
 /// and parsed in a background isolate (services/gcode_layer_parser.dart) into
-/// layers of extrusion segments, each tagged with the part-cooling fan and
-/// hotend target in force. The picture is a 3D orbit drawn with no engine: a
-/// [CustomPainter] sets one flat canvas transform per layer (the orbit matrix
-/// times the lift to that layer's Z, orthographic) and draws the layer's
-/// points with `drawRawPoints`; layers go bottom to top, which is exact
-/// occlusion while the camera stays above the top layer, so the tilt is
-/// clamped to 5..88 degrees. One finger orbits, pinch zooms around the pinch,
-/// two fingers pan, double tap resets; the rail steps layers.
+/// layers of extrusion segments, each tagged with the fan, hotend target,
+/// speed and flow in force, plus a time per layer. Five heat maps, coloured
+/// the way Orca's preview colours them: the same 11-stop ramp (dark blue,
+/// green, yellow, red) spread linearly from the file's minimum to its
+/// maximum.
 ///
-/// Each layer is ONE triangle mesh ([Vertices]): every extrusion segment is a
-/// thin quad at its real width (0.42 mm, widened when zoomed far out so it
-/// still covers a pixel), coloured per vertex from the heat map. One
-/// `drawVertices` per layer, so a 180-layer, 300k-segment file is 180 GPU
-/// draws a frame. NOT `drawRawPoints(lines)`: Impeller splits that into one
-/// draw op per line pair, which froze and then killed the app on the first
-/// S24 build.
+/// The picture is a 3D orbit drawn with no engine: a [CustomPainter] sets one
+/// flat canvas transform per layer (the orbit matrix times the lift to that
+/// layer's Z, orthographic) and draws the layer's mesh; layers go bottom to
+/// top, which is exact occlusion while the camera stays above the top layer,
+/// so the tilt is clamped to 5..88 degrees. One finger orbits, pinch zooms
+/// around the pinch, two fingers pan, double tap resets; the rail steps
+/// layers.
+///
+/// Each layer is a triangle mesh ([Vertices]): every extrusion segment is a
+/// bead of its real width (0.42 mm, widened when zoomed far out so it still
+/// covers a pixel) shaded dark at the edges and full colour down the middle,
+/// so the layer lines read on a wall the way they do in Orca. Solid colour,
+/// no transparency. The stack below the current layer uses a decimated copy
+/// ([decimateSegments]); the current layer is full detail. NOT
+/// `drawRawPoints(lines)`: Impeller splits that into one draw op per line
+/// pair, which froze and then killed the app on the first S24 build.
 ///
 /// Pops `true` when the user taps Start print, so the sheet selects the file
 /// and runs its normal confirm dialog (soak / cool-down rows included).
@@ -59,13 +65,16 @@ class GcodeViewerScreen extends StatefulWidget {
 
 enum _Phase { confirm, downloading, parsing, ready, error }
 
+/// The heat maps, in the order the chips show them.
+enum GcodeViewMode { temp, flow, time, speed, fan }
+
 class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
-  static const _prefMode = 'gcodeViewer.mode'; // 'cool' | 'hot'
+  static const _prefMode = 'gcodeViewer.mode';
   static const _elMin = 5 * math.pi / 180;
   static const _elMax = 88 * math.pi / 180;
   static const _defAz = -35 * math.pi / 180;
   static const _defEl = 35 * math.pi / 180;
-  static const _canvasBg = Color(0xFF141414); // slicer-dark in every theme
+  static const _canvasBg = Color(0xFF2B2B2F); // Orca-dark in every theme
   static const _lineWidthMm = 0.42; // a typical extrusion width
   static const _minLinePx = 1.4; // never thinner than this on screen
 
@@ -79,14 +88,14 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
   Completer<void>? _cancel;
 
   GcodeModel? _model;
-  /// One COARSE mesh per layer (decimated segments) for the stack below the
-  /// current layer; the current layer gets a full-detail mesh on demand.
-  List<Vertices>? _coarse;
-  Vertices? _curMesh;
+  /// One COARSE mesh (in chunks) per layer for the stack below the current
+  /// layer; the current layer gets a full-detail mesh on demand.
+  List<List<Vertices>>? _coarse;
+  List<Vertices>? _curMesh;
   int _curMeshIndex = -1;
   double _meshWidth = _lineWidthMm; // model-space width the meshes were built at
   int _cur = 0;
-  bool _cooling = true;
+  GcodeViewMode _mode = GcodeViewMode.fan;
   bool _only = false;
   double _lo = 0, _hi = 1;
 
@@ -118,19 +127,33 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
     final m = _coarse;
     _coarse = null;
     if (m != null) {
-      for (final v in m) {
+      for (final layer in m) {
+        for (final v in layer) {
+          v.dispose();
+        }
+      }
+    }
+    _disposeCurMesh();
+  }
+
+  void _disposeCurMesh() {
+    final c = _curMesh;
+    _curMesh = null;
+    _curMeshIndex = -1;
+    if (c != null) {
+      for (final v in c) {
         v.dispose();
       }
     }
-    _curMesh?.dispose();
-    _curMesh = null;
-    _curMeshIndex = -1;
   }
 
   Future<void> _boot() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
-    setState(() => _cooling = prefs.getString(_prefMode) != 'hot');
+    final saved = prefs.getString(_prefMode);
+    setState(() => _mode = GcodeViewMode.values.firstWhere(
+        (m) => m.name == saved,
+        orElse: () => GcodeViewMode.fan));
     // Metadata first (cheap): layer count for the header, start byte for Range.
     _control
         .fetchGcodeMeta(widget.file, base: widget.base, isLan: widget.isLan)
@@ -231,25 +254,64 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
     Navigator.of(context).maybePop();
   }
 
-  // ── Colour ───────────────────────────────────────────────────────────────
+  // ── Colour (Orca's range ramp) ───────────────────────────────────────────
 
-  static const _coolStops = [
-    Color(0xFF8A4B2F), Color(0xFFB08A3A), Color(0xFF4FA08A),
-    Color(0xFF39B7D6), Color(0xFFC7F2FF),
+  /// libvgcode's DEFAULT_RANGES_COLORS, what Orca's preview uses for every
+  /// range view (fan, temperature, speed, flow, layer time): 11 stops,
+  /// interpolated linearly from the file's minimum to its maximum.
+  static const _ramp = [
+    Color(0xFF0B2C7A), // bluish
+    Color(0xFF135985),
+    Color(0xFF1C8891),
+    Color(0xFF04D60F),
+    Color(0xFFAAF200),
+    Color(0xFFFCF903),
+    Color(0xFFF5CE0A),
+    Color(0xFFE38820),
+    Color(0xFFD16830),
+    Color(0xFFC2523C),
+    Color(0xFF942616), // reddish
   ];
-  static const _hotStops = [
-    Color(0xFF3B0F70), Color(0xFF8C2981), Color(0xFFDE4968),
-    Color(0xFFFE9F6D), Color(0xFFFCFDBF),
-  ];
 
-  List<Color> get _stops => _cooling ? _coolStops : _hotStops;
-
-  Color _colorAt(double t) {
-    final stops = _stops;
+  static Color _colorAt(double t) {
     t = t.clamp(0.0, 1.0);
-    final n = stops.length - 1;
+    final n = _ramp.length - 1;
     final i = math.min(n - 1, (t * n).floor());
-    return Color.lerp(stops[i], stops[i + 1], t * n - i)!;
+    return Color.lerp(_ramp[i], _ramp[i + 1], t * n - i)!;
+  }
+
+  /// Per-segment values of the current mode for [layer] (layer time is one
+  /// value per layer, spread over its segments).
+  Float32List _valuesFor(GcodeLayer layer) => switch (_mode) {
+        GcodeViewMode.fan   => layer.fan,
+        GcodeViewMode.temp  => layer.temp,
+        GcodeViewMode.speed => layer.speed,
+        GcodeViewMode.flow  => layer.flow,
+        GcodeViewMode.time  => Float32List(layer.segmentCount)
+          ..fillRange(0, layer.segmentCount, layer.time),
+      };
+
+  /// Range of the current mode across the file, as Orca spreads the ramp.
+  /// A single-valued file maps everything to the first stop.
+  void _setRange() {
+    final m = _model!;
+    switch (_mode) {
+      case GcodeViewMode.fan:
+        _lo = m.fanMin;
+        _hi = m.fanMax;
+      case GcodeViewMode.temp:
+        _lo = m.tempMin;
+        _hi = m.tempMax;
+      case GcodeViewMode.speed:
+        _lo = m.speedMin;
+        _hi = m.speedMax;
+      case GcodeViewMode.flow:
+        _lo = m.flowMin;
+        _hi = m.flowMax;
+      case GcodeViewMode.time:
+        _lo = m.timeMin;
+        _hi = m.timeMax;
+    }
   }
 
   /// The model-space line width for the current zoom: the real extrusion
@@ -257,34 +319,33 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
   double get _wantedWidth =>
       math.max(_lineWidthMm, _minLinePx / math.max(_scale, 1e-6));
 
-  static const _bands = 16;
-  Int32List _lut = Int32List(0);
+  static const _bands = 48;
+  Int32List _lutMid = Int32List(0);
+  Int32List _lutEdge = Int32List(0);
 
-  /// Build the coarse mesh of every layer for the current mode and width.
-  /// Each segment becomes a quad (two triangles, six vertices) coloured from
-  /// a 16-step lookup. The stack below the current layer is drawn from these
-  /// decimated meshes (see [_decimate]); the current layer's full-detail mesh
-  /// is built on demand in [_currentMesh]. Done once per mode switch or when
-  /// the zoom has moved the wanted width by more than a third, never per
-  /// frame.
+  /// Build the coarse meshes of every layer for the current mode and width.
+  /// Done once per mode switch or when the zoom has moved the wanted width
+  /// by more than a third, never per frame.
   void _rebuildMeshes() {
     final m = _model!;
-    if (_cooling) {
-      _lo = 0;
-      _hi = math.max(m.fanMax, 0.01);
-    } else {
-      _lo = m.tempMin;
-      _hi = m.tempMax <= m.tempMin ? m.tempMin + 10 : m.tempMax;
+    _setRange();
+    _lutMid = Int32List(_bands);
+    _lutEdge = Int32List(_bands);
+    for (var q = 0; q < _bands; q++) {
+      final c = _colorAt(q / (_bands - 1));
+      _lutMid[q] = c.toARGB32();
+      // Edges at 58 %: the bead reads as a round line and the layer lines
+      // show on a wall, like Orca's lit tubes.
+      _lutEdge[q] = Color.fromARGB(255, (c.r * 255 * 0.58).round(),
+              (c.g * 255 * 0.58).round(), (c.b * 255 * 0.58).round())
+          .toARGB32();
     }
-    _lut = Int32List.fromList([
-      for (var q = 0; q < _bands; q++) _colorAt(q / (_bands - 1)).toARGB32()
-    ]);
     final width = _wantedWidth;
     _disposeMeshes();
     _meshWidth = width;
     // Chord error of about half a device pixel at the current zoom (never
-    // under 0.1 mm), chords up to 4 mm: the dimmed stack reads the same.
-    // A file that still exceeds the segment budget after that gets a looser
+    // under 0.1 mm), chords up to 4 mm: the stack reads the same. A file
+    // that still exceeds the segment budget after that gets a looser
     // tolerance, up to three times, so a huge print stays drawable.
     var tol = math.max(0.1, 0.5 / math.max(_scale, 1e-6));
     const budget = 600000;
@@ -293,76 +354,90 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
     do {
       coarse = [
         for (final layer in m.layers)
-          decimateSegments(layer.points, _cooling ? layer.fan : layer.temp,
+          decimateSegments(layer.points, _valuesFor(layer),
               lo: _lo, hi: _hi, bands: _bands, maxLen: 4.0, tol: tol),
       ];
       final total = coarse.fold(0, (n, s) => n + s.$2.length);
       if (total <= budget || ++pass > 3) break;
       tol *= 2;
     } while (true);
-    _coarse = [for (final s in coarse) _meshFrom(s, _lo, _hi, _lut, width)];
+    _coarse = [for (final s in coarse) _meshFrom(s, width)];
   }
 
   /// Full-detail mesh of the current layer, rebuilt when the layer changes
   /// (one layer is a few thousand segments: well under a frame).
-  Vertices _currentMesh() {
+  List<Vertices> _currentMesh() {
     if (_curMesh == null || _curMeshIndex != _cur) {
-      _curMesh?.dispose();
+      _disposeCurMesh();
       final layer = _model!.layers[_cur];
-      _curMesh = _meshFrom(
-          (layer.points, _cooling ? layer.fan : layer.temp),
-          _lo, _hi, _lut, _meshWidth);
+      _curMesh = _meshFrom((layer.points, _valuesFor(layer)), _meshWidth);
       _curMeshIndex = _cur;
     }
     return _curMesh!;
   }
 
-  static Vertices _meshFrom((Float32List, Float32List) seg, double lo,
-      double hi, Int32List lut, double width) {
+  /// Segments -> shaded bead meshes. Six vertices per segment (outer, middle
+  /// and inner edge at each end, the ends capped by half a width), four
+  /// triangles through an index list, edge colour dark and middle colour
+  /// full. Chunked under 65 535 vertices because the index list is 16-bit.
+  List<Vertices> _meshFrom((Float32List, Float32List) seg, double width) {
     final p = seg.$1;
     final values = seg.$2;
     final n = values.length;
-    final pos = Float32List(n * 12);
-    final col = Int32List(n * 6);
+    const perChunk = 10000; // 60 000 vertices
     final hw = width / 2;
-    final span = (hi - lo) == 0 ? 1.0 : (hi - lo);
-    final top = lut.length - 1;
-    var k = 0, c = 0;
-    for (var i = 0; i < n; i++) {
-      final x1 = p[i * 4], y1 = p[i * 4 + 1], x2 = p[i * 4 + 2], y2 = p[i * 4 + 3];
-      var dx = x2 - x1, dy = y2 - y1;
-      final len = math.sqrt(dx * dx + dy * dy);
-      if (len < 1e-6) {
-        dx = hw;
-        dy = 0;
-      } else {
-        dx = dx / len * hw;
-        dy = dy / len * hw;
+    final span = (_hi - _lo) == 0 ? 1.0 : (_hi - _lo);
+    const top = _bands - 1;
+    final out = <Vertices>[];
+    for (var start = 0; start < n; start += perChunk) {
+      final count = math.min(perChunk, n - start);
+      final pos = Float32List(count * 12);
+      final col = Int32List(count * 6);
+      final idx = Uint16List(count * 12);
+      var k = 0, c = 0, j = 0;
+      for (var s = 0; s < count; s++) {
+        final i = start + s;
+        final x1 = p[i * 4], y1 = p[i * 4 + 1], x2 = p[i * 4 + 2], y2 = p[i * 4 + 3];
+        var dx = x2 - x1, dy = y2 - y1;
+        final len = math.sqrt(dx * dx + dy * dy);
+        if (len < 1e-6) {
+          dx = hw;
+          dy = 0;
+        } else {
+          dx = dx / len * hw;
+          dy = dy / len * hw;
+        }
+        final nx = -dy, ny = dx;
+        final ax = x1 - dx, ay = y1 - dy, bx = x2 + dx, by = y2 + dy;
+        // 0 a-outer, 1 a-mid, 2 a-inner, 3 b-outer, 4 b-mid, 5 b-inner
+        pos[k] = ax + nx;      pos[k + 1] = ay + ny;
+        pos[k + 2] = ax;       pos[k + 3] = ay;
+        pos[k + 4] = ax - nx;  pos[k + 5] = ay - ny;
+        pos[k + 6] = bx + nx;  pos[k + 7] = by + ny;
+        pos[k + 8] = bx;       pos[k + 9] = by;
+        pos[k + 10] = bx - nx; pos[k + 11] = by - ny;
+        k += 12;
+        var q = (((values[i] - _lo) / span) * top).round();
+        if (q < 0) q = 0;
+        if (q > top) q = top;
+        final mid = _lutMid[q], edge = _lutEdge[q];
+        col[c] = edge;
+        col[c + 1] = mid;
+        col[c + 2] = edge;
+        col[c + 3] = edge;
+        col[c + 4] = mid;
+        col[c + 5] = edge;
+        final v0 = s * 6;
+        idx[j] = v0;         idx[j + 1] = v0 + 3; idx[j + 2] = v0 + 4;
+        idx[j + 3] = v0;     idx[j + 4] = v0 + 4; idx[j + 5] = v0 + 1;
+        idx[j + 6] = v0 + 1; idx[j + 7] = v0 + 4; idx[j + 8] = v0 + 5;
+        idx[j + 9] = v0 + 1; idx[j + 10] = v0 + 5; idx[j + 11] = v0 + 2;
+        c += 6;
+        j += 12;
       }
-      // Normal of half-width, plus a half-width cap at each end so adjacent
-      // segments of a perimeter meet without a notch.
-      final nx = -dy, ny = dx;
-      final ax = x1 - dx, ay = y1 - dy, bx = x2 + dx, by = y2 + dy;
-      pos[k] = ax + nx;      pos[k + 1] = ay + ny;
-      pos[k + 2] = bx + nx;  pos[k + 3] = by + ny;
-      pos[k + 4] = bx - nx;  pos[k + 5] = by - ny;
-      pos[k + 6] = ax + nx;  pos[k + 7] = ay + ny;
-      pos[k + 8] = bx - nx;  pos[k + 9] = by - ny;
-      pos[k + 10] = ax - nx; pos[k + 11] = ay - ny;
-      k += 12;
-      var q = (((values[i] - lo) / span) * top).round();
-      if (q < 0) q = 0;
-      if (q > top) q = top;
-      final color = lut[q];
-      col[c] = color;
-      col[c + 1] = color;
-      col[c + 2] = color;
-      col[c + 3] = color;
-      col[c + 4] = color;
-      col[c + 5] = color;
-      c += 6;
+      out.add(Vertices.raw(VertexMode.triangles, pos, colors: col, indices: idx));
     }
-    return Vertices.raw(VertexMode.triangles, pos, colors: col);
+    return out;
   }
 
   /// After a zoom: rebuild when the wanted width drifted more than a third
@@ -374,14 +449,14 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
     if (r > 1.34 || r < 0.75) setState(_rebuildMeshes);
   }
 
-  Future<void> _setMode(bool cooling) async {
-    if (_cooling == cooling) return;
+  Future<void> _setMode(GcodeViewMode mode) async {
+    if (_mode == mode) return;
     setState(() {
-      _cooling = cooling;
+      _mode = mode;
       if (_model != null) _rebuildMeshes();
     });
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefMode, cooling ? 'cool' : 'hot');
+    await prefs.setString(_prefMode, mode.name);
   }
 
   // ── View ─────────────────────────────────────────────────────────────────
@@ -586,34 +661,39 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
         ),
       );
 
+  String _modeName(AppLocalizations l, GcodeViewMode m) => switch (m) {
+        GcodeViewMode.temp  => l.gcodeViewerModeTemp,
+        GcodeViewMode.flow  => l.gcodeViewerModeFlow,
+        GcodeViewMode.time  => l.gcodeViewerModeTime,
+        GcodeViewMode.speed => l.gcodeViewerModeSpeed,
+        GcodeViewMode.fan   => l.gcodeViewerModeFan,
+      };
+
   Widget _viewerBody(AppLocalizations l, ThemeData theme) {
     final m = _model!;
     final layer = m.layers[_cur];
     final top = _el > _elMax - 0.01;
-    final tempUnset = !_cooling && m.tempMax <= 0;
+    final unset = _hi <= 0; // the file never set this value
     return Column(
       children: [
-        // ── Mode ──────────────────────────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
-          child: SizedBox(
-            width: double.infinity,
-            child: SegmentedButton<bool>(
-              segments: [
-                ButtonSegment(
-                    value: true,
-                    icon: const Icon(Icons.ac_unit, size: 18),
-                    label: Text(l.gcodeViewerModeCooling)),
-                ButtonSegment(
-                    value: false,
-                    icon: const Icon(Icons.local_fire_department_outlined,
-                        size: 18),
-                    label: Text(l.gcodeViewerModeHotend)),
-              ],
-              selected: {_cooling},
-              onSelectionChanged: (s) => _setMode(s.first),
-              showSelectedIcon: false,
-            ),
+        // ── Mode chips ─────────────────────────────────────────────────────
+        SizedBox(
+          height: 48,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            children: [
+              for (final mode in GcodeViewMode.values)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: ChoiceChip(
+                    label: Text(_modeName(l, mode)),
+                    selected: _mode == mode,
+                    onSelected: (_) => _setMode(mode),
+                    showCheckmark: false,
+                  ),
+                ),
+            ],
           ),
         ),
         // ── Picture ───────────────────────────────────────────────────────
@@ -676,28 +756,24 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
                             'Z ${layer.z.toStringAsFixed(2)} mm · '
                             '${(_el * 180 / math.pi).round()}°',
                             style: const TextStyle(
-                                color: Color(0xFF9A9A9A), fontSize: 10.5)),
+                                color: Color(0xFFB0B0B0), fontSize: 10.5)),
                       ],
                     ),
                   ),
                 ),
-                // Legend.
+                // Legend: Orca's ramp from the file's minimum to its maximum.
                 Positioned(
                   left: 12,
                   bottom: 10,
                   child: _Glass(
                     child: SizedBox(
-                      width: 150,
+                      width: 160,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                              (_cooling
-                                      ? l.gcodeViewerLegendFan
-                                      : l.gcodeViewerLegendTemp)
-                                  .toUpperCase(),
+                          Text(_modeName(l, _mode).toUpperCase(),
                               style: const TextStyle(
-                                  color: Color(0xFF9A9A9A),
+                                  color: Color(0xFFB0B0B0),
                                   fontSize: 9.5,
                                   letterSpacing: 0.6)),
                           const SizedBox(height: 4),
@@ -705,25 +781,25 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
                             height: 8,
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(4),
-                              gradient: LinearGradient(colors: _stops),
+                              gradient: const LinearGradient(colors: _ramp),
                             ),
                           ),
                           const SizedBox(height: 3),
-                          if (tempUnset)
+                          if (unset)
                             Text(l.gcodeViewerTempUnset,
                                 style: const TextStyle(
-                                    color: Color(0xFFCFCFCF), fontSize: 10))
+                                    color: Color(0xFFE0E0E0), fontSize: 10))
                           else
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(_legendLabel(_lo),
                                     style: const TextStyle(
-                                        color: Color(0xFFCFCFCF),
+                                        color: Color(0xFFE0E0E0),
                                         fontSize: 10)),
                                 Text(_legendLabel(_hi),
                                     style: const TextStyle(
-                                        color: Color(0xFFCFCFCF),
+                                        color: Color(0xFFE0E0E0),
                                         fontSize: 10)),
                               ],
                             ),
@@ -829,8 +905,22 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
         ),
       );
 
-  String _legendLabel(double v) =>
-      _cooling ? '${(v * 100).round()} %' : '${v.round()} °C';
+  String _legendLabel(double v) => switch (_mode) {
+        GcodeViewMode.fan   => '${(v * 100).round()} %',
+        GcodeViewMode.temp  => '${v.round()} °C',
+        GcodeViewMode.speed => '${v.round()} mm/s',
+        GcodeViewMode.flow  => '${v.toStringAsFixed(1)} mm³/s',
+        GcodeViewMode.time  => _fmtTime(v),
+      };
+
+  static String _fmtTime(double s) {
+    if (s < 60) return '${s.round()} s';
+    final total = s.round();
+    if (total < 3600) {
+      return '${total ~/ 60}m ${(total % 60).toString().padLeft(2, '0')}s';
+    }
+    return '${total ~/ 3600}h ${((total % 3600) ~/ 60).toString().padLeft(2, '0')}m';
+  }
 
   static String _trim(double v) {
     final s = v.toStringAsFixed(2);
@@ -873,8 +963,8 @@ class _Glass extends StatelessWidget {
 
 class _LayerPainter extends CustomPainter {
   final GcodeModel model;
-  final List<Vertices> below; // coarse, one per layer
-  final Vertices current; // full detail, the current layer
+  final List<List<Vertices>> below; // coarse, one list of chunks per layer
+  final List<Vertices> current; // full detail, the current layer
   final int cur;
   final bool only;
   final double az, el, scale;
@@ -916,10 +1006,9 @@ class _LayerPainter extends CustomPainter {
     final baseTx = tx - (a * cx + c * cy);
     final baseTy = ty - (b * cx + d * cy);
 
-    // Vertex colours carry the heat map; the paint only dims the layers
-    // below the current one (modulate: colour x white-at-alpha).
-    final dim = Paint()..color = const Color(0x9EFFFFFF); // alpha 0.62
-    final full = Paint()..color = const Color(0xFFFFFFFF);
+    // Vertex colours carry everything; the paint is opaque white and
+    // modulate leaves them exactly as built. Solid, no transparency.
+    final paint = Paint()..color = const Color(0xFFFFFFFF);
 
     final from = only ? cur : 0;
     for (var i = from; i <= cur; i++) {
@@ -928,10 +1017,9 @@ class _LayerPainter extends CustomPainter {
       m[13] = baseTy - scale * (z - zc) * ce;
       canvas.save();
       canvas.transform(m);
-      if (i == cur) {
-        canvas.drawVertices(current, BlendMode.modulate, full);
-      } else {
-        canvas.drawVertices(below[i], BlendMode.modulate, dim);
+      final chunks = i == cur ? current : below[i];
+      for (final v in chunks) {
+        canvas.drawVertices(v, BlendMode.modulate, paint);
       }
       canvas.restore();
     }

@@ -1831,16 +1831,19 @@ class AppLocalizationsPl extends AppLocalizations {
   String get gcodeViewerDownload => 'Pobierz';
 
   @override
-  String get gcodeViewerModeCooling => 'Chłodzenie';
+  String get gcodeViewerModeTemp => 'Temperatura';
 
   @override
-  String get gcodeViewerModeHotend => 'Hotend';
+  String get gcodeViewerModeFlow => 'Przepływ';
 
   @override
-  String get gcodeViewerLegendFan => 'Wentylator wydruku';
+  String get gcodeViewerModeTime => 'Czas warstwy';
 
   @override
-  String get gcodeViewerLegendTemp => 'Zadana hotendu';
+  String get gcodeViewerModeSpeed => 'Prędkość';
+
+  @override
+  String get gcodeViewerModeFan => 'Wentylator';
 
   @override
   String get gcodeViewerTempUnset => 'Nieustawione w tym pliku (robi to makro)';

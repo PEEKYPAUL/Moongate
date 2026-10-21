@@ -1831,16 +1831,19 @@ class AppLocalizationsRu extends AppLocalizations {
   String get gcodeViewerDownload => 'Загрузить';
 
   @override
-  String get gcodeViewerModeCooling => 'Обдув';
+  String get gcodeViewerModeTemp => 'Температура';
 
   @override
-  String get gcodeViewerModeHotend => 'Хотенд';
+  String get gcodeViewerModeFlow => 'Поток';
 
   @override
-  String get gcodeViewerLegendFan => 'Обдув детали';
+  String get gcodeViewerModeTime => 'Время слоя';
 
   @override
-  String get gcodeViewerLegendTemp => 'Цель хотенда';
+  String get gcodeViewerModeSpeed => 'Скорость';
+
+  @override
+  String get gcodeViewerModeFan => 'Обдув';
 
   @override
   String get gcodeViewerTempUnset => 'В файле не задана (её задаёт макрос)';

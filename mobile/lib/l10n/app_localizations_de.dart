@@ -1837,16 +1837,19 @@ class AppLocalizationsDe extends AppLocalizations {
   String get gcodeViewerDownload => 'Herunterladen';
 
   @override
-  String get gcodeViewerModeCooling => 'Kühlung';
+  String get gcodeViewerModeTemp => 'Temperatur';
 
   @override
-  String get gcodeViewerModeHotend => 'Hotend';
+  String get gcodeViewerModeFlow => 'Flussrate';
 
   @override
-  String get gcodeViewerLegendFan => 'Bauteilkühlung';
+  String get gcodeViewerModeTime => 'Schichtzeit';
 
   @override
-  String get gcodeViewerLegendTemp => 'Hotend-Soll';
+  String get gcodeViewerModeSpeed => 'Geschwindigkeit';
+
+  @override
+  String get gcodeViewerModeFan => 'Lüfter';
 
   @override
   String get gcodeViewerTempUnset =>

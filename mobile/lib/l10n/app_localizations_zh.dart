@@ -1733,16 +1733,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gcodeViewerDownload => '下载';
 
   @override
-  String get gcodeViewerModeCooling => '冷却';
+  String get gcodeViewerModeTemp => '温度';
 
   @override
-  String get gcodeViewerModeHotend => '热端';
+  String get gcodeViewerModeFlow => '流量';
 
   @override
-  String get gcodeViewerLegendFan => '模型冷却风扇';
+  String get gcodeViewerModeTime => '层时间';
 
   @override
-  String get gcodeViewerLegendTemp => '热端目标温度';
+  String get gcodeViewerModeSpeed => '速度';
+
+  @override
+  String get gcodeViewerModeFan => '风扇';
 
   @override
   String get gcodeViewerTempUnset => '此文件未设置（由宏设置）';

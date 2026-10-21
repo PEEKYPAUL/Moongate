@@ -7,10 +7,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:moongate/services/gcode_layer_parser.dart';
 
 // The layer viewer's parser (v0.9.72): extrusion segments per layer, each
-// tagged with the part-cooling fan and hotend target in force. Real slicer
-// shapes are exercised: Orca / PrusaSlicer LAYER_CHANGE markers, Cura's
-// LAYER:, the Z heuristic when no markers exist, PRINT_START temperature
-// arguments, M106 with and without P, relative E, arcs.
+// tagged with the fan, hotend target, speed and flow in force, plus a time
+// per layer. Real slicer shapes are exercised: Orca / PrusaSlicer
+// LAYER_CHANGE markers, Cura's LAYER:, the Z heuristic when no markers exist,
+// PRINT_START temperature arguments, M106 with and without P, relative E,
+// arcs, the filament diameter comment.
 Uint8List _b(String s) => Uint8List.fromList(utf8.encode(s));
 
 void main() {
@@ -59,6 +60,45 @@ G1 X10 Y20 E1.0
       expect(m.minX, 10);
       expect(m.maxX, 20);
       expect(m.maxY, 20);
+    });
+
+    test('speed, flow and layer time', () {
+      // F3000 = 50 mm/s. 10 mm at 1 mm of 1.75 filament: 2.405 mm³ over
+      // 0.2 s = 12.03 mm³/s. The layer also has a 10 mm travel (0.2 s).
+      final m = parseGcode(_b('''
+; filament_diameter = 1.75
+G90
+M83
+G1 X0 Y0 Z0.2 F3000
+G1 X10 Y0 E1
+G1 X20 Y0
+G1 X20 Y10 E1 F6000
+'''));
+      final l = m.layers[0];
+      expect(l.segmentCount, 2);
+      expect(l.speed[0], closeTo(50, 1e-6));
+      expect(l.speed[1], closeTo(100, 1e-6));
+      const area = math.pi * 0.875 * 0.875;
+      expect(l.flow[0], closeTo(area * 50 / 10, 1e-4));
+      expect(l.flow[1], closeTo(area * 100 / 10, 1e-4));
+      // time: 10/50 + 10/50 (travel) + 10/100 = 0.5 s. The first move (to
+      // Z 0.2, before any layer exists) has no layer to book to.
+      expect(l.time, closeTo(0.5, 1e-3));
+      expect(m.speedMin, closeTo(50, 1e-6));
+      expect(m.speedMax, closeTo(100, 1e-6));
+      expect(m.timeMin, m.timeMax);
+    });
+
+    test('a 2.85 filament diameter changes the flow', () {
+      final m = parseGcode(_b('''
+; filament_diameter = 2.85
+G90
+M83
+G1 X0 Y0 Z0.2 F3000
+G1 X10 Y0 E1
+'''));
+      const area = math.pi * 1.425 * 1.425;
+      expect(m.layers[0].flow[0], closeTo(area * 50 / 10, 1e-4));
     });
 
     test('travels, retractions and wipes are not segments', () {
@@ -133,7 +173,7 @@ G1 X10 Y10 E2
 SET_HEATER_TEMPERATURE HEATER=extruder TARGET=250
 G90
 M83
-G1 X0 Y0 Z0.2
+G1 X0 Y0 Z0.2 F1200
 G2 X10 Y10 I10 J0 E1
 '''));
       expect(m.layers.length, 1);
@@ -144,6 +184,10 @@ G2 X10 Y10 I10 J0 E1
       // Ends exactly on the commanded end point.
       expect(p[p.length - 2], closeTo(10, 1e-6));
       expect(p[p.length - 1], closeTo(10, 1e-6));
+      // Flow spread over the arc length (quarter circle of r 10).
+      const arcLen = math.pi * 10 / 2;
+      const area = math.pi * 0.875 * 0.875;
+      expect(m.layers[0].flow[0], closeTo(area * 20 / arcLen, 1e-4));
     });
 
     test('CRLF line endings and an empty file', () {

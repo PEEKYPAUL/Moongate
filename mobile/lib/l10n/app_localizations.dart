@@ -3352,29 +3352,35 @@ abstract class AppLocalizations {
   /// **'Download'**
   String get gcodeViewerDownload;
 
-  /// Viewer: heat-map mode showing the part-cooling fan speed.
+  /// Viewer heat-map mode: hotend target temperature.
   ///
   /// In en, this message translates to:
-  /// **'Cooling'**
-  String get gcodeViewerModeCooling;
+  /// **'Temperature'**
+  String get gcodeViewerModeTemp;
 
-  /// Viewer: heat-map mode showing the hotend target temperature.
+  /// Viewer heat-map mode: volumetric flow rate (mm³/s).
   ///
   /// In en, this message translates to:
-  /// **'Hotend'**
-  String get gcodeViewerModeHotend;
+  /// **'Flow rate'**
+  String get gcodeViewerModeFlow;
 
-  /// Viewer: legend title in cooling mode.
+  /// Viewer heat-map mode: estimated time per layer.
   ///
   /// In en, this message translates to:
-  /// **'Part cooling fan'**
-  String get gcodeViewerLegendFan;
+  /// **'Layer time'**
+  String get gcodeViewerModeTime;
 
-  /// Viewer: legend title in hotend mode.
+  /// Viewer heat-map mode: print speed (mm/s).
   ///
   /// In en, this message translates to:
-  /// **'Hotend target'**
-  String get gcodeViewerLegendTemp;
+  /// **'Speed'**
+  String get gcodeViewerModeSpeed;
+
+  /// Viewer heat-map mode: part-cooling fan speed.
+  ///
+  /// In en, this message translates to:
+  /// **'Fan speed'**
+  String get gcodeViewerModeFan;
 
   /// Viewer: legend note when the file never sets a hotend temperature (a macro does it).
   ///
