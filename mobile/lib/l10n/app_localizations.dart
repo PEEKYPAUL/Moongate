@@ -3424,6 +3424,42 @@ abstract class AppLocalizations {
   /// **'Layer down'**
   String get gcodeViewerLayerDown;
 
+  /// Viewer view: every line in the filament colour it was printed with (the key lists one swatch per tool).
+  ///
+  /// In en, this message translates to:
+  /// **'Colour'**
+  String get gcodeViewerModeColour;
+
+  /// Viewer: title of the menu that picks which view the viewer opens with.
+  ///
+  /// In en, this message translates to:
+  /// **'Opens with'**
+  String get gcodeViewerOpensWith;
+
+  /// Viewer opens-with choice: let the app decide from the file.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get gcodeViewerOpenAuto;
+
+  /// Viewer: hint under the Auto choice. Keep the two view names the same as gcodeViewerModeColour / gcodeViewerModeFan.
+  ///
+  /// In en, this message translates to:
+  /// **'Colour for multi-material files, else Fan speed'**
+  String get gcodeViewerOpenAutoHint;
+
+  /// Viewer opens-with choice: the view used last time.
+  ///
+  /// In en, this message translates to:
+  /// **'Last used'**
+  String get gcodeViewerOpenLast;
+
+  /// Viewer key note: the file gave no filament colours, so the swatches are the app's own palette.
+  ///
+  /// In en, this message translates to:
+  /// **'Colours chosen by the app (none in the file)'**
+  String get gcodeViewerKeyNoColours;
+
   /// Tooltip for the macro button on an online printer tile; opens the macro list.
   ///
   /// In en, this message translates to:

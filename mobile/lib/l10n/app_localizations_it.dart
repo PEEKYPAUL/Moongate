@@ -1885,6 +1885,26 @@ class AppLocalizationsIt extends AppLocalizations {
   String get gcodeViewerLayerDown => 'Layer giù';
 
   @override
+  String get gcodeViewerModeColour => 'Colore';
+
+  @override
+  String get gcodeViewerOpensWith => 'Si apre con';
+
+  @override
+  String get gcodeViewerOpenAuto => 'Automatico';
+
+  @override
+  String get gcodeViewerOpenAutoHint =>
+      'Colore per i file multimateriale, altrimenti Ventola';
+
+  @override
+  String get gcodeViewerOpenLast => 'Ultimo usato';
+
+  @override
+  String get gcodeViewerKeyNoColours =>
+      'Colori scelti dall\'app (nessuno nel file)';
+
+  @override
   String get tileMacros => 'Macro';
 
   @override

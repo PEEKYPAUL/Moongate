@@ -1773,6 +1773,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gcodeViewerLayerDown => '下一层';
 
   @override
+  String get gcodeViewerModeColour => '颜色';
+
+  @override
+  String get gcodeViewerOpensWith => '默认视图';
+
+  @override
+  String get gcodeViewerOpenAuto => '自动';
+
+  @override
+  String get gcodeViewerOpenAutoHint => '多材料文件显示颜色，否则显示风扇';
+
+  @override
+  String get gcodeViewerOpenLast => '上次使用';
+
+  @override
+  String get gcodeViewerKeyNoColours => '颜色由应用选择（文件中没有）';
+
+  @override
   String get tileMacros => '宏';
 
   @override

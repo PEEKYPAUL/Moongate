@@ -1878,6 +1878,26 @@ class AppLocalizationsDe extends AppLocalizations {
   String get gcodeViewerLayerDown => 'Schicht runter';
 
   @override
+  String get gcodeViewerModeColour => 'Farbe';
+
+  @override
+  String get gcodeViewerOpensWith => 'Öffnet mit';
+
+  @override
+  String get gcodeViewerOpenAuto => 'Automatisch';
+
+  @override
+  String get gcodeViewerOpenAutoHint =>
+      'Farbe bei Mehrfarbdateien, sonst Lüfter';
+
+  @override
+  String get gcodeViewerOpenLast => 'Zuletzt verwendet';
+
+  @override
+  String get gcodeViewerKeyNoColours =>
+      'Farben von der App gewählt (keine in der Datei)';
+
+  @override
   String get tileMacros => 'Makros';
 
   @override
