@@ -9,6 +9,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/printer_config.dart';
 import '../../models/temp_watch.dart';
 import '../../services/print_control_service.dart';
+import '../printer/gcode_save.dart';
 import '../printer/gcode_viewer_screen.dart';
 
 /// Bottom-sheet G-code browser. Lists the files already stored on the printer
@@ -285,9 +286,18 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
                             if (selected)
                               Icon(Icons.check_circle,
                                   color: theme.colorScheme.primary),
-                            // View button: the 3D layer viewer with the
+                            // Save button: download the file to the phone
+                            // (system "save as" sheet). Then the View
+                            // button: the 3D layer viewer with the
                             // cooling / hotend heat map. Tapping the row
                             // itself still just selects the file.
+                            IconButton(
+                              icon: const Icon(Icons.download_outlined),
+                              tooltip: l.gcodeSaveToPhone,
+                              onPressed: () => saveGcodeToPhone(
+                                  context, _control, f,
+                                  base: listing.base, isLan: listing.isLan),
+                            ),
                             IconButton(
                               icon: const Icon(Icons.layers_outlined),
                               tooltip: l.gcodeViewTooltip,

@@ -132,6 +132,7 @@ mobile/lib/
 │   ├── onboarding/dashboard_style_prompt.dart # First-run "One printer or several?" question (v0.9.69)
 │   ├── printer/printer_screen.dart     # /printer/:id - WebView with cookie/Bearer auth
 │   ├── printer/gcode_viewer_screen.dart # G-code layer viewer: 3D orbit, five Orca-coloured heat maps (v0.9.72) + Colour view with a per-tool key and the "Opens with" menu (v0.9.73)
+│   ├── printer/gcode_save.dart         # "Save to phone": whole-file download with progress -> system save-as sheet (v0.9.74)
 │   ├── settings/settings_screen.dart   # /settings
 │   ├── settings/custom_theme_screen.dart # /theme/custom - colour editor
 │   └── splash/splash_screen.dart

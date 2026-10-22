@@ -11,6 +11,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/printer_config.dart';
 import '../../services/gcode_layer_parser.dart';
 import '../../services/print_control_service.dart';
+import 'gcode_save.dart';
 
 /// Full-screen G-code layer viewer, opened from the View button on a row of
 /// the Start-a-print sheet (features/dashboard/gcode_files_overlay.dart).
@@ -78,6 +79,9 @@ enum GcodeViewMode { temp, flow, time, speed, fan, colour }
 /// "Opens with" choices that are not a fixed [GcodeViewMode].
 const String kGcodeViewerOpenAuto = 'auto';
 const String kGcodeViewerOpenLast = 'last';
+
+/// The ⋮ menu's "Save to phone" row (not an "Opens with" choice).
+const String _kSaveToPhone = 'save';
 
 class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
   static const _prefMode = 'gcodeViewer.mode'; // the last chip tapped
@@ -316,10 +320,14 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
     Color(0xFFFB8C00),
   ];
 
-  /// The colour of the tool at [slot] in [m]'s key.
+  /// The colour of the tool at [slot] in [m]'s key: the slicer's, unless the
+  /// file gave none or gave every tool the same one (then the palette, so the
+  /// tools can still be told apart).
   static Color _toolColor(GcodeModel m, int slot) {
     final argb = m.tools[slot].argb;
-    return argb != null ? Color(argb) : _palette[slot % _palette.length];
+    return argb != null && !m.slicerColoursIdentical
+        ? Color(argb)
+        : _palette[slot % _palette.length];
   }
 
   /// Auto: Colour for a multi-material file, else Fan speed.
@@ -647,11 +655,28 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
           ],
         ),
         actions: [
-          // "Opens with": Auto / Last used / a fixed view, as a radio list.
+          // "Opens with": Auto / Last used / a fixed view, as a radio list,
+          // then "Save to phone" (a fresh download of the WHOLE file: the
+          // bytes the viewer holds skip the thumbnail preamble).
           PopupMenuButton<String>(
             tooltip: l.gcodeViewerOpensWith,
-            onSelected: _setOpenWith,
+            onSelected: (v) => v == _kSaveToPhone
+                ? saveGcodeToPhone(context, _control, widget.file,
+                    base: widget.base, isLan: widget.isLan)
+                : _setOpenWith(v),
             itemBuilder: (context) => [
+              PopupMenuItem<String>(
+                value: _kSaveToPhone,
+                child: Row(
+                  children: [
+                    Icon(Icons.download_outlined,
+                        size: 20, color: theme.colorScheme.onSurfaceVariant),
+                    const SizedBox(width: 12),
+                    Text(l.gcodeSaveToPhone),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
               PopupMenuItem<String>(
                 enabled: false,
                 height: 36,
@@ -850,10 +875,13 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
               ],
             ),
           ),
-        if (!m.hasSlicerColours)
+        if (!m.hasSlicerColours || m.slicerColoursIdentical)
           Padding(
             padding: const EdgeInsets.only(top: 5),
-            child: Text(l.gcodeViewerKeyNoColours,
+            child: Text(
+                m.hasSlicerColours
+                    ? l.gcodeViewerKeySameColours
+                    : l.gcodeViewerKeyNoColours,
                 style: const TextStyle(color: Color(0xFF9A9A9A), fontSize: 10)),
           ),
       ];

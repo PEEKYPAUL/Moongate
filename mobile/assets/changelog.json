@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.9.74",
+    "bullets": [
+      "Colour view: a PrusaSlicer or SuperSlicer file now shows the colours you picked for each extruder in the slicer, not just the filament preset's colour (the first tool-changer test drew everything in one off-white because every slot carried the same preset). If a file really does give every tool the same colour, the viewer uses its own palette so the tools can still be told apart, and the key says so.",
+      "Save to phone: a download button on every file in Start a print, and in the viewer's ⋮ menu, saves the G-code file wherever you choose on your phone."
+    ]
+  },
+  {
     "version": "v0.9.73",
     "bullets": [
       "New Colour view in the G-code viewer: every line is painted in the filament it was printed with, using the colours your slicer wrote into the file (Orca, PrusaSlicer, SuperSlicer; other slicers get a fixed palette). The legend becomes a key with one swatch per tool, labelled T0, T1, ... with the filament type.",
