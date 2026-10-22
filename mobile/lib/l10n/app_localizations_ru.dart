@@ -1871,6 +1871,26 @@ class AppLocalizationsRu extends AppLocalizations {
   String get gcodeViewerLayerDown => 'Слой ниже';
 
   @override
+  String get gcodeViewerModeColour => 'Цвет';
+
+  @override
+  String get gcodeViewerOpensWith => 'Открывать с';
+
+  @override
+  String get gcodeViewerOpenAuto => 'Авто';
+
+  @override
+  String get gcodeViewerOpenAutoHint =>
+      'Цвет для многоцветных файлов, иначе Обдув';
+
+  @override
+  String get gcodeViewerOpenLast => 'Последний';
+
+  @override
+  String get gcodeViewerKeyNoColours =>
+      'Цвета выбраны приложением (в файле их нет)';
+
+  @override
   String get tileMacros => 'Макросы';
 
   @override

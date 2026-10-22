@@ -30,6 +30,14 @@ import 'dart:typed_data';
 /// (1.75 when absent). Layer time: the sum of length / speed over every move
 /// in the layer, travels included, plus `G4` dwells - no acceleration model,
 /// so a few percent under Klipper's estimate, which is fine for colouring.
+///
+/// Tool / colour (v0.9.73): the `T` in force per segment, advanced by `M600`
+/// on a single extruder (PrusaSlicer's `;COLOR_CHANGE,T0,#RRGGBB` and Orca's
+/// `; MANUAL_TOOL_CHANGE T1` comments name the slot and colour). The key's
+/// colours and filament types come from the settings block's
+/// `; filament_colour =` and `; filament_type =` lists (Orca, PrusaSlicer,
+/// SuperSlicer); Cura and Simplify3D write none, so the viewer falls back
+/// to its own palette for those.
 class GcodeLayer {
   /// Height of this layer in mm (the Z of its first extrusion).
   final double z;
@@ -52,6 +60,11 @@ class GcodeLayer {
   /// Estimated time spent in this layer, seconds.
   final double time;
 
+  /// Tool (colour slot) per segment: the `T` in force, advanced by `M600`
+  /// colour changes on a single extruder. A tool NUMBER; see
+  /// [GcodeModel.toolSlot] for its position in [GcodeModel.tools].
+  final Uint8List tool;
+
   const GcodeLayer({
     required this.z,
     required this.points,
@@ -60,9 +73,27 @@ class GcodeLayer {
     required this.speed,
     required this.flow,
     required this.time,
+    required this.tool,
   });
 
   int get segmentCount => fan.length;
+}
+
+/// One tool (or colour slot) the file printed with, for the viewer's key.
+class GcodeTool {
+  /// The tool number: `T0`, `T1`, ... (a single-extruder `M600` change
+  /// takes the next number).
+  final int index;
+
+  /// The filament colour the slicer wrote (`; filament_colour = #RRGGBB;...`
+  /// or PrusaSlicer's `;COLOR_CHANGE,T0,#RRGGBB`), as ARGB; null when the
+  /// file gave none (Cura, Simplify3D).
+  final int? argb;
+
+  /// The filament type from `; filament_type = PLA;ASA` when present.
+  final String? type;
+
+  const GcodeTool({required this.index, this.argb, this.type});
 }
 
 class GcodeModel {
@@ -74,6 +105,11 @@ class GcodeModel {
   /// True when the file carried slicer layer markers (else the Z heuristic
   /// built the layers).
   final bool markers;
+
+  /// Every tool that extruded something, in tool order, with the slicer's
+  /// colour and filament type when the header had them. One entry for a
+  /// plain single-colour file.
+  final List<GcodeTool> tools;
 
   const GcodeModel({
     required this.layers,
@@ -92,7 +128,22 @@ class GcodeModel {
     required this.timeMin,
     required this.timeMax,
     required this.markers,
+    required this.tools,
   });
+
+  /// True when more than one tool (or colour) printed: a multi-material file.
+  bool get isMultiTool => tools.length > 1;
+
+  /// True when the slicer wrote a colour for at least one tool.
+  bool get hasSlicerColours => tools.any((t) => t.argb != null);
+
+  /// Position of tool number [index] in [tools] (0 when unknown).
+  int toolSlot(int index) {
+    for (var i = 0; i < tools.length; i++) {
+      if (tools[i].index == index) return i;
+    }
+    return 0;
+  }
 
   int get segmentCount =>
       layers.fold(0, (n, l) => n + l.segmentCount);
@@ -196,6 +247,23 @@ class _F32Buf {
   Float32List take() => Float32List.sublistView(_d, 0, length);
 }
 
+/// Growable byte buffer (the per-segment tool number).
+class _U8Buf {
+  Uint8List _d = Uint8List(256);
+  int length = 0;
+
+  void add(int v) {
+    if (length == _d.length) {
+      final n = Uint8List(_d.length * 2);
+      n.setRange(0, length, _d);
+      _d = n;
+    }
+    _d[length++] = v;
+  }
+
+  Uint8List take() => Uint8List.sublistView(_d, 0, length);
+}
+
 class _LayerBuf {
   final double z;
   final _F32Buf pts = _F32Buf();
@@ -203,6 +271,7 @@ class _LayerBuf {
   final _F32Buf temp = _F32Buf();
   final _F32Buf speed = _F32Buf();
   final _F32Buf flow = _F32Buf();
+  final _U8Buf tool = _U8Buf();
   double time = 0;
   _LayerBuf(this.z);
 
@@ -215,7 +284,8 @@ class _LayerBuf {
       temp: temp.take(),
       speed: speed.take(),
       flow: flow.take(),
-      time: time);
+      time: time,
+      tool: tool.take());
 }
 
 // Byte constants.
@@ -241,6 +311,18 @@ class _Parser {
   double fan = 0;
   final Map<int, double> toolTemp = {};
   int tool = 0;
+
+  // Tools and colours. The slicer's settings block (Orca / PrusaSlicer /
+  // SuperSlicer, at the END of the file) lists one colour and one filament
+  // type per filament slot; a PrusaSlicer `;COLOR_CHANGE,T0,#RRGGBB` names
+  // the colour an `M600` switches to; Orca's manual filament change writes
+  // `; MANUAL_TOOL_CHANGE T1` before its `M600`.
+  final Set<int> toolsSeen = {};
+  final List<int?> headerColours = []; // ARGB per filament slot, null = none
+  final List<String> headerTypes = [];
+  final Map<int, int> changeColours = {}; // tool number -> ARGB from M600
+  int? pendingChangeColour; // from the COLOR_CHANGE comment, for the next M600
+  int? pendingManualTool; // from MANUAL_TOOL_CHANGE, for the next M600
 
   // Filament cross-section for flow, mm² (1.75 mm default).
   double area = math.pi * 0.875 * 0.875;
@@ -295,8 +377,23 @@ class _Parser {
           fanMin: 0, fanMax: 0, tempMin: 0, tempMax: 0,
           speedMin: 0, speedMax: 0, flowMin: 0, flowMax: 0,
           timeMin: 0, timeMax: 0,
-          markers: false);
+          markers: false,
+          tools: []);
     }
+    // The key: every tool that extruded, in tool order, with the colour
+    // from an M600 change first, else the header's slot, else none.
+    final toolNums = toolsSeen.toList()..sort();
+    final tools = [
+      for (final t in toolNums)
+        GcodeTool(
+          index: t,
+          argb: changeColours[t] ??
+              (t < headerColours.length ? headerColours[t] : null),
+          type: t < headerTypes.length && headerTypes[t].isNotEmpty
+              ? headerTypes[t]
+              : null,
+        ),
+    ];
     var tMin = double.infinity, tMax = double.negativeInfinity;
     for (final l in layers) {
       if (l.time > 0) {
@@ -314,6 +411,7 @@ class _Parser {
       flowMin: fin(flowMin), flowMax: fin(flowMax),
       timeMin: fin(tMin), timeMax: fin(tMax),
       markers: markers,
+      tools: tools,
     );
   }
 
@@ -406,12 +504,21 @@ class _Parser {
           _params(s, ce);
           if (!_has('P') || _p('P').round() == 0) fan = 0;
           break;
+        case 600:
+          // Filament change on a single extruder: the next colour slot.
+          final next = pendingManualTool ?? tool + 1;
+          if (next >= 0 && next <= 255) tool = next;
+          final c = pendingChangeColour;
+          if (c != null) changeColours[tool] = c;
+          pendingManualTool = null;
+          pendingChangeColour = null;
+          break;
       }
       return;
     }
     if (up == 0x54 /* T */ && ce - s <= 3) {
       final t = _intAfter(s + 1, ce);
-      if (t >= 0) tool = t;
+      if (t >= 0 && t <= 255) tool = t;
       return;
     }
     // Extended commands (Klipper macros). Only two matter and they are rare,
@@ -453,14 +560,66 @@ class _Parser {
           (_startsWith(s, e, 'LAYER ') && _s3dLayer(s, e))) {
         _marker();
       }
-    } else if (c == 0x46 /* F */ && _startsWith(s, e, 'FILAMENT_DIAMETER')) {
-      // "; filament_diameter = 1.75" (Orca / Prusa settings block; Orca may
-      // list one per filament: "1.75,1.75" - the first is fine).
+    } else if (c == 0x46 /* F */) {
+      if (_startsWith(s, e, 'FILAMENT_DIAMETER')) {
+        // "; filament_diameter = 1.75" (Orca / Prusa settings block; Orca
+        // may list one per filament: "1.75,1.75" - the first is fine).
+        final line = String.fromCharCodes(b, s, e);
+        final m = RegExp(r'=\s*([0-9.]+)').firstMatch(line);
+        final d = m == null ? null : double.tryParse(m.group(1)!);
+        if (d != null && d > 0.5 && d < 5) area = math.pi * (d / 2) * (d / 2);
+      } else if (_startsWith(s, e, 'FILAMENT_COLOUR') ||
+          _startsWith(s, e, 'FILAMENT_COLOR')) {
+        // "; filament_colour = #FF0000;#00FF00;..." one per filament slot.
+        final v = _settingValue(s, e);
+        if (v != null) {
+          headerColours
+            ..clear()
+            ..addAll(v.split(';').map(_argb));
+        }
+      } else if (_startsWith(s, e, 'FILAMENT_TYPE') &&
+          _keyEndsAt(s + 'FILAMENT_TYPE'.length, e)) {
+        // "; filament_type = PLA;ASA;..." (the plain key only).
+        final v = _settingValue(s, e);
+        if (v != null) {
+          headerTypes
+            ..clear()
+            ..addAll(v.split(';').map((t) => t.trim()));
+        }
+      }
+    } else if (c == 0x43 /* C */ && _startsWith(s, e, 'COLOR_CHANGE')) {
+      // PrusaSlicer: ";COLOR_CHANGE,T0,#8A2BE2" right before its M600.
       final line = String.fromCharCodes(b, s, e);
-      final m = RegExp(r'=\s*([0-9.]+)').firstMatch(line);
-      final d = m == null ? null : double.tryParse(m.group(1)!);
-      if (d != null && d > 0.5 && d < 5) area = math.pi * (d / 2) * (d / 2);
+      final m = RegExp(r'#([0-9A-Fa-f]{6})').firstMatch(line);
+      if (m != null) pendingChangeColour = _argb(m.group(0)!);
+    } else if (c == 0x4D /* M */ && _startsWith(s, e, 'MANUAL_TOOL_CHANGE')) {
+      // Orca's manual filament change: "; MANUAL_TOOL_CHANGE T1" then M600.
+      final line = String.fromCharCodes(b, s, e).toUpperCase();
+      final m = RegExp(r'T(\d+)').firstMatch(line);
+      if (m != null) pendingManualTool = int.parse(m.group(1)!);
     }
+  }
+
+  /// True when the settings key ends at [k]: a space or `=` follows (so
+  /// `filament_type` does not match `filament_type_xyz`).
+  bool _keyEndsAt(int k, int e) => k >= e || b[k] == _sp || b[k] == _eq;
+
+  /// The text after `=` of a "; key = value" settings line, trimmed; null
+  /// when there is no `=`.
+  String? _settingValue(int s, int e) {
+    for (var k = s; k < e; k++) {
+      if (b[k] == _eq) return String.fromCharCodes(b, k + 1, e).trim();
+    }
+    return null;
+  }
+
+  /// "#RRGGBB" (or "RRGGBB") -> opaque ARGB; null for anything else.
+  static int? _argb(String s) {
+    var t = s.trim();
+    if (t.startsWith('#')) t = t.substring(1);
+    if (t.length != 6) return null;
+    final v = int.tryParse(t, radix: 16);
+    return v == null ? null : 0xFF000000 | v;
   }
 
   // Simplify3D: "; layer 12, Z = 2.400" - but also "; layer end" (skip).
@@ -613,6 +772,8 @@ class _Parser {
     layer.temp.add(t);
     layer.speed.add(sp);
     layer.flow.add(flow);
+    layer.tool.add(tool);
+    toolsSeen.add(tool);
     if (x1 < minX) minX = x1;
     if (x2 < minX) minX = x2;
     if (x1 > maxX) maxX = x1;

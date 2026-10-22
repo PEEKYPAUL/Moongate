@@ -21,7 +21,14 @@ import '../../services/print_control_service.dart';
 /// speed and flow in force, plus a time per layer. Five heat maps, coloured
 /// the way Orca's preview colours them: the same 11-stop ramp (dark blue,
 /// green, yellow, red) spread linearly from the file's minimum to its
-/// maximum.
+/// maximum. A sixth view, Colour (v0.9.73), paints every line in the
+/// filament it was printed with (the slicer's `filament_colour` list, or a
+/// fallback palette) and turns the legend into a key, one swatch per tool.
+///
+/// Which view opens first is the ⋮ menu's "Opens with": Auto (Colour for a
+/// multi-material file, else Fan speed), Last used, or a fixed view. Stored
+/// under `gcodeViewer.openWith`; the last chip tapped stays under
+/// `gcodeViewer.mode`.
 ///
 /// The picture is a 3D orbit drawn with no engine: a [CustomPainter] sets one
 /// flat canvas transform per layer (the orbit matrix times the lift to that
@@ -65,11 +72,16 @@ class GcodeViewerScreen extends StatefulWidget {
 
 enum _Phase { confirm, downloading, parsing, ready, error }
 
-/// The heat maps, in the order the chips show them.
-enum GcodeViewMode { temp, flow, time, speed, fan }
+/// The views, in the order the chips show them: five heat maps and Colour.
+enum GcodeViewMode { temp, flow, time, speed, fan, colour }
+
+/// "Opens with" choices that are not a fixed [GcodeViewMode].
+const String kGcodeViewerOpenAuto = 'auto';
+const String kGcodeViewerOpenLast = 'last';
 
 class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
-  static const _prefMode = 'gcodeViewer.mode';
+  static const _prefMode = 'gcodeViewer.mode'; // the last chip tapped
+  static const _prefOpen = 'gcodeViewer.openWith'; // auto / last / a mode
   static const _elMin = 5 * math.pi / 180;
   static const _elMax = 88 * math.pi / 180;
   static const _defAz = -35 * math.pi / 180;
@@ -95,6 +107,9 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
   int _curMeshIndex = -1;
   double _meshWidth = _lineWidthMm; // model-space width the meshes were built at
   int _cur = 0;
+  /// What the viewer opens with: [kGcodeViewerOpenAuto], [kGcodeViewerOpenLast]
+  /// or a [GcodeViewMode] name.
+  String _openWith = kGcodeViewerOpenAuto;
   GcodeViewMode _mode = GcodeViewMode.fan;
   bool _only = false;
   double _lo = 0, _hi = 1;
@@ -151,9 +166,16 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     final saved = prefs.getString(_prefMode);
-    setState(() => _mode = GcodeViewMode.values.firstWhere(
-        (m) => m.name == saved,
-        orElse: () => GcodeViewMode.fan));
+    final open = prefs.getString(_prefOpen) ?? kGcodeViewerOpenAuto;
+    final last = GcodeViewMode.values.firstWhere((m) => m.name == saved,
+        orElse: () => GcodeViewMode.fan);
+    setState(() {
+      _openWith = open;
+      // A fixed choice applies now; Auto needs the file (decided after the
+      // parse) and Last used is the remembered chip.
+      _mode = GcodeViewMode.values.firstWhere((m) => m.name == open,
+          orElse: () => last);
+    });
     // Metadata first (cheap): layer count for the header, start byte for Range.
     _control
         .fetchGcodeMeta(widget.file, base: widget.base, isLan: widget.isLan)
@@ -234,6 +256,7 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
       _model = model;
       _cur = model.layers.length - 1;
       _phase = _Phase.ready;
+      if (_openWith == kGcodeViewerOpenAuto) _mode = _autoMode(model);
       _resetView(); // sets the scale, which the mesh width depends on
       _rebuildMeshes();
     });
@@ -280,22 +303,71 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
     return Color.lerp(_ramp[i], _ramp[i + 1], t * n - i)!;
   }
 
+  // ── Colour mode (the file's filament colours) ────────────────────────────
+
+  /// Fallback colours for tools the slicer gave no colour for (Cura,
+  /// Simplify3D): six distinct hues, wrapping past the sixth tool.
+  static const _palette = [
+    Color(0xFFE53935),
+    Color(0xFF1E88E5),
+    Color(0xFF43A047),
+    Color(0xFFFDD835),
+    Color(0xFF8E24AA),
+    Color(0xFFFB8C00),
+  ];
+
+  /// The colour of the tool at [slot] in [m]'s key.
+  static Color _toolColor(GcodeModel m, int slot) {
+    final argb = m.tools[slot].argb;
+    return argb != null ? Color(argb) : _palette[slot % _palette.length];
+  }
+
+  /// Auto: Colour for a multi-material file, else Fan speed.
+  static GcodeViewMode _autoMode(GcodeModel m) =>
+      m.isMultiTool ? GcodeViewMode.colour : GcodeViewMode.fan;
+
+  /// The key slot of every segment in [layer], as the band value the mesh
+  /// builder and the decimator work with (tool numbers are bytes, so a
+  /// 256-entry lookup maps them to slots).
+  Float32List _slotValues(GcodeLayer layer) {
+    final m = _model!;
+    final out = Float32List(layer.segmentCount);
+    if (m.tools.length <= 1) return out;
+    final slot = Int32List(256);
+    for (var i = 0; i < m.tools.length; i++) {
+      slot[m.tools[i].index] = i;
+    }
+    final tool = layer.tool;
+    for (var i = 0; i < out.length; i++) {
+      out[i] = slot[tool[i]].toDouble();
+    }
+    return out;
+  }
+
   /// Per-segment values of the current mode for [layer] (layer time is one
-  /// value per layer, spread over its segments).
+  /// value per layer, spread over its segments; Colour is the key slot).
   Float32List _valuesFor(GcodeLayer layer) => switch (_mode) {
-        GcodeViewMode.fan   => layer.fan,
-        GcodeViewMode.temp  => layer.temp,
-        GcodeViewMode.speed => layer.speed,
-        GcodeViewMode.flow  => layer.flow,
-        GcodeViewMode.time  => Float32List(layer.segmentCount)
+        GcodeViewMode.fan    => layer.fan,
+        GcodeViewMode.temp   => layer.temp,
+        GcodeViewMode.speed  => layer.speed,
+        GcodeViewMode.flow   => layer.flow,
+        GcodeViewMode.time   => Float32List(layer.segmentCount)
           ..fillRange(0, layer.segmentCount, layer.time),
+        GcodeViewMode.colour => _slotValues(layer),
       };
 
   /// Range of the current mode across the file, as Orca spreads the ramp.
-  /// A single-valued file maps everything to the first stop.
+  /// A single-valued file maps everything to the first stop. Colour mode
+  /// uses one band per tool, so a slot maps to its own colour exactly.
   void _setRange() {
     final m = _model!;
+    _bands = _mode == GcodeViewMode.colour
+        ? math.max(1, m.tools.length)
+        : _rampBands;
     switch (_mode) {
+      case GcodeViewMode.colour:
+        _lo = 0;
+        _hi = (m.tools.length - 1).toDouble();
       case GcodeViewMode.fan:
         _lo = m.fanMin;
         _hi = m.fanMax;
@@ -319,7 +391,8 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
   double get _wantedWidth =>
       math.max(_lineWidthMm, _minLinePx / math.max(_scale, 1e-6));
 
-  static const _bands = 48;
+  static const _rampBands = 48;
+  int _bands = _rampBands; // ramp modes: 48 steps; Colour: one per tool
   Int32List _lutMid = Int32List(0);
   Int32List _lutEdge = Int32List(0);
 
@@ -332,7 +405,9 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
     _lutMid = Int32List(_bands);
     _lutEdge = Int32List(_bands);
     for (var q = 0; q < _bands; q++) {
-      final c = _colorAt(q / (_bands - 1));
+      final c = _mode == GcodeViewMode.colour
+          ? _toolColor(m, q)
+          : _colorAt(q / (_bands - 1));
       _lutMid[q] = c.toARGB32();
       // Edges at 58 %: the bead reads as a round line and the layer lines
       // show on a wall, like Orca's lit tubes.
@@ -387,7 +462,7 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
     const perChunk = 10000; // 60 000 vertices
     final hw = width / 2;
     final span = (_hi - _lo) == 0 ? 1.0 : (_hi - _lo);
-    const top = _bands - 1;
+    final top = _bands - 1;
     final out = <Vertices>[];
     for (var start = 0; start < n; start += perChunk) {
       final count = math.min(perChunk, n - start);
@@ -457,6 +532,23 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
     });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefMode, mode.name);
+  }
+
+  /// The ⋮ menu's pick: remember it, and show its effect right away (Auto
+  /// and a fixed view switch the picture; Last used keeps what is up).
+  Future<void> _setOpenWith(String value) async {
+    setState(() => _openWith = value);
+    final m = _model;
+    if (m != null) {
+      if (value == kGcodeViewerOpenAuto) {
+        await _setMode(_autoMode(m));
+      } else if (value != kGcodeViewerOpenLast) {
+        await _setMode(GcodeViewMode.values
+            .firstWhere((x) => x.name == value, orElse: () => _mode));
+      }
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefOpen, value);
   }
 
   // ── View ─────────────────────────────────────────────────────────────────
@@ -554,6 +646,28 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
                     ?.copyWith(color: theme.colorScheme.outline)),
           ],
         ),
+        actions: [
+          // "Opens with": Auto / Last used / a fixed view, as a radio list.
+          PopupMenuButton<String>(
+            tooltip: l.gcodeViewerOpensWith,
+            onSelected: _setOpenWith,
+            itemBuilder: (context) => [
+              PopupMenuItem<String>(
+                enabled: false,
+                height: 36,
+                child: Text(l.gcodeViewerOpensWith,
+                    style: theme.textTheme.labelSmall
+                        ?.copyWith(color: theme.colorScheme.outline)),
+              ),
+              _openItem(theme, kGcodeViewerOpenAuto, l.gcodeViewerOpenAuto,
+                  hint: l.gcodeViewerOpenAutoHint),
+              _openItem(theme, kGcodeViewerOpenLast, l.gcodeViewerOpenLast),
+              const PopupMenuDivider(),
+              for (final mode in GcodeViewMode.values)
+                _openItem(theme, mode.name, _modeName(l, mode)),
+            ],
+          ),
+        ],
       ),
       body: switch (_phase) {
         _Phase.confirm     => _confirmBody(l, theme),
@@ -662,18 +776,94 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
       );
 
   String _modeName(AppLocalizations l, GcodeViewMode m) => switch (m) {
-        GcodeViewMode.temp  => l.gcodeViewerModeTemp,
-        GcodeViewMode.flow  => l.gcodeViewerModeFlow,
-        GcodeViewMode.time  => l.gcodeViewerModeTime,
-        GcodeViewMode.speed => l.gcodeViewerModeSpeed,
-        GcodeViewMode.fan   => l.gcodeViewerModeFan,
+        GcodeViewMode.temp   => l.gcodeViewerModeTemp,
+        GcodeViewMode.flow   => l.gcodeViewerModeFlow,
+        GcodeViewMode.time   => l.gcodeViewerModeTime,
+        GcodeViewMode.speed  => l.gcodeViewerModeSpeed,
+        GcodeViewMode.fan    => l.gcodeViewerModeFan,
+        GcodeViewMode.colour => l.gcodeViewerModeColour,
       };
+
+  /// One row of the ⋮ menu: a radio dot, the label, an optional hint.
+  PopupMenuItem<String> _openItem(ThemeData theme, String value, String label,
+          {String? hint}) =>
+      PopupMenuItem<String>(
+        value: value,
+        child: Row(
+          children: [
+            Icon(
+                _openWith == value
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_off,
+                size: 20,
+                color: _openWith == value
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.outline),
+            const SizedBox(width: 12),
+            Expanded(
+              child: hint == null
+                  ? Text(label)
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(label),
+                        Text(hint,
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: theme.colorScheme.outline)),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      );
+
+  /// The Colour mode's key: one swatch per tool, in tool order, with the
+  /// filament type when the file named it.
+  List<Widget> _keyRows(AppLocalizations l, GcodeModel m) => [
+        for (var i = 0; i < m.tools.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              children: [
+                Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: _toolColor(m, i),
+                    borderRadius: BorderRadius.circular(3),
+                    border: Border.all(color: const Color(0x26FFFFFF)),
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Text('T${m.tools[i].index}',
+                    style: const TextStyle(
+                        color: Color(0xFFE0E0E0), fontSize: 10.5)),
+                if (m.tools[i].type != null)
+                  Flexible(
+                    child: Text(' · ${m.tools[i].type}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: Color(0xFF9A9A9A), fontSize: 10.5)),
+                  ),
+              ],
+            ),
+          ),
+        if (!m.hasSlicerColours)
+          Padding(
+            padding: const EdgeInsets.only(top: 5),
+            child: Text(l.gcodeViewerKeyNoColours,
+                style: const TextStyle(color: Color(0xFF9A9A9A), fontSize: 10)),
+          ),
+      ];
 
   Widget _viewerBody(AppLocalizations l, ThemeData theme) {
     final m = _model!;
     final layer = m.layers[_cur];
     final top = _el > _elMax - 0.01;
-    final unset = _hi <= 0; // the file never set this value
+    // The file never set this value (not a thing in Colour mode).
+    final unset = _mode != GcodeViewMode.colour && _hi <= 0;
     return Column(
       children: [
         // ── Mode chips ─────────────────────────────────────────────────────
@@ -776,33 +966,38 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
                                   color: Color(0xFFB0B0B0),
                                   fontSize: 9.5,
                                   letterSpacing: 0.6)),
-                          const SizedBox(height: 4),
-                          Container(
-                            height: 8,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(4),
-                              gradient: const LinearGradient(colors: _ramp),
+                          if (_mode == GcodeViewMode.colour)
+                            ..._keyRows(l, m)
+                          else ...[
+                            const SizedBox(height: 4),
+                            Container(
+                              height: 8,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(4),
+                                gradient: const LinearGradient(colors: _ramp),
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 3),
-                          if (unset)
-                            Text(l.gcodeViewerTempUnset,
-                                style: const TextStyle(
-                                    color: Color(0xFFE0E0E0), fontSize: 10))
-                          else
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(_legendLabel(_lo),
-                                    style: const TextStyle(
-                                        color: Color(0xFFE0E0E0),
-                                        fontSize: 10)),
-                                Text(_legendLabel(_hi),
-                                    style: const TextStyle(
-                                        color: Color(0xFFE0E0E0),
-                                        fontSize: 10)),
-                              ],
-                            ),
+                            const SizedBox(height: 3),
+                            if (unset)
+                              Text(l.gcodeViewerTempUnset,
+                                  style: const TextStyle(
+                                      color: Color(0xFFE0E0E0), fontSize: 10))
+                            else
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(_legendLabel(_lo),
+                                      style: const TextStyle(
+                                          color: Color(0xFFE0E0E0),
+                                          fontSize: 10)),
+                                  Text(_legendLabel(_hi),
+                                      style: const TextStyle(
+                                          color: Color(0xFFE0E0E0),
+                                          fontSize: 10)),
+                                ],
+                              ),
+                          ],
                         ],
                       ),
                     ),
@@ -906,11 +1101,12 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
       );
 
   String _legendLabel(double v) => switch (_mode) {
-        GcodeViewMode.fan   => '${(v * 100).round()} %',
-        GcodeViewMode.temp  => '${v.round()} °C',
-        GcodeViewMode.speed => '${v.round()} mm/s',
-        GcodeViewMode.flow  => '${v.toStringAsFixed(1)} mm³/s',
-        GcodeViewMode.time  => _fmtTime(v),
+        GcodeViewMode.fan    => '${(v * 100).round()} %',
+        GcodeViewMode.temp   => '${v.round()} °C',
+        GcodeViewMode.speed  => '${v.round()} mm/s',
+        GcodeViewMode.flow   => '${v.toStringAsFixed(1)} mm³/s',
+        GcodeViewMode.time   => _fmtTime(v),
+        GcodeViewMode.colour => '', // the key has no range
       };
 
   static String _fmtTime(double s) {

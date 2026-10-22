@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.9.73",
+    "bullets": [
+      "New Colour view in the G-code viewer: every line is painted in the filament it was printed with, using the colours your slicer wrote into the file (Orca, PrusaSlicer, SuperSlicer; other slicers get a fixed palette). The legend becomes a key with one swatch per tool, labelled T0, T1, ... with the filament type.",
+      "The viewer's new ⋮ menu picks which view it opens with: Auto (Colour for a multi-material file, Fan speed for everything else), Last used, or any fixed view. Single-extruder colour changes (M600) count as extra colours too."
+    ]
+  },
+  {
     "version": "v0.9.72",
     "bullets": [
       "New: a View button on every file in Start a print opens the sliced file as a 3D layer stack. Spin it with one finger, pinch to zoom, two fingers to pan, double tap to reset, and step through the layers with the rail on the right (hold the arrows to run). Start the print from the viewer when you like what you see.",
