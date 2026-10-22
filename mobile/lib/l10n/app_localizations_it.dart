@@ -1905,6 +1905,21 @@ class AppLocalizationsIt extends AppLocalizations {
       'Colori scelti dall\'app (nessuno nel file)';
 
   @override
+  String get gcodeViewerKeySameColours =>
+      'Colori scelti dall\'app (quelli del file sono tutti uguali)';
+
+  @override
+  String get gcodeSaveToPhone => 'Salva sul telefono';
+
+  @override
+  String gcodeSaved(String name) {
+    return '$name salvato';
+  }
+
+  @override
+  String get gcodeSaveFailed => 'Impossibile scaricare il file';
+
+  @override
   String get tileMacros => 'Macro';
 
   @override

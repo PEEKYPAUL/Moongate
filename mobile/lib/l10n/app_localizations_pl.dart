@@ -1891,6 +1891,21 @@ class AppLocalizationsPl extends AppLocalizations {
       'Kolory wybrane przez aplikację (brak w pliku)';
 
   @override
+  String get gcodeViewerKeySameColours =>
+      'Kolory wybrane przez aplikację (w pliku wszystkie są takie same)';
+
+  @override
+  String get gcodeSaveToPhone => 'Zapisz na telefonie';
+
+  @override
+  String gcodeSaved(String name) {
+    return 'Zapisano $name';
+  }
+
+  @override
+  String get gcodeSaveFailed => 'Nie udało się pobrać pliku';
+
+  @override
   String get tileMacros => 'Makra';
 
   @override

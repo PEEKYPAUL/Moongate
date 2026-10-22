@@ -1791,6 +1791,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gcodeViewerKeyNoColours => '颜色由应用选择（文件中没有）';
 
   @override
+  String get gcodeViewerKeySameColours => '颜色由应用选择（文件中的颜色全部相同）';
+
+  @override
+  String get gcodeSaveToPhone => '保存到手机';
+
+  @override
+  String gcodeSaved(String name) {
+    return '已保存 $name';
+  }
+
+  @override
+  String get gcodeSaveFailed => '无法下载文件';
+
+  @override
   String get tileMacros => '宏';
 
   @override

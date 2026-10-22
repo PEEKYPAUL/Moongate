@@ -3460,6 +3460,30 @@ abstract class AppLocalizations {
   /// **'Colours chosen by the app (none in the file)'**
   String get gcodeViewerKeyNoColours;
 
+  /// Viewer key note: the file gave every tool the same colour (one preset in every slot), so the swatches are the app's own palette.
+  ///
+  /// In en, this message translates to:
+  /// **'Colours chosen by the app (the file\'s are all the same)'**
+  String get gcodeViewerKeySameColours;
+
+  /// Tooltip of the download button on a file row of Start a print, the viewer's menu row, and the title of the system save dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to phone'**
+  String get gcodeSaveToPhone;
+
+  /// Snackbar after a G-code file was saved to the phone. {name} is the file name.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {name}'**
+  String gcodeSaved(String name);
+
+  /// Snackbar when the download for Save to phone failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t download the file'**
+  String get gcodeSaveFailed;
+
   /// Tooltip for the macro button on an online printer tile; opens the macro list.
   ///
   /// In en, this message translates to:

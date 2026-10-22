@@ -1891,6 +1891,21 @@ class AppLocalizationsRu extends AppLocalizations {
       'Цвета выбраны приложением (в файле их нет)';
 
   @override
+  String get gcodeViewerKeySameColours =>
+      'Цвета выбраны приложением (в файле все одинаковые)';
+
+  @override
+  String get gcodeSaveToPhone => 'Сохранить на телефон';
+
+  @override
+  String gcodeSaved(String name) {
+    return 'Сохранено: $name';
+  }
+
+  @override
+  String get gcodeSaveFailed => 'Не удалось скачать файл';
+
+  @override
   String get tileMacros => 'Макросы';
 
   @override
