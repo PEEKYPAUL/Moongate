@@ -2,827 +2,673 @@
   {
     "version": "v0.9.76",
     "bullets": [
-      "Colour view: on a printer with an MMU or filament unit (Happy Hare, AFC) the key gets a Sliced / Loaded switch. Loaded repaints the part in what is actually in each gate right now, marks a gate that differs from the slice with a dot in the sliced colour, and hatches an empty gate. Needs plugin 0.6.29 (the printer tile shows the update).",
-      "Files you view or save are kept for the rest of the session, so opening a file again, or saving it after viewing, does not download it twice. The cache is emptied when the app restarts.",
-      "Hold a file's thumbnail in Start a print to see the picture big. Tap anywhere to close it."
+      "Colour view: Sliced / Loaded switch shows what is actually in your MMU gates (Happy Hare, AFC; needs plugin 0.6.29)",
+      "Files you view or save are cached for the session, no second download",
+      "Hold a file's thumbnail in Start a print to see it big"
     ]
   },
   {
     "version": "v0.9.75",
     "bullets": [
-      "Colour view: MMU prints under Happy Hare (ERCF, Box Turtle, Tradrack) now show every colour. Happy Hare rewrites the slicer's tool changes to its own MMU_CHANGE_TOOL command when a file is uploaded, which the viewer did not recognise, so a two-colour print showed as one tool. Tool changers were never affected."
+      "Fixed: MMU prints under Happy Hare showed one colour in the Colour view"
     ]
   },
   {
     "version": "v0.9.74",
     "bullets": [
-      "Colour view: a PrusaSlicer or SuperSlicer file now shows the colours you picked for each extruder in the slicer, not just the filament preset's colour (the first tool-changer test drew everything in one off-white because every slot carried the same preset). If a file really does give every tool the same colour, the viewer uses its own palette so the tools can still be told apart, and the key says so.",
-      "Save to phone: a download button on every file in Start a print, and in the viewer's ⋮ menu, saves the G-code file wherever you choose on your phone."
+      "Colour view now uses the extruder colours you picked in PrusaSlicer",
+      "Save to phone: download any stored G-code file from Start a print or the viewer"
     ]
   },
   {
     "version": "v0.9.73",
     "bullets": [
-      "New Colour view in the G-code viewer: every line is painted in the filament it was printed with, using the colours your slicer wrote into the file (Orca, PrusaSlicer, SuperSlicer; other slicers get a fixed palette). The legend becomes a key with one swatch per tool, labelled T0, T1, ... with the filament type.",
-      "The viewer's new ⋮ menu picks which view it opens with: Auto (Colour for a multi-material file, Fan speed for everything else), Last used, or any fixed view. Single-extruder colour changes (M600) count as extra colours too."
+      "New Colour view in the G-code viewer: multi-material files in their filament colours, with a key per tool",
+      "Viewer menu: choose which view it opens with"
     ]
   },
   {
     "version": "v0.9.72",
     "bullets": [
-      "New: a View button on every file in Start a print opens the sliced file as a 3D layer stack. Spin it with one finger, pinch to zoom, two fingers to pan, double tap to reset, and step through the layers with the rail on the right (hold the arrows to run). Start the print from the viewer when you like what you see.",
-      "Five heat maps, coloured the way Orca's preview colours them: Temperature, Flow rate, Layer time, Speed and Fan speed. The blue-to-red ramp spreads from the file's lowest value to its highest, so overhang and bridge cooling, a slow first layer or a flow spike all stand out. Your pick is remembered.",
-      "Lines are drawn as solid shaded beads at their real width, so the layer lines show on the walls when you tilt the part. Works on every printer the app can list files from, including Direct-mode and third-party printers. Big files over the internet ask before downloading."
+      "New G-code layer viewer: spin, zoom and step through a sliced file in 3D before you print",
+      "Heat maps for temperature, flow, layer time, speed and fan speed"
     ]
   },
   {
     "version": "v0.9.71",
     "bullets": [
-      "Renaming a printer now reaches your iPhone notifications. The app only ever changed the name on the phone, while the notification title is built from the name you gave at pairing, so a typo corrected in the app still headed every alert. A rename now updates the server as well, and any name you changed before this update is sent up the first time the dashboard opens. No re-pair needed. Android alerts use the phone's own list and were never affected.",
-      "The app no longer asks the server for a fresh access token on every poll when a printer keeps rejecting the one it has (usually a Pi whose clock is wrong). The first rejection still gets a fresh token at once; repeats are held, one minute doubling to fifteen. One such printer was costing over a thousand server calls an hour.",
-      "Under the hood: Gradle 9.8.0, supabase_flutter 2.18.0 and webview_flutter_wkwebview 3.27.0."
+      "Fixed: renaming a printer now updates iPhone notification titles",
+      "Fixed: far fewer server calls when a printer keeps rejecting its token"
     ]
   },
   {
     "version": "v0.9.70",
     "bullets": [
-      "Links inside the printer page now open in an in-app browser tab with its own Close, and the printer page stays put. A commit in Mainsail's Update Manager, the AFC panel's Spoolman link or the docs used to load inside the printer page itself, and because Moongate keeps each printer's page alive, opening the printer again showed GitHub or Spoolman with no way back. Links to the printer's own pages still open in place.",
-      "A printer page that has ended up somewhere other than the printer is put back on the printer when you open it.",
-      "Away from home (over the tunnel), a link into the printer's own network, such as Spoolman on the Pi, shows a short note instead of a browser tab that fails. The tunnel only carries the printer page itself.",
-      "A printer with no camera set up shows the Mainsail or Fluidd logo again instead of 'Camera unreachable, check its address'. The app still quietly tries the standard camera path in case one answers there; the message is now kept for a camera you actually configured.",
-      "Plugin 0.6.28: Mainsail's Software Update panel no longer flags moongate.py as an untracked source file after an update, and the plugin does its post-update housekeeping itself now. Printers on an older plugin show the update badge.",
-      "Under the hood: Android Gradle Plugin 9.4.1 and mobile_scanner 7.4.2."
+      "Links inside the printer page open in their own tab; the printer page stays put",
+      "A printer with no camera shows the Mainsail / Fluidd logo again",
+      "Plugin 0.6.28: no more untracked-file warning in Mainsail's Software Update panel"
     ]
   },
   {
     "version": "v0.9.69",
     "bullets": [
-      "New Single-printer dashboard: one printer full screen, with a status header that stays put while you scroll (Local / Tunnel colour, print state, E-STOP), the camera, the print job, temperatures, big Macros, Console and Print files buttons, and the live X Y Z position with Home.",
-      "Switch any time with the Single-printer dashboard checkbox under Menu, Dashboard layout. The arrows next to the menu move between printers; tap the printer name to pick one from the list. Today's tiles are now the Multi-printer dashboard and stay as they are.",
-      "A fresh install now asks One printer or several? straight after the language, then opens Add Printer for you.",
-      "The power button now opens a popup offering Turn on and Turn off, and is greyed out while the printer is printing or paused.",
-      "Fixed: when auto-arrange moved a different printer into the first tile, that tile's camera, power and light buttons could carry over from the previous printer."
+      "New Single-printer dashboard: one printer full screen (Menu, Dashboard layout)",
+      "Power button now offers Turn on / Turn off",
+      "Fixed: tile buttons could carry over when auto-arrange moved printers"
     ]
   },
   {
     "version": "v0.9.68",
     "bullets": [
-      "Start print? now offers Preheat and soak first (plugin 0.6.27+): enter a bed temperature (pre-filled from the file), a chamber temperature on printers with a chamber sensor, and a soak time. The printer heats, waits until everything is really at temperature, holds it for the soak time, then starts the print by itself if it is still idle and tells you. The tile shows Soaking · 12 min left meanwhile; tap that line to cancel.",
-      "Tell me when it's cool enough to remove: Moongate notes the bed and chamber when you tap Start and, once the print has run and ended, alerts when both are back within 5° of that (Ready to remove: Bed 29° · Chamber 27° · benchy.gcode cooled in 47 min). Both rows are remembered per printer.",
-      "New MOONGATE_TEMP_NOTIFY BED= EXTRUDER= CHAMBER= SOAK= MSG= macro (plugin 0.6.27) for your own PRINT_START or PRINT_END: it returns at once, waits for each temperature to warm or cool as needed, then alerts once. Because the printer does the watching, these alerts reach iPhones as pushes and Android through the notification service, phone asleep or not. Update the plugin from the tile badge; the new plugin also adds any Moongate macro missing from an older install (restart Klipper once)."
+      "Start print can preheat and heat-soak first, then start by itself (plugin 0.6.27)",
+      "Alert when a finished print is cool enough to remove",
+      "New MOONGATE_TEMP_NOTIFY macro for your own temperature alerts"
     ]
   },
   {
     "version": "v0.9.67",
     "bullets": [
-      "The heat-soak alert now works the way a heat soak actually does. In the preheat sheet (long-press a tile's temperatures) switch on Heat-soak alert: with a soak time of 0 Moongate alerts you the moment every temperature you set is reached, read from the printer's live thermistors; with a soak time it starts the clock only once everything is at temperature and alerts when the time is up, naming what was reached and how long it held. The old timer counted from the moment you pressed Set and never looked at a temperature. On a multi-toolhead printer it waits for every tool you set.",
-      "Printers with a chamber sensor get a Chamber field. Enter the chamber temperature you want reached and the alert waits for it too. Since the bed is what heats the chamber on nearly every printer, the sheet asks for a bed temperature alongside it; a printer with a real chamber heater has it set like any other heater. Like the rest it runs in the Android print-notification service, which the sheet reminds you to switch on, and the Android notification category is now called Heat alerts.",
-      "On iPhone the preheat sheet now says plainly that the heat-soak alert is Android-only for now, instead of offering a timer that could never fire."
+      "Heat-soak alert now waits for the real temperatures, chamber included",
+      "iPhone: the preheat sheet says the heat-soak alert is Android-only for now"
     ]
   },
   {
     "version": "v0.9.66",
     "bullets": [
-      "Custom MOONGATE_NOTIFY messages now reach Android. With plugin 0.6.26 on the printer, a macro's MSG=\"your text\" buzzes through the Printer alerts category while print notifications are running, the same as it already does on iPhone. Printers still on an older plugin show the update badge on their tile, and on printers installed through Moonraker's update manager the update is one tap.",
-      "Under the hood: the Android build moves to Android Gradle Plugin 9.4.0 and the WebView packages pick up their latest patch releases."
+      "MOONGATE_NOTIFY messages now reach Android (plugin 0.6.26)"
     ]
   },
   {
     "version": "v0.9.65",
     "bullets": [
-      "The Control panel's lower controls no longer hide behind the phone's navigation bar or the keyboard. The Set / Heaters off row, extrude and retract, and Manage macro controls now always clear the system bars, in portrait and landscape alike.",
-      "Macro buttons in the Control panel, and the cards on the Manage macro controls sheet, now line up in a tidy two-column grid with even gaps. A macro with a long name takes a full row of its own instead of leaving a ragged edge."
+      "Fixed: Control panel controls hidden behind the navigation bar or keyboard",
+      "Macro buttons line up in a tidy grid"
     ]
   },
   {
     "version": "v0.9.64",
     "bullets": [
-      "The Macros button on each printer tile is now a full Control panel. Alongside your macros it brings heater targets and motion controls - homing, jogging, extrude and retract - into one sheet, arranged the way you want: reorder, rename and recolour the temperature, motion and macro sections, or start from the Essential, Motion or Macros presets. Any Klipper macro can become a labelled button with its own icon, colour and parameters, the parameters it needs are suggested from the macro itself, and the exact command is shown for you to review before it runs. It all saves per printer and travels in your backups.",
-      "The config editor now understands Klipper. Editing printer.cfg suggests the right section and option names as you type, warns about values that don't look right before you save, and lets you edit a macro's G-code inline. The console gained command completions to match.",
-      "The File System 'Hide backups & hidden files' filter now also catches timestamped config backups that other tools leave behind (like crowsnest's crowsnest.conf.2024-12-22-1121), and those files now open as text so you can read them.",
-      "The preheat sheet now fills the full width in landscape instead of floating in a narrow strip down the middle of the screen."
+      "New Control panel: heaters, motion and macro buttons in one customisable sheet",
+      "Config editor suggests Klipper sections and options and flags odd values",
+      "Hide-backups filter also catches timestamped config copies"
     ]
   },
   {
     "version": "v0.9.63",
     "bullets": [
-      "The File System browser can now hide the clutter. A checkbox at the top - ticked by default and remembered - hides Klipper's automatic SAVE_CONFIG snapshots (the printer-20260830_101530.cfg pile), .bak backup files and hidden dotfiles like .theme, so the list shows just your real config files; a folder whose entire contents are hidden disappears with them. Untick it and everything is back. The choice travels in your backups too.",
-      "Settings backups now provably carry every setting. An audit found the global power button toggle was always meant to travel in backups but never did - fixed - and an automated check now guarantees every future setting either rides your backup or has a written reason it can't (like the app lock and its PIN, which must never leave the device)."
+      "File System can hide backup and hidden files",
+      "Settings backups now carry every setting"
     ]
   },
   {
     "version": "v0.9.62",
     "bullets": [
-      "The guided tour is fixed and extended. It could point at things that were off the bottom of the screen (and you can't scroll while it runs), and in the worst case a step could strand you with no Next or Skip at all. The dashboard now jumps to the top when the tour starts, every step scrolls its target into view, and the explanation card always appears even if a highlight can't - so the tour can never get stuck again. The first tile is also always shown as a healthy, connected example printer for the whole tour, even if your real printer is offline.",
-      "The tour gains a step for the new tools: Console and File System get introduced right after the emergency stop."
+      "Fixed: the guided tour could point off screen or get stuck",
+      "Tour gains a Console and File System step"
     ]
   },
   {
     "version": "v0.9.61",
     "bullets": [
-      "Every printer tile gains two tools under its temperatures: Console and File System. Console opens the printer's G-code console as an overlay - recent history already loaded, live updates while open, errors in red, quick-command chips (they fill the input, never send by themselves), and tapping a past command puts it back in the input. It stays available mid-print and while Klipper is in an error state - exactly when you need it. File System browses the printer's config folder and opens printer.cfg (and friends) in a structured editor: setting names stay fixed, you edit only the values, and comments and layout survive a save untouched. Before your first change a backup copy is saved on the printer; Save and restart brings Klipper up on the new config and, if it fails to start, offers one-tap restore from that backup. Both work on your WiFi and over the tunnel alike, and the buttons shrink to icons on narrow tiles. Thanks to the user request behind it.",
-      "Android catches up with iPhone on loud printer alerts: a paused print (filament runout included), a failed print with Klipper's reason, and a printer error even between prints now raise heads-up notifications on their own 'Printer alerts' channel, silenceable separately from the rest. Needs Print notifications switched on in the menu.",
-      "The plugin-update badge now nudges for plugin 0.6.25, catching up three plugin releases that shipped since the last app update: 0.6.23 adds a tunnel watchdog (a dropped remote tunnel heals itself, with a strict budget so it can never flap) and the MOONGATE_STATUS console macro that diagnoses your Moongate setup from the printer; 0.6.24 makes the update button honest on installs Moonraker doesn't manage; 0.6.25 adds printer-error, pause and custom MOONGATE_NOTIFY push notifications on iPhone. And when a hand-installed plugin can't self-update, the update dialog now says to re-copy the plugin file instead of pointing at a Software Updates entry that doesn't exist.",
-      "Cameras recover instead of dying quietly. A custom camera address that stops answering falls back to the printer's own camera with a visible notice (and an amber dot on the camera gear while the override is set aside); a webcam entry left pointing at a dismantled camera service falls back to the printer's default snapshot path the same way; and a printer whose plugin is too old to serve its camera says so instead of looking broken.",
-      "iPhone fixes: opening a printer's page for the very first time no longer fails when the printer was discovered by its hostname (the voron24.local style answer iPhones often store) - the app resolves it to a usable address first, and existing installs heal on the next discovery. Moongate now requires iOS 15 or newer.",
-      "Also: Moongate now consistently describes itself as free and source available, and the usual dependency updates."
+      "New per-printer Console and File System (config editor with backup and restore)",
+      "Android: loud alerts for paused, failed and errored prints",
+      "Cameras fall back to a working one instead of failing quietly",
+      "iPhone: first open of a printer found by hostname now works; needs iOS 15"
     ]
   },
   {
     "version": "v0.9.60",
     "bullets": [
-      "Compact tiles get the full set of quick actions. A tile with its webcam hidden used to lose every button the full tile offers: no pause or stop, no file browser, no macros, and no light control, because all of those lived on or around the camera square. The same action row the full tile shows beneath its camera now sits at the top of each compact tile, with the printer's status or live print progress on the left and the buttons on the right, including the light toggle for printers with lighting configured. Mid-print a compact tile can now pause, resume or cancel the job directly, and a printer in an error state offers its firmware-restart button, exactly like the full tile.",
-      "The plugin-update badge catches up to plugin 0.6.22. The multi-camera plugin shipped alongside v0.9.59, but no app build knew it existed yet, so tiles never nudged for it. This update teaches the badge that 0.6.22 is current: printers still on an older plugin show the amber badge again, with the usual one-tap update on plugins 0.6.16 and newer. If your printers already run 0.6.22, nothing changes."
+      "Compact tiles get the full action row (pause, cancel, files, macros, light)",
+      "Update badge now nudges for plugin 0.6.22"
     ]
   },
   {
     "version": "v0.9.59",
     "bullets": [
-      "Printers with more than one camera can now switch between them in the app. When a printer reports two or more webcams, a switch button appears on its tile's camera; tap it to pick which camera to show, on the tile and in the full-screen view alike. The choice is remembered for each printer and travels in your backups. Cameras themselves are still added, named, enabled and ordered in Mainsail or Fluidd; the app simply follows that list. Needs plugin 0.6.22 or newer on the printer (Mainsail -> Software Updates); on an older plugin the app keeps showing the first camera exactly as before, and a camera set by hand with the tile's gear always wins over the picker. Thanks to the field report that asked for it.",
-      "Tap-to-pair. The pairing page (the URL MOONGATE_PAIR prints) shows a tappable link under its QR code, for when you've opened that page on the very phone the app is on and can't scan the screen you're looking at. The app now answers that tap, on Android and iPhone alike: tapping the link opens Moongate straight into pairing, exactly as if the QR had been scanned, whether the app was already running or not."
+      "Switch between a printer's cameras on the tile (plugin 0.6.22)",
+      "Tap-to-pair from the Pi's pairing page on the same phone"
     ]
   },
   {
     "version": "v0.9.58",
     "bullets": [
-      "Webcam tiles now tell you when a camera can't be reached instead of spinning forever. If a camera's address is wrong, or the camera is off, the waking spinner used to restart endlessly and look like it was forever about to connect. After a few outright connection failures the tile now says \"Camera unreachable, check its address\" (in all 9 languages), so a typo'd address or a powered-down camera is obvious at a glance. Fix the address or the camera and the picture comes back as before. Thanks to the field report that caught it.",
-      "Fixed printers on your own WiFi being stuck on the tunnel. On some phones, local network discovery could answer with a link-local IPv6 address (fe80::...) that apps can't actually connect to - and because a freshly discovered address is trusted over the saved one, storing it quietly broke the direct local connection for a printer sitting on the same network. Unusable addresses are now rejected before they're ever stored, so discovery can no longer poison the local path."
+      "Camera tiles say \"Camera unreachable\" instead of spinning forever",
+      "Fixed: some phones left a home printer stuck on the tunnel"
     ]
   },
   {
     "version": "v0.9.57",
     "bullets": [
-      "The printer page no longer sticks on the tunnel while you're at home (a user report: the dashboard tile said Local while the printer screen said Tunnel). The page is kept warm so re-opening it is instant, but its local-or-tunnel choice was made only once, usually when the app started - so a page first loaded away from home (or before WiFi was up) rode the tunnel forever. Opening a printer now checks the dashboard's live connection first: if your phone can currently reach the printer directly, a tunnel-riding page is rebuilt on the local network on the spot - faster Mainsail, and local-only cameras work. The refresh button always did this by hand; now it happens by itself."
+      "Fixed: the printer page could stay on the tunnel while you were at home"
     ]
   },
   {
     "version": "v0.9.56",
     "bullets": [
-      "The dashboard's time-remaining readout now matches Mainsail (a user report, with side-by-side screenshots: Mainsail said ~3h left while the tile said ~4h). Early in a print the old estimate extrapolated purely from elapsed time versus progress, and a print's opening minutes (brim, slow solid bottom layers) made that far too pessimistic. The app now blends the same three estimates Mainsail averages - elapsed-based, filament-used-based and the slicer's own estimate for the file - using data it already had, so the tile and the notification land within a minute or two of Mainsail's ETA. Bonus: the readout now appears in the first seconds of a print instead of hiding until 2%.",
-      "Webcam tiles are honest while a camera wakes up. A sleeping camera (typically go2rtc) can take a moment to produce its first frame; the tile used to sit blank or flash a broken image while that happened. It now shows a small wake-up spinner until the picture arrives, and only settles to the placeholder when the camera genuinely won't answer. In-app bug reports also record what each camera fetch actually returned, so camera issues can be diagnosed straight from a report.",
-      "Direct (LAN/VPN) mode now keeps its zero-cloud promise to the letter. A background session-refresh timer (and the page pre-warm at app start) could still fire pointless cloud calls for a Direct printer every few minutes - no data left your network that mattered, but it was against the promise and it cluttered the server logs. Direct printers are now excluded at every level, and the server refuses such requests outright as a second line of defence.",
-      "Optional Pi plugin update (0.6.18): the plugin's external-camera relay now logs every non-picture outcome (camera busy, timeout, connection refused) to Moonraker's log, so remote-camera issues can be pinned down from the printer's log alone. No behaviour change - updating is optional and there's deliberately no update badge for it.",
-      "Also: three package updates (the QR scanner and the two web-view packages)."
+      "Time remaining now matches Mainsail",
+      "Camera tiles show a spinner while a camera wakes up",
+      "Direct (LAN/VPN) printers make no cloud calls at all"
     ]
   },
   {
     "version": "v0.9.55",
     "bullets": [
-      "Fixes the v0.9.54 dashboard: every tile could sit stuck on 'Connecting...' forever even though the printers were fine (opening a printer's page still worked). The v0.9.54 anti-flicker change accidentally stopped every status update from reaching the tiles. If your dashboard went quiet after updating, this brings it straight back - sorry about that one.",
-      "iPhone only: the stray empty strip at the bottom of the dashboard is gone. v0.9.54's 'keep clear of the system bars' padding was meant for Android's button bar and now applies only there - iPhones have no button bar, so the tiles and the embedded printer page fill the screen again.",
-      "iPhone only: the add and reorder buttons now sit planted in the bottom corners, the same as on Android, instead of floating well above the screen edge."
+      "Fixed: v0.9.54 dashboard could stick on Connecting",
+      "iPhone: no stray gap at the bottom, buttons sit in the corners"
     ]
   },
   {
     "version": "v0.9.54",
     "bullets": [
-      "Moongate now runs on 3rd-party printers. Machines that were never a Raspberry Pi - first up, the Elegoo Centauri Carbon on OpenCentauri COSMOS firmware - can join the dashboard in Direct (LAN/VPN) mode with a one-file install: the Pi plugin no longer needs any extra Python packages in LAN-only mode. A new '3rd-party printer support' guide on GitHub has the steps, validated on a real Centauri.",
-      "Nothing hides under your phone's buttons any more. The dashboard's last tile (its name and temperatures could sit under the Android navigation bar), the bottom of the embedded Mainsail/Fluidd page, the pairing form and the notification settings list all now stay clear of the system bars - on iPhone too.",
-      "A steadier dashboard on flaky WiFi. A sub-second network blip used to blank a tile's webcam and temperatures for a few seconds and could shuffle the tile order (with auto-arrange on). The app now waits for a second failed check before believing a printer has gone offline, so blips are invisible while a genuinely unplugged printer still shows offline within seconds."
+      "3rd-party printers supported (first: Elegoo Centauri Carbon) in Direct mode",
+      "Nothing hides under the phone's navigation bar any more",
+      "Steadier dashboard on flaky WiFi"
     ]
   },
   {
     "version": "v0.9.53",
     "bullets": [
-      "See when a print will finish, right on the dashboard (a user request). While a printer is printing, its tile now shows a small time readout after the temperatures: how long is left (~1h09m). It uses the same estimate as the print notification, so the two always agree, and it works on every printer without updating the Pi plugin.",
-      "Prefer a finish time instead? In menu → Dashboard layout you can switch the readout to show the projected finish time (15:27, in your 12/24-hour clock format) rather than the time left - or hide it entirely with the new 'Show time remaining' switch. Your choice is saved and travels in backups.",
-      "The readout appears a couple of minutes into a print (too early, the estimate would be nonsense) and hides while paused, since a paused print's estimate can't be trusted."
+      "Time remaining (or finish time) on the dashboard tile while printing"
     ]
   },
   {
     "version": "v0.9.52",
     "bullets": [
-      "go2rtc webcams now show up. If your camera runs through go2rtc (a stream.html address in Mainsail's webcam settings, e.g. WebRTC mode), the dashboard tile and the full-screen camera now display it: the app spots the go2rtc address and quietly asks go2rtc for plain snapshots of the same source, so it renders like any other camera - reverse-proxy paths and non-standard ports included. Works whether the camera was auto-detected from Mainsail or pasted into a tile's gear as a custom URL.",
-      "Live video now plays inside the printer page. Mainsail shows go2rtc cameras as an auto-playing video, and phones block auto-playing video by default - so the camera card sat black in the app while working fine on a PC. The app's built-in printer page now allows it, on Android and iPhone.",
-      "Sturdier camera tiles: a camera address that answers with something that isn't a picture (a web page, an error page) no longer paints a broken image over the tile - the placeholder simply stays until real frames arrive.",
-      "Honest limitation: a camera on a public web address still can't ride the Moongate cloud tunnel when you're away - the Pi's camera relay deliberately talks only to devices on your home network (a security guard). On home WiFi, in Direct (LAN/VPN) mode, or over your own VPN it all works."
+      "go2rtc / WebRTC cameras now show on the tile and in the printer page"
     ]
   },
   {
     "version": "v0.9.51",
     "bullets": [
-      "Run it your way: a new Direct (LAN/VPN) mode adds a printer with zero cloud. Install the Pi plugin in LAN-only mode, pick 'Direct (LAN/VPN)' at the top of the Add Printer screen, then scan its QR or type its address - the app talks straight to Moonraker on your network, nothing touches the internet, and it keeps working with no internet at all. Away from home you connect through your own VPN (WireGuard, Tailscale). Honest trade-offs, shown right on the screen: no print notifications in Direct mode, remote access is your VPN's job, your phone's network must be in Moonraker's trusted_clients, and give the Pi a fixed address.",
-      "Switch an existing printer between cloud and Direct any time from its edit dialog (the pencil on the printer page) - no re-pairing, takes effect straight away. And if you later cloud-pair a machine you'd added as Direct, the app absorbs the old tile automatically, keeping its settings.",
-      "Printers now need a real name: the name box starts empty and cycles example names ('Voron 2.4', 'RatRig 300', 'Wilma'...), and adding without one shows a friendly reminder. No more dashboards full of 'My Printer'.",
-      "The plugin update icon has moved to the bottom-left corner of the camera box, next to the power button (it was top-right among the camera controls)."
+      "New Direct (LAN/VPN) mode: add a printer with zero cloud",
+      "Switch a printer between cloud and Direct from its edit dialog",
+      "Printers now need a real name"
     ]
   },
   {
     "version": "v0.9.50",
     "bullets": [
-      "The dashboard now tells you when a printer's Moongate plugin is out of date: a small amber update icon appears on that machine's camera box (or next to the power button on compact tiles) and stays until the plugin is updated - it disappears by itself the moment the printer reports the new version.",
-      "Tap the icon and, on plugins from 0.6.16 onward, one tap updates the plugin straight from your phone - the printer fetches and applies it in the background. Older plugins get pointed at Mainsail's Software Updates panel instead (they predate the one-tap path; after this update they have it). Machines that are mid-print are left alone until the print finishes.",
-      "Not app-only: update the Moongate plugin (0.6.16) from Moonraker's update panel to give your printers the one-tap update path."
+      "Dashboard flags an out-of-date plugin and can update it with one tap (plugin 0.6.16)"
     ]
   },
   {
     "version": "v0.9.49",
     "bullets": [
-      "The \"How pairing works\" pop-up finally stops re-appearing on every launch: its \"Don't show this again\" tick was hiding at the bottom of the scrolling text where most phones never showed it - it now sits right above the OK button. The notice also now tells you the one thing to do after installing the plugin: run the MOONGATE_PAIR macro on the printer (or type it in the Mainsail/Fluidd console) to get your pairing code or QR link.",
-      "Starred macros no longer vanish. Starring a macro, closing the macro menu and opening it again could silently drop the new stars (they only came back after restarting the app) - the menu now always shows your latest stars.",
-      "Printers removed from your account stop calling home. The Pi plugin used to keep checking in every 5 minutes forever after its printer was removed; it now notices, goes quiet, and leaves a note in the Klipper console - pairing again wakes it instantly.",
-      "Not app-only: this release also updates the Moongate Pi plugin (0.6.15) with the go-quiet fix above - update the plugin from Moonraker's update panel too."
+      "Fixed: the pairing pop-up re-appearing every launch",
+      "Fixed: starred macros vanishing",
+      "Removed printers stop calling home (plugin 0.6.15)"
     ]
   },
   {
     "version": "v0.9.48",
     "bullets": [
-      "Hold your finger on a tile's camera picture and it opens full screen - the same pinch-to-zoom live view as the little eye icon, running at your camera's full frame rate. Close it and the dashboard tiles go straight back to your chosen feed rate.",
-      "New: a Local only switch. Turn on the Local-only button in the menu and a cloud icon appears in the top bar - tap it and Moongate stops using the remote tunnel entirely, connecting only to printers on your own network (everything else shows offline until you tap it again). Handy if you only ever print from home, and it stops all remote checking in the background too.",
-      "The Local camera feed rate now defaults to Raw (your camera's own frame rate) - Wi-Fi can afford it. If you ever picked a rate yourself your choice is kept, and the mobile-data rate stays throttled at 3s.",
-      "Print cards get their own notification category again, separate from the all-printers status bar, so you can silence one without the other. A new row under Print notifications jumps straight to your phone's per-category switches.",
-      "Opening a printer whose Pi is still starting up no longer shows a raw \"Bad gateway\" error page: Moongate now explains it in plain English and retries by itself until the web interface comes up.",
-      "Fixed: a printer that no longer exists on your account (deleted, or moved to another phone by a restore) made the app silently re-check it every few seconds forever. It now backs off, saving your battery and data.",
-      "Not app-only: this release also updates the Moongate Pi plugin (0.6.13) with a fix that stops a Pi that can't load its signing keys from retrying on every request - update the plugin from Moonraker's update panel too."
+      "Hold a tile's camera to open it full screen",
+      "New Local-only switch to stop all remote traffic",
+      "Print cards get their own notification category",
+      "Friendlier message while a Pi is still booting"
     ]
   },
   {
     "version": "v0.9.47",
     "bullets": [
-      "New language: Brazilian Portuguese! A full translation contributed by community member Daniel Morais (obrigado!), making nine languages. Pick it on first launch or any time from the menu.",
-      "Restoring a backup now keeps any printers you paired after that backup was made, adding the backup's printers alongside them. If you'd rather the dashboard match the backup exactly, the restore asks and offers that as a choice, and cancelling changes nothing and doesn't use up the backup's one-time restore code.",
-      "The per-print notification now shows heat from the very first moments: the warm-up climb (like 25→220°) while heaters ramp, then your chosen hotend and bed readings. Progress and time estimates still join a little later, once the print is far enough along for them to be trustworthy.",
-      "Filled in missing translations: the Delete-my-data screens now show in your language instead of English.",
-      "App-only update, no Pi update needed."
+      "New language: Brazilian Portuguese",
+      "Restore keeps printers paired after the backup was made",
+      "Print notification shows heating from the first moments"
     ]
   },
   {
     "version": "v0.9.46",
     "bullets": [
-      "New: a pause / play button in the dashboard top bar to quickly turn print notifications off and on. When your printers will be off for a while, tap pause to stop Moongate checking on them in the background and save battery, then tap play to start watching again. It only shows when notifications are on, and a pause is remembered even if you restart the app.",
-      "App-only update, no Pi update needed."
+      "Pause / play button to switch print notifications off and on"
     ]
   },
   {
     "version": "v0.9.45",
     "bullets": [
-      "Fixed: a printer switched back on while Moongate was in the background could stay stuck on \"offline\" until you force-closed and reopened it. Moongate now re-checks each printer's live status the moment you return to the app.",
-      "Multi-toolhead preheat now sends each hotend its own command, so setting several tools at once is more reliable and one heater refusing a target no longer stops the others. The preheat panel also scrolls, so every tool fits on a tool changer with lots of hotends."
+      "Fixed: a printer switched on in the background could stay offline",
+      "Multi-toolhead preheat more reliable"
     ]
   },
   {
     "version": "v0.9.44",
     "bullets": [
-      "Multi-toolhead detection, fixed at the source: the printer now sends every hotend and the active tool to the app in one go, so all your tools show on the dashboard even over a remote or VPN connection where the app couldn't fetch them separately before.",
-      "This one is not app-only: update the Moongate plugin on your printer too, from Moonraker's update panel (Machine tab), so it sends the extra hotends. Single-hotend and IDEX printers are unaffected."
+      "Multi-toolhead detection fixed at the source (plugin 0.6.12)"
     ]
   },
   {
     "version": "v0.9.43",
     "bullets": [
-      "More reliable multi-toolhead detection: tool changers (klipper-toolchanger / StealthChanger) are now recognised straight from the printer's tool setup, reading each tool's own hotend and the active tool, so every hotend shows on the dashboard. Plain single-hotend and IDEX printers are detected exactly as before.",
-      "App-only update, no Pi update needed."
+      "More reliable tool-changer detection"
     ]
   },
   {
     "version": "v0.9.42",
     "bullets": [
-      "Multi-toolhead preheat: long-press the temperatures on a tool changer or IDEX printer and the Preheat sheet now lists every hotend (T0, T1, T2 and so on) as its own row, so you can set them all at once, plus the bed. Single-hotend printers look exactly as before.",
-      "Multi-toolhead notifications: the print notification's hotend reading now shows every tool's temperature on one line (for example 210° 205° 25°) instead of just the first tool. Single-hotend printers still show the one reading.",
-      "Fixed: the \"Printer unreachable\" screen (shown when a printer can't be reached over the tunnel) now fills the whole page in your theme, instead of leaving a blank strip down the side with the failed page showing through.",
-      "App-only update, no Pi update needed."
+      "Preheat every toolhead at once",
+      "Notifications list every tool's temperature",
+      "Fixed: the Printer unreachable page fills the screen"
     ]
   },
   {
     "version": "v0.9.41",
     "bullets": [
-      "New: a \"Show dashboard buttons\" switch (menu -> Dashboard Layout). Turn it off to hide the add and reorder buttons that float at the bottom of the dashboard - handy when you have a lot of printers and the buttons cover the bottom tiles. You can still add a printer from the menu, and turn the switch back on when you want to reorder.",
-      "App-only update, no Pi update needed."
+      "Option to hide the dashboard's add and reorder buttons"
     ]
   },
   {
     "version": "v0.9.40",
     "bullets": [
-      "The dashboard temperatures now stay one consistent size on every tile, set only by the display-size slider. Instead of shrinking to tiny text when a tile is busy or narrow (a regression from the v0.9.39 font update), they wrap onto another row, or stack the icon above the number, to fit.",
-      "Multi-toolhead printers use the tile width better: on a wide single-column tile all the tool temperatures sit on one line with the bed and chamber, and they only flow onto extra rows when the tile is narrow.",
-      "App-only update, no Pi update needed."
+      "Tile temperatures stay one size and wrap instead of shrinking"
     ]
   },
   {
     "version": "v0.9.39",
     "bullets": [
-      "New: printers with more than one toolhead (IDEX and tool changers) now show every hotend on the dashboard tile. Each tool gets its own temperature labelled T0, T1, T2 and so on, the tool currently in use is highlighted, and the bed and chamber move to a row beneath. Single-toolhead printers look exactly as before.",
-      "The font picker now has a lot more to choose from - over 30 typefaces grouped by style (sans, rounded, serif, slab, monospace, techy, condensed, handwriting and even retro/pixel), each previewed in its own font.",
-      "Tight spots like printer names and the temperature row now auto-shrink so no font ever gets clipped, whichever one you pick.",
-      "Fixed: the persistent status notification now follows your dashboard order. With \"Auto-arrange by status\" turned off (so your printers stay in the order you arranged them), the notification lists them the same way, instead of always floating the busiest printer to the top.",
-      "App-only update, no Pi update needed."
+      "Multi-toolhead printers show every hotend on the tile",
+      "Font picker grows to 36 typefaces",
+      "Fixed: status notification follows your dashboard order"
     ]
   },
   {
     "version": "v0.9.38",
     "bullets": [
-      "New: choose the app's font. A Font option in the menu (under Theme) switches the whole app between a Default, Rounded, Serif, and High-readability typeface. Apps can't read the specific font you've set in your phone's own settings, so this is a small built-in set instead. Your choice is saved and travels in backups.",
-      "Tutorial polish: in the temperatures step, the hotend, bed and chamber readings are now highlighted inside one box together, rather than a separate ring around each.",
-      "App-only update, no Pi update needed."
+      "Choose the app's font (Menu, Theme)"
     ]
   },
   {
     "version": "v0.9.37",
     "bullets": [
-      "New: a \"Phone colours\" theme. On Android 12 and newer, choose Phone colours in the menu and Moongate matches your phone's own colour scheme - the wallpaper-based palette Android calls Material You - and follows your light/dark setting automatically. It sits alongside Dark, Light and Custom, and only appears on phones that support it (older Android and iPhone have no system palette to read, so it stays hidden there).",
-      "The first-run tutorial is a little shorter: the hotend, bed and chamber temperatures are now introduced together in one step instead of three, it skips the menu items that explain themselves - Theme, About, Settings and Buy me a coffee - and the button to leave the tour early reads \"End\" instead of \"Skip\".",
-      "App-only update, no Pi update needed."
+      "Phone colours theme (Material You) on Android 12+",
+      "Shorter first-run tutorial"
     ]
   },
   {
     "version": "v0.9.36",
     "bullets": [
-      "New: an optional in-app tutorial. After you add your first printer, Moongate offers a quick guided walkthrough that highlights each part of the app live - the green/orange connection bars and what they mean, the tunnel-still-building marker, the hotend, bed and chamber temperatures, the double-tap emergency stop, the webcam, and preheat - then opens the menu and walks every option in it. Move through it with Next and Back, leave with Skip, and run it again any time from the bottom of the menu.",
-      "The press-and-hold area that opens preheat is now the whole tile (name and temperatures), so it's much easier to trigger - it had become fiddly at larger display sizes.",
-      "Delete my data now lives in Settings alongside Remove all printers, instead of its own menu entry."
+      "New guided tour of the app after your first printer",
+      "Long-press anywhere on a tile to open preheat"
     ]
   },
   {
     "version": "v0.9.35",
     "bullets": [
-      "The display-size slider in the menu (renamed from \"Font size\") now scales the dashboard icons as well as the text, so the whole dashboard grows and shrinks together. The emergency-stop button resizes with it and is a little smaller by default.",
-      "At larger display sizes, each printer's hotend, bed and chamber temperatures now stack into two rows (icons above the values) so they no longer run off the edge of a narrow tile.",
-      "New first-run reminder at the top of \"How pairing works\": it points out that the Moongate plugin must be installed on your printer's Pi first, with a one-tap link to the setup guide. It keeps the usual \"don't show again\".",
-      "Plus a round of text and styling tidy-ups across the app."
+      "Display-size slider scales icons as well as text",
+      "Pairing guide reminds you to install the plugin first"
     ]
   },
   {
     "version": "v0.9.34",
     "bullets": [
-      "Power all machines now works with printers powered by a Klipper macro (the Advanced Power Switch), not only smart-plug power devices. It also reads how each printer is set up and shows the right buttons, so a machine can be off only, on only, or both.",
-      "Advanced Power Switch now lets you set just a Power Off macro (the common case), without forcing a Power On macro too. A single toggle macro keeps working from the tile's own power button.",
-      "After an in-app update installs, the downloaded file is cleared from the cache, so the app no longer holds on to that extra storage."
+      "Power all machines works with macro-powered printers too",
+      "Downloaded updates are cleared after installing"
     ]
   },
   {
     "version": "v0.9.33",
     "bullets": [
-      "New: an optional Global power button in the top bar. Turn it on under the menu and it adds a button that opens a \"power all machines\" sheet. Switch every machine's power on with a tap, or off with a deliberate slide-to-confirm. Machines that are printing are left on, unreachable ones are skipped, and the sheet shows exactly which machines will switch before you commit",
-      "It is off by default, and only useful if your machines have a Moonraker power device (a smart plug or relay) set up",
-      "Pi plugin fix (a separate, optional update): a printer that had lost its pairing used to retry every few seconds forever in the background. It now backs off to the normal interval, which cuts wasted battery, data and cloud load. Get it from Moonraker's update panel. The app feature itself needs no Pi update"
+      "Optional Global power button: switch every machine on or off",
+      "Plugin fix: an unpaired printer no longer retries every few seconds"
     ]
   },
   {
     "version": "v0.9.32",
     "bullets": [
-      "Fixed: the chamber temperature could be missing from the dashboard for some setups, in particular a combined chamber sensor (several probes averaged into one reading) or one whose name uses capital letters, and especially when connecting remotely over the tunnel. Moongate now finds the chamber reliably in those cases",
-      "Print notifications: when \"Show only online devices\" is on and every printer is currently offline, the ongoing notification now reads \"Watching your printers\" instead of \"No printers online\", which looked like an error",
-      "No Pi update needed, just update the app"
+      "Fixed: chamber temperature missing for some sensor setups"
     ]
   },
   {
     "version": "v0.9.31",
     "bullets": [
-      "Fixed the \"Show only online devices\" toggle (added in v0.9.29) resetting itself to off every time you reopened the app. It saved your choice but didn't read it back when the app started, so the switch always looked off - and if your printers were offline you could be left with a \"no printers online\" notification that was hard to clear, because the switch showed off while the setting was actually still on. The toggle now remembers its setting and shows the right state when you reopen the app",
-      "No Pi update needed - just update the app"
+      "Fixed: Show only online devices resetting itself"
     ]
   },
   {
     "version": "v0.9.30",
     "bullets": [
-      "New: long-press a printer's hotend/bed temperatures on its tile (while it's online and idle) to open a Preheat panel - set a hotend and/or bed temperature and tap Set to send it straight to that machine. Leave either box empty to heat just one (e.g. the hotend for a filament change, or the bed to warm up before a print)",
-      "Optional heat-soak timer: enter a number of minutes and you'll get a notification when it's up, so you know the machine has fully warmed through before you start a print. 0 means no timer - it just sets the temperatures",
-      "Works whether your config names the heaters extruder/heater_bed or something custom - Moongate detects the right names from the printer",
-      "The heat-soak alert rides the print-notification service, so it needs Print notifications switched on - the panel flags that (with a one-tap toggle) if they're off",
-      "No Pi update needed - just update the app"
+      "Long-press a tile's temperatures to preheat, with an optional heat-soak timer"
     ]
   },
   {
     "version": "v0.9.29",
     "bullets": [
-      "New: \"Show only online devices\" - a toggle under Print notifications. Turn it on and the ongoing status notification lists only your online printers; machines that are offline or switched off drop off the list, so it isn't cluttered with printers you're not using. Turn it off to see them all again",
-      "No Pi update needed - just update the app"
+      "Show only online devices in the status notification"
     ]
   },
   {
     "version": "v0.9.28",
     "bullets": [
-      "Fixed the status notification showing a printer as \"Printing\" after you'd switched it off. On machines that keep the Raspberry Pi powered when the printer's mainboard is off (e.g. a separate Pi supply), the printer now correctly shows as Offline and any stuck \"printing\" card is cleared",
-      "No Pi update needed - just update the app"
+      "Fixed: a switched-off printer still showing Printing"
     ]
   },
   {
     "version": "v0.9.27",
     "bullets": [
-      "Print notifications no longer swap places in the shade - the live card for a running print now stays pinned directly beneath the status notification, instead of jumping above it",
-      "To keep them together the print card now shares the status notification's quiet channel: a print starting or finishing no longer buzzes or pops up - the card simply appears, quietly, under the status list and updates there",
-      "No Pi update needed - just update the app"
+      "Print cards stay pinned under the status notification"
     ]
   },
   {
     "version": "v0.9.26",
     "bullets": [
-      "The Update button in the in-app \"What's new\" pop-up now installs the update inside the app - downloading the new version with a progress bar and launching the installer - instead of opening the browser to GitHub. It now matches the Update button on the update banner, and a \"View on GitHub\" option is still there if you'd rather download it manually",
-      "The live print notification no longer needs to be expanded to read - the progress bar is gone, so the print details (progress, time remaining, finish time, temperatures) now sit on the notification itself, visible at a glance without pulling it open",
-      "No Pi update needed - just update the app"
+      "Update button in What's new installs in the app",
+      "Print notification readable without expanding it"
     ]
   },
   {
     "version": "v0.9.25",
     "bullets": [
-      "Reworked print notifications. The ongoing notification is now a clean status list - every printer with just its state (Printing / Ready / Idle / Offline), no progress numbers or temperatures",
-      "Each active print now gets its own separate notification with live progress, time remaining and the projected finish time; it appears when the print starts and updates as it runs",
-      "When a print finishes, its card shows the finish time and can be cleared - swipe it away or tap Clear and the print is reset on the printer too, so the dashboard's Done badge and the status list go back to Ready together. Clearing it from the dashboard removes the card as well",
-      "The separate pop-up alerts are gone - the card is the single surface, buzzing once when a print starts and once when it finishes",
-      "Choose what each print card shows under Print notifications → Notification content (progress, time remaining, finish time, hotend, bed)",
-      "No Pi update needed - just update the app"
+      "Reworked print notifications: a status list plus one card per active print",
+      "Choose what each print card shows"
     ]
   },
   {
     "version": "v0.9.24",
     "bullets": [
-      "Printer tiles now show just the current temperature for the hotend, bed and chamber - the target reading (the “/265°” shown after the current “265°”) no longer appears on the tile. During a print that extra text had been widening the temperature row enough to push the Emergency-stop button off the edge of the tile; the row now stays compact and the E-STOP stays put. The heater icon still turns its accent colour while it's heating, and the live print notification still shows the target",
-      "No Pi update needed - just update the app"
+      "Tiles show only the current temperature, so E-STOP never gets pushed off"
     ]
   },
   {
     "version": "v0.9.23",
     "bullets": [
-      "The in-app icon guide (menu → About) now includes the Emergency-stop button, and on the Custom theme shows the E-STOP and accent icons in your chosen colours so it matches your dashboard",
-      "No Pi update needed - just update the app"
+      "Icon guide covers the Emergency-stop button"
     ]
   },
   {
     "version": "v0.9.22",
     "bullets": [
-      "Fixed alignment on webcam-hidden (compact) tiles - the connection icons and the E-STOP button now line up with full tiles stacked above or below them",
-      "Compact (webcam-hidden) tiles now show the power button too - it leads the row, before the printer's name, so you can switch a printer on/off without its webcam on screen",
-      "No Pi update needed - just update the app"
+      "Compact tiles get the power button and line up with full tiles"
     ]
   },
   {
     "version": "v0.9.21",
     "bullets": [
-      "You can now set the emergency-stop button's colour - a new E-STOP slot on the Custom theme changes its ring and icon (defaults to the classic emergency red)",
-      "Compact (webcam-hidden) tiles now match the full tiles: the E-STOP sits on the temperature row, and the Wi-Fi/Local and cloud/Tunnel indicators show - the same layout, just without the camera",
-      "No Pi update needed - just update the app"
+      "Set the E-STOP colour in the Custom theme",
+      "Compact tiles match the full tile layout"
     ]
   },
   {
     "version": "v0.9.20",
     "bullets": [
-      "The custom dashboard background now fills the whole screen - it extends behind the top app bar (and the status bar) instead of stopping just below it. Set or change it on the Custom theme screen",
-      "No Pi update needed - just update the app"
+      "Custom background fills the whole screen"
     ]
   },
   {
     "version": "v0.9.19",
     "bullets": [
-      "Simplified the look of the dashboard emergency-stop button - it's now a clean round button with a red rim (the soft glow added in v0.9.18 is gone). The post-shutdown restart button matches it in orange",
-      "No Pi update needed - just update the app"
+      "Cleaner E-STOP button"
     ]
   },
   {
     "version": "v0.9.18",
     "bullets": [
-      "Fixed: on the Light theme, the temperatures under each printer's name (hotend, bed and chamber) were hard to read - the text and icons were a near-white colour left over from the Dark theme, so they blended into the light tile background. They now use the same clear colour as the rest of the tile, so they're legible on both the Light and Dark themes",
-      "The dashboard emergency-stop button has a new look - a round, red-rimmed button with a soft red glow, so it reads more like a physical machine E-stop. The post-shutdown restart button matches it in orange",
-      "No Pi update needed - just update the app"
+      "Fixed: temperatures hard to read on the Light theme",
+      "New look for the E-STOP button"
     ]
   },
   {
     "version": "v0.9.17",
     "bullets": [
-      "Print progress now matches Mainsail exactly. The dashboard tile and the print notification both show the same percentage as Mainsail/Fluidd - its default 'file position (relative)' - instead of the tile running a few percent ahead from the slicer's time estimate. The progress bar, the tile %, and the notification % are now one and the same number",
-      "Emergency stop from the dashboard. Each online printer tile now shows a small red warning triangle (beside the temperature readout) - double-tap it to send an immediate emergency stop (Klipper M112). It's a double-tap with no confirmation so a single stray tap can't trigger it; once stopped, the triangle turns into a restart button - tap it to firmware-restart and bring the machine back online (manual, not automatic, so you can check the cause first)",
-      "In-app updates with a progress bar. When a new version is available, tapping Update now downloads it inside Moongate (with a progress bar) and opens the installer for you, instead of bouncing you out to the browser. Android still shows its standard install confirmation",
-      "No Pi update needed - just update the app"
+      "Print progress matches Mainsail exactly",
+      "Emergency stop from the dashboard (double-tap)",
+      "In-app updates with a progress bar"
     ]
   },
   {
     "version": "v0.9.16",
     "bullets": [
-      "Powered-off printers no longer cost anything in the background - the app (the dashboard and the print-notification service alike) detects they're offline from the cloud and stops requesting access for them, instead of pinging every few seconds. Less mobile data and battery, and offline tiles settle faster",
-      "No Pi update needed - just update the app"
+      "Powered-off printers no longer cost data or battery in the background"
     ]
   },
   {
     "version": "v0.9.15",
     "bullets": [
-      "Camera feeds are now smarter about your connection - the faster 'Local' refresh rate is used whenever your phone is on Wi-Fi, even when you're away from home and reaching a printer through the tunnel. The slower 'Tunnel' rate now only kicks in on mobile data, where it actually saves you data",
-      "Printers warm up in the background the moment you open the app, so the first time you tap a printer it opens instantly instead of showing Mainsail's 'Initializing…' - the same instant open as before, now ready from the very first tap",
-      "Lighter on mobile data and battery - the app and the background notification service now reuse a cached connection token instead of re-requesting one every few seconds, and no longer keep requesting tokens for printers that are switched off",
-      "No Pi update needed - just update the app"
+      "Faster camera rate whenever you are on WiFi",
+      "Printers warm up in the background so they open instantly"
     ]
   },
   {
     "version": "v0.9.14",
     "bullets": [
-      "Separate camera feed rates for home and away - a new 'Dashboard Camera Feeds' screen in the menu lets you set the tile webcam refresh rate independently for your local (WiFi) connection and the remote (tunnel) connection",
-      "Each tile automatically uses the local rate at home and the tunnel rate when you're away, so you can keep a fast feed on WiFi and a slower one over mobile data to save bandwidth",
-      "New tunnel feeds default to 3s (a data saver); your existing setting carries over to both. No Pi update needed - just update the app"
+      "Separate camera feed rates for home and away"
     ]
   },
   {
     "version": "v0.9.13",
     "bullets": [
-      "Drag your printer tiles into any order again - turn off 'Auto-arrange by status' in the menu, tap the drag-drop button (bottom-left), then drag the tiles around the dashboard (both full and compact tiles) and tap the green check to finish. The tidy masonry layout returns as soon as you're done",
-      "Restoring a backup now rebuilds your dashboard to match it exactly - the same printer order and each tile's layout (including which webcams are hidden), not just adding any missing printers",
-      "If the phone already has printers that aren't in the backup, restore asks before removing them (and lists them first), so you can't lose a printer you paired after making the backup. On a fresh phone there's nothing to remove, so it just restores",
-      "No Pi update needed - just update the app"
+      "Drag tiles into any order again",
+      "Restore rebuilds your dashboard exactly"
     ]
   },
   {
     "version": "v0.9.12",
     "bullets": [
-      "Show or hide each printer's webcam - the menu's Webcams entry opens a list of your printers, each with a switch. Turn one off and its dashboard tile shrinks to a compact card (name, status and temperatures, no camera), and the dashboard packs the full and compact tiles together so the printers you're not watching take up far less room",
-      "A hidden webcam also stops that tile fetching its camera, so it doubles as a per-printer data saver - this replaces the old all-or-nothing 'Show webcams' switch with per-printer control",
-      "See-through tiles - on the Custom theme you can now set a tile opacity (0-100) so your dashboard background shows through the tiles, while the camera feed stays solid",
-      "More of the app is translated - the Advanced Power Switch and the new tile-opacity controls are now covered in all 8 languages",
-      "No Pi update needed - just update the app"
+      "Show or hide each printer's webcam",
+      "See-through tiles on the Custom theme"
     ]
   },
   {
     "version": "v0.9.11",
     "bullets": [
-      "Clear a finished print right from the tile - when a job ends, its tile shows a Done (or Cancelled) badge; tap the small × on it to send the printer back to Idle. One tap, no pop-up, and your print notification updates to Idle too",
-      "Give the dashboard your own background - switch to the Custom theme, open it from the menu, then pick any image from your phone to sit behind the tiles. It's centred and scaled to fit over your theme colour, so a wallpaper fills the screen and a logo PNG sits neatly in the middle with the theme colour around it",
-      "Refreshed icon guide - the in-app guide (menu → About) now covers all the newer tile buttons: Print a file, Macros, Power, Lighting, Camera and Camera setup, plus the new clear-a-print ×",
-      "Tidier appearance and menu - the cold-start loading screen now matches the dark theme (dark, with the red Moongate brand mark, instead of flashing white on a light-mode phone), the 'System default' theme option has been removed (themes are now Dark, Light and Custom - default Dark), and Settings + Language scroll with the rest of the menu (only the version stays pinned at the bottom)",
-      "Advanced Power Switch (in the menu, beside Lighting) - for printers whose power is a Klipper macro instead of a Moonraker power device: set an On + Off pair or a single toggle macro, and the tile's power button drives the printer through it. With on/off macros it asks 'Turn on' or 'Turn off' rather than assuming the state; the light bulb does the same when it has on/off macros but no toggle or status pin",
-      "No Pi update needed - just update the app"
+      "Clear a finished print from the tile",
+      "Custom dashboard background image",
+      "Advanced Power Switch for macro-powered printers"
     ]
   },
   {
     "version": "v0.9.10",
     "bullets": [
-      "Power your printer on or off right from its dashboard tile - if a printer has a Moonraker power device (a [power ...] section, any type: GPIO, Shelly, TP-Link, etc.), a power button appears in the bottom-left corner of its camera. Tap it and confirm to switch the printer on or off",
-      "It works even when the printer is off, since Moonraker keeps running - so you can wake a powered-down printer straight from its tile. Powering off is blocked while a print is running, for devices Moonraker locks",
-      "Tidier idle tiles - a printer that's offline or sitting idle (Klipper not running) now shows just its name, instead of a meaningless 0°/0° temperature row",
-      "New 'Show webcams' switch in the menu (under Camera feed) turns all dashboard camera feeds off or on at once - a quick data saver that also lets on-demand cameras idle. The full-screen camera view still works when you need it",
-      "No Pi update needed - just update the app"
+      "Power a printer on or off from its tile",
+      "Show webcams switch to turn all feeds off at once"
     ]
   },
   {
     "version": "v0.9.9",
     "bullets": [
-      "Your print notification now shows when the print will finish - the projected clock time (e.g. 1:20 PM) sits alongside the time remaining, the same ETA Klipper and Mainsail show. It follows your app language for 12- or 24-hour time",
-      "Make the notification your own - a new Notification content screen (under Print notifications in the menu) lets you choose exactly which details show: progress, time remaining, finish time, hotend temperature and bed temperature",
-      "Drag them into any order you like and switch off the ones you don't care about - want only the finish time and not the running time? Turn it off. A live preview updates as you tweak, and your choices are saved and travel in your backups",
-      "Tidier menu - the Lighting option now sits right under Font size for quicker reach, instead of down in the About section",
-      "No Pi update needed - just update the app"
+      "Print notification shows the finish time",
+      "Choose what the notification shows"
     ]
   },
   {
     "version": "v0.9.8",
     "bullets": [
-      "Re-opening a printer is now instant - the full Mainsail/Fluidd page stays loaded in the background when you go back to the dashboard, so opening a printer again no longer replays Mainsail's \"Initializing…\" every time. The difference is biggest over the tunnel, away from home",
-      "The first time you open each printer still loads it fresh; after that it's kept warm. If your phone runs low on memory, the least-recently-used pages are released automatically",
-      "Control your printer lights from the dashboard - set up which printers have a light under the new Lighting menu, then tap the bulb in the corner of a tile's camera to switch it on or off",
-      "Use a single toggle macro, or separate on/off macros - whichever your setup has. Point Moongate at the light's Klipper object (like output_pin caselight) and the bulb shows the real on/off state, even if you switch the light elsewhere",
-      "No Pi update needed - just update the app"
+      "Re-opening a printer is instant",
+      "Control printer lights from the dashboard"
     ]
   },
   {
     "version": "v0.9.7",
     "bullets": [
-      "Squarer camera feeds on the dashboard - each printer tile's live view is now a clean 1:1 square instead of an odd wide, short crop, with the printer's name and temperatures tucked neatly underneath",
-      "Offline printers sit flush - an unreachable tile now fills with its Mainsail/Fluidd logo and shows just the name, instead of leaving an empty gap below the text",
-      "A tidier view while printing - the macro button hides itself while a print is running, so the progress bar and percentage have room and stay easy to read. It comes back when the printer is idle",
-      "No Pi update needed - just update the app"
+      "Square camera feeds on the dashboard"
     ]
   },
   {
     "version": "v0.9.6",
     "bullets": [
-      "Run your printer's macros from the dashboard - a new macro button (next to the folder) on any online printer tile opens the list of Klipper macros defined on that machine. Tap one to run it, with a quick confirm since some macros heat or move the printer",
-      "Star your favourites to pin them to the top - handy when a machine has dozens of macros but you only use a handful. Your stars are saved per printer and included in backups",
-      "Helper macros (names starting with _) and Moongate's own pairing macros are hidden, to keep the list to the ones you'd actually run",
-      "Tidier tile controls - the firmware-restart button now appears only when a printer has errored (where a restart is the fix), instead of sitting on every idle tile",
-      "No Pi update needed - just update the app"
+      "Run macros from the dashboard, star your favourites"
     ]
   },
   {
     "version": "v0.9.5",
     "bullets": [
-      "Tap to watch a camera full-screen - printer tiles showing a camera now have a small eye button in the corner. Tap it for a centred, full-screen live view you can pinch to zoom (the same view also opens from the camera icon on the printer page)",
-      "Turn your phone sideways for a widescreen view - the camera rotates to landscape even if the rest of the app stays in portrait, and goes back when you close it",
-      "No Pi update needed - just update the app"
+      "Full-screen camera view with pinch to zoom"
     ]
   },
   {
     "version": "v0.9.4",
     "bullets": [
-      "Arrange your printers your way - turn off \"Auto-arrange by status\" in the menu and drag the dashboard tiles into any order you like. Tap the drag-drop button (bottom-left) to start, rearrange the tiles, then tap the green check to lock them in",
-      "Your custom order and the auto-arrange choice are saved, and included in backups",
-      "No Pi update needed - just update the app"
+      "Arrange your printer tiles by hand"
     ]
   },
   {
     "version": "v0.9.3",
     "bullets": [
-      "Clearer notification settings - the two notification categories were named backwards. The always-on list of your printers is now \"Print status\", and the start / finish / cancel pop-ups are now \"Print alerts\" (they were \"Print progress\" and \"Print status\"). Your on/off choices carry over",
-      "No Pi update needed - just update the app"
+      "Clearer notification category names"
     ]
   },
   {
     "version": "v0.9.2",
     "bullets": [
-      "Webcam on the printer page now works remotely - open a printer and tap the new camera icon in the top bar for a full-screen live view. An external camera (like a phone used as a webcam) that only loaded at home in the embedded Mainsail page now streams over the tunnel too, the same way the dashboard preview does",
-      "A one-time hint points you to it when a printer's camera can't load remotely in the page",
-      "No Pi update needed - just update the app"
+      "Webcam on the printer page works remotely"
     ]
   },
   {
     "version": "v0.9.1",
     "bullets": [
-      "See what's new before you update - the update banner now has a \"What's new\" button that shows every change from your installed version up to the latest, right in the app",
-      "No Pi update needed - just update the app"
+      "What's new button on the update banner"
     ]
   },
   {
     "version": "v0.9.0",
     "bullets": [
-      "External network cameras - point a tile at a camera that isn't connected to Klipper, like an old phone used as a webcam. Tap the gear on a tile's camera and enter its address (the same URL you use in Mainsail, e.g. http://192.168.0.107:8080/video)",
-      "Cameras already set up in Mainsail are detected automatically - they just appear, and the gear lets you override them",
-      "Works on Wi-Fi and remotely through your printer (for cameras on your home network). A \"Camera config icons\" toggle in the menu hides the gears if you don't use them",
-      "Re-run the Pi installer (or update via Mainsail → Software Updates) for auto-detect and remote cameras; a hand-set camera on Wi-Fi works without a Pi update"
+      "External network cameras, e.g. an old phone, on any tile"
     ]
   },
   {
     "version": "v0.8.5",
     "bullets": [
-      "Clearer reconnect - if the app loses its cloud sign-in (usually rate-limited after several quick reinstalls), the dashboard now shows a \"reconnecting, retrying\" banner and keeps trying in the background, instead of silently showing every printer offline. Your printers come back on their own",
-      "No Pi update needed - just update the app"
+      "Clearer reconnect banner when the cloud sign-in drops"
     ]
   },
   {
     "version": "v0.8.4",
     "bullets": [
-      "Re-pairing a printer now reconnects in seconds instead of minutes - the Pi reports its connection to the cloud straight away instead of waiting for its next 5-minute check-in (re-run the Pi installer, or update via Mainsail → Software Updates, to get it)",
-      "Clearer pairing-time hint - the GATE-code notice now says the printer can take up to about a minute (it's waiting for the secure tunnel), instead of the old \"up to ~10 minutes\". Scanning the QR is still an instant local connection",
-      "The menu and the Add Printer screen now show a scrollbar, so it's obvious there's more to scroll on smaller screens"
+      "Re-pairing reconnects in seconds"
     ]
   },
   {
     "version": "v0.8.3",
     "bullets": [
-      "Add Printer and rename: tapping a field now reliably re-opens the keyboard after you drop it, and the name and address fields gain a small keyboard button to bring it back - so you can always fix a typo",
-      "The moon-gate logo in the dashboard header now sits on a transparent background, so it looks clean against any theme",
-      "No Pi update needed - just update the app"
+      "Fixed: keyboard not re-opening on the Add Printer form"
     ]
   },
   {
     "version": "v0.8.2",
     "bullets": [
-      "Print a stored file from the dashboard - tap the new folder button on a ready printer to browse the G-code files already on it (with slicer thumbnails), pick one and start it",
-      "A proper Moongate app icon at last - a red moon-gate on black - across the launcher, the dashboard bar and notifications",
-      "Notification fixes - a powered-off printer now shows Offline instead of Idle, and switching between Wi-Fi and cellular no longer re-fires a spurious \"print cancelled\" alert"
+      "Print a stored file from the dashboard",
+      "New app icon",
+      "Notification fixes"
     ]
   },
   {
     "version": "v0.8.1",
     "bullets": [
-      "Print notifications now refresh the moment you add, remove or restore a printer - no more \"No printers\" stuck in the notification after a restore",
-      "New \"Update frequency\" setting - choose how often notifications check your printers: 5s, 10s, 15s, 30s or 1 minute (Menu, under Print notifications)",
-      "Status now updates promptly when a printer errors or finishes, instead of lagging behind",
-      "New alert when a printer recovers and is ready again after an error (e.g. a firmware restart)",
-      "No Pi update needed - just update the app"
+      "Notification fixes and an update-frequency setting"
     ]
   },
   {
     "version": "v0.8.0",
     "bullets": [
-      "New optional print notifications - turn them on (Menu → Print notifications) for a live status of every printer in your notification shade: per-printer progress, ETA, temperatures and heat-up, plus alerts when a print starts, finishes, pauses or errors. Works with the app in the background; off by default",
-      "Backup now keeps your settings too - theme and custom colours, dashboard columns, language and camera refresh ride along with your backup, not just the printer list (your app-lock PIN stays on the device for security)",
-      "Printers now sort by activity - whatever's printing floats to the top, then Ready, Idle and Offline, on both the dashboard and the notification",
-      "No Pi update needed - just update the app"
+      "Optional print notifications",
+      "Backups now include your settings",
+      "Printers sort by activity"
     ]
   },
   {
     "version": "v0.7.0",
     "bullets": [
-      "Moongate now speaks your language - translations for German, French, Spanish, Italian, Simplified Chinese, Russian and Polish, alongside English. Pick your language on first launch, or change it anytime from Language at the bottom of the menu",
-      "New icon guide - tap it to see what every dashboard icon means, with a Back to dashboard button",
-      "Tidier single-column dashboard - printer tiles are now square",
-      "Translations are a best-effort starting point; corrections are welcome"
+      "Eight languages",
+      "Icon guide",
+      "Square tiles in single-column view"
     ]
   },
   {
     "version": "v0.6.5",
     "bullets": [
-      "New \"How pairing works\" guide on launch (and in the menu) - explains that you pair once, that app updates keep your printers, and how to bring printers back after a reinstall (Restore from a backup, or MOONGATE_RESET_OWNER then re-pair). Tick \"Don't show this again\" to hide it"
+      "How pairing works guide"
     ]
   },
   {
     "version": "v0.6.4",
     "bullets": [
-      "Fixed remote access over the internet - printers connect through the secure tunnel again (a v0.6.3 bug returned a server error when you were away from home). Update your Pi to get the fix",
-      "Restore is now honest about results - it tells you when printers actually reconnected vs when they still need a re-pair",
-      "Bug reports now include the remote (tunnel) connection result and your Pi's plugin version, so problems are quicker to diagnose"
+      "Fixed remote access over the internet (update the Pi)"
     ]
   },
   {
     "version": "v0.6.3",
     "bullets": [
-      "Restore now brings your printers back ONLINE after a reinstall or on a new phone - no re-pairing. Your backup carries a one-time code that re-links them to the freshly-installed app",
-      "Re-run the Pi installer so the printer recognises the restored app (needed for restore to reconnect)",
-      "Import config from the Add Printer screen - restore before you pair, handy when reinstalling",
-      "New \"Report a problem\" in the menu - sends a bug report with diagnostics (app, device, network, printer status) attached so issues are easier to fix",
-      "Plus a \"Trouble pairing? Send a report\" link on the Add Printer screen"
+      "Restore brings printers back online without re-pairing",
+      "Report a problem from the menu"
     ]
   },
   {
     "version": "v0.6.2",
     "bullets": [
-      "Set a printer's address by hand - a new \"Advanced\" option when adding a printer, and an address field in each printer's edit dialog. Handy when your printer is behind a reverse proxy (Traefik, Caddy, NPM) or in Docker and the app can't find it automatically - enter the address you'd use to open its web page in a browser",
-      "Clearer pairing - scanning the QR is marked as the instant method; typing the GATE code is flagged as the slower alternative",
-      "Steadier first connection - a freshly-paired printer is less likely to show a premature \"Offline\", and recovers on its own when you return to the app"
+      "Set a printer's address by hand"
     ]
   },
   {
     "version": "v0.6.1",
     "bullets": [
-      "Fixed a printer staying on \"Starting up…\" forever when it was paired while powered off (or went offline right after pairing) - it now settles to \"Offline\" once unreachable, with a short grace window for one that's genuinely still booting"
+      "Fixed: a printer stuck on Starting up"
     ]
   },
   {
     "version": "v0.6.0",
     "bullets": [
-      "New optional App lock - protect Moongate with a PIN, plus fingerprint or face if your phone supports it (Menu → App lock)",
-      "The lock appears when you open the app; you can optionally re-lock after time in the background",
-      "Your PIN is stored encrypted on the device and wrong guesses are rate-limited",
-      "Slimmer app - removed unused VPN code, so Moongate no longer asks for VPN or special background permissions"
+      "Optional App lock with PIN, fingerprint or face"
     ]
   },
   {
     "version": "v0.5.2",
     "bullets": [
-      "Back up & restore your printer list to a file - \"Back up config\" / \"Restore config\" now use a file you choose instead of the clipboard, so it survives reinstalling the app",
-      "Fixed missing print progress and chamber temperature when viewing a printer over local Wi-Fi"
+      "Back up and restore your printer list to a file"
     ]
   },
   {
     "version": "v0.5.1",
     "bullets": [
-      "Pairing is instant - scan the QR and the printer shows as Local right away",
-      "Remote (tunnel) access now syncs in the background; both icons appear once it's ready",
-      "No more sitting on \"Starting up… waiting for first heartbeat\" after you pair",
-      "New \"Dashboard camera feed\" setting - Raw / 1s / 3s / 5s (default 1s) to cut data use",
-      "Dashboard webcams pause while the app is in the background",
-      "Reinstalling or on a new phone? Run MOONGATE_RESET_OWNER on the Pi first, then re-pair",
-      "Re-run the Pi installer to enable instant pairing"
+      "Instant pairing",
+      "Dashboard camera feed rate setting"
     ]
   },
   {
     "version": "v0.5.0",
     "bullets": [
-      "Dashboard tile stays \"Local\" when your Pi's IP changes - even if the internet is down",
-      "Finds your Pi on the local network via mDNS (pairs with the v0.4.4 Pi advertisement)",
-      "Print controls now read the live LAN URL too - no stale-IP gap after DHCP changes",
-      "Falls through to v0.4.x behaviour when discovery doesn't resolve (different WiFi, multicast blocked, etc.)",
-      "Re-run the Pi installer to enable the Pi-side advertisement"
+      "Finds your Pi on the local network automatically"
     ]
   },
   {
     "version": "v0.4.4",
     "bullets": [
-      "Pi-side groundwork for LAN discovery - your Pi now advertises itself on the local network",
-      "No visible change yet on its own; pairs with the upcoming v0.5.0 app update",
-      "Re-run the Pi installer to pick up the change"
+      "Pi advertises itself on the local network (groundwork for v0.5.0)"
     ]
   },
   {
     "version": "v0.4.3",
     "bullets": [
-      "Webcam tile now works on slow camera servers (stock RatRig Micron+ / uv4l-mjpeg)",
-      "Self-throttles to whatever the camera can deliver instead of cancelling its own fetches",
-      "No Pi-side change needed - just update the app"
+      "Webcam tile works on slow camera servers"
     ]
   },
   {
     "version": "v0.4.2",
     "bullets": [
-      "Re-pair after app reinstall just works - no more \"already paired\"",
-      "Pairing goes live within seconds, not up to 5 minutes",
-      "Mainsail through tunnel stays connected on cellular",
-      "Type the GATE code if the camera can't scan the QR"
+      "Re-pair after reinstall just works",
+      "Type the GATE code if you can't scan the QR"
     ]
   },
   {
     "version": "v0.4.1",
     "bullets": [
-      "Dashboard tile webcam preview works again on LAN and tunnel",
-      "No reinstall on the Pi needed - just this app update"
+      "Fixed the tile webcam preview"
     ]
   },
   {
     "version": "v0.4.0",
     "bullets": [
-      "Hardened remote access - the tunnel URL alone grants nothing",
-      "Mainsail reachable through the tunnel from anywhere",
-      "Added 'Buy me a coffee' and this 'What's new'"
+      "Hardened remote access",
+      "Buy me a coffee and What's new"
     ]
   },
   {
     "version": "v0.3.0",
     "bullets": [
-      "Cloud-mediated pairing - no more URL sharing required",
-      "LAN-first routing for snappier home use",
-      "Cleaner remove / re-pair flow"
+      "Cloud pairing, no URL sharing"
     ]
   },
   {
     "version": "v0.2.29",
     "bullets": [
-      "Initial public release",
-      "Pi-issued JWT auth, dual-path local + tunnel",
-      "Mainsail / Fluidd WebView per printer"
+      "Initial public release"
     ]
   }
 ]
