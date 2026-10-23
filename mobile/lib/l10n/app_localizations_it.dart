@@ -1933,20 +1933,10 @@ class AppLocalizationsIt extends AppLocalizations {
       'Ciò che la stampante segnala caricato ora. Un punto mostra il colore dello slicer dove differisce.';
 
   @override
-  String gcodeInfoHeight(String mm) {
-    return '$mm mm di altezza';
-  }
-
-  @override
-  String gcodeInfoEstimate(String time) {
-    return 'circa $time';
-  }
-
-  @override
   String get gcodeInfoNoThumb => 'Nessuna anteprima in questo file';
 
   @override
-  String get gcodeInfoTooltip => 'Dettagli del file';
+  String get gcodeInfoTooltip => 'Tieni premuto per ingrandire l\'immagine';
 
   @override
   String get tileMacros => 'Macro';

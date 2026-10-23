@@ -1935,20 +1935,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'Lo que la impresora indica como cargado ahora. Un punto muestra el color laminado donde difiere.';
 
   @override
-  String gcodeInfoHeight(String mm) {
-    return '$mm mm de alto';
-  }
-
-  @override
-  String gcodeInfoEstimate(String time) {
-    return 'unos $time';
-  }
-
-  @override
   String get gcodeInfoNoThumb => 'Sin imagen de vista previa en este archivo';
 
   @override
-  String get gcodeInfoTooltip => 'Detalles del archivo';
+  String get gcodeInfoTooltip => 'Mantén pulsado para ampliar la imagen';
 
   @override
   String get tileMacros => 'Macros';

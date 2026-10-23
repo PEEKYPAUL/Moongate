@@ -972,29 +972,12 @@ class PrintControlService {
       if (r is! Map<String, dynamic>) return null;
       double? d(String k) => (r[k] is num) ? (r[k] as num).toDouble() : null;
       int? n(String k) => (r[k] is num) ? (r[k] as num).toInt() : null;
-      String? s(String k) => (r[k] is String && (r[k] as String).isNotEmpty)
-          ? r[k] as String
-          : null;
-      final thumbs = (r['thumbnails'] as List<dynamic>?)
-              ?.whereType<Map<String, dynamic>>()
-              .toList() ??
-          const [];
-      int widthOf(Map<String, dynamic> t) => (t['width'] as num?)?.toInt() ?? 0;
-      thumbs.sort((a, b) => widthOf(a).compareTo(widthOf(b)));
       return GcodeMeta(
-        layerCount:      n('layer_count'),
-        layerHeight:     d('layer_height'),
-        objectHeight:    d('object_height'),
-        gcodeStartByte:  n('gcode_start_byte'),
-        size:            n('size') ?? file.size,
-        estimatedTimeSec: d('estimated_time'),
-        filamentTotalMm: d('filament_total'),
-        filamentWeightG: d('filament_weight_total'),
-        filamentType:    s('filament_type'),
-        filamentName:    s('filament_name'),
-        slicer:          s('slicer'),
-        slicerVersion:   s('slicer_version'),
-        largestThumbWidth: thumbs.isEmpty ? null : widthOf(thumbs.last),
+        layerCount:     n('layer_count'),
+        layerHeight:    d('layer_height'),
+        objectHeight:   d('object_height'),
+        gcodeStartByte: n('gcode_start_byte'),
+        size:           n('size') ?? file.size,
       );
     } catch (_) {
       return null;
@@ -1213,33 +1196,12 @@ class GcodeMeta {
   final double? objectHeight;
   final int? gcodeStartByte;
   final int size;
-
-  /// For the file-info dialog (v0.9.76): the slicer's estimate in seconds,
-  /// its filament total in mm and grams, the filament type / preset name,
-  /// the slicer and its version, and the width of the largest embedded
-  /// thumbnail (null when the file has none).
-  final double? estimatedTimeSec;
-  final double? filamentTotalMm;
-  final double? filamentWeightG;
-  final String? filamentType;
-  final String? filamentName;
-  final String? slicer;
-  final String? slicerVersion;
-  final int? largestThumbWidth;
   const GcodeMeta({
     this.layerCount,
     this.layerHeight,
     this.objectHeight,
     this.gcodeStartByte,
     required this.size,
-    this.estimatedTimeSec,
-    this.filamentTotalMm,
-    this.filamentWeightG,
-    this.filamentType,
-    this.filamentName,
-    this.slicer,
-    this.slicerVersion,
-    this.largestThumbWidth,
   });
 }
 

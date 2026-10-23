@@ -1919,20 +1919,10 @@ class AppLocalizationsPl extends AppLocalizations {
       'Co drukarka zgłasza jako załadowane teraz. Kropka pokazuje kolor ze slicera, gdy się różni.';
 
   @override
-  String gcodeInfoHeight(String mm) {
-    return '$mm mm wysokości';
-  }
-
-  @override
-  String gcodeInfoEstimate(String time) {
-    return 'około $time';
-  }
-
-  @override
   String get gcodeInfoNoThumb => 'Brak podglądu w tym pliku';
 
   @override
-  String get gcodeInfoTooltip => 'Szczegóły pliku';
+  String get gcodeInfoTooltip => 'Przytrzymaj, aby powiększyć obraz';
 
   @override
   String get tileMacros => 'Makra';

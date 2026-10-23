@@ -6,6 +6,7 @@ import 'config/build_channel.dart';
 import 'providers/custom_theme_provider.dart';
 import 'providers/dashboard_background_provider.dart';
 import 'providers/settings_provider.dart';
+import 'services/gcode_cache.dart';
 import 'services/lan_discovery_service.dart';
 import 'services/ota_installer.dart';
 import 'services/print_notification_service.dart';
@@ -99,6 +100,10 @@ void main() async {
   // the startup path. Only the self-updating GitHub build ever writes one; the
   // Play build has nothing to clean (OtaInstaller stays dormant there).
   if (kSelfUpdateEnabled) OtaInstaller.clearDownloadedApks().ignore();
+  // v0.9.76: the G-code files the viewer / Save to phone downloaded last
+  // session. A session-only cache by design (Paul, 23/10): no re-download
+  // while the app runs, nothing left behind once it restarts.
+  GcodeCache.clearAtLaunch().ignore();
 
   runApp(UncontrolledProviderScope(container: container, child: const MoongateApp()));
 }

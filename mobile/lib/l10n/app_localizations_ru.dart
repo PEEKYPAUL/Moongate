@@ -1919,20 +1919,10 @@ class AppLocalizationsRu extends AppLocalizations {
       'Что принтер сообщает загруженным сейчас. Точка показывает цвет из слайсера, если он отличается.';
 
   @override
-  String gcodeInfoHeight(String mm) {
-    return '$mm мм в высоту';
-  }
-
-  @override
-  String gcodeInfoEstimate(String time) {
-    return 'около $time';
-  }
-
-  @override
   String get gcodeInfoNoThumb => 'В этом файле нет превью';
 
   @override
-  String get gcodeInfoTooltip => 'Сведения о файле';
+  String get gcodeInfoTooltip => 'Удерживайте, чтобы увеличить изображение';
 
   @override
   String get tileMacros => 'Макросы';

@@ -1926,20 +1926,10 @@ class AppLocalizationsDe extends AppLocalizations {
       'Was der Drucker gerade als geladen meldet. Ein Punkt zeigt die geslicete Farbe, wo sie abweicht.';
 
   @override
-  String gcodeInfoHeight(String mm) {
-    return '$mm mm hoch';
-  }
-
-  @override
-  String gcodeInfoEstimate(String time) {
-    return 'etwa $time';
-  }
-
-  @override
   String get gcodeInfoNoThumb => 'Kein Vorschaubild in dieser Datei';
 
   @override
-  String get gcodeInfoTooltip => 'Dateidetails';
+  String get gcodeInfoTooltip => 'Gedrückt halten, um das Bild zu vergrößern';
 
   @override
   String get tileMacros => 'Makros';

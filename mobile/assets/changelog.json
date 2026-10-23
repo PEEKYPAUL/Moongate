@@ -3,8 +3,8 @@
     "version": "v0.9.76",
     "bullets": [
       "Colour view: on a printer with an MMU or filament unit (Happy Hare, AFC) the key gets a Sliced / Loaded switch. Loaded repaints the part in what is actually in each gate right now, marks a gate that differs from the slice with a dot in the sliced colour, and hatches an empty gate. Needs plugin 0.6.29 (the printer tile shows the update).",
-      "Files you view or save are kept in the app's cache (about 300 MB, oldest out first), so opening a file again, or saving it after viewing, does not download it twice.",
-      "Tap a file's thumbnail in Start a print for a bigger picture with the slicer's details (layers, height, time estimate, filament), and Save, View or Start from there."
+      "Files you view or save are kept for the rest of the session, so opening a file again, or saving it after viewing, does not download it twice. The cache is emptied when the app restarts.",
+      "Hold a file's thumbnail in Start a print to see the picture big. Tap anywhere to close it."
     ]
   },
   {

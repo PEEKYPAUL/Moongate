@@ -9,19 +9,30 @@ import 'package:path_provider/path_provider.dart';
 import 'gcode_layer_parser.dart' show GcodeModel;
 import 'print_control_service.dart' show GcodeFile;
 
-/// On-disk cache of stored G-code files (v0.9.76), so a file is downloaded
-/// from the printer once and then serves both the layer viewer and Save to
-/// phone. Lives in the app's cache folder (`getApplicationCacheDirectory()/
-/// gcode/<key>.gcode`), which the OS treats as disposable and may clear on
-/// its own; the app keeps it under [maxBytes] by deleting the least recently
-/// used files. The key is the printer, the path, the modified time and the
+/// Session cache of stored G-code files (v0.9.76), so a file is downloaded
+/// from the printer once per app run and then serves both the layer viewer
+/// and Save to phone. The bytes sit on disk, not in memory (a 90 MB file is
+/// not something to hold in RAM), in the app's cache folder
+/// (`getApplicationCacheDirectory()/gcode/<key>.gcode`), capped at [maxBytes]
+/// with the least recently used files deleted first, and **emptied at every
+/// app launch** ([clearAtLaunch], called from `main`): Paul's call, 23/10,
+/// no re-download while the app runs and nothing left behind once it
+/// restarts. The key is the printer, the path, the modified time and the
 /// size, so a re-sliced file under the same name is fetched afresh. Every
 /// failure is swallowed: a cache miss is never an error.
 ///
-/// Also keeps the last parsed [GcodeModel] in memory while the app lives, so
-/// reopening the file you just looked at skips the parse too.
+/// Also keeps the last parsed [GcodeModel] in memory, so reopening the file
+/// you just looked at skips the parse too.
 class GcodeCache {
   static const int maxBytes = 300 * 1024 * 1024;
+
+  /// Empty the cache folder. Called once at app start, off the startup path.
+  static Future<void> clearAtLaunch() async {
+    try {
+      final d = Directory('${(await getApplicationCacheDirectory()).path}/gcode');
+      if (await d.exists()) await d.delete(recursive: true);
+    } catch (_) {}
+  }
 
   /// Cache key for [file] on [printerId].
   static String key(String printerId, GcodeFile file) => sha1

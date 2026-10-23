@@ -1900,20 +1900,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'What the printer says is loaded now. A dot shows the sliced colour where it differs.';
 
   @override
-  String gcodeInfoHeight(String mm) {
-    return '$mm mm tall';
-  }
-
-  @override
-  String gcodeInfoEstimate(String time) {
-    return 'about $time';
-  }
-
-  @override
   String get gcodeInfoNoThumb => 'No preview picture in this file';
 
   @override
-  String get gcodeInfoTooltip => 'File details';
+  String get gcodeInfoTooltip => 'Hold to enlarge the picture';
 
   @override
   String get tileMacros => 'Macros';

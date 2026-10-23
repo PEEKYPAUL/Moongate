@@ -3508,28 +3508,16 @@ abstract class AppLocalizations {
   /// **'What the printer says is loaded now. A dot shows the sliced colour where it differs.'**
   String get gcodeViewerKeyLoadedNote;
 
-  /// File-info dialog: the object height. {mm} is a number.
-  ///
-  /// In en, this message translates to:
-  /// **'{mm} mm tall'**
-  String gcodeInfoHeight(String mm);
-
-  /// File-info dialog: the slicer's time estimate. {time} is like 2h 41m.
-  ///
-  /// In en, this message translates to:
-  /// **'about {time}'**
-  String gcodeInfoEstimate(String time);
-
   /// File-info dialog when the slicer embedded no thumbnail.
   ///
   /// In en, this message translates to:
   /// **'No preview picture in this file'**
   String get gcodeInfoNoThumb;
 
-  /// Accessibility label of the thumbnail tap target on a file row.
+  /// Accessibility hint of a file row's thumbnail: a long-press shows the picture enlarged.
   ///
   /// In en, this message translates to:
-  /// **'File details'**
+  /// **'Hold to enlarge the picture'**
   String get gcodeInfoTooltip;
 
   /// Tooltip for the macro button on an online printer tile; opens the macro list.

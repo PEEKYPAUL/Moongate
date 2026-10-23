@@ -1940,20 +1940,10 @@ class AppLocalizationsFr extends AppLocalizations {
       'Ce que l\'imprimante dit avoir chargé. Un point montre la couleur tranchée quand elle diffère.';
 
   @override
-  String gcodeInfoHeight(String mm) {
-    return '$mm mm de haut';
-  }
-
-  @override
-  String gcodeInfoEstimate(String time) {
-    return 'environ $time';
-  }
-
-  @override
   String get gcodeInfoNoThumb => 'Pas d\'aperçu dans ce fichier';
 
   @override
-  String get gcodeInfoTooltip => 'Détails du fichier';
+  String get gcodeInfoTooltip => 'Maintenir pour agrandir l\'image';
 
   @override
   String get tileMacros => 'Macros';

@@ -1928,20 +1928,10 @@ class AppLocalizationsPt extends AppLocalizations {
       'O que a impressora informa como carregado agora. Um ponto mostra a cor fatiada onde difere.';
 
   @override
-  String gcodeInfoHeight(String mm) {
-    return '$mm mm de altura';
-  }
-
-  @override
-  String gcodeInfoEstimate(String time) {
-    return 'cerca de $time';
-  }
-
-  @override
   String get gcodeInfoNoThumb => 'Sem imagem de prévia neste arquivo';
 
   @override
-  String get gcodeInfoTooltip => 'Detalhes do arquivo';
+  String get gcodeInfoTooltip => 'Segure para ampliar a imagem';
 
   @override
   String get tileMacros => 'Macros';
