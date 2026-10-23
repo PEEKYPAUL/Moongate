@@ -353,9 +353,9 @@ Moongate ships nine languages, all as simple `.arb` string files - the Brazilian
    version: 0.9.X+Y     # X = semver patch, Y = monotonic build number
    ```
 
-2. Add a row to the changelog table in [CHANGELOG.md](CHANGELOG.md) (newest first). User-facing language only - see the existing entries for the tone.
+2. Add the version's entry to [`mobile/assets/changelog.json`](mobile/assets/changelog.json) (newest first): **one to four short bullets, plain language, what the user gets or what was fixed**. No file names, commands, protocols or toolchain notes; "needs plugin 0.6.x" is the one internal detail worth a mention. This single file feeds the in-app "What's new" dialog (bundled), the update banner's "What's new" overlay (fetched from `master`) **and** [CHANGELOG.md](CHANGELOG.md). Readers asked for this in October 2026 ("a wall of text, nobody reads it"); the full technical account goes in the PR description instead.
 
-3. Add the version's entry to [`mobile/assets/changelog.json`](mobile/assets/changelog.json) (newest first). This single file feeds **both** the in-app "What's new" dialog (bundled) **and** the update banner's "What's new" overlay (fetched from `master`, so users can preview a pending update's notes before installing). Keep it in step with the CHANGELOG.md row above.
+3. Re-render [CHANGELOG.md](CHANGELOG.md) from the JSON (one heading per version, the same bullets, the fixed pre-release tail at the bottom) so the two never drift. Never hand-write prose rows there.
 
 4. Commit and push to `master`. CI does the rest - versioned APK + `latest_version.json` update + commit-back happens automatically.
 
