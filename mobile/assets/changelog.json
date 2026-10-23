@@ -8,6 +8,12 @@
     ]
   },
   {
+    "version": "v0.9.75",
+    "bullets": [
+      "Colour view: MMU prints under Happy Hare (ERCF, Box Turtle, Tradrack) now show every colour. Happy Hare rewrites the slicer's tool changes to its own MMU_CHANGE_TOOL command when a file is uploaded, which the viewer did not recognise, so a two-colour print showed as one tool. Tool changers were never affected."
+    ]
+  },
+  {
     "version": "v0.9.74",
     "bullets": [
       "Colour view: a PrusaSlicer or SuperSlicer file now shows the colours you picked for each extruder in the slicer, not just the filament preset's colour (the first tool-changer test drew everything in one off-white because every slot carried the same preset). If a file really does give every tool the same colour, the viewer uses its own palette so the tools can still be told apart, and the key says so.",
