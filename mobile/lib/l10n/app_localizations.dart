@@ -3484,6 +3484,54 @@ abstract class AppLocalizations {
   /// **'Couldn\'t download the file'**
   String get gcodeSaveFailed;
 
+  /// Viewer key switch: paint with the colours the slicer wrote into the file.
+  ///
+  /// In en, this message translates to:
+  /// **'Sliced'**
+  String get gcodeViewerKeySliced;
+
+  /// Viewer key switch: paint with the colours the printer reports loaded in its MMU gates / tool lanes.
+  ///
+  /// In en, this message translates to:
+  /// **'Loaded'**
+  String get gcodeViewerKeyLoaded;
+
+  /// Viewer key, Loaded: the gate / lane for this tool holds no filament (shown after the tool number).
+  ///
+  /// In en, this message translates to:
+  /// **'empty'**
+  String get gcodeViewerKeyEmpty;
+
+  /// Viewer key note under the rows in Loaded.
+  ///
+  /// In en, this message translates to:
+  /// **'What the printer says is loaded now. A dot shows the sliced colour where it differs.'**
+  String get gcodeViewerKeyLoadedNote;
+
+  /// File-info dialog: the object height. {mm} is a number.
+  ///
+  /// In en, this message translates to:
+  /// **'{mm} mm tall'**
+  String gcodeInfoHeight(String mm);
+
+  /// File-info dialog: the slicer's time estimate. {time} is like 2h 41m.
+  ///
+  /// In en, this message translates to:
+  /// **'about {time}'**
+  String gcodeInfoEstimate(String time);
+
+  /// File-info dialog when the slicer embedded no thumbnail.
+  ///
+  /// In en, this message translates to:
+  /// **'No preview picture in this file'**
+  String get gcodeInfoNoThumb;
+
+  /// Accessibility label of the thumbnail tap target on a file row.
+  ///
+  /// In en, this message translates to:
+  /// **'File details'**
+  String get gcodeInfoTooltip;
+
   /// Tooltip for the macro button on an online printer tile; opens the macro list.
   ///
   /// In en, this message translates to:

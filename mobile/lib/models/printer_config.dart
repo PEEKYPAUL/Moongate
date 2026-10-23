@@ -626,6 +626,70 @@ class ToolheadTemp {
   });
 }
 
+/// The filament the printer says is loaded for one tool, as the plugin
+/// (0.6.29+) reports it in /status `filaments`: Happy Hare's gate for the
+/// tool (`ttg_map` → `gate_color_rgb` / `gate_material` / `gate_name`), or
+/// the AFC lane whose `map` is that tool. The G-code viewer's Colour view
+/// uses the list for its Sliced / Loaded switch. Empty on older plugins and
+/// on printers with neither unit (a bare tool changer has no colour data).
+class LoadedFilament {
+  /// Tool number (`T{tool}`), matching the file's tool numbers.
+  final int tool;
+
+  /// "gate 2" (Happy Hare) or the AFC lane name ("lane1").
+  final String? slot;
+
+  /// Opaque ARGB; null when the gate / lane has no colour set.
+  final int? argb;
+  final String? material;
+  final String? name;
+
+  /// False when the gate / lane is known to be empty.
+  final bool loaded;
+
+  const LoadedFilament({
+    required this.tool,
+    this.slot,
+    this.argb,
+    this.material,
+    this.name,
+    this.loaded = true,
+  });
+
+  static LoadedFilament? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final tool = (raw['tool'] as num?)?.toInt();
+    if (tool == null || tool < 0) return null;
+    int? argb;
+    final c = raw['color'];
+    if (c is String) {
+      var t = c.trim();
+      if (t.startsWith('#')) t = t.substring(1);
+      if (t.length == 6) {
+        final v = int.tryParse(t, radix: 16);
+        if (v != null) argb = 0xFF000000 | v;
+      }
+    }
+    String? str(Object? v) => v is String && v.isNotEmpty ? v : null;
+    return LoadedFilament(
+      tool:     tool,
+      slot:     str(raw['slot']),
+      argb:     argb,
+      material: str(raw['material']),
+      name:     str(raw['name']),
+      loaded:   raw['loaded'] != false,
+    );
+  }
+
+  static List<LoadedFilament> listFromJson(Object? raw) {
+    if (raw is! List) return const [];
+    return [
+      for (final e in raw)
+        if (fromJson(e) case final f?) f,
+    ];
+  }
+}
+
 /// One camera as the plugin reports it in /status `webcams` (0.6.22+), in
 /// Moonraker's order. On older plugins PrinterStatusService synthesises a
 /// single entry from the legacy flat webcam_* fields, so downstream code has
@@ -792,6 +856,13 @@ class PrinterStatus {
   /// plugins. The tile shows one line for them ("Soaking · 12 min left").
   final List<TempWatchInfo> tempWatches;
 
+  /// What the printer's filament unit (Happy Hare or AFC) reports loaded per
+  /// tool, from the plugin's (0.6.29+) /status `filaments`. Empty when the
+  /// printer has no such unit or an older plugin; the G-code viewer's Colour
+  /// view shows its Sliced / Loaded switch only when this names one of the
+  /// file's tools.
+  final List<LoadedFilament> filaments;
+
   /// Toolhead position `[x, y, z]` in mm (Moonraker's `toolhead.position`) and
   /// the homed axes (`toolhead.homed_axes`, e.g. 'xyz'). Only fetched for the
   /// printer on the Single-printer dashboard (see
@@ -836,6 +907,7 @@ class PrinterStatus {
     this.customCameraDown = false,
     this.configuredCameraDown = false,
     this.tempWatches = const [],
+    this.filaments = const [],
     this.position,
     this.homedAxes,
     this.currentLayer,
@@ -880,6 +952,7 @@ class PrinterStatus {
     bool? customCameraDown,
     bool? configuredCameraDown,
     List<TempWatchInfo>? tempWatches,
+    List<LoadedFilament>? filaments,
     List<double>? position,
     String? homedAxes,
     int? currentLayer,
@@ -917,6 +990,7 @@ class PrinterStatus {
       customCameraDown: customCameraDown ?? this.customCameraDown,
       configuredCameraDown: configuredCameraDown ?? this.configuredCameraDown,
       tempWatches: tempWatches ?? this.tempWatches,
+      filaments:   filaments ?? this.filaments,
       position:     position ?? this.position,
       homedAxes:    homedAxes ?? this.homedAxes,
       currentLayer: currentLayer ?? this.currentLayer,

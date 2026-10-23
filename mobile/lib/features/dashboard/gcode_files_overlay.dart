@@ -83,11 +83,43 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
         file:    f,
         base:    listing.base,
         isLan:   listing.isLan,
+        loaded:  widget.status?.filaments ?? const [],
       ),
     ));
     if (start == true && mounted) {
       setState(() => _selected = f.path);
       await _start();
+    }
+  }
+
+  /// Tap on a row's thumbnail (v0.9.76): the file's largest embedded picture
+  /// with the slicer's details, and the three things you can do with it.
+  Future<void> _showInfo(GcodeFile f, GcodeListing listing) async {
+    final big = _thumbs.putIfAbsent(
+        '${f.path}#large',
+        () => _control.fetchThumbnail(f,
+            base: listing.base, isLan: listing.isLan, largest: true));
+    final meta =
+        _control.fetchGcodeMeta(f, base: listing.base, isLan: listing.isLan);
+    final action = await showDialog<_InfoAction>(
+      context: context,
+      builder: (ctx) => _GcodeInfoDialog(
+        file:     f,
+        subtitle: _subtitle(ctx, f),
+        thumb:    big,
+        meta:     meta,
+      ),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case _InfoAction.save:
+        await saveGcodeToPhone(context, _control, f,
+            base: listing.base, isLan: listing.isLan);
+      case _InfoAction.view:
+        await _view(f, listing);
+      case _InfoAction.start:
+        setState(() => _selected = f.path);
+        await _start();
     }
   }
 
@@ -263,7 +295,17 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
                         selected: selected,
                         selectedTileColor:
                             theme.colorScheme.primary.withValues(alpha: 0.12),
-                        leading: _GcodeThumb(future: _thumb(f, listing)),
+                        // The picture opens the file-info dialog; the row
+                        // itself still just selects.
+                        leading: Semantics(
+                          button: true,
+                          label: l.gcodeInfoTooltip,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => _showInfo(f, listing),
+                            child: _GcodeThumb(future: _thumb(f, listing)),
+                          ),
+                        ),
                         title: Text(
                           f.name,
                           maxLines: 1,
@@ -653,6 +695,155 @@ class _Message extends StatelessWidget {
 /// Leading thumbnail for a G-code row: the slicer-embedded preview when the
 /// file has one, otherwise a legible file glyph. Always a fixed rounded box so
 /// the row height stays even whether or not a thumbnail loads.
+enum _InfoAction { save, view, start }
+
+/// The file-info dialog (v0.9.76): the largest thumbnail the slicer embedded,
+/// the slicer's details from Moonraker's metadata (layers, height, time
+/// estimate, filament, slicer), and Save / View / Start. The thumbnail is the
+/// slicer's own image, so it always shows the sliced colours.
+class _GcodeInfoDialog extends StatelessWidget {
+  final GcodeFile file;
+  final String subtitle;
+  final Future<Uint8List?> thumb;
+  final Future<GcodeMeta?> meta;
+  const _GcodeInfoDialog({
+    required this.file,
+    required this.subtitle,
+    required this.thumb,
+    required this.meta,
+  });
+
+  static String _duration(double s) {
+    final m = (s / 60).round();
+    if (m < 60) return '${m}m';
+    return '${m ~/ 60}h ${(m % 60).toString().padLeft(2, '0')}m';
+  }
+
+  static String _mm(double v) {
+    final s = v.toStringAsFixed(2);
+    return s.replaceFirst(RegExp(r'\.?0+$'), '');
+  }
+
+  /// "10 layers · 2 mm tall · 0.2 mm" / "about 18m · 4.1 g PLA+" / "OrcaSlicer 2.3.0".
+  List<String> _lines(AppLocalizations l, GcodeMeta m) {
+    final lines = <String>[];
+    final shape = <String>[
+      if (m.layerCount != null) l.gcodeViewerLayers(m.layerCount!),
+      if (m.objectHeight != null) l.gcodeInfoHeight(_mm(m.objectHeight!)),
+      if (m.layerHeight != null) '${_mm(m.layerHeight!)} mm',
+    ];
+    if (shape.isNotEmpty) lines.add(shape.join('  ·  '));
+    final job = <String>[];
+    if ((m.estimatedTimeSec ?? 0) > 0) {
+      job.add(l.gcodeInfoEstimate(_duration(m.estimatedTimeSec!)));
+    }
+    final fil = <String>[
+      if ((m.filamentWeightG ?? 0) > 0)
+        '${m.filamentWeightG!.toStringAsFixed(m.filamentWeightG! >= 100 ? 0 : 1)} g'
+      else if ((m.filamentTotalMm ?? 0) > 0)
+        '${(m.filamentTotalMm! / 1000).toStringAsFixed(2)} m',
+      if (m.filamentType != null) m.filamentType!,
+    ];
+    if (fil.isNotEmpty) job.add(fil.join(' '));
+    if (job.isNotEmpty) lines.add(job.join('  ·  '));
+    if (m.slicer != null) {
+      lines.add([m.slicer!, if (m.slicerVersion != null) m.slicerVersion!]
+          .join(' '));
+    }
+    return lines;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final dim = theme.textTheme.bodySmall
+        ?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.5);
+    return AlertDialog(
+      contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
+      content: SizedBox(
+        width: 320,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: Container(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
+                  child: FutureBuilder<Uint8List?>(
+                    future: thumb,
+                    builder: (context, snap) {
+                      final bytes = snap.data;
+                      if (bytes != null && bytes.isNotEmpty) {
+                        return Image.memory(bytes,
+                            fit: BoxFit.contain, gaplessPlayback: true);
+                      }
+                      if (snap.connectionState != ConnectionState.done) {
+                        return const Center(
+                          child: SizedBox(
+                              width: 22,
+                              height: 22,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2)),
+                        );
+                      }
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.image_not_supported_outlined,
+                                size: 36, color: theme.colorScheme.outline),
+                            const SizedBox(height: 6),
+                            Text(l.gcodeInfoNoThumb,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.outline)),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(file.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            Text(subtitle, style: dim),
+            FutureBuilder<GcodeMeta?>(
+              future: meta,
+              builder: (context, snap) {
+                final m = snap.data;
+                if (m == null) return const SizedBox.shrink();
+                final lines = _lines(l, m);
+                if (lines.isEmpty) return const SizedBox.shrink();
+                return Text(lines.join('\n'), style: dim);
+              },
+            ),
+          ],
+        ),
+      ),
+      actionsPadding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context, _InfoAction.save),
+            child: Text(l.gcodeSaveToPhone)),
+        TextButton(
+            onPressed: () => Navigator.pop(context, _InfoAction.view),
+            child: Text(l.gcodeViewTooltip)),
+        FilledButton(
+            onPressed: () => Navigator.pop(context, _InfoAction.start),
+            child: Text(l.gcodeStartButton)),
+      ],
+    );
+  }
+}
+
 class _GcodeThumb extends StatelessWidget {
   final Future<Uint8List?> future;
   const _GcodeThumb({required this.future});

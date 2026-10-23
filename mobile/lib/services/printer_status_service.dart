@@ -1424,6 +1424,7 @@ class PrinterStatusService {
       customCameraDown: source.customCameraDown,
       configuredCameraDown: source.configuredCameraDown,
       tempWatches:      TempWatchInfo.listFromJson(moongateResult?['temp_watches']),
+      filaments:        LoadedFilament.listFromJson(moongateResult?['filaments']),
       position:         position,
       homedAxes:        toolhead?['homed_axes'] as String?,
       currentLayer:     (layerInfo?['current_layer'] as num?)?.toInt(),

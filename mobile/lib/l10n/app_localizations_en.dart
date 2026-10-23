@@ -1887,6 +1887,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gcodeSaveFailed => 'Couldn\'t download the file';
 
   @override
+  String get gcodeViewerKeySliced => 'Sliced';
+
+  @override
+  String get gcodeViewerKeyLoaded => 'Loaded';
+
+  @override
+  String get gcodeViewerKeyEmpty => 'empty';
+
+  @override
+  String get gcodeViewerKeyLoadedNote =>
+      'What the printer says is loaded now. A dot shows the sliced colour where it differs.';
+
+  @override
+  String gcodeInfoHeight(String mm) {
+    return '$mm mm tall';
+  }
+
+  @override
+  String gcodeInfoEstimate(String time) {
+    return 'about $time';
+  }
+
+  @override
+  String get gcodeInfoNoThumb => 'No preview picture in this file';
+
+  @override
+  String get gcodeInfoTooltip => 'File details';
+
+  @override
   String get tileMacros => 'Macros';
 
   @override

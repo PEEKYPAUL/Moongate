@@ -1805,6 +1805,34 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gcodeSaveFailed => '无法下载文件';
 
   @override
+  String get gcodeViewerKeySliced => '切片';
+
+  @override
+  String get gcodeViewerKeyLoaded => '已装载';
+
+  @override
+  String get gcodeViewerKeyEmpty => '空';
+
+  @override
+  String get gcodeViewerKeyLoadedNote => '打印机当前报告已装载的耗材。颜色不同时以圆点显示切片颜色。';
+
+  @override
+  String gcodeInfoHeight(String mm) {
+    return '高 $mm mm';
+  }
+
+  @override
+  String gcodeInfoEstimate(String time) {
+    return '约 $time';
+  }
+
+  @override
+  String get gcodeInfoNoThumb => '此文件没有预览图';
+
+  @override
+  String get gcodeInfoTooltip => '文件详情';
+
+  @override
   String get tileMacros => '宏';
 
   @override

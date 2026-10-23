@@ -1,5 +1,13 @@
 [
   {
+    "version": "v0.9.76",
+    "bullets": [
+      "Colour view: on a printer with an MMU or filament unit (Happy Hare, AFC) the key gets a Sliced / Loaded switch. Loaded repaints the part in what is actually in each gate right now, marks a gate that differs from the slice with a dot in the sliced colour, and hatches an empty gate. Needs plugin 0.6.29 (the printer tile shows the update).",
+      "Files you view or save are kept in the app's cache (about 300 MB, oldest out first), so opening a file again, or saving it after viewing, does not download it twice.",
+      "Tap a file's thumbnail in Start a print for a bigger picture with the slicer's details (layers, height, time estimate, filament), and Save, View or Start from there."
+    ]
+  },
+  {
     "version": "v0.9.74",
     "bullets": [
       "Colour view: a PrusaSlicer or SuperSlicer file now shows the colours you picked for each extruder in the slicer, not just the filament preset's colour (the first tool-changer test drew everything in one off-white because every slot carried the same preset). If a file really does give every tool the same colour, the viewer uses its own palette so the tools can still be told apart, and the key says so.",

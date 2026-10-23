@@ -1906,6 +1906,35 @@ class AppLocalizationsPl extends AppLocalizations {
   String get gcodeSaveFailed => 'Nie udało się pobrać pliku';
 
   @override
+  String get gcodeViewerKeySliced => 'Ze slicera';
+
+  @override
+  String get gcodeViewerKeyLoaded => 'Załadowane';
+
+  @override
+  String get gcodeViewerKeyEmpty => 'pusty';
+
+  @override
+  String get gcodeViewerKeyLoadedNote =>
+      'Co drukarka zgłasza jako załadowane teraz. Kropka pokazuje kolor ze slicera, gdy się różni.';
+
+  @override
+  String gcodeInfoHeight(String mm) {
+    return '$mm mm wysokości';
+  }
+
+  @override
+  String gcodeInfoEstimate(String time) {
+    return 'około $time';
+  }
+
+  @override
+  String get gcodeInfoNoThumb => 'Brak podglądu w tym pliku';
+
+  @override
+  String get gcodeInfoTooltip => 'Szczegóły pliku';
+
+  @override
   String get tileMacros => 'Makra';
 
   @override

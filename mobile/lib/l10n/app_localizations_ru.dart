@@ -1906,6 +1906,35 @@ class AppLocalizationsRu extends AppLocalizations {
   String get gcodeSaveFailed => 'Не удалось скачать файл';
 
   @override
+  String get gcodeViewerKeySliced => 'Слайсер';
+
+  @override
+  String get gcodeViewerKeyLoaded => 'Загружено';
+
+  @override
+  String get gcodeViewerKeyEmpty => 'пусто';
+
+  @override
+  String get gcodeViewerKeyLoadedNote =>
+      'Что принтер сообщает загруженным сейчас. Точка показывает цвет из слайсера, если он отличается.';
+
+  @override
+  String gcodeInfoHeight(String mm) {
+    return '$mm мм в высоту';
+  }
+
+  @override
+  String gcodeInfoEstimate(String time) {
+    return 'около $time';
+  }
+
+  @override
+  String get gcodeInfoNoThumb => 'В этом файле нет превью';
+
+  @override
+  String get gcodeInfoTooltip => 'Сведения о файле';
+
+  @override
   String get tileMacros => 'Макросы';
 
   @override

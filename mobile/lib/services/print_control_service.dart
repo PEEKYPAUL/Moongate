@@ -889,7 +889,7 @@ class PrintControlService {
   /// image bytes, an empty list when the file has no embedded thumbnail, or
   /// null on failure (logged for diagnosis).
   Future<Uint8List?> fetchThumbnail(GcodeFile file,
-      {required String base, required bool isLan}) async {
+      {required String base, required bool isLan, bool largest = false}) async {
     // The token is only needed for the tunnel's Bearer header; on LAN Moonraker
     // trusts the subnet, so skip the Supabase fetch entirely (a LAN-only
     // printer has no cloud row to fetch, and it saves an Edge call otherwise).
@@ -923,9 +923,12 @@ class PrintControlService {
         ..sort((a, b) => widthOf(a).compareTo(widthOf(b)));
       if (sized.isEmpty) return Uint8List(0); // no embedded thumbnail
       // Largest no wider than 400px (crisp in the tile, light over the tunnel);
-      // fall back to the smallest if every thumbnail is larger.
+      // fall back to the smallest if every thumbnail is larger. [largest]
+      // (the file-info dialog, v0.9.76) takes the biggest the slicer wrote.
       final capped = sized.where((t) => widthOf(t) <= 400).toList();
-      final best = capped.isNotEmpty ? capped.last : sized.first;
+      final best = largest
+          ? sized.last
+          : (capped.isNotEmpty ? capped.last : sized.first);
       final rel = best['relative_path'] as String?;
       if (rel == null) return Uint8List(0);
       // relative_path is relative to the gcode file's parent folder, so prepend
@@ -969,12 +972,29 @@ class PrintControlService {
       if (r is! Map<String, dynamic>) return null;
       double? d(String k) => (r[k] is num) ? (r[k] as num).toDouble() : null;
       int? n(String k) => (r[k] is num) ? (r[k] as num).toInt() : null;
+      String? s(String k) => (r[k] is String && (r[k] as String).isNotEmpty)
+          ? r[k] as String
+          : null;
+      final thumbs = (r['thumbnails'] as List<dynamic>?)
+              ?.whereType<Map<String, dynamic>>()
+              .toList() ??
+          const [];
+      int widthOf(Map<String, dynamic> t) => (t['width'] as num?)?.toInt() ?? 0;
+      thumbs.sort((a, b) => widthOf(a).compareTo(widthOf(b)));
       return GcodeMeta(
-        layerCount:     n('layer_count'),
-        layerHeight:    d('layer_height'),
-        objectHeight:   d('object_height'),
-        gcodeStartByte: n('gcode_start_byte'),
-        size:           n('size') ?? file.size,
+        layerCount:      n('layer_count'),
+        layerHeight:     d('layer_height'),
+        objectHeight:    d('object_height'),
+        gcodeStartByte:  n('gcode_start_byte'),
+        size:            n('size') ?? file.size,
+        estimatedTimeSec: d('estimated_time'),
+        filamentTotalMm: d('filament_total'),
+        filamentWeightG: d('filament_weight_total'),
+        filamentType:    s('filament_type'),
+        filamentName:    s('filament_name'),
+        slicer:          s('slicer'),
+        slicerVersion:   s('slicer_version'),
+        largestThumbWidth: thumbs.isEmpty ? null : widthOf(thumbs.last),
       );
     } catch (_) {
       return null;
@@ -1193,12 +1213,33 @@ class GcodeMeta {
   final double? objectHeight;
   final int? gcodeStartByte;
   final int size;
+
+  /// For the file-info dialog (v0.9.76): the slicer's estimate in seconds,
+  /// its filament total in mm and grams, the filament type / preset name,
+  /// the slicer and its version, and the width of the largest embedded
+  /// thumbnail (null when the file has none).
+  final double? estimatedTimeSec;
+  final double? filamentTotalMm;
+  final double? filamentWeightG;
+  final String? filamentType;
+  final String? filamentName;
+  final String? slicer;
+  final String? slicerVersion;
+  final int? largestThumbWidth;
   const GcodeMeta({
     this.layerCount,
     this.layerHeight,
     this.objectHeight,
     this.gcodeStartByte,
     required this.size,
+    this.estimatedTimeSec,
+    this.filamentTotalMm,
+    this.filamentWeightG,
+    this.filamentType,
+    this.filamentName,
+    this.slicer,
+    this.slicerVersion,
+    this.largestThumbWidth,
   });
 }
 

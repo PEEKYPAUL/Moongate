@@ -1915,6 +1915,35 @@ class AppLocalizationsPt extends AppLocalizations {
   String get gcodeSaveFailed => 'Não foi possível baixar o arquivo';
 
   @override
+  String get gcodeViewerKeySliced => 'Fatiado';
+
+  @override
+  String get gcodeViewerKeyLoaded => 'Carregado';
+
+  @override
+  String get gcodeViewerKeyEmpty => 'vazio';
+
+  @override
+  String get gcodeViewerKeyLoadedNote =>
+      'O que a impressora informa como carregado agora. Um ponto mostra a cor fatiada onde difere.';
+
+  @override
+  String gcodeInfoHeight(String mm) {
+    return '$mm mm de altura';
+  }
+
+  @override
+  String gcodeInfoEstimate(String time) {
+    return 'cerca de $time';
+  }
+
+  @override
+  String get gcodeInfoNoThumb => 'Sem imagem de prévia neste arquivo';
+
+  @override
+  String get gcodeInfoTooltip => 'Detalhes do arquivo';
+
+  @override
   String get tileMacros => 'Macros';
 
   @override

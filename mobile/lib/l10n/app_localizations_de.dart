@@ -1913,6 +1913,35 @@ class AppLocalizationsDe extends AppLocalizations {
   String get gcodeSaveFailed => 'Datei konnte nicht heruntergeladen werden';
 
   @override
+  String get gcodeViewerKeySliced => 'Gesliced';
+
+  @override
+  String get gcodeViewerKeyLoaded => 'Geladen';
+
+  @override
+  String get gcodeViewerKeyEmpty => 'leer';
+
+  @override
+  String get gcodeViewerKeyLoadedNote =>
+      'Was der Drucker gerade als geladen meldet. Ein Punkt zeigt die geslicete Farbe, wo sie abweicht.';
+
+  @override
+  String gcodeInfoHeight(String mm) {
+    return '$mm mm hoch';
+  }
+
+  @override
+  String gcodeInfoEstimate(String time) {
+    return 'etwa $time';
+  }
+
+  @override
+  String get gcodeInfoNoThumb => 'Kein Vorschaubild in dieser Datei';
+
+  @override
+  String get gcodeInfoTooltip => 'Dateidetails';
+
+  @override
   String get tileMacros => 'Makros';
 
   @override

@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../services/gcode_cache.dart';
 import '../../services/print_control_service.dart';
 import 'gcode_viewer_screen.dart' show GcodeViewerScreen;
 
@@ -27,6 +29,15 @@ Future<void> saveGcodeToPhone(
   final l = AppLocalizations.of(context);
   final messenger = ScaffoldMessenger.of(context);
   final name = file.path.split('/').last;
+
+  // Already downloaded for the viewer (or an earlier save)? Straight to the
+  // save sheet, no question and no progress dialog.
+  final cached = await GcodeCache.read(control.config.id, file);
+  if (!context.mounted) return;
+  if (cached != null) {
+    await _saveBytes(context, messenger, l, name, cached);
+    return;
+  }
 
   if (!isLan && file.size > GcodeViewerScreen.askAboveBytes) {
     final ok = await showDialog<bool>(
@@ -126,7 +137,14 @@ Future<void> saveGcodeToPhone(
     ));
     return;
   }
+  unawaited(GcodeCache.write(control.config.id, file, bytes));
+  if (!context.mounted) return;
+  await _saveBytes(context, messenger, l, name, bytes);
+}
 
+/// Hand [bytes] to the system "save as" sheet and report the outcome.
+Future<void> _saveBytes(BuildContext context, ScaffoldMessengerState messenger,
+    AppLocalizations l, String name, Uint8List bytes) async {
   String? savedPath;
   try {
     // With `bytes`, saveFile writes the file itself through the system
