@@ -1920,6 +1920,25 @@ class AppLocalizationsIt extends AppLocalizations {
   String get gcodeSaveFailed => 'Impossibile scaricare il file';
 
   @override
+  String get gcodeViewerKeySliced => 'Da slicer';
+
+  @override
+  String get gcodeViewerKeyLoaded => 'Caricato';
+
+  @override
+  String get gcodeViewerKeyEmpty => 'vuoto';
+
+  @override
+  String get gcodeViewerKeyLoadedNote =>
+      'Ciò che la stampante segnala caricato ora. Un punto mostra il colore dello slicer dove differisce.';
+
+  @override
+  String get gcodeInfoNoThumb => 'Nessuna anteprima in questo file';
+
+  @override
+  String get gcodeInfoTooltip => 'Tieni premuto per ingrandire l\'immagine';
+
+  @override
   String get tileMacros => 'Macro';
 
   @override

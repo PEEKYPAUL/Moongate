@@ -53,7 +53,7 @@ Free, source-available **iPhone and Android** control for your **Klipper 3D prin
 - **Control panel** - arrange temperature, motion and macro modules per printer, and turn any Klipper macro into a labelled button.
 - **Console and config editor** - a live G-code console with command completions, and a Klipper-aware `printer.cfg` editor with a backup and one-tap restore.
 - **Print from the printer** - browse the G-code already on it, with slicer thumbnails, and start a print. No re-upload.
-- **G-code layer viewer** - open any stored file as a 3D layer stack you spin with a finger, coloured like Orca's preview: temperature, flow rate, layer time, speed, fan speed, or the filament colours of a multi-material print with a key per tool, layer by layer, then start the print from there, or save the file to your phone.
+- **G-code layer viewer** - open any stored file as a 3D layer stack you spin with a finger, coloured like Orca's preview: temperature, flow rate, layer time, speed, fan speed, or the filament colours of a multi-material print with a key per tool (and, on an MMU, a switch to what is loaded in the gates right now), layer by layer, then start the print from there, or save the file to your phone.
 - **Cameras** - Mainsail cameras auto-detected, go2rtc included; add an external IP camera; full-screen view with pinch-to-zoom; switch between several on one printer.
 - **Multi-toolhead** - IDEX and tool changers show every hotend as its own chip, active tool highlighted, preheat for all at once.
 - **Notifications** - opt-in start / finish / pause / error alerts with the reason, live progress in the shade, heat-soak and "cool enough to remove" alerts, and a `MOONGATE_NOTIFY` macro for your own gcode.

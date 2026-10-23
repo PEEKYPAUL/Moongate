@@ -1922,6 +1922,25 @@ class AppLocalizationsEs extends AppLocalizations {
   String get gcodeSaveFailed => 'No se pudo descargar el archivo';
 
   @override
+  String get gcodeViewerKeySliced => 'Laminado';
+
+  @override
+  String get gcodeViewerKeyLoaded => 'Cargado';
+
+  @override
+  String get gcodeViewerKeyEmpty => 'vacío';
+
+  @override
+  String get gcodeViewerKeyLoadedNote =>
+      'Lo que la impresora indica como cargado ahora. Un punto muestra el color laminado donde difiere.';
+
+  @override
+  String get gcodeInfoNoThumb => 'Sin imagen de vista previa en este archivo';
+
+  @override
+  String get gcodeInfoTooltip => 'Mantén pulsado para ampliar la imagen';
+
+  @override
   String get tileMacros => 'Macros';
 
   @override

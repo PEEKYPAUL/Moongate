@@ -25,7 +25,13 @@
 /// line that keeps the Software Update panel quiet, the moonraker.asvc
 /// entry the tunnel watchdog needs, and a fresh copy of the pairing page.
 /// Nothing in the app keys off it; the badge simply carries the fleet there.
-const String kCurrentPluginVersion = '0.6.28';
+///
+/// 0.6.29 (v0.9.76) folds the filament unit into /status: Happy Hare's `mmu`
+/// gates or AFC's lanes become a `filaments` list (tool, colour, material,
+/// name, loaded), which the G-code viewer's Colour view shows as its
+/// Sliced / Loaded switch (models/printer_config.dart, LoadedFilament). A
+/// printer on an older plugin simply has no switch.
+const String kCurrentPluginVersion = '0.6.29';
 
 /// True when [reported] is an older plugin version than
 /// [kCurrentPluginVersion]. A null/empty [reported] is a pre-v0.6.4 plugin

@@ -889,7 +889,7 @@ class PrintControlService {
   /// image bytes, an empty list when the file has no embedded thumbnail, or
   /// null on failure (logged for diagnosis).
   Future<Uint8List?> fetchThumbnail(GcodeFile file,
-      {required String base, required bool isLan}) async {
+      {required String base, required bool isLan, bool largest = false}) async {
     // The token is only needed for the tunnel's Bearer header; on LAN Moonraker
     // trusts the subnet, so skip the Supabase fetch entirely (a LAN-only
     // printer has no cloud row to fetch, and it saves an Edge call otherwise).
@@ -923,9 +923,12 @@ class PrintControlService {
         ..sort((a, b) => widthOf(a).compareTo(widthOf(b)));
       if (sized.isEmpty) return Uint8List(0); // no embedded thumbnail
       // Largest no wider than 400px (crisp in the tile, light over the tunnel);
-      // fall back to the smallest if every thumbnail is larger.
+      // fall back to the smallest if every thumbnail is larger. [largest]
+      // (the file-info dialog, v0.9.76) takes the biggest the slicer wrote.
       final capped = sized.where((t) => widthOf(t) <= 400).toList();
-      final best = capped.isNotEmpty ? capped.last : sized.first;
+      final best = largest
+          ? sized.last
+          : (capped.isNotEmpty ? capped.last : sized.first);
       final rel = best['relative_path'] as String?;
       if (rel == null) return Uint8List(0);
       // relative_path is relative to the gcode file's parent folder, so prepend

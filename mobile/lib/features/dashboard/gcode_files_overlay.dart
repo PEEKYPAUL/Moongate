@@ -83,12 +83,29 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
         file:    f,
         base:    listing.base,
         isLan:   listing.isLan,
+        loaded:  widget.status?.filaments ?? const [],
       ),
     ));
     if (start == true && mounted) {
       setState(() => _selected = f.path);
       await _start();
     }
+  }
+
+  /// Long-press on a row's thumbnail (v0.9.76): the same picture, big. The
+  /// slicer's largest embedded copy when the file has one (the row shows the
+  /// one up to 400 px), else the row's own; tap anywhere to dismiss. Just
+  /// the picture, by design (Paul, 23/10): no viewer, no buttons.
+  Future<void> _enlarge(GcodeFile f, GcodeListing listing) async {
+    final big = _thumbs.putIfAbsent(
+        '${f.path}#large',
+        () => _control.fetchThumbnail(f,
+            base: listing.base, isLan: listing.isLan, largest: true));
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _GcodeThumbPreview(
+          name: f.name, big: big, small: _thumb(f, listing)),
+    );
   }
 
   Future<void> _start() async {
@@ -263,7 +280,19 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
                         selected: selected,
                         selectedTileColor:
                             theme.colorScheme.primary.withValues(alpha: 0.12),
-                        leading: _GcodeThumb(future: _thumb(f, listing)),
+                        // Hold the picture to see it big; a tap on it, like
+                        // the row, still just selects.
+                        leading: Semantics(
+                          button: true,
+                          hint: l.gcodeInfoTooltip,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onLongPress: () => _enlarge(f, listing),
+                            onTap: () => setState(
+                                () => _selected = selected ? null : f.path),
+                            child: _GcodeThumb(future: _thumb(f, listing)),
+                          ),
+                        ),
                         title: Text(
                           f.name,
                           maxLines: 1,
@@ -653,6 +682,86 @@ class _Message extends StatelessWidget {
 /// Leading thumbnail for a G-code row: the slicer-embedded preview when the
 /// file has one, otherwise a legible file glyph. Always a fixed rounded box so
 /// the row height stays even whether or not a thumbnail loads.
+/// The enlarged thumbnail (v0.9.76): the slicer's biggest embedded picture
+/// when it has one, else the row's own, with the file name under it. The
+/// thumbnail is the slicer's image, so it always shows the sliced colours.
+/// Tap anywhere to dismiss.
+class _GcodeThumbPreview extends StatelessWidget {
+  final String name;
+  final Future<Uint8List?> big;
+  final Future<Uint8List?> small;
+  const _GcodeThumbPreview(
+      {required this.name, required this.big, required this.small});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => Navigator.of(context).maybePop(),
+      child: Dialog(
+        insetPadding: const EdgeInsets.all(24),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AspectRatio(
+              aspectRatio: 1,
+              child: Container(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
+                child: FutureBuilder<Uint8List?>(
+                  // The big copy, falling back to the small one the row
+                  // already has while (or if) the big one is not there.
+                  future: big.then<Uint8List?>((b) async =>
+                      (b != null && b.isNotEmpty) ? b : await small),
+                  initialData: null,
+                  builder: (context, snap) {
+                    final bytes = snap.data;
+                    if (bytes != null && bytes.isNotEmpty) {
+                      return Image.memory(bytes,
+                          fit: BoxFit.contain, gaplessPlayback: true);
+                    }
+                    if (snap.connectionState != ConnectionState.done) {
+                      return const Center(
+                        child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2)),
+                      );
+                    }
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.image_not_supported_outlined,
+                              size: 40, color: theme.colorScheme.outline),
+                          const SizedBox(height: 8),
+                          Text(l.gcodeInfoNoThumb,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.outline)),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+              child: Text(name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _GcodeThumb extends StatelessWidget {
   final Future<Uint8List?> future;
   const _GcodeThumb({required this.future});

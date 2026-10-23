@@ -153,6 +153,7 @@ mobile/lib/
     ├── printer_liveness_service.dart    # Realtime + RLS-scoped read of last_seen; gates polling of offline printers (v0.9.16)
     ├── printer_webview_cache.dart       # Keeps each printer's WebView warm; pre-warms all at startup (v0.9.8 / v0.9.15)
     ├── gcode_layer_parser.dart         # stored G-code -> layers of segments with fan/temp/speed/flow/tool + layer time, tool colours from the slicer header; isolate-safe (v0.9.72, tools v0.9.73)
+    ├── gcode_cache.dart                # on-disk copy of viewed / saved G-code files in the app cache folder, ~300 MB LRU + the last parsed model (v0.9.76)
     ├── webview_link_policy.dart        # Which links the printer WebView keeps and which open outside it (v0.9.70)
     ├── print_control_service.dart      # pause/resume/cancel/firmware_restart/emergency_stop + temp-watch arm/cancel, file temps (v0.9.68)
     ├── heatsoak_timers.dart            # per-printer heat-soak arms; the notification isolate judges + fires them (v0.9.67)

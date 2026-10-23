@@ -123,7 +123,7 @@ logger = logging.getLogger("moonraker.moongate")
 # Bumped on each release; surfaced in the /status response so the app's bug
 # reports show which plugin a Pi is actually running - the #1 triage blind spot
 # (an old plugin explains most "works on LAN / fails over tunnel" reports).
-MOONGATE_PLUGIN_VERSION = "0.6.28"
+MOONGATE_PLUGIN_VERSION = "0.6.29"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1647,6 +1647,99 @@ def temp_watch_snapshot(w: dict) -> dict:
     }
 
 
+def _colour_hex(value: Any) -> Optional[str]:
+    """A slicer / MMU colour string ("ff0000", "#FF0000", "ff0000ff") as
+    "#RRGGBB"; None for an empty string or a colour NAME ("red"), which only
+    Happy Hare can resolve (and does, in gate_color_rgb)."""
+    if not isinstance(value, str):
+        return None
+    s = value.strip().lstrip("#")
+    if len(s) in (6, 8) and all(c in "0123456789abcdefABCDEF" for c in s):
+        return "#" + s[:6].upper()
+    return None
+
+
+def _rgb_hex(value: Any) -> Optional[str]:
+    """Happy Hare's gate_color_rgb entry, (r, g, b) floats 0..1, as "#RRGGBB"."""
+    if not isinstance(value, (list, tuple)) or len(value) < 3:
+        return None
+    try:
+        parts = [max(0, min(255, int(round(float(v) * 255)))) for v in value[:3]]
+    except (TypeError, ValueError):
+        return None
+    return "#%02X%02X%02X" % tuple(parts)
+
+
+def build_filaments(status: dict) -> list:
+    """v0.6.29: one entry per TOOL with the filament the printer says is
+    loaded for it, from a Moonraker objects/query `status` map that carries
+    Happy Hare's `mmu` object and / or AFC's per-lane objects:
+
+        {"tool": 1, "slot": "gate 2", "color": "#D62728", "material": "PETG",
+         "name": "Red PETG", "loaded": True}
+
+    Happy Hare: tool n -> gate ttg_map[n] -> gate_color_rgb[gate] (floats,
+    already resolved from a name or a hex by Happy Hare), gate_material,
+    gate_name, gate_status (0 = empty; 1 / 2 = filament present; -1 =
+    unknown, which counts as present because most users never tell HH).
+    AFC: every "AFC_lane <name>" (or "AFC_stepper <name>") whose `map` is
+    "Tn"; colour as written ("#RRGGBB" or "RRGGBB"), material,
+    filament_name, loaded when the prep or load sensor sees filament.
+    Sorted by tool; [] when the printer has neither. Pure, for the tests."""
+    out: list = []
+    mmu = status.get("mmu") if isinstance(status, dict) else None
+    if isinstance(mmu, dict):
+        ttg    = mmu.get("ttg_map") or []
+        rgb    = mmu.get("gate_color_rgb") or []
+        colors = mmu.get("gate_color") or []
+        mats   = mmu.get("gate_material") or []
+        names  = mmu.get("gate_name") or []
+        stat   = mmu.get("gate_status") or []
+
+        def at(lst: Any, i: int) -> Any:
+            return lst[i] if isinstance(lst, (list, tuple)) and 0 <= i < len(lst) else None
+
+        for tool, gate in enumerate(ttg if isinstance(ttg, (list, tuple)) else []):
+            try:
+                g = int(gate)
+            except (TypeError, ValueError):
+                continue
+            if g < 0:
+                continue
+            colour = _rgb_hex(at(rgb, g)) or _colour_hex(at(colors, g))
+            st = at(stat, g)
+            out.append({
+                "tool":     tool,
+                "slot":     "gate %d" % g,
+                "color":    colour,
+                "material": (at(mats, g) or None) if isinstance(at(mats, g), str) else None,
+                "name":     (at(names, g) or None) if isinstance(at(names, g), str) else None,
+                "loaded":   not (isinstance(st, (int, float)) and int(st) == 0),
+            })
+    else:
+        for key, lane in (status.items() if isinstance(status, dict) else []):
+            if not isinstance(lane, dict):
+                continue
+            if not (key.startswith("AFC_lane ") or key.startswith("AFC_stepper ")):
+                continue
+            m = str(lane.get("map") or "").strip().upper()
+            if len(m) < 2 or m[0] != "T" or not m[1:].isdigit():
+                continue
+            mat  = lane.get("material")
+            name = lane.get("filament_name") or lane.get("name")
+            out.append({
+                "tool":     int(m[1:]),
+                "slot":     key.split(" ", 1)[1] if " " in key else key,
+                "color":    _colour_hex(lane.get("color")),
+                "material": mat if isinstance(mat, str) and mat else None,
+                "name":     name if isinstance(name, str) and name else None,
+                "loaded":   bool(lane.get("prep")) or bool(lane.get("load"))
+                            or bool(lane.get("tool_loaded")),
+            })
+    out.sort(key=lambda f: f["tool"])
+    return out
+
+
 def parse_temp_notify_args(bed: Any = "", extruder: Any = "", chamber: Any = "",
                            soak: Any = "", msg: Any = "", cancel: Any = "") -> dict:
     """Turn the MOONGATE_TEMP_NOTIFY macro's params into {wait, soak, msg,
@@ -2160,6 +2253,8 @@ class MoongatePlugin:
         self._chamber_key_checked: bool        = False
         self._extra_extruders                  = []     # extruder1, extruder2, ... (multi-toolhead)
         self._has_toolchanger                  = False  # klipper-toolchanger printer
+        self._has_mmu                          = False  # Happy Hare's `mmu` object (v0.6.29)
+        self._afc_lanes: list                  = []     # AFC's "AFC_lane <name>" objects (v0.6.29)
         self._can_self_update: Optional[bool]  = None   # update_manager manages us? None = not probed yet
         self._self_update_probe_at             = 0.0    # monotonic; retry gap for indeterminate probes
         self._notify_last: Optional[float]     = None   # monotonic; MOONGATE_NOTIFY rate limit
@@ -3436,6 +3531,11 @@ class MoongatePlugin:
             query += "&toolhead"
         if self._has_toolchanger:
             query += "&toolchanger"
+        # v0.6.29: the filament unit's gate / lane state rides the same call.
+        if self._has_mmu:
+            query += "&mmu"
+        for lane in self._afc_lanes:
+            query += "&" + urllib.parse.quote(lane, safe="")
 
         req = HTTPRequest(
             f"http://127.0.0.1:{self._moonraker_port}/printer/objects/query?{query}",
@@ -3465,6 +3565,10 @@ class MoongatePlugin:
         result["local_ip"]   = _get_local_ip()
         result["http_port"]  = self.http_port
         result["plugin_version"] = MOONGATE_PLUGIN_VERSION
+        # v0.6.29: the filament loaded per tool (Happy Hare gates or AFC
+        # lanes), for the viewer's Sliced / Loaded colour switch. [] when the
+        # printer has neither, so the app shows no switch.
+        result["filaments"] = build_filaments(result.get("status") or {})
         # v0.6.26: the last MOONGATE_NOTIFY message {seq, ts, text} for the
         # Android app's poll-driven alerts (iPhones get the push instead).
         # None until a macro fires; the count restarts with the plugin
@@ -3740,6 +3844,17 @@ class MoongatePlugin:
                 logger.info(
                     "Moongate: multi-toolhead detected (extras=%s toolchanger=%s)",
                     extra, self._has_toolchanger)
+            # v0.6.29: what filament is LOADED where, for the app's G-code
+            # viewer (its Colour view's Sliced / Loaded switch). Happy Hare
+            # is one `mmu` object with per-gate lists; AFC is one object per
+            # lane ("AFC_lane lane1", older installs "AFC_stepper lane1").
+            self._has_mmu = "mmu" in objects
+            self._afc_lanes = sorted(
+                o for o in objects
+                if o.startswith("AFC_lane ") or o.startswith("AFC_stepper "))
+            if self._has_mmu or self._afc_lanes:
+                logger.info("Moongate: filament unit detected (mmu=%s afc_lanes=%s)",
+                            self._has_mmu, self._afc_lanes)
             return True
         except Exception:
             return False

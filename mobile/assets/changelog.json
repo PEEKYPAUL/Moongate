@@ -1,5 +1,13 @@
 [
   {
+    "version": "v0.9.76",
+    "bullets": [
+      "Colour view: on a printer with an MMU or filament unit (Happy Hare, AFC) the key gets a Sliced / Loaded switch. Loaded repaints the part in what is actually in each gate right now, marks a gate that differs from the slice with a dot in the sliced colour, and hatches an empty gate. Needs plugin 0.6.29 (the printer tile shows the update).",
+      "Files you view or save are kept for the rest of the session, so opening a file again, or saving it after viewing, does not download it twice. The cache is emptied when the app restarts.",
+      "Hold a file's thumbnail in Start a print to see the picture big. Tap anywhere to close it."
+    ]
+  },
+  {
     "version": "v0.9.75",
     "bullets": [
       "Colour view: MMU prints under Happy Hare (ERCF, Box Turtle, Tradrack) now show every colour. Happy Hare rewrites the slicer's tool changes to its own MMU_CHANGE_TOOL command when a file is uploaded, which the viewer did not recognise, so a two-colour print showed as one tool. Tool changers were never affected."

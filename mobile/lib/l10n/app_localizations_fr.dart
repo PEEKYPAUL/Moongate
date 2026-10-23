@@ -1927,6 +1927,25 @@ class AppLocalizationsFr extends AppLocalizations {
   String get gcodeSaveFailed => 'Impossible de télécharger le fichier';
 
   @override
+  String get gcodeViewerKeySliced => 'Tranché';
+
+  @override
+  String get gcodeViewerKeyLoaded => 'Chargé';
+
+  @override
+  String get gcodeViewerKeyEmpty => 'vide';
+
+  @override
+  String get gcodeViewerKeyLoadedNote =>
+      'Ce que l\'imprimante dit avoir chargé. Un point montre la couleur tranchée quand elle diffère.';
+
+  @override
+  String get gcodeInfoNoThumb => 'Pas d\'aperçu dans ce fichier';
+
+  @override
+  String get gcodeInfoTooltip => 'Maintenir pour agrandir l\'image';
+
+  @override
   String get tileMacros => 'Macros';
 
   @override

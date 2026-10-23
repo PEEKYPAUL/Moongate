@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/printer_config.dart';
+import '../../services/gcode_cache.dart';
 import '../../services/gcode_layer_parser.dart';
 import '../../services/print_control_service.dart';
 import 'gcode_save.dart';
@@ -56,12 +57,18 @@ class GcodeViewerScreen extends StatefulWidget {
   final String base;
   final bool isLan;
 
+  /// What the printer's filament unit reports loaded per tool (the plugin's
+  /// `filaments`, 0.6.29+), for the Colour view's Sliced / Loaded switch.
+  /// Empty = no switch.
+  final List<LoadedFilament> loaded;
+
   const GcodeViewerScreen({
     super.key,
     required this.printer,
     required this.file,
     required this.base,
     required this.isLan,
+    this.loaded = const [],
   });
 
   /// Above this, a tunnel download asks first (LAN never asks).
@@ -117,6 +124,10 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
   GcodeViewMode _mode = GcodeViewMode.fan;
   bool _only = false;
   double _lo = 0, _hi = 1;
+
+  /// Colour view: paint with what the printer says is loaded (true) or with
+  /// the slicer's colours (false, the default every time the viewer opens).
+  bool _showLoaded = false;
 
   // Orbit.
   double _az = _defAz, _el = _defEl;
@@ -186,56 +197,68 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
         .then((m) {
       if (mounted && m != null) setState(() => _meta = m);
     });
-    if (!widget.isLan && widget.file.size > GcodeViewerScreen.askAboveBytes) {
-      setState(() => _phase = _Phase.confirm);
+    // A cached copy needs no download, so no "over the internet?" question.
+    if (!widget.isLan &&
+        widget.file.size > GcodeViewerScreen.askAboveBytes &&
+        !await GcodeCache.has(widget.printer.id, widget.file)) {
+      if (mounted) setState(() => _phase = _Phase.confirm);
       return;
     }
     await _download();
   }
 
+  /// The file's bytes: the in-memory model from last time, the on-disk cache,
+  /// or a fresh download of the WHOLE file (no Range header since v0.9.76, so
+  /// the cached copy is complete and Save to phone can reuse it; the
+  /// thumbnail preamble it used to skip is a few hundred KB).
   Future<void> _download() async {
-    // Wait briefly for the metadata so the Range header can skip the preamble;
-    // without it the whole file comes down, which the parser copes with.
-    var waited = 0;
-    while (_meta == null && waited < 1500 && mounted) {
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-      waited += 100;
-    }
-    if (!mounted) return;
-    final cancel = Completer<void>();
-    setState(() {
-      _phase = _Phase.downloading;
-      _received = 0;
-      _total = -1;
-      _cancel = cancel;
-    });
-    final bytes = await _control.downloadGcode(
-      widget.file,
-      base:      widget.base,
-      isLan:     widget.isLan,
-      startByte: _meta?.gcodeStartByte ?? 0,
-      cancel:    cancel.future,
-      onProgress: (r, t) {
-        if (!mounted) return;
-        // Throttle the rebuilds to every ~64 KB.
-        if (r - _received > 65536 || r == t) {
-          setState(() {
-            _received = r;
-            _total = t;
-          });
-        }
-      },
-    );
-    if (!mounted || cancel.isCompleted) return;
-    _cancel = null;
-    if (bytes == null) {
-      setState(() {
-        _errorDetail = 'download';
-        _phase = _Phase.error;
-      });
+    final cacheKey = GcodeCache.key(widget.printer.id, widget.file);
+    final remembered = GcodeCache.lastModel(cacheKey);
+    if (remembered != null) {
+      _install(remembered);
       return;
     }
+    var bytes = await GcodeCache.read(widget.printer.id, widget.file);
+    if (!mounted) return;
+    final fromCache = bytes != null;
+    if (bytes == null) {
+      final cancel = Completer<void>();
+      setState(() {
+        _phase = _Phase.downloading;
+        _received = 0;
+        _total = -1;
+        _cancel = cancel;
+      });
+      bytes = await _control.downloadGcode(
+        widget.file,
+        base:   widget.base,
+        isLan:  widget.isLan,
+        cancel: cancel.future,
+        onProgress: (r, t) {
+          if (!mounted) return;
+          // Throttle the rebuilds to every ~64 KB.
+          if (r - _received > 65536 || r == t) {
+            setState(() {
+              _received = r;
+              _total = t;
+            });
+          }
+        },
+      );
+      if (!mounted || cancel.isCompleted) return;
+      _cancel = null;
+      if (bytes == null) {
+        setState(() {
+          _errorDetail = 'download';
+          _phase = _Phase.error;
+        });
+        return;
+      }
+    }
     setState(() => _phase = _Phase.parsing);
+    if (!fromCache) {
+      unawaited(GcodeCache.write(widget.printer.id, widget.file, bytes));
+    }
     final GcodeModel model;
     try {
       model = await _parseOffThread(bytes);
@@ -256,6 +279,13 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
       });
       return;
     }
+    GcodeCache.rememberModel(cacheKey, model);
+    _install(model);
+  }
+
+  /// Show a parsed [model].
+  void _install(GcodeModel model) {
+    if (!mounted) return;
     setState(() {
       _model = model;
       _cur = model.layers.length - 1;
@@ -320,14 +350,49 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
     Color(0xFFFB8C00),
   ];
 
-  /// The colour of the tool at [slot] in [m]'s key: the slicer's, unless the
-  /// file gave none or gave every tool the same one (then the palette, so the
+  /// The slicer's colour of the tool at [slot] in [m]'s key, unless the file
+  /// gave none or gave every tool the same one (then the palette, so the
   /// tools can still be told apart).
-  static Color _toolColor(GcodeModel m, int slot) {
+  static Color _slicedColor(GcodeModel m, int slot) {
     final argb = m.tools[slot].argb;
     return argb != null && !m.slicerColoursIdentical
         ? Color(argb)
         : _palette[slot % _palette.length];
+  }
+
+  /// Grey for a tool whose gate / lane is empty or has no colour in Loaded.
+  static const _emptyColor = Color(0xFF555555);
+
+  /// What the printer reports loaded for tool number [tool], if anything.
+  LoadedFilament? _loadedFor(int tool) {
+    for (final f in widget.loaded) {
+      if (f.tool == tool) return f;
+    }
+    return null;
+  }
+
+  /// The Sliced / Loaded switch shows when the printer reports a filament
+  /// for at least one of the file's tools.
+  bool get _hasLoaded {
+    final m = _model;
+    return m != null && m.tools.any((t) => _loadedFor(t.index) != null);
+  }
+
+  /// The colour the tool at [slot] paints with in the current source.
+  Color _toolColor(GcodeModel m, int slot) {
+    if (!_showLoaded) return _slicedColor(m, slot);
+    final f = _loadedFor(m.tools[slot].index);
+    return f == null || !f.loaded || f.argb == null
+        ? _emptyColor
+        : Color(f.argb!);
+  }
+
+  /// True when the loaded colour is clearly not the sliced one (the key
+  /// then shows a dot in the sliced colour). Euclidean RGB, so white vs.
+  /// off-white does not count.
+  static bool _differs(Color a, Color b) {
+    final dr = (a.r - b.r) * 255, dg = (a.g - b.g) * 255, db = (a.b - b.b) * 255;
+    return dr * dr + dg * dg + db * db > 60 * 60;
   }
 
   /// Auto: Colour for a multi-material file, else Fan speed.
@@ -844,38 +909,18 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
       );
 
   /// The Colour mode's key: one swatch per tool, in tool order, with the
-  /// filament type when the file named it.
+  /// filament type when the file named it. In Loaded (v0.9.76) the swatch is
+  /// what the printer reports in that tool's gate / lane, hatched when
+  /// empty, with a dot in the sliced colour where the two clearly differ.
   List<Widget> _keyRows(AppLocalizations l, GcodeModel m) => [
-        for (var i = 0; i < m.tools.length; i++)
+        for (var i = 0; i < m.tools.length; i++) _keyRow(l, m, i),
+        if (_showLoaded)
           Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Row(
-              children: [
-                Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: _toolColor(m, i),
-                    borderRadius: BorderRadius.circular(3),
-                    border: Border.all(color: const Color(0x26FFFFFF)),
-                  ),
-                ),
-                const SizedBox(width: 7),
-                Text('T${m.tools[i].index}',
-                    style: const TextStyle(
-                        color: Color(0xFFE0E0E0), fontSize: 10.5)),
-                if (m.tools[i].type != null)
-                  Flexible(
-                    child: Text(' · ${m.tools[i].type}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: Color(0xFF9A9A9A), fontSize: 10.5)),
-                  ),
-              ],
-            ),
-          ),
-        if (!m.hasSlicerColours || m.slicerColoursIdentical)
+            padding: const EdgeInsets.only(top: 5),
+            child: Text(l.gcodeViewerKeyLoadedNote,
+                style: const TextStyle(color: Color(0xFF9A9A9A), fontSize: 10)),
+          )
+        else if (!m.hasSlicerColours || m.slicerColoursIdentical)
           Padding(
             padding: const EdgeInsets.only(top: 5),
             child: Text(
@@ -885,6 +930,122 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
                 style: const TextStyle(color: Color(0xFF9A9A9A), fontSize: 10)),
           ),
       ];
+
+  Widget _keyRow(AppLocalizations l, GcodeModel m, int i) {
+    final tool = m.tools[i];
+    final f = _showLoaded ? _loadedFor(tool.index) : null;
+    final empty = _showLoaded && (f == null || !f.loaded || f.argb == null);
+    final colour = _toolColor(m, i);
+    // "· PLA" from the file, or in Loaded "· PETG · gate 2" from the printer.
+    final detail = _showLoaded
+        ? [
+            if (!empty && f?.material != null) f!.material!,
+            if (f?.slot != null) f!.slot!,
+            if (empty) l.gcodeViewerKeyEmpty,
+          ].join(' · ')
+        : (tool.type ?? '');
+    final sliced = _slicedColor(m, i);
+    final dot = _showLoaded && !empty && _differs(colour, sliced);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 14,
+            height: 14,
+            decoration: BoxDecoration(
+              color: empty ? const Color(0xFF3A3A3A) : colour,
+              borderRadius: BorderRadius.circular(3),
+              border: Border.all(color: const Color(0x26FFFFFF)),
+            ),
+            child: empty
+                ? const CustomPaint(painter: _HatchPainter())
+                : null,
+          ),
+          const SizedBox(width: 7),
+          Text('T${tool.index}',
+              style: const TextStyle(color: Color(0xFFE0E0E0), fontSize: 10.5)),
+          if (detail.isNotEmpty)
+            Flexible(
+              child: Text(' · $detail',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      color: Color(0xFF9A9A9A), fontSize: 10.5)),
+            ),
+          if (dot) ...[
+            const Spacer(),
+            Tooltip(
+              message: l.gcodeViewerKeySliced,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: sliced,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0x4DFFFFFF)),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// The key's header: the view name, plus the Sliced / Loaded switch when
+  /// the printer reports loaded filaments for this file's tools.
+  Widget _keyHeader(AppLocalizations l) {
+    final label = Text(_modeName(l, _mode).toUpperCase(),
+        style: const TextStyle(
+            color: Color(0xFFB0B0B0), fontSize: 9.5, letterSpacing: 0.6));
+    if (_mode != GcodeViewMode.colour || !_hasLoaded) return label;
+    Widget seg(String text, bool loaded) => GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            if (_showLoaded == loaded) return;
+            setState(() {
+              _showLoaded = loaded;
+              _rebuildMeshes();
+            });
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            color: _showLoaded == loaded
+                ? const Color(0xFF3D2A27)
+                : Colors.transparent,
+            child: Text(text,
+                style: TextStyle(
+                    color: _showLoaded == loaded
+                        ? const Color(0xFFFFD1C6)
+                        : const Color(0xFFBDBDBD),
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w500)),
+          ),
+        );
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        label,
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0xFF4A4A4A)),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                seg(l.gcodeViewerKeySliced, false),
+                seg(l.gcodeViewerKeyLoaded, true),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _viewerBody(AppLocalizations l, ThemeData theme) {
     final m = _model!;
@@ -985,15 +1146,13 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
                   bottom: 10,
                   child: _Glass(
                     child: SizedBox(
-                      width: 160,
+                      width: _mode == GcodeViewMode.colour && _hasLoaded
+                          ? 200
+                          : 160,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(_modeName(l, _mode).toUpperCase(),
-                              style: const TextStyle(
-                                  color: Color(0xFFB0B0B0),
-                                  fontSize: 9.5,
-                                  letterSpacing: 0.6)),
+                          _keyHeader(l),
                           if (_mode == GcodeViewMode.colour)
                             ..._keyRows(l, m)
                           else ...[
@@ -1167,6 +1326,23 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
 
 /// Translucent dark card for the overlays on the picture (always dark, like
 /// the canvas, whatever the app theme).
+/// Diagonal hatching for the key's "empty gate" swatch.
+class _HatchPainter extends CustomPainter {
+  const _HatchPainter();
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()
+      ..color = const Color(0xFF777777)
+      ..strokeWidth = 1.2;
+    for (var d = -size.height; d < size.width; d += 4) {
+      canvas.drawLine(Offset(d, size.height), Offset(d + size.height, 0), p);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_HatchPainter old) => false;
+}
+
 class _Glass extends StatelessWidget {
   final Widget child;
   const _Glass({required this.child});
