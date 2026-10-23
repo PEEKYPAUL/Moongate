@@ -240,7 +240,7 @@ Direct mode isn't picky about the host, either: from plugin 0.6.17 it needs **ze
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Code structure, state management, data-flow walkthroughs, design decisions |
 | [SECURITY.md](SECURITY.md) | Threat model, what the tunnel does and doesn't expose, the empirical verification, vulnerability reporting |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common failure modes - offline tiles, tunnel issues, pairing failures - each with copy-paste diagnostics |
-| [CHANGELOG.md](CHANGELOG.md) | Every release with a one-line summary of what changed and why |
+| [CHANGELOG.md](CHANGELOG.md) | Every release as a few short bullets: what is new, what was fixed |
 | [Privacy policy](https://peekypaul.github.io/Moongate/privacy-policy.html) | What data the app handles and why - anonymous, no analytics, no tracking, no data sold |
 
 > **Building from source?** `cd mobile && flutter pub get && flutter build apk --release --flavor github --dart-define=MOONGATE_CHANNEL=github`. Full developer workflow in [DEVELOPMENT.md](DEVELOPMENT.md).
