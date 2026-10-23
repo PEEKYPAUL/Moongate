@@ -31,7 +31,10 @@ import 'dart:typed_data';
 /// in the layer, travels included, plus `G4` dwells - no acceleration model,
 /// so a few percent under Klipper's estimate, which is fine for colouring.
 ///
-/// Tool / colour (v0.9.73): the `T` in force per segment, advanced by `M600`
+/// Tool / colour (v0.9.73): the `T` in force per segment (a `T` line, or the
+/// Klipper MMU macros that replace one: Happy Hare's `MMU_CHANGE_TOOL TOOL=n`,
+/// which its Moonraker preprocessor writes in place of every `T` line on
+/// upload, ERCF v1's `ERCF_CHANGE_TOOL`, AFC's `CHANGE_TOOL`), advanced by `M600`
 /// on a single extruder (PrusaSlicer's `;COLOR_CHANGE,T0,#RRGGBB` and Orca's
 /// `; MANUAL_TOOL_CHANGE T1` comments name the slot and colour). The key's
 /// colours and filament types come from the settings block's
@@ -504,6 +507,24 @@ class _Parser {
           if (_has('Z')) z = _p('Z');
           if (_has('E')) this.e = _p('E'); // `e` here is the line end
           break;
+      }
+      return;
+    }
+    // Klipper MMU macros that stand in for a T line (checked BEFORE the M
+    // codes: MMU_CHANGE_TOOL starts with an M). Happy Hare's Moonraker
+    // preprocessor REWRITES every `T1` in an uploaded file to
+    // `MMU_CHANGE_TOOL TOOL=1 NEXT_POS="x,y" ; T1`, so an ERCF / Box Turtle
+    // file under Happy Hare has no T lines left at all (the first MMU
+    // report, 23/10: a two-colour sign showed one tool). ERCF v1 wrote
+    // `ERCF_CHANGE_TOOL TOOL=1`; AFC's own command is `CHANGE_TOOL TOOL=1`.
+    if (_startsWith(s, ce, 'MMU_CHANGE_TOOL') ||
+        _startsWith(s, ce, 'ERCF_CHANGE_TOOL') ||
+        _startsWith(s, ce, 'CHANGE_TOOL ')) {
+      final line = String.fromCharCodes(b, s, ce).toUpperCase();
+      final m = RegExp(r'\bTOOL=(\d+)').firstMatch(line);
+      if (m != null) {
+        final t = int.parse(m.group(1)!);
+        if (t >= 0 && t <= 255) tool = t;
       }
       return;
     }
