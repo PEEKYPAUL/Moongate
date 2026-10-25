@@ -54,7 +54,7 @@ dependencies:
   # both platforms otherwise block.
   webview_flutter: ^4.14.1
   webview_flutter_android: ^4.14.1
-  webview_flutter_wkwebview: ^3.27.0
+  webview_flutter_wkwebview: ^3.27.2
 
   # Persistent settings
   shared_preferences: ^2.5.6
