@@ -123,7 +123,7 @@ logger = logging.getLogger("moonraker.moongate")
 # Bumped on each release; surfaced in the /status response so the app's bug
 # reports show which plugin a Pi is actually running - the #1 triage blind spot
 # (an old plugin explains most "works on LAN / fails over tunnel" reports).
-MOONGATE_PLUGIN_VERSION = "0.6.30"
+MOONGATE_PLUGIN_VERSION = "0.6.31"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1705,6 +1705,44 @@ def _rgb_hex(value: Any) -> Optional[str]:
     except (TypeError, ValueError):
         return None
     return "#%02X%02X%02X" % tuple(parts)
+
+
+# v0.6.31: how many queued jobs ride /status. The app's tile shows the first
+# one and a count; the queue sheet asks Moonraker for the whole list itself.
+JOB_QUEUE_FOLD_LIMIT = 10
+
+
+def build_job_queue(answer: Any, automatic: Optional[bool]) -> Optional[dict]:
+    """v0.6.31: Moonraker's /server/job_queue/status result shaped for the
+    app: {state, automatic_transition, count, jobs: [{job_id, filename,
+    time_added}]}. `automatic` is the [job_queue] automatic_transition flag
+    (None when it could not be read); with it False, Moonraker pauses the
+    queue after every job it loads, which the app explains in its sheet.
+    None for an answer that is not a queue (older Moonraker, error page)."""
+    if not isinstance(answer, dict) or "queued_jobs" not in answer:
+        return None
+    raw = answer.get("queued_jobs")
+    if not isinstance(raw, list):
+        return None
+    jobs = []
+    for j in raw:
+        if not isinstance(j, dict):
+            continue
+        job_id   = j.get("job_id")
+        filename = j.get("filename")
+        if not isinstance(job_id, str) or not isinstance(filename, str):
+            continue
+        jobs.append({
+            "job_id":     job_id,
+            "filename":   filename,
+            "time_added": j.get("time_added"),
+        })
+    return {
+        "state":                str(answer.get("queue_state") or "paused"),
+        "automatic_transition": automatic,
+        "count":                len(jobs),
+        "jobs":                 jobs[:JOB_QUEUE_FOLD_LIMIT],
+    }
 
 
 def build_filaments(status: dict) -> list:
@@ -3616,6 +3654,10 @@ class MoongatePlugin:
         # lanes), for the viewer's Sliced / Loaded colour switch. [] when the
         # printer has neither, so the app shows no switch.
         result["filaments"] = build_filaments(result.get("status") or {})
+        # v0.6.31: Moonraker's print queue (state + the first jobs), so the
+        # app's tile and status card show "Up next" from this one call. None
+        # when Moonraker does not answer in time; the app then shows nothing.
+        result["job_queue"] = await self._job_queue_snapshot(client)
         # v0.6.26: the last MOONGATE_NOTIFY message {seq, ts, text} for the
         # Android app's poll-driven alerts (iPhones get the push instead).
         # None until a macro fires; the count restarts with the plugin
@@ -3851,6 +3893,33 @@ class MoongatePlugin:
             return info
         except Exception:
             return _defaults
+
+    async def _job_queue_snapshot(self, client: Any) -> Optional[dict]:
+        """v0.6.31: one local GET of Moonraker's /server/job_queue/status,
+        folded by build_job_queue(). The [job_queue] automatic_transition
+        flag comes straight from the component (its `automatic` attribute),
+        None when the component or the attribute is not there."""
+        from tornado.httpclient import HTTPRequest
+        automatic: Optional[bool] = None
+        try:
+            jq = self.server.lookup_component("job_queue", None)
+            flag = getattr(jq, "automatic", None)
+            if isinstance(flag, bool):
+                automatic = flag
+        except Exception:
+            pass
+        try:
+            req = HTTPRequest(
+                f"http://127.0.0.1:{self._moonraker_port}/server/job_queue/status",
+                method="GET", request_timeout=2.0,
+            )
+            resp = await client.fetch(req, raise_error=False)
+            if resp.code != 200:
+                return None
+            answer = json.loads(resp.body).get("result")
+            return build_job_queue(answer, automatic)
+        except Exception:
+            return None
 
     @property
     def _chamber_key(self) -> Optional[str]:
