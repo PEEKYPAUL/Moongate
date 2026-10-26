@@ -4,9 +4,10 @@ What changed in each Moongate release, newest first, in plain language. The full
 
 ## v0.9.77
 
-- Hold the chamber temperature on a tile to choose which sensor it shows
-- Fixed: on a printer with several chamber sensors the reading away from home could differ from the one at home
-- Temperature alerts use the chamber sensor you chose (needs plugin 0.6.30)
+- Hold the chamber temperature on a tile or the single-printer dashboard to choose which sensor it shows, from every sensor your printer has
+- Fixed: on a printer with several chamber sensors, the reading away from home could differ from the one at home
+- The chamber sensor you choose is also the one the heat-soak and cool-down alerts watch (needs plugin 0.6.30)
+- Plugin 0.6.30: picks the sensor named Chamber by default, the same rule as the app
 
 ## v0.9.76
 
