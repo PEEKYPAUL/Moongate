@@ -1379,6 +1379,38 @@ class AppLocalizationsRu extends AppLocalizations {
       'Камеры настраиваются в веб-интерфейсе принтера.';
 
   @override
+  String get chamberPickerTitle => 'Датчик камеры';
+
+  @override
+  String get chamberPickerIntro =>
+      'Выберите, какой датчик показывает температуру камеры этого принтера.';
+
+  @override
+  String get chamberPickerAuto => 'Авто';
+
+  @override
+  String chamberPickerAutoUses(String name) {
+    return 'использует $name';
+  }
+
+  @override
+  String get chamberPickerAutoNone => 'нет датчика с именем chamber';
+
+  @override
+  String get chamberPickerSectionChamber => 'Датчики камеры';
+
+  @override
+  String get chamberPickerSectionOther => 'Другие датчики';
+
+  @override
+  String get chamberPickerHint =>
+      'Сохранено для этого принтера. Действует на каждой панели, дома и через туннель, а также для температурных оповещений.';
+
+  @override
+  String get chamberPickerEmpty =>
+      'Датчики температуры не найдены. Попробуйте снова, когда принтер будет в сети.';
+
+  @override
   String cameraFallbackName(int number) {
     return 'Камера $number';
   }

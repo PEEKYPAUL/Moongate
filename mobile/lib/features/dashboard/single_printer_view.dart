@@ -18,6 +18,7 @@ import '../printer/printer_camera_screen.dart';
 import '../tutorial/tutorial_anchors.dart';
 import '../tutorial/tutorial_controller.dart';
 import 'camera_picker_overlay.dart';
+import 'chamber_picker_overlay.dart';
 import 'console_overlay.dart';
 import 'control_panel_overlay.dart';
 import 'file_system_overlay.dart';
@@ -948,14 +949,28 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
       ),
     ));
     if (s.chamberTemp > 0) {
+      // v0.9.77: hold the chamber cell to pick which sensor it reads. The
+      // inner recognizer wins over the card's Preheat long-press, which still
+      // opens from the hotend and bed cells.
       cells.add(_anchor(
         a.tempChamber,
-        _TempCell(
-          icon: Icons.sensor_window,
-          color: Colors.teal,
-          temp: s.chamberTemp,
-          target: s.chamberTarget,
-          label: l.preheatChamber,
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onLongPress: () {
+            HapticFeedback.mediumImpact();
+            showChamberPickerSheet(
+              context,
+              printer: widget.printer,
+              service: _statusService,
+            );
+          },
+          child: _TempCell(
+            icon: Icons.sensor_window,
+            color: Colors.teal,
+            temp: s.chamberTemp,
+            target: s.chamberTarget,
+            label: l.preheatChamber,
+          ),
         ),
       ));
     }

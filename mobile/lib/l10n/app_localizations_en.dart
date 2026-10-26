@@ -1361,6 +1361,38 @@ class AppLocalizationsEn extends AppLocalizations {
       'Cameras are managed in your printer\'s web interface.';
 
   @override
+  String get chamberPickerTitle => 'Chamber sensor';
+
+  @override
+  String get chamberPickerIntro =>
+      'Pick which sensor the chamber reading uses for this printer.';
+
+  @override
+  String get chamberPickerAuto => 'Auto';
+
+  @override
+  String chamberPickerAutoUses(String name) {
+    return 'uses $name';
+  }
+
+  @override
+  String get chamberPickerAutoNone => 'no sensor named chamber';
+
+  @override
+  String get chamberPickerSectionChamber => 'Chamber sensors';
+
+  @override
+  String get chamberPickerSectionOther => 'Other sensors';
+
+  @override
+  String get chamberPickerHint =>
+      'Saved for this printer. Used on every dashboard, at home and over the tunnel, and by the temperature alerts.';
+
+  @override
+  String get chamberPickerEmpty =>
+      'No temperature sensors reported. Try again when the printer is online.';
+
+  @override
   String cameraFallbackName(int number) {
     return 'Camera $number';
   }

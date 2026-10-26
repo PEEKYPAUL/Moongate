@@ -283,6 +283,16 @@ class PrinterConfig {
   /// optional → rides the v3 backup envelope without a schema bump.
   final String? selectedWebcam;
 
+  /// The Klipper object the chamber reading comes from (`temperature_sensor
+  /// Chamber` and the like), picked by holding the chamber chip (v0.9.77).
+  /// Null = Auto: the object named exactly "chamber", else the first sensor
+  /// whose name contains "chamber", the same rule the plugin applies. Sent to
+  /// the plugin on every status poll so the reading, both dashboards and the
+  /// temperature alerts all agree, at home and over the tunnel. Per device,
+  /// like [selectedWebcam]; additive and optional, rides the v3 backup
+  /// envelope without a schema bump.
+  final String? chamberSensor;
+
   /// Macro names the user has starred in the macro sheet to pin them to the
   /// top of the list (per-printer - some machines have dozens of macros and
   /// only a handful are run often). Stored as the raw Klipper macro names.
@@ -341,6 +351,7 @@ class PrinterConfig {
     this.uiType,
     this.customCameraUrl,
     this.selectedWebcam,
+    this.chamberSensor,
     this.favouriteMacros = const [],
     this.macroControls   = const [],
     this.controlPanelModules = defaultControlPanelModules,
@@ -367,6 +378,7 @@ class PrinterConfig {
     String? uiType,
     Object? customCameraUrl = _sentinel,
     Object? selectedWebcam  = _sentinel,
+    Object? chamberSensor   = _sentinel,
     List<String>? favouriteMacros,
     List<MacroControl>? macroControls,
     List<ControlPanelModule>? controlPanelModules,
@@ -397,6 +409,9 @@ class PrinterConfig {
         selectedWebcam: identical(selectedWebcam, _sentinel)
             ? this.selectedWebcam
             : selectedWebcam as String?,
+        chamberSensor: identical(chamberSensor, _sentinel)
+            ? this.chamberSensor
+            : chamberSensor as String?,
         favouriteMacros: favouriteMacros ?? this.favouriteMacros,
         macroControls:   macroControls   ?? this.macroControls,
         controlPanelModules:
@@ -496,6 +511,7 @@ class PrinterConfig {
         if (uiType != null) 'uiType': uiType,
         if (customCameraUrl != null) 'customCameraUrl': customCameraUrl,
         if (selectedWebcam != null) 'selectedWebcam': selectedWebcam,
+        if (chamberSensor != null) 'chamberSensor': chamberSensor,
         if (favouriteMacros.isNotEmpty) 'favouriteMacros': favouriteMacros,
         if (macroControls.isNotEmpty)
           'macroControls': macroControls.map((control) => control.toJson()).toList(),
@@ -530,6 +546,7 @@ class PrinterConfig {
       uiType:          j['uiType']          as String?,
       customCameraUrl: j['customCameraUrl'] as String?,
       selectedWebcam:  j['selectedWebcam']  as String?,
+      chamberSensor:   j['chamberSensor']   as String?,
       favouriteMacros: (j['favouriteMacros'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??

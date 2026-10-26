@@ -1393,6 +1393,38 @@ class AppLocalizationsFr extends AppLocalizations {
       'Les caméras se gèrent dans l\'interface web de l\'imprimante.';
 
   @override
+  String get chamberPickerTitle => 'Capteur de caisson';
+
+  @override
+  String get chamberPickerIntro =>
+      'Choisissez le capteur utilisé pour la température du caisson de cette imprimante.';
+
+  @override
+  String get chamberPickerAuto => 'Auto';
+
+  @override
+  String chamberPickerAutoUses(String name) {
+    return 'utilise $name';
+  }
+
+  @override
+  String get chamberPickerAutoNone => 'aucun capteur nommé chamber';
+
+  @override
+  String get chamberPickerSectionChamber => 'Capteurs de caisson';
+
+  @override
+  String get chamberPickerSectionOther => 'Autres capteurs';
+
+  @override
+  String get chamberPickerHint =>
+      'Enregistré pour cette imprimante. Utilisé sur chaque tableau de bord, à la maison et via le tunnel, et pour les alertes de température.';
+
+  @override
+  String get chamberPickerEmpty =>
+      'Aucun capteur de température signalé. Réessayez quand l\'imprimante est en ligne.';
+
+  @override
   String cameraFallbackName(int number) {
     return 'Caméra $number';
   }

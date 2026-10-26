@@ -71,7 +71,12 @@ class PrinterStatusService {
   }
 
   // ── Chamber sensor discovery (kept from v0.2.x - same logic) ─────────────
-  String? _chamberKey;
+  /// Discovery's default pick: the object named exactly "chamber", else the
+  /// first partial match. The key the status parser and the supplement query
+  /// actually use is [_chamberKey], where the user's per-printer choice (the
+  /// v0.9.77 chamber picker) wins over it.
+  String? _chamberAuto;
+  String? get _chamberKey => _liveChamberSensor ?? _chamberAuto;
   bool    _chamberDiscovered = false;
 
   /// Extra extruder object names beyond the first (`extruder1`, `extruder2`, ...)
@@ -176,6 +181,16 @@ class PrinterStatusService {
       if (p.id == config.id) return p.selectedWebcam;
     }
     return config.selectedWebcam;
+  }
+
+  /// The chamber sensor the user picked by holding the chamber chip (the
+  /// Klipper object name), read LIVE from the registry each poll like
+  /// [_liveSelectedWebcam]. Null = Auto (discovery's own pick).
+  String? get _liveChamberSensor {
+    for (final p in PrinterRegistry.instance.printers) {
+      if (p.id == config.id) return p.chamberSensor;
+    }
+    return config.chamberSensor;
   }
 
   /// The user's configured light status object for this printer (e.g.
@@ -640,23 +655,38 @@ class PrinterStatusService {
   // ── Chamber sensor discovery (one call per service lifetime) ─────────────
 
   Future<void> _discoverChamberSensor(PrinterAccess access) async {
-    // Best-effort, once per service lifetime. Use whatever base is usable:
-    // the discovered/persisted LAN URL first, the tunnel only if there is
-    // one. With neither available (fresh pair, tunnel not up, off-LAN) we
-    // skip and retry on a later poll.
+    // Best-effort, once per service lifetime: the discovered/persisted LAN URL
+    // first, then the tunnel. v0.9.77: the tunnel is tried when the LAN call
+    // FAILS, not only when no LAN URL exists. Away from home the saved LAN
+    // address never answers, so before this the remote dashboard never
+    // completed discovery and showed whichever chamber sensor the plugin had
+    // picked (the first in config order) instead of the app's own rule, a
+    // different number from the one shown at home. With neither base
+    // available (fresh pair, tunnel not up) we skip and retry next poll.
     final lanBase = LanDiscoveryService.instance.lookup(config.id)
         ?? _currentLanUrl;
-    final base    = lanBase ?? access.tunnelUrl;
-    if (base == null) return;
-    // We're on LAN whenever a LAN base won the selection above; only fall
-    // through to the tunnel (and its Bearer header) when no LAN URL exists.
-    final isLan = lanBase != null;
+    for (final (base, isLan) in <(String, bool)>[
+      if (lanBase != null) (lanBase, true),
+      if (access.tunnelUrl != null) (access.tunnelUrl!, false),
+    ]) {
+      if (await _discoverObjectsFrom(base, access.accessToken, isLan: isLan)) {
+        return;
+      }
+    }
+  }
+
+  /// One `/printer/objects/list` round trip against [base]. True once the
+  /// list came back 200 and discovery is done, false to try the next base.
+  /// LAN fails fast (2 s, like the status call) so an off-LAN poll is not
+  /// stalled by the dead address; the tunnel gets Cloudflare headroom.
+  Future<bool> _discoverObjectsFrom(String base, String accessToken,
+      {required bool isLan}) async {
     try {
       final uri      = Uri.parse('$base/printer/objects/list');
       final response = await _authedGet(
-          uri, access.accessToken,
+          uri, accessToken,
           isLan: isLan,
-          timeout: const Duration(seconds: 5));
+          timeout: Duration(seconds: isLan ? 2 : 5));
       if (response.statusCode == 200) {
         final body    = jsonDecode(response.body) as Map<String, dynamic>;
         final objects =
@@ -666,27 +696,10 @@ class PrinterStatusService {
         // "Chamber_Y"). Prefer the sensor named exactly "chamber", the
         // combined or standalone reading the user means, and only fall back to
         // the first partial match when there is no exact one.
-        const prefixes = [
-          'temperature_sensor ',
-          'heater_generic ',
-          'temperature_fan ',
-        ];
-        String? exact;
-        String? partial;
-        for (final obj in objects) {
-          final key    = obj.toString();
-          final prefix = prefixes.firstWhere(
-              (p) => key.startsWith(p), orElse: () => '');
-          if (prefix.isEmpty) continue;
-          final name = key.substring(prefix.length).toLowerCase();
-          if (!name.contains('chamber')) continue;
-          partial ??= key;
-          if (name == 'chamber') {
-            exact = key;
-            break;
-          }
-        }
-        _chamberKey = exact ?? partial;
+        // v0.9.77: the same four prefixes and rule the plugin applies
+        // (pick_chamber_key), so LAN, tunnel and the Pi agree.
+        _chamberAuto = defaultChamberKey(
+            [for (final o in objects) o.toString()]);
 
         // Multi-toolhead: collect any extruder1, extruder2 ... (T1 and up).
         // Klipper names extra hotends extruderN; the bare `extruder` is T0 and
@@ -714,7 +727,7 @@ class PrinterStatusService {
               .toList();
           if (toolKeys.isNotEmpty) {
             _toolchangerTools = await _queryToolMap(
-                base, access.accessToken, toolKeys, isLan: isLan);
+                base, accessToken, toolKeys, isLan: isLan);
           }
         }
 
@@ -722,10 +735,12 @@ class PrinterStatusService {
         // a cold-tunnel 502/503 on the first poll retries next time instead of
         // giving up for the whole service lifetime (which left chamber blank).
         _chamberDiscovered = true;
+        return true;
       }
     } catch (_) {
-      // Network blip - retry next poll.
+      // Network blip - try the next base, then again next poll.
     }
+    return false;
   }
 
   /// One-shot query of a tool changer's `[tool <name>]` objects → the
@@ -817,7 +832,11 @@ class PrinterStatusService {
   }) async {
     try {
       final uri = Uri.parse(
-        '$baseUrl/server/moongate/status?mg_token=${Uri.encodeComponent(access.accessToken)}',
+        '$baseUrl/server/moongate/status?mg_token=${Uri.encodeComponent(access.accessToken)}'
+        // v0.9.77: name the chamber sensor the user picked (or "auto") so the
+        // plugin (0.6.30+) folds that one in and judges its temperature
+        // watches against it. Older plugins ignore the parameter.
+        '&chamber=${Uri.encodeComponent(_liveChamberSensor ?? 'auto')}',
       );
       // LAN: fast-fail at 2s so off-LAN polling doesn't stall.
       // Tunnel: 8s for Cloudflare Quick Tunnel cold-start latency.
@@ -895,6 +914,106 @@ class PrinterStatusService {
       _lastEndpointReason = 'error';
       return null;
     }
+  }
+
+  // ── Temperature objects (v0.9.77 chamber picker) ─────────────────────────
+
+  /// The Klipper object prefixes that report a temperature the chamber chip
+  /// could show. Mirrors the plugin's TEMP_OBJECT_PREFIXES.
+  static const temperatureObjectPrefixes = [
+    'temperature_sensor ',
+    'heater_generic ',
+    'temperature_fan ',
+    'temperature_combined ',
+  ];
+
+  static bool isTemperatureObject(String key) =>
+      temperatureObjectPrefixes.any(key.startsWith);
+
+  /// The part after the prefix, e.g. `temperature_sensor Chamber_Low` ->
+  /// `Chamber_Low`; the key itself when it carries no prefix.
+  static String sensorName(String key) {
+    final i = key.indexOf(' ');
+    return i < 0 ? key : key.substring(i + 1);
+  }
+
+  /// `Chamber_Low` -> `Chamber Low`, the way Mainsail's panel shows it.
+  static String sensorDisplayName(String key) =>
+      sensorName(key).replaceAll('_', ' ');
+
+  static bool isChamberNamed(String key) =>
+      isTemperatureObject(key) &&
+      sensorName(key).toLowerCase().contains('chamber');
+
+  /// The default chamber sensor when the user has not chosen one: the object
+  /// named exactly "chamber" (any case) wins, else the first temperature
+  /// object whose name contains "chamber", else null. The plugin's
+  /// pick_chamber_key applies the same rule.
+  static String? defaultChamberKey(List<String> objects) {
+    String? partial;
+    for (final key in objects) {
+      if (!isChamberNamed(key)) continue;
+      if (sensorName(key).toLowerCase() == 'chamber') return key;
+      partial ??= key;
+    }
+    return partial;
+  }
+
+  /// Every temperature-reporting object the printer lists, with its live
+  /// reading, for the chamber picker sheet. LAN first, then the tunnel, the
+  /// same two bases discovery uses. Empty when nothing answers.
+  Future<List<TemperatureSensorReading>> listTemperatureSensors() async {
+    final PrinterAccess access;
+    try {
+      access = await PrinterAccessCache.instance.get(config.id);
+    } catch (_) {
+      return const [];
+    }
+    final lanBase = LanDiscoveryService.instance.lookup(config.id)
+        ?? _currentLanUrl;
+    for (final (base, isLan) in <(String, bool)>[
+      if (lanBase != null) (lanBase, true),
+      if (access.tunnelUrl != null) (access.tunnelUrl!, false),
+    ]) {
+      try {
+        final timeout  = Duration(seconds: isLan ? 2 : 6);
+        final listResp = await _authedGet(
+            Uri.parse('$base/printer/objects/list'), access.accessToken,
+            isLan: isLan, timeout: timeout);
+        if (listResp.statusCode != 200) continue;
+        final listBody = jsonDecode(listResp.body) as Map<String, dynamic>;
+        final objects  = [
+          for (final o in (listBody['result']?['objects'] as List<dynamic>?)
+                  ?? const [])
+            if (isTemperatureObject(o.toString())) o.toString(),
+        ];
+        if (objects.isEmpty) return const [];
+        final query = objects.map(Uri.encodeComponent).join('&');
+        final qResp = await _authedGet(
+            Uri.parse('$base/printer/objects/query?$query'), access.accessToken,
+            isLan: isLan, timeout: timeout);
+        Map<String, dynamic>? s;
+        if (qResp.statusCode == 200) {
+          final qBody = jsonDecode(qResp.body) as Map<String, dynamic>;
+          s = qBody['result']?['status'] as Map<String, dynamic>?;
+        }
+        return [
+          for (final key in objects)
+            TemperatureSensorReading(
+              key:         key,
+              temperature: ((s?[key] as Map<String, dynamic>?)?['temperature']
+                      as num?)
+                  ?.toDouble(),
+              target: ((s?[key] as Map<String, dynamic>?)?['target'] as num?)
+                      ?.toDouble() ??
+                  0,
+            ),
+        ];
+      } catch (_) {
+        // Timeout / refused on this base - try the next one.
+      }
+    }
+    return const [];
   }
 
   Future<void> _supplementaryChamberQuery(
@@ -1579,4 +1698,22 @@ WebcamSource resolveWebcamSource({
       url: pathUrl,
       customCameraDown: customCameraDown,
       configuredCameraDown: configuredCameraDown);
+}
+
+/// One temperature-reporting Klipper object with its live reading, as listed
+/// by [PrinterStatusService.listTemperatureSensors] for the chamber picker
+/// (v0.9.77). [temperature] is null when the query did not answer.
+class TemperatureSensorReading {
+  final String  key;
+  final double? temperature;
+  final double  target;
+
+  const TemperatureSensorReading({
+    required this.key,
+    this.temperature,
+    this.target = 0,
+  });
+
+  String get name => PrinterStatusService.sensorDisplayName(key);
+  bool get isChamberNamed => PrinterStatusService.isChamberNamed(key);
 }

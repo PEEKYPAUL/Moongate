@@ -31,7 +31,15 @@
 /// name, loaded), which the G-code viewer's Colour view shows as its
 /// Sliced / Loaded switch (models/printer_config.dart, LoadedFilament). A
 /// printer on an older plugin simply has no switch.
-const String kCurrentPluginVersion = '0.6.29';
+///
+/// 0.6.30 (v0.9.77) takes the chamber sensor the user picked by holding the
+/// chamber chip (`/status?chamber=<object>`, PrinterConfig.chamberSensor) and
+/// folds that one in, so the tile, the tunnel path and the temperature alerts
+/// read the same sensor; its default pick now matches the app's rule (the
+/// object named exactly "chamber" first). An older plugin ignores the
+/// parameter: the tile still shows the chosen sensor through the app's own
+/// supplementary query, only the alerts keep the plugin's default.
+const String kCurrentPluginVersion = '0.6.30';
 
 /// True when [reported] is an older plugin version than
 /// [kCurrentPluginVersion]. A null/empty [reported] is a pre-v0.6.4 plugin

@@ -1,5 +1,13 @@
 [
   {
+    "version": "v0.9.77",
+    "bullets": [
+      "Hold the chamber temperature on a tile to choose which sensor it shows",
+      "Fixed: on a printer with several chamber sensors the reading away from home could differ from the one at home",
+      "Temperature alerts use the chamber sensor you chose (needs plugin 0.6.30)"
+    ]
+  },
+  {
     "version": "v0.9.76",
     "bullets": [
       "Colour view: Sliced / Loaded switch shows what is actually in your MMU gates (Happy Hare, AFC; needs plugin 0.6.29)",

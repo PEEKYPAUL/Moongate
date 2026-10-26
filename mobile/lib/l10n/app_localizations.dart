@@ -2518,6 +2518,60 @@ abstract class AppLocalizations {
   /// **'Cameras are managed in your printer\'s web interface.'**
   String get cameraPickerHint;
 
+  /// Title of the chamber sensor picker sheet (opened by holding the chamber temperature chip).
+  ///
+  /// In en, this message translates to:
+  /// **'Chamber sensor'**
+  String get chamberPickerTitle;
+
+  /// Intro line under the chamber picker sheet's title.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick which sensor the chamber reading uses for this printer.'**
+  String get chamberPickerIntro;
+
+  /// First row of the chamber picker: let the app choose the sensor (the one named exactly 'chamber', else the first whose name contains 'chamber').
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get chamberPickerAuto;
+
+  /// Subtitle of the Auto row naming the sensor it currently resolves to. {name} is that sensor's name.
+  ///
+  /// In en, this message translates to:
+  /// **'uses {name}'**
+  String chamberPickerAutoUses(String name);
+
+  /// Subtitle of the Auto row when the printer has no sensor whose name contains 'chamber'.
+  ///
+  /// In en, this message translates to:
+  /// **'no sensor named chamber'**
+  String get chamberPickerAutoNone;
+
+  /// Section label above the sensors whose name contains 'chamber'.
+  ///
+  /// In en, this message translates to:
+  /// **'Chamber sensors'**
+  String get chamberPickerSectionChamber;
+
+  /// Section label above every other temperature sensor on the printer.
+  ///
+  /// In en, this message translates to:
+  /// **'Other sensors'**
+  String get chamberPickerSectionOther;
+
+  /// Footnote at the bottom of the chamber picker sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved for this printer. Used on every dashboard, at home and over the tunnel, and by the temperature alerts.'**
+  String get chamberPickerHint;
+
+  /// Shown in the chamber picker when the printer did not answer with any temperature sensors.
+  ///
+  /// In en, this message translates to:
+  /// **'No temperature sensors reported. Try again when the printer is online.'**
+  String get chamberPickerEmpty;
+
   /// Fallback label in the camera picker for a camera whose Moonraker entry has no name; {number} is its 1-based position.
   ///
   /// In en, this message translates to:
