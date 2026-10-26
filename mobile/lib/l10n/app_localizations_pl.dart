@@ -1411,6 +1411,111 @@ class AppLocalizationsPl extends AppLocalizations {
       'Nie zgłoszono czujników temperatury. Spróbuj ponownie, gdy drukarka będzie online.';
 
   @override
+  String get queueTitle => 'Kolejka wydruków';
+
+  @override
+  String get queueChip => 'Kolejka';
+
+  @override
+  String get queueStateReady => 'Gotowa';
+
+  @override
+  String get queueStatePaused => 'Wstrzymana';
+
+  @override
+  String get queueStateLoading => 'Ładowanie';
+
+  @override
+  String get queueStateStarting => 'Uruchamianie';
+
+  @override
+  String get queueIntroReady =>
+      'Następne zadanie rozpocznie się, gdy drukarka będzie wolna.';
+
+  @override
+  String get queueIntroPaused =>
+      'Wstrzymana. Dotknij Uruchom kolejkę, aby wydrukować następne zadanie.';
+
+  @override
+  String get queueEmpty =>
+      'Kolejka jest pusta. Dodaj pliki z Rozpocznij wydruk lub dotknij Dodaj pliki poniżej.';
+
+  @override
+  String get queueFailed => 'Drukarka nie odpowiedziała. Spróbuj ponownie.';
+
+  @override
+  String get queueAddFiles => 'Dodaj pliki';
+
+  @override
+  String get queueStart => 'Uruchom kolejkę';
+
+  @override
+  String get queuePause => 'Wstrzymaj kolejkę';
+
+  @override
+  String get queueClear => 'Wyczyść kolejkę';
+
+  @override
+  String get queueClearConfirm =>
+      'Usunąć wszystkie zadania z kolejki? Trwający wydruk nie zostanie przerwany.';
+
+  @override
+  String get queueMoveToFront => 'Przenieś na początek';
+
+  @override
+  String get queueRemove => 'Usuń z kolejki';
+
+  @override
+  String get queueStartsWhenIdle => 'Rozpocznie się, gdy drukarka będzie wolna';
+
+  @override
+  String get queueUpNext => 'Następne';
+
+  @override
+  String get queueNext => 'Następne';
+
+  @override
+  String queueCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count w kolejce',
+      one: '1 w kolejce',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get queueAddTooltip => 'Dodaj do kolejki';
+
+  @override
+  String queueAddedToast(int count) {
+    return 'Dodano, w kolejce: $count';
+  }
+
+  @override
+  String get queueStartedToast => 'Kolejka uruchomiona';
+
+  @override
+  String get queuePausedToast => 'Kolejka wstrzymana';
+
+  @override
+  String get queueMovedToast => 'Przeniesiono na początek';
+
+  @override
+  String get queueRemovedToast => 'Usunięto z kolejki';
+
+  @override
+  String get queueHintManual =>
+      'Ta drukarka wykonuje jedno zadanie z kolejki na każde Uruchom, a potem się zatrzymuje. Aby przejść całą kolejkę bez nadzoru, dodaj [job_queue] z automatic_transition: True do moonraker.conf i zrestartuj Moonraker.';
+
+  @override
+  String get queueHintAuto => 'Ta drukarka sama przechodzi przez całą kolejkę.';
+
+  @override
+  String get queueModeIntro => 'Dotknij pliku, aby dodać go do kolejki.';
+
+  @override
   String cameraFallbackName(int number) {
     return 'Kamera $number';
   }

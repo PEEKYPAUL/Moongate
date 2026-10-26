@@ -1417,6 +1417,111 @@ class AppLocalizationsIt extends AppLocalizations {
       'Nessun sensore di temperatura rilevato. Riprova quando la stampante è online.';
 
   @override
+  String get queueTitle => 'Coda di stampa';
+
+  @override
+  String get queueChip => 'Coda';
+
+  @override
+  String get queueStateReady => 'Pronta';
+
+  @override
+  String get queueStatePaused => 'In pausa';
+
+  @override
+  String get queueStateLoading => 'Caricamento';
+
+  @override
+  String get queueStateStarting => 'Avvio';
+
+  @override
+  String get queueIntroReady =>
+      'Il prossimo lavoro parte quando la stampante è libera.';
+
+  @override
+  String get queueIntroPaused =>
+      'In pausa. Tocca Avvia coda per lanciare il prossimo lavoro.';
+
+  @override
+  String get queueEmpty =>
+      'Nessun lavoro in coda. Aggiungi file da Avvia una stampa o tocca Aggiungi file qui sotto.';
+
+  @override
+  String get queueFailed => 'La stampante non ha risposto. Riprova.';
+
+  @override
+  String get queueAddFiles => 'Aggiungi file';
+
+  @override
+  String get queueStart => 'Avvia coda';
+
+  @override
+  String get queuePause => 'Metti in pausa la coda';
+
+  @override
+  String get queueClear => 'Svuota coda';
+
+  @override
+  String get queueClearConfirm =>
+      'Rimuovere tutti i lavori in coda? La stampa in corso non viene toccata.';
+
+  @override
+  String get queueMoveToFront => 'Sposta in cima';
+
+  @override
+  String get queueRemove => 'Rimuovi dalla coda';
+
+  @override
+  String get queueStartsWhenIdle => 'Parte quando la stampante è libera';
+
+  @override
+  String get queueUpNext => 'Prossimo';
+
+  @override
+  String get queueNext => 'Prossimo';
+
+  @override
+  String queueCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count in coda',
+      one: '1 in coda',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get queueAddTooltip => 'Aggiungi alla coda';
+
+  @override
+  String queueAddedToast(int count) {
+    return 'In coda, $count in attesa';
+  }
+
+  @override
+  String get queueStartedToast => 'Coda avviata';
+
+  @override
+  String get queuePausedToast => 'Coda in pausa';
+
+  @override
+  String get queueMovedToast => 'Spostato in cima';
+
+  @override
+  String get queueRemovedToast => 'Rimosso dalla coda';
+
+  @override
+  String get queueHintManual =>
+      'Questa stampante esegue un lavoro in coda per ogni Avvio, poi si ferma. Per eseguire tutta la coda senza sorveglianza, aggiungi [job_queue] con automatic_transition: True in moonraker.conf e riavvia Moonraker.';
+
+  @override
+  String get queueHintAuto => 'Questa stampante esegue tutta la coda da sola.';
+
+  @override
+  String get queueModeIntro => 'Tocca un file per aggiungerlo alla coda.';
+
+  @override
   String cameraFallbackName(int number) {
     return 'Telecamera $number';
   }

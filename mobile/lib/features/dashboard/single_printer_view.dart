@@ -25,6 +25,7 @@ import 'file_system_overlay.dart';
 import 'gcode_files_overlay.dart';
 import 'macros_overlay.dart';
 import 'preheat_overlay.dart';
+import 'queue_overlay.dart';
 import 'printer_tile.dart';
 
 /// The Single-printer dashboard: one printer full screen, Klipper-screen style
@@ -878,6 +879,13 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(color: muted)),
           ],
+          // v0.9.78: the print queue's first job, tap for the queue sheet.
+          // Nothing when the queue is empty or the plugin predates 0.6.31.
+          QueueNextLine(
+            printer: widget.printer,
+            queue: s.queue,
+            onChanged: _statusService.pollNow,
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -1089,6 +1097,18 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
                     label: l.tileFileSystem,
                     onPressed: tools
                         ? () => showFileSystemSheet(context, widget.printer)
+                        : null,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: AdaptiveToolButton(
+                    icon: Icons.playlist_play,
+                    label: l.queueChip,
+                    onPressed: tools
+                        ? () => showQueueSheet(context, widget.printer,
+                            initial: _status.queue,
+                            onChanged: _statusService.pollNow)
                         : null,
                   ),
                 ),

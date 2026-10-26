@@ -643,6 +643,98 @@ class ToolheadTemp {
   });
 }
 
+/// One entry of Moonraker's print queue (v0.9.78 print queue).
+class QueuedJob {
+  final String  jobId;
+
+  /// `gcodes`-relative path, folders included.
+  final String  filename;
+  final double? timeAdded;
+
+  const QueuedJob({
+    required this.jobId,
+    required this.filename,
+    this.timeAdded,
+  });
+
+  String get name {
+    final i = filename.lastIndexOf('/');
+    return i < 0 ? filename : filename.substring(i + 1);
+  }
+
+  String? get folder {
+    final i = filename.lastIndexOf('/');
+    return i < 0 ? null : filename.substring(0, i);
+  }
+
+  static QueuedJob? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final id = raw['job_id'];
+    final fn = raw['filename'];
+    if (id is! String || fn is! String) return null;
+    return QueuedJob(
+      jobId:     id,
+      filename:  fn,
+      timeAdded: (raw['time_added'] as num?)?.toDouble(),
+    );
+  }
+}
+
+/// Moonraker's print queue as the app sees it: from the plugin's (0.6.31+)
+/// folded /status `job_queue` ([fromPlugin], the tile's "Up next" line) or
+/// from Moonraker's own `/server/job_queue/*` answers ([fromMoonraker], the
+/// queue sheet). [state] is Moonraker's: `ready` (the next job loads when
+/// the printer is idle), `loading`, `starting` or `paused`.
+/// [automaticTransition] is the `[job_queue]` setting the plugin read, null
+/// when unknown: false means Moonraker pauses the queue after every job it
+/// loads, which the sheet explains. [count] can exceed [jobs] when the
+/// plugin capped the folded list.
+class PrintQueue {
+  final String          state;
+  final bool?           automaticTransition;
+  final int             count;
+  final List<QueuedJob> jobs;
+
+  const PrintQueue({
+    required this.state,
+    this.automaticTransition,
+    required this.count,
+    required this.jobs,
+  });
+
+  bool get isRunning =>
+      state == 'ready' || state == 'loading' || state == 'starting';
+
+  static PrintQueue? fromPlugin(Object? raw) {
+    if (raw is! Map) return null;
+    final jobs = [
+      for (final j in (raw['jobs'] as List<dynamic>?) ?? const [])
+        if (QueuedJob.fromJson(j) case final job?) job,
+    ];
+    final auto = raw['automatic_transition'];
+    return PrintQueue(
+      state:               (raw['state'] as String?) ?? 'paused',
+      automaticTransition: auto is bool ? auto : null,
+      count:               (raw['count'] as num?)?.toInt() ?? jobs.length,
+      jobs:                jobs,
+    );
+  }
+
+  static PrintQueue? fromMoonraker(Object? raw, {bool? automaticTransition}) {
+    if (raw is! Map || raw['queued_jobs'] is! List) return null;
+    final jobs = [
+      for (final j in raw['queued_jobs'] as List<dynamic>)
+        if (QueuedJob.fromJson(j) case final job?) job,
+    ];
+    return PrintQueue(
+      state:               (raw['queue_state'] as String?) ?? 'paused',
+      automaticTransition: automaticTransition,
+      count:               jobs.length,
+      jobs:                jobs,
+    );
+  }
+}
+
 /// The filament the printer says is loaded for one tool, as the plugin
 /// (0.6.29+) reports it in /status `filaments`: Happy Hare's gate for the
 /// tool (`ttg_map` → `gate_color_rgb` / `gate_material` / `gate_name`), or
@@ -880,6 +972,11 @@ class PrinterStatus {
   /// file's tools.
   final List<LoadedFilament> filaments;
 
+  /// Moonraker's print queue as the plugin (0.6.31+) folded it into /status.
+  /// Null on older plugins or when Moonraker did not answer; the tile's "Up
+  /// next" line and the single-printer card show nothing then.
+  final PrintQueue? queue;
+
   /// Toolhead position `[x, y, z]` in mm (Moonraker's `toolhead.position`) and
   /// the homed axes (`toolhead.homed_axes`, e.g. 'xyz'). Only fetched for the
   /// printer on the Single-printer dashboard (see
@@ -925,6 +1022,7 @@ class PrinterStatus {
     this.configuredCameraDown = false,
     this.tempWatches = const [],
     this.filaments = const [],
+    this.queue,
     this.position,
     this.homedAxes,
     this.currentLayer,
@@ -970,6 +1068,7 @@ class PrinterStatus {
     bool? configuredCameraDown,
     List<TempWatchInfo>? tempWatches,
     List<LoadedFilament>? filaments,
+    PrintQueue? queue,
     List<double>? position,
     String? homedAxes,
     int? currentLayer,
@@ -1008,6 +1107,7 @@ class PrinterStatus {
       configuredCameraDown: configuredCameraDown ?? this.configuredCameraDown,
       tempWatches: tempWatches ?? this.tempWatches,
       filaments:   filaments ?? this.filaments,
+      queue:       queue ?? this.queue,
       position:     position ?? this.position,
       homedAxes:    homedAxes ?? this.homedAxes,
       currentLayer: currentLayer ?? this.currentLayer,

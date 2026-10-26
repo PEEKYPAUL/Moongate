@@ -1393,6 +1393,110 @@ class AppLocalizationsEn extends AppLocalizations {
       'No temperature sensors reported. Try again when the printer is online.';
 
   @override
+  String get queueTitle => 'Print queue';
+
+  @override
+  String get queueChip => 'Queue';
+
+  @override
+  String get queueStateReady => 'Ready';
+
+  @override
+  String get queueStatePaused => 'Paused';
+
+  @override
+  String get queueStateLoading => 'Loading';
+
+  @override
+  String get queueStateStarting => 'Starting';
+
+  @override
+  String get queueIntroReady => 'The next job starts when the printer is idle.';
+
+  @override
+  String get queueIntroPaused => 'Paused. Tap Start queue to run the next job.';
+
+  @override
+  String get queueEmpty =>
+      'Nothing queued. Add files from Start a print, or tap Add files below.';
+
+  @override
+  String get queueFailed => 'The printer did not answer. Try again.';
+
+  @override
+  String get queueAddFiles => 'Add files';
+
+  @override
+  String get queueStart => 'Start queue';
+
+  @override
+  String get queuePause => 'Pause queue';
+
+  @override
+  String get queueClear => 'Clear queue';
+
+  @override
+  String get queueClearConfirm =>
+      'Remove every queued job? The print that is running is not affected.';
+
+  @override
+  String get queueMoveToFront => 'Move to front';
+
+  @override
+  String get queueRemove => 'Remove from queue';
+
+  @override
+  String get queueStartsWhenIdle => 'Starts when the printer is idle';
+
+  @override
+  String get queueUpNext => 'Up next';
+
+  @override
+  String get queueNext => 'Next';
+
+  @override
+  String queueCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count queued',
+      one: '1 queued',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get queueAddTooltip => 'Add to queue';
+
+  @override
+  String queueAddedToast(int count) {
+    return 'Queued, $count in line';
+  }
+
+  @override
+  String get queueStartedToast => 'Queue started';
+
+  @override
+  String get queuePausedToast => 'Queue paused';
+
+  @override
+  String get queueMovedToast => 'Moved to the front';
+
+  @override
+  String get queueRemovedToast => 'Removed from the queue';
+
+  @override
+  String get queueHintManual =>
+      'This printer runs one queued job per Start, then pauses. To run the whole queue unattended, add [job_queue] with automatic_transition: True to moonraker.conf and restart Moonraker.';
+
+  @override
+  String get queueHintAuto =>
+      'This printer runs through the whole queue on its own.';
+
+  @override
+  String get queueModeIntro => 'Tap a file to add it to the queue.';
+
+  @override
   String cameraFallbackName(int number) {
     return 'Camera $number';
   }

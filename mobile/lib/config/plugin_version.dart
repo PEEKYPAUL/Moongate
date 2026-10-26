@@ -39,7 +39,13 @@
 /// object named exactly "chamber" first). An older plugin ignores the
 /// parameter: the tile still shows the chosen sensor through the app's own
 /// supplementary query, only the alerts keep the plugin's default.
-const String kCurrentPluginVersion = '0.6.30';
+///
+/// 0.6.31 (v0.9.78) folds Moonraker's print queue into /status (`job_queue`:
+/// state, the first jobs, the [job_queue] automatic_transition flag), which
+/// feeds the tile's and the single-printer card's "Up next" line
+/// (PrinterStatus.queue). The queue sheet itself talks to Moonraker's
+/// job_queue endpoints directly, so it works on any plugin.
+const String kCurrentPluginVersion = '0.6.31';
 
 /// True when [reported] is an older plugin version than
 /// [kCurrentPluginVersion]. A null/empty [reported] is a pre-v0.6.4 plugin

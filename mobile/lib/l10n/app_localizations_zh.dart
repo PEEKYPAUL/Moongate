@@ -1334,6 +1334,107 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chamberPickerEmpty => '未报告任何温度传感器。请在打印机在线时重试。';
 
   @override
+  String get queueTitle => '打印队列';
+
+  @override
+  String get queueChip => '队列';
+
+  @override
+  String get queueStateReady => '就绪';
+
+  @override
+  String get queueStatePaused => '已暂停';
+
+  @override
+  String get queueStateLoading => '加载中';
+
+  @override
+  String get queueStateStarting => '启动中';
+
+  @override
+  String get queueIntroReady => '打印机空闲时将开始下一个任务。';
+
+  @override
+  String get queueIntroPaused => '已暂停。点击“启动队列”运行下一个任务。';
+
+  @override
+  String get queueEmpty => '队列为空。从“开始打印”添加文件，或点击下方的“添加文件”。';
+
+  @override
+  String get queueFailed => '打印机没有响应。请重试。';
+
+  @override
+  String get queueAddFiles => '添加文件';
+
+  @override
+  String get queueStart => '启动队列';
+
+  @override
+  String get queuePause => '暂停队列';
+
+  @override
+  String get queueClear => '清空队列';
+
+  @override
+  String get queueClearConfirm => '移除所有排队任务？正在进行的打印不受影响。';
+
+  @override
+  String get queueMoveToFront => '移至最前';
+
+  @override
+  String get queueRemove => '从队列移除';
+
+  @override
+  String get queueStartsWhenIdle => '打印机空闲时开始';
+
+  @override
+  String get queueUpNext => '下一个';
+
+  @override
+  String get queueNext => '下一个';
+
+  @override
+  String queueCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 个排队',
+      one: '1 个排队',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get queueAddTooltip => '加入队列';
+
+  @override
+  String queueAddedToast(int count) {
+    return '已加入队列，共 $count 个';
+  }
+
+  @override
+  String get queueStartedToast => '队列已启动';
+
+  @override
+  String get queuePausedToast => '队列已暂停';
+
+  @override
+  String get queueMovedToast => '已移至最前';
+
+  @override
+  String get queueRemovedToast => '已从队列移除';
+
+  @override
+  String get queueHintManual =>
+      '这台打印机每次启动只运行一个排队任务，然后暂停。要无人值守地运行整个队列，请在 moonraker.conf 中添加 [job_queue] 并设置 automatic_transition: True，然后重启 Moonraker。';
+
+  @override
+  String get queueHintAuto => '这台打印机会自动运行整个队列。';
+
+  @override
+  String get queueModeIntro => '点击文件将其加入队列。';
+
+  @override
   String cameraFallbackName(int number) {
     return '摄像头 $number';
   }

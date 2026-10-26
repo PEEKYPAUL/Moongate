@@ -1425,6 +1425,112 @@ class AppLocalizationsFr extends AppLocalizations {
       'Aucun capteur de température signalé. Réessayez quand l\'imprimante est en ligne.';
 
   @override
+  String get queueTitle => 'File d\'impression';
+
+  @override
+  String get queueChip => 'File';
+
+  @override
+  String get queueStateReady => 'Prête';
+
+  @override
+  String get queueStatePaused => 'En pause';
+
+  @override
+  String get queueStateLoading => 'Chargement';
+
+  @override
+  String get queueStateStarting => 'Démarrage';
+
+  @override
+  String get queueIntroReady =>
+      'Le prochain travail démarre dès que l\'imprimante est libre.';
+
+  @override
+  String get queueIntroPaused =>
+      'En pause. Touchez Démarrer la file pour lancer le prochain travail.';
+
+  @override
+  String get queueEmpty =>
+      'Rien dans la file. Ajoutez des fichiers depuis Lancer une impression, ou touchez Ajouter des fichiers ci-dessous.';
+
+  @override
+  String get queueFailed => 'L\'imprimante n\'a pas répondu. Réessayez.';
+
+  @override
+  String get queueAddFiles => 'Ajouter des fichiers';
+
+  @override
+  String get queueStart => 'Démarrer la file';
+
+  @override
+  String get queuePause => 'Mettre la file en pause';
+
+  @override
+  String get queueClear => 'Vider la file';
+
+  @override
+  String get queueClearConfirm =>
+      'Retirer tous les travaux en attente ? L\'impression en cours n\'est pas concernée.';
+
+  @override
+  String get queueMoveToFront => 'Mettre en tête';
+
+  @override
+  String get queueRemove => 'Retirer de la file';
+
+  @override
+  String get queueStartsWhenIdle => 'Démarre dès que l\'imprimante est libre';
+
+  @override
+  String get queueUpNext => 'À suivre';
+
+  @override
+  String get queueNext => 'Suivant';
+
+  @override
+  String queueCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count en attente',
+      one: '1 en attente',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get queueAddTooltip => 'Ajouter à la file';
+
+  @override
+  String queueAddedToast(int count) {
+    return 'Ajouté, $count en attente';
+  }
+
+  @override
+  String get queueStartedToast => 'File démarrée';
+
+  @override
+  String get queuePausedToast => 'File en pause';
+
+  @override
+  String get queueMovedToast => 'Mis en tête de file';
+
+  @override
+  String get queueRemovedToast => 'Retiré de la file';
+
+  @override
+  String get queueHintManual =>
+      'Cette imprimante lance un travail en attente par Démarrer, puis se met en pause. Pour parcourir toute la file sans surveillance, ajoutez [job_queue] avec automatic_transition: True dans moonraker.conf et redémarrez Moonraker.';
+
+  @override
+  String get queueHintAuto =>
+      'Cette imprimante parcourt toute la file d\'elle-même.';
+
+  @override
+  String get queueModeIntro => 'Touchez un fichier pour l\'ajouter à la file.';
+
+  @override
   String cameraFallbackName(int number) {
     return 'Caméra $number';
   }
