@@ -129,6 +129,8 @@ mobile/lib/
 │   ├── dashboard/dashboard_screen.dart # /dashboard - tile grid or single-printer view + drawer (incl. About section)
 │   ├── dashboard/printer_tile.dart     # One card on the dashboard (+ the public Tile* pieces the single view reuses)
 │   ├── dashboard/single_printer_view.dart # Single-printer dashboard: one printer full screen (v0.9.69)
+│   ├── dashboard/chamber_picker_overlay.dart # Hold the chamber chip: pick which sensor the reading uses, saved per printer (v0.9.77)
+│   ├── dashboard/queue_overlay.dart    # Print queue sheet on Moonraker's job_queue + the tile's Up next line (v0.9.78)
 │   ├── onboarding/dashboard_style_prompt.dart # First-run "One printer or several?" question (v0.9.69)
 │   ├── printer/printer_screen.dart     # /printer/:id - WebView with cookie/Bearer auth
 │   ├── printer/gcode_viewer_screen.dart # G-code layer viewer: 3D orbit, five Orca-coloured heat maps (v0.9.72) + Colour view with a per-tool key and the "Opens with" menu (v0.9.73)
