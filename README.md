@@ -44,7 +44,7 @@ Free, source-available **iPhone and Android** control for your **Klipper 3D prin
 
 ## Features
 
-- **Fleet dashboard** - every printer on one screen: live webcam, progress and time left, temperatures, status. Sort by activity or drag your own order.
+- **Fleet dashboard** - every printer on one screen: live webcam, progress and time left, temperatures (hold the chamber reading to pick which sensor it shows), status. Sort by activity or drag your own order.
 - **Single-printer dashboard** - one printer full screen: camera, job, temperatures, macros, console, files and live X Y Z. Arrows step through your printers.
 - **Full Mainsail / Fluidd** - tap a tile for the complete web UI, kept loaded so it opens instantly, even over the tunnel.
 - **Home and away, automatically** - home WiFi first, the secure tunnel when you're out. No port forwarding, no setup.
@@ -53,6 +53,7 @@ Free, source-available **iPhone and Android** control for your **Klipper 3D prin
 - **Control panel** - arrange temperature, motion and macro modules per printer, and turn any Klipper macro into a labelled button.
 - **Console and config editor** - a live G-code console with command completions, and a Klipper-aware `printer.cfg` editor with a backup and one-tap restore.
 - **Print from the printer** - browse the G-code already on it, with slicer thumbnails, and start a print. No re-upload.
+- **Print queue** - line up stored files, see what is up next on the tile, and start or pause the queue, without opening Mainsail.
 - **G-code layer viewer** - open any stored file as a 3D layer stack you spin with a finger, coloured like Orca's preview: temperature, flow rate, layer time, speed, fan speed, or the filament colours of a multi-material print with a key per tool (and, on an MMU, a switch to what is loaded in the gates right now), layer by layer, then start the print from there, or save the file to your phone.
 - **Cameras** - Mainsail cameras auto-detected, go2rtc included; add an external IP camera; full-screen view with pinch-to-zoom; switch between several on one printer.
 - **Multi-toolhead** - IDEX and tool changers show every hotend as its own chip, active tool highlighted, preheat for all at once.

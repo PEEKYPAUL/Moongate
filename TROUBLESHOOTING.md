@@ -179,6 +179,8 @@ If it didn't behave as expected:
 
 If a printer's chamber temperature doesn't appear on its tile even though it shows in Mainsail, update to **v0.9.32 or newer**. That release made chamber detection robust for combined chamber sensors (`temperature_combined`) and sensors named with capital letters, especially over the remote tunnel.
 
+**The chamber reading is wrong, or differs between home and away (several chamber sensors).** A printer with more than one sensor whose name contains "chamber" (Chamber, Chamber_Low, Chamber_Mid, Chamber_Toolhead) used to show one reading at home and another over the tunnel: the app preferred the sensor named exactly `chamber` but only on the home network, while the Pi plugin took the first match in your config order and that is what a remote dashboard saw. Fixed in **v0.9.77 + plugin 0.6.30**: both use the same rule, and you can pick the sensor yourself. **Hold the chamber temperature** on the tile (or the chamber cell on the Single-printer dashboard) and choose from every temperature sensor the printer has; the choice is saved for that printer and used at home, away and by the heat-soak and cool-down alerts (the alerts follow it once the plugin is on 0.6.30). A printer with no sensor named "chamber" at all has no chip to hold yet.
+
 ## No time remaining on a printing tile
 
 Since **v0.9.53** a printing tile shows the time left (or the projected finish time) after its temperatures. If it's missing:
@@ -355,6 +357,23 @@ Every remote request carries a short-lived signed token and the Pi checks its ti
 If every **remote (tunnel)** request answers a plain "500 Internal Server Error / Server got itself in trouble" page while home-WiFi access, pairing and the tunnel indicator all look healthy, the Pi is on **plugin 0.6.20** (installed or updated between 29 Jul and 3 Aug 2026). A memory-saving change in 0.6.20 left the tunnel gatekeeper without the signature-checking library it needs, so it crashed on every remote request instead of answering. Nothing was lost or exposed: it failed *closed*, and local access never goes through that gatekeeper, which is why everything else kept working.
 
 **Fix:** update the plugin to **0.6.21 or newer** (*Mainsail → Machine → Update Manager* - refresh, then update **moongate**; or re-run the installer). Remote access returns as soon as the services restart - no re-pairing and no app update needed.
+
+## The print queue (v0.9.78+)
+
+The queue button on a file in **Start a print** adds it to Moonraker's print queue (the same queue Mainsail shows); the **Queue** chip there, or in the Single-printer dashboard's tool row, opens the queue sheet; a tile shows **Next: file** once something is queued.
+
+- **The queue ran one job and then stopped.** That is Moonraker's default: with `automatic_transition` off it pauses the queue after each job it loads, so each **Start queue** runs one job. To run the whole queue unattended, add to `moonraker.conf` and restart Moonraker:
+
+  ```ini
+  [job_queue]
+  automatic_transition: True
+  ```
+
+  The sheet's footer tells you which mode the printer is in (it reads the setting through plugin 0.6.31+).
+- **No "Up next" line on the tile although files are queued.** The line needs plugin **0.6.31** on that printer (the tile shows the update badge); the queue sheet itself works on any plugin version because it talks to Moonraker directly.
+- **"The printer did not answer" when adding a file.** Moonraker rejects the whole add when any named file is missing from the printer (deleted or renamed since the list was loaded); refresh **Start a print** and try again. The same message appears when the printer is unreachable on both paths.
+- **I cannot drag jobs into a new order.** Moonraker's queue only supports moving a job to the front, which is the arrow on each row; there is no free reorder in Mainsail either.
+- **A Direct (LAN/VPN) printer** queues exactly the same way; nothing goes through the cloud.
 
 ## The G-code layer viewer (v0.9.72+): what it shows, and when it says it can't
 
