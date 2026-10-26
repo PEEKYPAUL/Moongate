@@ -22,6 +22,7 @@ import '../printer/printer_camera_screen.dart';
 import '../tutorial/tutorial_anchors.dart';
 import '../tutorial/tutorial_controller.dart';
 import 'camera_picker_overlay.dart';
+import 'chamber_picker_overlay.dart';
 import 'console_overlay.dart';
 import 'control_panel_overlay.dart';
 import 'file_system_overlay.dart';
@@ -359,6 +360,23 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
   /// and a press does nothing (a normal tap still opens the printer page via the
   /// tile's InkWell). The big target replaces the old chips-only one, which got
   /// fiddly once the display-size slider stacks each chip into a narrow column.
+  /// v0.9.77: a long-press on the chamber chip alone opens the chamber sensor
+  /// picker, in any printer state. The chip sits inside the Preheat long-press
+  /// target ([_preheatable]); the inner recognizer wins the hold, so the
+  /// Preheat sheet still opens from the name, hotend and bed.
+  Widget _chamberPickable(Widget chip) => GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onLongPress: () {
+          HapticFeedback.mediumImpact();
+          showChamberPickerSheet(
+            context,
+            printer: widget.printer,
+            service: _statusService,
+          );
+        },
+        child: chip,
+      );
+
   Widget _preheatable(Widget chips) {
     if (!_canPreheat) return chips;
     return GestureDetector(
@@ -509,13 +527,13 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
       if (_status.chamberTemp > 0)
         _anchor(
           TutorialAnchors.instance.tempChamber,
-          _TempChip(
+          _chamberPickable(_TempChip(
             icon: Icons.sensor_window,
             color: Colors.teal,
             temp: _status.chamberTemp,
             target: _status.chamberTarget,
             stack: stack,
-          ),
+          )),
         ),
       if (_etaRemaining != null)
         _EtaChip(
@@ -556,13 +574,13 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
       if (_status.chamberTemp > 0)
         _anchor(
           TutorialAnchors.instance.tempChamber,
-          _TempChip(
+          _chamberPickable(_TempChip(
             icon: Icons.sensor_window,
             color: Colors.teal,
             temp: _status.chamberTemp,
             target: _status.chamberTarget,
             stack: stack,
-          ),
+          )),
         ),
       if (_etaRemaining != null)
         _EtaChip(

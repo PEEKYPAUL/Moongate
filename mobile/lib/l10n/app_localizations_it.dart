@@ -1385,6 +1385,38 @@ class AppLocalizationsIt extends AppLocalizations {
       'Le telecamere si gestiscono nell\'interfaccia web della stampante.';
 
   @override
+  String get chamberPickerTitle => 'Sensore camera';
+
+  @override
+  String get chamberPickerIntro =>
+      'Scegli quale sensore usa la lettura della camera per questa stampante.';
+
+  @override
+  String get chamberPickerAuto => 'Automatico';
+
+  @override
+  String chamberPickerAutoUses(String name) {
+    return 'usa $name';
+  }
+
+  @override
+  String get chamberPickerAutoNone => 'nessun sensore chiamato chamber';
+
+  @override
+  String get chamberPickerSectionChamber => 'Sensori camera';
+
+  @override
+  String get chamberPickerSectionOther => 'Altri sensori';
+
+  @override
+  String get chamberPickerHint =>
+      'Salvato per questa stampante. Usato in ogni dashboard, a casa e tramite il tunnel, e dagli avvisi di temperatura.';
+
+  @override
+  String get chamberPickerEmpty =>
+      'Nessun sensore di temperatura rilevato. Riprova quando la stampante è online.';
+
+  @override
   String cameraFallbackName(int number) {
     return 'Telecamera $number';
   }

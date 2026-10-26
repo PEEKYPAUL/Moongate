@@ -381,6 +381,17 @@ class PrinterRegistry {
     await _save();
   }
 
+  /// Persist which Klipper object the chamber reading comes from (the v0.9.77
+  /// chamber picker, see [PrinterConfig.chamberSensor]). Null = Auto.
+  Future<void> updateChamberSensor(String printerId, String? key) async {
+    final idx = _printers.indexWhere((p) => p.id == printerId);
+    if (idx == -1) return;
+    if (_printers[idx].chamberSensor == key) return;
+    _printers = List.of(_printers)
+      ..[idx] = _printers[idx].copyWith(chamberSensor: key);
+    await _save();
+  }
+
   /// Persist whether this printer's webcam is hidden on the dashboard (set from
   /// the camera dialog). When true the tile renders compact (band-only) and the
   /// masonry grid packs it tightly. Rides backups via [PrinterConfig.hideWebcam].

@@ -1379,6 +1379,38 @@ class AppLocalizationsPl extends AppLocalizations {
       'Kamerami zarządza się w interfejsie WWW drukarki.';
 
   @override
+  String get chamberPickerTitle => 'Czujnik komory';
+
+  @override
+  String get chamberPickerIntro =>
+      'Wybierz, który czujnik podaje temperaturę komory tej drukarki.';
+
+  @override
+  String get chamberPickerAuto => 'Automatycznie';
+
+  @override
+  String chamberPickerAutoUses(String name) {
+    return 'używa $name';
+  }
+
+  @override
+  String get chamberPickerAutoNone => 'brak czujnika o nazwie chamber';
+
+  @override
+  String get chamberPickerSectionChamber => 'Czujniki komory';
+
+  @override
+  String get chamberPickerSectionOther => 'Inne czujniki';
+
+  @override
+  String get chamberPickerHint =>
+      'Zapisane dla tej drukarki. Działa na każdym pulpicie, w domu i przez tunel, oraz w alertach temperatury.';
+
+  @override
+  String get chamberPickerEmpty =>
+      'Nie zgłoszono czujników temperatury. Spróbuj ponownie, gdy drukarka będzie online.';
+
+  @override
   String cameraFallbackName(int number) {
     return 'Kamera $number';
   }

@@ -1384,6 +1384,38 @@ class AppLocalizationsPt extends AppLocalizations {
       'As câmeras são gerenciadas na interface web da impressora.';
 
   @override
+  String get chamberPickerTitle => 'Sensor da câmara';
+
+  @override
+  String get chamberPickerIntro =>
+      'Escolha qual sensor fornece a temperatura da câmara desta impressora.';
+
+  @override
+  String get chamberPickerAuto => 'Automático';
+
+  @override
+  String chamberPickerAutoUses(String name) {
+    return 'usa $name';
+  }
+
+  @override
+  String get chamberPickerAutoNone => 'nenhum sensor chamado chamber';
+
+  @override
+  String get chamberPickerSectionChamber => 'Sensores da câmara';
+
+  @override
+  String get chamberPickerSectionOther => 'Outros sensores';
+
+  @override
+  String get chamberPickerHint =>
+      'Salvo para esta impressora. Usado em todos os painéis, em casa e pelo túnel, e nos alertas de temperatura.';
+
+  @override
+  String get chamberPickerEmpty =>
+      'Nenhum sensor de temperatura informado. Tente novamente quando a impressora estiver online.';
+
+  @override
   String cameraFallbackName(int number) {
     return 'Câmera $number';
   }

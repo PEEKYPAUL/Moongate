@@ -1305,6 +1305,35 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cameraPickerHint => '摄像头在打印机的网页界面中管理。';
 
   @override
+  String get chamberPickerTitle => '腔体传感器';
+
+  @override
+  String get chamberPickerIntro => '选择这台打印机的腔体温度使用哪个传感器。';
+
+  @override
+  String get chamberPickerAuto => '自动';
+
+  @override
+  String chamberPickerAutoUses(String name) {
+    return '使用 $name';
+  }
+
+  @override
+  String get chamberPickerAutoNone => '没有名为 chamber 的传感器';
+
+  @override
+  String get chamberPickerSectionChamber => '腔体传感器';
+
+  @override
+  String get chamberPickerSectionOther => '其他传感器';
+
+  @override
+  String get chamberPickerHint => '已为这台打印机保存。在每个仪表板、局域网和隧道模式下以及温度提醒中均生效。';
+
+  @override
+  String get chamberPickerEmpty => '未报告任何温度传感器。请在打印机在线时重试。';
+
+  @override
   String cameraFallbackName(int number) {
     return '摄像头 $number';
   }

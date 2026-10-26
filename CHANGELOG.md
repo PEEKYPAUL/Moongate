@@ -2,6 +2,13 @@
 
 What changed in each Moongate release, newest first, in plain language. The full technical write-up of every change is in the pull request that shipped it (linked from each GitHub release) and in the commit history.
 
+## v0.9.77
+
+- Hold the chamber temperature on a tile or the single-printer dashboard to choose which sensor it shows, from every sensor your printer has
+- Fixed: on a printer with several chamber sensors, the reading away from home could differ from the one at home
+- The chamber sensor you choose is also the one the heat-soak and cool-down alerts watch (needs plugin 0.6.30)
+- Plugin 0.6.30: picks the sensor named Chamber by default, the same rule as the app
+
 ## v0.9.76
 
 - Colour view: Sliced / Loaded switch shows what is actually in your MMU gates (Happy Hare, AFC; needs plugin 0.6.29)

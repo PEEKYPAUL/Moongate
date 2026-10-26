@@ -636,7 +636,8 @@ class _PrintTaskHandler extends TaskHandler {
         (access.tunnelUrl!, false),
     ];
     for (final (base, isLan) in bases) {
-      final r = await _fetchStatus(p.id, base, access.accessToken, isLan);
+      final r = await _fetchStatus(p.id, base, access.accessToken, isLan,
+          chamberSensor: p.chamberSensor);
       if (r != null) return r;
     }
     // No /status answer on any path. Distinguish a Pi that's up but whose
@@ -711,10 +712,16 @@ class _PrintTaskHandler extends TaskHandler {
   }
 
   Future<_Poll?> _fetchStatus(
-      String printerId, String base, String token, bool isLan) async {
+      String printerId, String base, String token, bool isLan,
+      {String? chamberSensor}) async {
     try {
+      // v0.9.77: name the chamber sensor the user picked (or "auto"), exactly
+      // as the dashboard poll does, so the plugin (0.6.30+) folds that one in
+      // and the heat-soak / cool-down alerts judge the same reading the tile
+      // shows. Older plugins ignore the parameter.
       final uri = Uri.parse(
-          '$base/server/moongate/status?mg_token=${Uri.encodeComponent(token)}');
+          '$base/server/moongate/status?mg_token=${Uri.encodeComponent(token)}'
+          '&chamber=${Uri.encodeComponent(chamberSensor ?? 'auto')}');
       final resp = await http.get(uri).timeout(const Duration(seconds: 6));
       if (resp.statusCode != 200) return null;
       final body = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -728,7 +735,7 @@ class _PrintTaskHandler extends TaskHandler {
       // The chamber sensor the plugin folds into /status (a temperature_sensor
       // / heater_generic / temperature_fan named *chamber*) - the heat-soak
       // alert's chamber wait reads it. Absent on printers without one.
-      final chamber    = _pickChamber(status);
+      final chamber    = _pickChamber(status, chosen: chamberSensor);
 
       // Last MOONGATE_NOTIFY message (plugin 0.6.26+, /status top level) -
       // rides both return paths below so a macro message still alerts while
@@ -1541,7 +1548,14 @@ class _PrintTaskHandler extends TaskHandler {
   /// heater_generic / temperature_fan / temperature_combined whose name
   /// contains "chamber" - an exact "chamber" wins over partial matches, the
   /// same preference the dashboard's own discovery applies. Null when none.
-  static Map<String, dynamic>? _pickChamber(Map<String, dynamic> status) {
+  static Map<String, dynamic>? _pickChamber(Map<String, dynamic> status,
+      {String? chosen}) {
+    // v0.9.77: the user's own pick wins when the payload carries it (a 0.6.30
+    // plugin folds it in; an older one may still carry it by coincidence).
+    if (chosen != null) {
+      final v = status[chosen];
+      if (v is Map<String, dynamic>) return v;
+    }
     const prefixes = [
       'temperature_sensor ',
       'heater_generic ',
