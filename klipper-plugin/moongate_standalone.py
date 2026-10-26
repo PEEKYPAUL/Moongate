@@ -123,7 +123,7 @@ logger = logging.getLogger("moonraker.moongate")
 # Bumped on each release; surfaced in the /status response so the app's bug
 # reports show which plugin a Pi is actually running - the #1 triage blind spot
 # (an old plugin explains most "works on LAN / fails over tunnel" reports).
-MOONGATE_PLUGIN_VERSION = "0.6.29"
+MOONGATE_PLUGIN_VERSION = "0.6.30"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1454,6 +1454,43 @@ def _temp_label(role: str) -> str:
     return "Bed" if role == "bed" else "Chamber"
 
 
+# v0.6.30: the chamber sensor. Every Klipper object that reports a
+# temperature the app could show as "Chamber" - the same four prefixes the
+# app's own picker lists.
+TEMP_OBJECT_PREFIXES = (
+    "temperature_sensor ",
+    "heater_generic ",
+    "temperature_fan ",
+    "temperature_combined ",
+)
+
+
+def temperature_objects(objects: list) -> list:
+    """The temperature-reporting objects in a printer/objects/list answer,
+    in the printer's own order."""
+    return [o for o in objects
+            if isinstance(o, str) and o.startswith(TEMP_OBJECT_PREFIXES)]
+
+
+def pick_chamber_key(objects: list) -> Optional[str]:
+    """The default chamber sensor when the app has not chosen one: the object
+    named exactly "chamber" (any case) wins, else the first temperature object
+    whose name contains "chamber", else None. Before 0.6.30 the plugin took
+    the first "chamber" match in config order, which on a rig with Chamber,
+    Chamber_Low, Chamber_Mid and Chamber_Toolhead could show the toolhead
+    sensor over the tunnel while the app's own rule showed Chamber on LAN."""
+    partial: Optional[str] = None
+    for obj in temperature_objects(objects):
+        name = obj.split(" ", 1)[1].lower() if " " in obj else ""
+        if "chamber" not in name:
+            continue
+        if name == "chamber":
+            return obj
+        if partial is None:
+            partial = obj
+    return partial
+
+
 def temp_watch_readings(status: dict, chamber_key: Optional[str]) -> dict:
     """{role: (temperature, target)} from a printer/objects/query status
     block. The bed is heater_bed, T0 is Klipper's bare `extruder`, extra
@@ -2249,7 +2286,9 @@ class MoongatePlugin:
             self.tunnel_watchdog = None
 
         self._pending: Optional[PendingPair]   = None
-        self._chamber_key: Optional[str]       = None
+        self._chamber_auto: Optional[str]      = None   # discovery's default pick (pick_chamber_key)
+        self._chamber_pick: Optional[str]      = None   # the app's chosen sensor (v0.6.30 /status?chamber=), None = auto
+        self._temp_objects: list               = []     # every temperature object, for validating that choice
         self._chamber_key_checked: bool        = False
         self._extra_extruders                  = []     # extruder1, extruder2, ... (multi-toolhead)
         self._has_toolchanger                  = False  # klipper-toolchanger printer
@@ -3518,6 +3557,14 @@ class MoongatePlugin:
             # detection until the next Moonraker restart.
             self._chamber_key_checked = await self._discover_objects(client)
 
+        # v0.6.30: the app names the chamber sensor it wants folded in
+        # (`chamber=<object>`, held per printer by the app; `chamber=auto`
+        # returns to the default pick). Only an object the printer really
+        # lists is accepted, so a stale or mistyped name changes nothing; the
+        # choice also becomes the chamber the temperature watches judge
+        # against. An app older than v0.9.77 sends nothing and sees no change.
+        self._apply_chamber_choice(webrequest.get_args().get("chamber"))
+
         query = "print_stats&heater_bed&extruder"
         if self._chamber_key:
             query += "&" + urllib.parse.quote(self._chamber_key, safe="")
@@ -3805,6 +3852,30 @@ class MoongatePlugin:
         except Exception:
             return _defaults
 
+    @property
+    def _chamber_key(self) -> Optional[str]:
+        """The chamber sensor /status folds in and the temperature watches
+        read: the app's choice when it has made one, else discovery's default."""
+        return self._chamber_pick or self._chamber_auto
+
+    def _apply_chamber_choice(self, want: Any) -> None:
+        """v0.6.30: take the app's `chamber=` choice from a /status call.
+        "auto" (or "") clears it; any other value must be one of the printer's
+        temperature objects or it is ignored. Logged only when it changes."""
+        if want is None:
+            return
+        want = str(want).strip()
+        if want in ("", "auto"):
+            new: Optional[str] = None
+        elif want in self._temp_objects:
+            new = want
+        else:
+            return
+        if new != self._chamber_pick:
+            self._chamber_pick = new
+            logger.info("Moongate: chamber sensor set by the app: %s",
+                        new or f"auto ({self._chamber_auto})")
+
     async def _discover_objects(self, client: Any) -> bool:
         """One-shot scan of Moonraker's object list for the chamber sensor,
         any extra hotends (extruder1, extruder2, ... on an IDEX / tool
@@ -3825,13 +3896,13 @@ class MoongatePlugin:
             if resp.code != 200:
                 return False
             objects = json.loads(resp.body).get("result", {}).get("objects", [])
-            for obj in objects:
-                if ("temperature_sensor" in obj or "heater_generic" in obj
-                        or "temperature_fan" in obj) \
-                        and "chamber" in obj.lower():
-                    self._chamber_key = obj
-                    logger.info("Moongate: chamber sensor detected: '%s'", obj)
-                    break
+            # v0.6.30: the default chamber pick prefers the object named exactly
+            # "chamber" (the app's rule); the app can override it per printer
+            # through /status?chamber=<object> (see _handle_status).
+            self._temp_objects = temperature_objects(objects)
+            self._chamber_auto = pick_chamber_key(objects)
+            if self._chamber_auto:
+                logger.info("Moongate: chamber sensor detected: '%s'", self._chamber_auto)
             # Extra hotends: Klipper names them extruder1, extruder2, ... (the
             # bare `extruder` is T0 and is always queried; an `extruder_stepper
             # <name>` helper carries a space, so the isdigit() check skips it).
