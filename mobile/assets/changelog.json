@@ -1,5 +1,13 @@
 [
   {
+    "version": "v0.9.78",
+    "bullets": [
+      "New print queue: queue files from Start a print and see what is up next on the tile and the single-printer dashboard",
+      "Queue sheet: start or pause the queue, move a job to the front, remove or clear (Up next on the tile needs plugin 0.6.31)",
+      "The sheet says whether your printer runs one queued job per Start or the whole queue, with the Moonraker line to change it"
+    ]
+  },
+  {
     "version": "v0.9.77",
     "bullets": [
       "Hold the chamber temperature on a tile or the single-printer dashboard to choose which sensor it shows, from every sensor your printer has",

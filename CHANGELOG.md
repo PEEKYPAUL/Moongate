@@ -2,6 +2,12 @@
 
 What changed in each Moongate release, newest first, in plain language. The full technical write-up of every change is in the pull request that shipped it (linked from each GitHub release) and in the commit history.
 
+## v0.9.78
+
+- New print queue: queue files from Start a print and see what is up next on the tile and the single-printer dashboard
+- Queue sheet: start or pause the queue, move a job to the front, remove or clear (Up next on the tile needs plugin 0.6.31)
+- The sheet says whether your printer runs one queued job per Start or the whole queue, with the Moonraker line to change it
+
 ## v0.9.77
 
 - Hold the chamber temperature on a tile or the single-printer dashboard to choose which sensor it shows, from every sensor your printer has

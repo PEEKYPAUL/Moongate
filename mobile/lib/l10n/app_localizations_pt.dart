@@ -1416,6 +1416,112 @@ class AppLocalizationsPt extends AppLocalizations {
       'Nenhum sensor de temperatura informado. Tente novamente quando a impressora estiver online.';
 
   @override
+  String get queueTitle => 'Fila de impressão';
+
+  @override
+  String get queueChip => 'Fila';
+
+  @override
+  String get queueStateReady => 'Pronta';
+
+  @override
+  String get queueStatePaused => 'Pausada';
+
+  @override
+  String get queueStateLoading => 'Carregando';
+
+  @override
+  String get queueStateStarting => 'Iniciando';
+
+  @override
+  String get queueIntroReady =>
+      'O próximo trabalho começa quando a impressora estiver livre.';
+
+  @override
+  String get queueIntroPaused =>
+      'Pausada. Toque em Iniciar fila para rodar o próximo trabalho.';
+
+  @override
+  String get queueEmpty =>
+      'Nada na fila. Adicione arquivos em Iniciar impressão ou toque em Adicionar arquivos abaixo.';
+
+  @override
+  String get queueFailed => 'A impressora não respondeu. Tente novamente.';
+
+  @override
+  String get queueAddFiles => 'Adicionar arquivos';
+
+  @override
+  String get queueStart => 'Iniciar fila';
+
+  @override
+  String get queuePause => 'Pausar fila';
+
+  @override
+  String get queueClear => 'Limpar fila';
+
+  @override
+  String get queueClearConfirm =>
+      'Remover todos os trabalhos da fila? A impressão em andamento não é afetada.';
+
+  @override
+  String get queueMoveToFront => 'Mover para o início';
+
+  @override
+  String get queueRemove => 'Remover da fila';
+
+  @override
+  String get queueStartsWhenIdle => 'Começa quando a impressora estiver livre';
+
+  @override
+  String get queueUpNext => 'A seguir';
+
+  @override
+  String get queueNext => 'Próximo';
+
+  @override
+  String queueCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count na fila',
+      one: '1 na fila',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get queueAddTooltip => 'Adicionar à fila';
+
+  @override
+  String queueAddedToast(int count) {
+    return 'Na fila, $count aguardando';
+  }
+
+  @override
+  String get queueStartedToast => 'Fila iniciada';
+
+  @override
+  String get queuePausedToast => 'Fila pausada';
+
+  @override
+  String get queueMovedToast => 'Movido para o início';
+
+  @override
+  String get queueRemovedToast => 'Removido da fila';
+
+  @override
+  String get queueHintManual =>
+      'Esta impressora roda um trabalho da fila por Iniciar e depois pausa. Para percorrer a fila inteira sem supervisão, adicione [job_queue] com automatic_transition: True no moonraker.conf e reinicie o Moonraker.';
+
+  @override
+  String get queueHintAuto =>
+      'Esta impressora percorre a fila inteira sozinha.';
+
+  @override
+  String get queueModeIntro => 'Toque em um arquivo para adicioná-lo à fila.';
+
+  @override
   String cameraFallbackName(int number) {
     return 'Câmera $number';
   }

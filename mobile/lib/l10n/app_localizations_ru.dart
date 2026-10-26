@@ -1411,6 +1411,111 @@ class AppLocalizationsRu extends AppLocalizations {
       'Датчики температуры не найдены. Попробуйте снова, когда принтер будет в сети.';
 
   @override
+  String get queueTitle => 'Очередь печати';
+
+  @override
+  String get queueChip => 'Очередь';
+
+  @override
+  String get queueStateReady => 'Готова';
+
+  @override
+  String get queueStatePaused => 'Пауза';
+
+  @override
+  String get queueStateLoading => 'Загрузка';
+
+  @override
+  String get queueStateStarting => 'Запуск';
+
+  @override
+  String get queueIntroReady =>
+      'Следующее задание начнётся, когда принтер освободится.';
+
+  @override
+  String get queueIntroPaused =>
+      'Пауза. Нажмите «Запустить очередь», чтобы начать следующее задание.';
+
+  @override
+  String get queueEmpty =>
+      'Очередь пуста. Добавьте файлы из «Начать печать» или нажмите «Добавить файлы» ниже.';
+
+  @override
+  String get queueFailed => 'Принтер не ответил. Попробуйте снова.';
+
+  @override
+  String get queueAddFiles => 'Добавить файлы';
+
+  @override
+  String get queueStart => 'Запустить очередь';
+
+  @override
+  String get queuePause => 'Приостановить очередь';
+
+  @override
+  String get queueClear => 'Очистить очередь';
+
+  @override
+  String get queueClearConfirm =>
+      'Удалить все задания из очереди? Текущая печать не пострадает.';
+
+  @override
+  String get queueMoveToFront => 'В начало очереди';
+
+  @override
+  String get queueRemove => 'Убрать из очереди';
+
+  @override
+  String get queueStartsWhenIdle => 'Начнётся, когда принтер освободится';
+
+  @override
+  String get queueUpNext => 'Далее';
+
+  @override
+  String get queueNext => 'Далее';
+
+  @override
+  String queueCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count в очереди',
+      one: '1 в очереди',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get queueAddTooltip => 'Добавить в очередь';
+
+  @override
+  String queueAddedToast(int count) {
+    return 'Добавлено, в очереди: $count';
+  }
+
+  @override
+  String get queueStartedToast => 'Очередь запущена';
+
+  @override
+  String get queuePausedToast => 'Очередь приостановлена';
+
+  @override
+  String get queueMovedToast => 'Перемещено в начало';
+
+  @override
+  String get queueRemovedToast => 'Убрано из очереди';
+
+  @override
+  String get queueHintManual =>
+      'Этот принтер выполняет одно задание из очереди за каждый запуск, затем ставит очередь на паузу. Чтобы пройти всю очередь без присмотра, добавьте [job_queue] с automatic_transition: True в moonraker.conf и перезапустите Moonraker.';
+
+  @override
+  String get queueHintAuto => 'Этот принтер сам проходит всю очередь.';
+
+  @override
+  String get queueModeIntro => 'Нажмите на файл, чтобы добавить его в очередь.';
+
+  @override
   String cameraFallbackName(int number) {
     return 'Камера $number';
   }

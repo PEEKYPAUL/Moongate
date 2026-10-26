@@ -2572,6 +2572,186 @@ abstract class AppLocalizations {
   /// **'No temperature sensors reported. Try again when the printer is online.'**
   String get chamberPickerEmpty;
 
+  /// Title of the print queue sheet (Moonraker's job queue).
+  ///
+  /// In en, this message translates to:
+  /// **'Print queue'**
+  String get queueTitle;
+
+  /// Short label on the Queue chip (single-printer tool row and the Start a print header); a count may follow it.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue'**
+  String get queueChip;
+
+  /// Queue state pill: the next job will start when the printer is idle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get queueStateReady;
+
+  /// Queue state pill: the queue will not start the next job until the user taps Start queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get queueStatePaused;
+
+  /// Queue state pill: Moonraker is loading the next job.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading'**
+  String get queueStateLoading;
+
+  /// Queue state pill: Moonraker is starting the next job.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting'**
+  String get queueStateStarting;
+
+  /// Intro line under the queue title while the queue is running.
+  ///
+  /// In en, this message translates to:
+  /// **'The next job starts when the printer is idle.'**
+  String get queueIntroReady;
+
+  /// Intro line under the queue title while the queue is paused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused. Tap Start queue to run the next job.'**
+  String get queueIntroPaused;
+
+  /// Shown in the queue sheet when nothing is queued.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing queued. Add files from Start a print, or tap Add files below.'**
+  String get queueEmpty;
+
+  /// Shown when the printer did not answer a queue request.
+  ///
+  /// In en, this message translates to:
+  /// **'The printer did not answer. Try again.'**
+  String get queueFailed;
+
+  /// Button in the queue sheet that opens the file list in add-to-queue mode.
+  ///
+  /// In en, this message translates to:
+  /// **'Add files'**
+  String get queueAddFiles;
+
+  /// Button that starts the queue (Moonraker job_queue start).
+  ///
+  /// In en, this message translates to:
+  /// **'Start queue'**
+  String get queueStart;
+
+  /// Button that pauses the queue (Moonraker job_queue pause).
+  ///
+  /// In en, this message translates to:
+  /// **'Pause queue'**
+  String get queuePause;
+
+  /// Button / dialog title that removes every queued job.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear queue'**
+  String get queueClear;
+
+  /// Body of the confirm dialog before clearing the queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove every queued job? The print that is running is not affected.'**
+  String get queueClearConfirm;
+
+  /// Tooltip of the per-job button that moves it to the front of the queue (Moonraker can only jump to the front, not reorder freely).
+  ///
+  /// In en, this message translates to:
+  /// **'Move to front'**
+  String get queueMoveToFront;
+
+  /// Tooltip of the per-job button that removes it from the queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from queue'**
+  String get queueRemove;
+
+  /// Subtitle of the first queued job while the queue is running.
+  ///
+  /// In en, this message translates to:
+  /// **'Starts when the printer is idle'**
+  String get queueStartsWhenIdle;
+
+  /// Label of the 'Up next' line on the single-printer status card, followed by the first queued file.
+  ///
+  /// In en, this message translates to:
+  /// **'Up next'**
+  String get queueUpNext;
+
+  /// Short label of the 'Next' line on a dashboard tile, followed by the first queued file.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get queueNext;
+
+  /// How many jobs are queued, shown after the Up next line and on the Queue chip.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 queued} other{{count} queued}}'**
+  String queueCount(int count);
+
+  /// Tooltip of the per-file button in Start a print that adds the file to the queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to queue'**
+  String get queueAddTooltip;
+
+  /// Toast after a file was added to the queue. {count} is how many jobs are now queued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued, {count} in line'**
+  String queueAddedToast(int count);
+
+  /// Toast after the queue was started.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue started'**
+  String get queueStartedToast;
+
+  /// Toast after the queue was paused.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue paused'**
+  String get queuePausedToast;
+
+  /// Toast after a job was moved to the front.
+  ///
+  /// In en, this message translates to:
+  /// **'Moved to the front'**
+  String get queueMovedToast;
+
+  /// Toast after a job was removed from the queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed from the queue'**
+  String get queueRemovedToast;
+
+  /// Footnote in the queue sheet when Moonraker's [job_queue] automatic_transition is off: the queue pauses after each job it loads. Names the config line to change it; keep the config text as is.
+  ///
+  /// In en, this message translates to:
+  /// **'This printer runs one queued job per Start, then pauses. To run the whole queue unattended, add [job_queue] with automatic_transition: True to moonraker.conf and restart Moonraker.'**
+  String get queueHintManual;
+
+  /// Footnote in the queue sheet when Moonraker's [job_queue] automatic_transition is on.
+  ///
+  /// In en, this message translates to:
+  /// **'This printer runs through the whole queue on its own.'**
+  String get queueHintAuto;
+
+  /// Intro line of Start a print while it is in add-to-queue mode (tap a file to queue it).
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a file to add it to the queue.'**
+  String get queueModeIntro;
+
   /// Fallback label in the camera picker for a camera whose Moonraker entry has no name; {number} is its 1-based position.
   ///
   /// In en, this message translates to:

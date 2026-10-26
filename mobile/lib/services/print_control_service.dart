@@ -1141,6 +1141,67 @@ class PrintControlService {
     });
   }
 
+  // ── Print queue (Moonraker's job_queue, v0.9.78) ─────────────────────────
+  //
+  // Six core Moonraker endpoints on the same LAN-then-tunnel ladder as
+  // startPrint: header-less on LAN, Bearer on the tunnel (the auth proxy
+  // forwards every method on /server/*). Every call answers with the whole
+  // queue, which the queue sheet repaints from. The tile's "Up next" line
+  // reads the plugin's folded copy instead (PrinterStatus.queue, 0.6.31+).
+
+  Future<PrintQueue?> queueStatus() =>
+      _queueCall('GET', '/server/job_queue/status');
+
+  /// Append [filenames] (`gcodes`-relative paths). Moonraker rejects the whole
+  /// call when any file is missing.
+  Future<PrintQueue?> queueAdd(List<String> filenames) =>
+      _queueCall('POST', '/server/job_queue/job',
+          body: {'filenames': filenames});
+
+  /// Remove the given jobs, or every job with [all].
+  Future<PrintQueue?> queueRemove({List<String>? jobIds, bool all = false}) =>
+      _queueCall(
+          'DELETE',
+          all
+              ? '/server/job_queue/job?all=true'
+              : '/server/job_queue/job?job_ids='
+                  '${(jobIds ?? const <String>[]).map(Uri.encodeComponent).join(',')}');
+
+  /// Move one job to the front (Moonraker's only reorder).
+  Future<PrintQueue?> queueJump(String jobId) => _queueCall(
+      'POST', '/server/job_queue/jump?job_id=${Uri.encodeComponent(jobId)}');
+
+  Future<PrintQueue?> queuePause() =>
+      _queueCall('POST', '/server/job_queue/pause');
+
+  Future<PrintQueue?> queueStart() =>
+      _queueCall('POST', '/server/job_queue/start');
+
+  Future<PrintQueue?> _queueCall(String method, String path,
+      {Map<String, dynamic>? body}) {
+    return _viaLanThenTunnel((base, token, isLan) async {
+      try {
+        final req = http.Request(method, Uri.parse('$base$path'));
+        if (!isLan) req.headers['Authorization'] = 'Bearer $token';
+        if (body != null) {
+          req.headers['Content-Type'] = 'application/json';
+          req.body = jsonEncode(body);
+        }
+        final streamed = await req
+            .send()
+            .timeout(Duration(seconds: isLan ? 4 : 12));
+        final resp = await http.Response.fromStream(streamed)
+            .timeout(const Duration(seconds: 8));
+        // null (not a value) on a non-200 so the next path is still tried.
+        if (resp.statusCode != 200) return null;
+        final json = jsonDecode(resp.body) as Map<String, dynamic>;
+        return PrintQueue.fromMoonraker(json['result']);
+      } catch (_) {
+        return null;
+      }
+    });
+  }
+
   Future<T?> _viaLanThenTunnel<T>(
       Future<T?> Function(String base, String token, bool isLan) call) async {
     // Cloudless LAN-only printer: LAN only, token-free, no Supabase.

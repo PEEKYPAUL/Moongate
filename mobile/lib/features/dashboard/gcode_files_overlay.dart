@@ -11,6 +11,7 @@ import '../../models/temp_watch.dart';
 import '../../services/print_control_service.dart';
 import '../printer/gcode_save.dart';
 import '../printer/gcode_viewer_screen.dart';
+import 'queue_overlay.dart';
 
 /// Bottom-sheet G-code browser. Lists the files already stored on the printer
 /// (Moonraker's `gcodes` root), lets the user pick one, and starts it after a
@@ -20,8 +21,11 @@ import '../printer/gcode_viewer_screen.dart';
 /// new job. [status] is the tile's live reading: it feeds the confirm
 /// dialog's optional preheat-and-soak and cool-down rows (plugin 0.6.27+),
 /// which are hidden without it.
+/// [queueMode] (v0.9.78, opened from the queue sheet's Add files): tapping a
+/// row adds the file to Moonraker's print queue instead of selecting it, and
+/// the Start bar gives way to a Done button.
 Future<void> showGcodeFilesSheet(BuildContext context, PrinterConfig printer,
-    {PrinterStatus? status}) {
+    {PrinterStatus? status, bool queueMode = false}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -30,14 +34,17 @@ Future<void> showGcodeFilesSheet(BuildContext context, PrinterConfig printer,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
-    builder: (_) => _GcodeFilesSheet(printer: printer, status: status),
+    builder: (_) => _GcodeFilesSheet(
+        printer: printer, status: status, queueMode: queueMode),
   );
 }
 
 class _GcodeFilesSheet extends StatefulWidget {
   final PrinterConfig printer;
   final PrinterStatus? status;
-  const _GcodeFilesSheet({required this.printer, this.status});
+  final bool queueMode;
+  const _GcodeFilesSheet(
+      {required this.printer, this.status, this.queueMode = false});
 
   @override
   State<_GcodeFilesSheet> createState() => _GcodeFilesSheetState();
@@ -53,11 +60,35 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
   /// list doesn't refetch as ListView rebuilds tiles.
   final Map<String, Future<Uint8List?>> _thumbs = {};
 
+  /// How many jobs Moonraker's print queue holds (v0.9.78), for the header's
+  /// Queue chip; null until the first answer (or when the printer has none).
+  int? _queueCount;
+  bool _queueing = false;
+
   @override
   void initState() {
     super.initState();
     _control = PrintControlService(widget.printer);
     _future = _control.listGcodes();
+    _control.queueStatus().then((q) {
+      if (mounted && q != null) setState(() => _queueCount = q.count);
+    });
+  }
+
+  /// Add [f] to the print queue; the toast carries the new length.
+  Future<void> _enqueue(GcodeFile f) async {
+    if (_queueing) return;
+    setState(() => _queueing = true);
+    final q = await _control.queueAdd([f.path]);
+    if (!mounted) return;
+    final l = AppLocalizations.of(context);
+    setState(() {
+      _queueing = false;
+      if (q != null) _queueCount = q.count;
+    });
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
+      content: Text(q != null ? l.queueAddedToast(q.count) : l.queueFailed),
+    ));
   }
 
   void _reload() => setState(() {
@@ -212,7 +243,9 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
                       children: [
                         Text(l.gcodeSheetTitle, style: theme.textTheme.titleMedium),
                         Text(
-                          widget.printer.name,
+                          widget.queueMode
+                              ? l.queueModeIntro
+                              : widget.printer.name,
                           style: theme.textTheme.bodySmall
                               ?.copyWith(color: theme.colorScheme.outline),
                           overflow: TextOverflow.ellipsis,
@@ -220,6 +253,22 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
                       ],
                     ),
                   ),
+                  // v0.9.78: the print queue, with its length once known.
+                  // Hidden inside the queue sheet's own Add files mode.
+                  if (!widget.queueMode)
+                    ActionChip(
+                      avatar: const Icon(Icons.playlist_play, size: 18),
+                      label: Text(_queueCount == null || _queueCount == 0
+                          ? l.queueChip
+                          : '${l.queueChip} · $_queueCount'),
+                      onPressed: () => showQueueSheet(context, widget.printer,
+                          initial: widget.status?.queue,
+                          onChanged: () => _control.queueStatus().then((q) {
+                                if (mounted && q != null) {
+                                  setState(() => _queueCount = q.count);
+                                }
+                              })),
+                    ),
                   IconButton(
                     icon: const Icon(Icons.refresh),
                     tooltip: l.commonRetry,
@@ -315,6 +364,13 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
                             if (selected)
                               Icon(Icons.check_circle,
                                   color: theme.colorScheme.primary),
+                            // v0.9.78: add to the print queue.
+                            IconButton(
+                              icon: const Icon(Icons.playlist_add),
+                              tooltip: l.queueAddTooltip,
+                              onPressed:
+                                  _queueing ? null : () => _enqueue(f),
+                            ),
                             // Save button: download the file to the phone
                             // (system "save as" sheet). Then the View
                             // button: the 3D layer viewer with the
@@ -334,8 +390,10 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
                             ),
                           ],
                         ),
-                        onTap: () => setState(
-                            () => _selected = selected ? null : f.path),
+                        onTap: widget.queueMode
+                            ? () => _enqueue(f)
+                            : () => setState(
+                                () => _selected = selected ? null : f.path),
                       );
                     },
                   );
@@ -343,7 +401,7 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
               ),
             ),
 
-            // ── Start bar ───────────────────────────────────────────────
+            // ── Start bar (a Done button in queue mode) ─────────────────
             SafeArea(
               top: false,
               child: Padding(
@@ -351,7 +409,13 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
                 child: SizedBox(
                   width: double.infinity,
                   height: 48,
-                  child: FilledButton.icon(
+                  child: widget.queueMode
+                      ? FilledButton.tonal(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: Text(MaterialLocalizations.of(context)
+                              .closeButtonLabel),
+                        )
+                      : FilledButton.icon(
                     onPressed:
                         (_selected != null && !_starting) ? _start : null,
                     icon: _starting

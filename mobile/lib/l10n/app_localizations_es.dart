@@ -1423,6 +1423,112 @@ class AppLocalizationsEs extends AppLocalizations {
       'No se han detectado sensores de temperatura. Inténtalo de nuevo cuando la impresora esté en línea.';
 
   @override
+  String get queueTitle => 'Cola de impresión';
+
+  @override
+  String get queueChip => 'Cola';
+
+  @override
+  String get queueStateReady => 'Lista';
+
+  @override
+  String get queueStatePaused => 'En pausa';
+
+  @override
+  String get queueStateLoading => 'Cargando';
+
+  @override
+  String get queueStateStarting => 'Iniciando';
+
+  @override
+  String get queueIntroReady =>
+      'El siguiente trabajo empieza cuando la impresora esté libre.';
+
+  @override
+  String get queueIntroPaused =>
+      'En pausa. Toca Iniciar cola para lanzar el siguiente trabajo.';
+
+  @override
+  String get queueEmpty =>
+      'No hay nada en cola. Añade archivos desde Iniciar impresión o toca Añadir archivos abajo.';
+
+  @override
+  String get queueFailed => 'La impresora no respondió. Inténtalo de nuevo.';
+
+  @override
+  String get queueAddFiles => 'Añadir archivos';
+
+  @override
+  String get queueStart => 'Iniciar cola';
+
+  @override
+  String get queuePause => 'Pausar cola';
+
+  @override
+  String get queueClear => 'Vaciar cola';
+
+  @override
+  String get queueClearConfirm =>
+      '¿Quitar todos los trabajos en cola? La impresión en curso no se ve afectada.';
+
+  @override
+  String get queueMoveToFront => 'Mover al principio';
+
+  @override
+  String get queueRemove => 'Quitar de la cola';
+
+  @override
+  String get queueStartsWhenIdle => 'Empieza cuando la impresora esté libre';
+
+  @override
+  String get queueUpNext => 'A continuación';
+
+  @override
+  String get queueNext => 'Siguiente';
+
+  @override
+  String queueCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count en cola',
+      one: '1 en cola',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get queueAddTooltip => 'Añadir a la cola';
+
+  @override
+  String queueAddedToast(int count) {
+    return 'En cola, $count en espera';
+  }
+
+  @override
+  String get queueStartedToast => 'Cola iniciada';
+
+  @override
+  String get queuePausedToast => 'Cola en pausa';
+
+  @override
+  String get queueMovedToast => 'Movido al principio';
+
+  @override
+  String get queueRemovedToast => 'Quitado de la cola';
+
+  @override
+  String get queueHintManual =>
+      'Esta impresora ejecuta un trabajo en cola por cada Inicio y luego se pausa. Para recorrer toda la cola sin supervisión, añade [job_queue] con automatic_transition: True en moonraker.conf y reinicia Moonraker.';
+
+  @override
+  String get queueHintAuto =>
+      'Esta impresora recorre toda la cola por sí sola.';
+
+  @override
+  String get queueModeIntro => 'Toca un archivo para añadirlo a la cola.';
+
+  @override
   String cameraFallbackName(int number) {
     return 'Cámara $number';
   }

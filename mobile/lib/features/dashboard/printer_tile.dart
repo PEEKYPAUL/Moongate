@@ -28,6 +28,7 @@ import 'control_panel_overlay.dart';
 import 'file_system_overlay.dart';
 import 'gcode_files_overlay.dart';
 import 'preheat_overlay.dart';
+import 'queue_overlay.dart';
 
 class PrinterTile extends ConsumerStatefulWidget {
   final PrinterConfig printer;
@@ -931,6 +932,14 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                       ],
                       if (_status.tempWatches.isNotEmpty)
                         TileTempWatchLine(printer: widget.printer, status: _status),
+                      // v0.9.78: the print queue's first job (plugin 0.6.31+),
+                      // tap for the queue sheet. Nothing when empty.
+                      QueueNextLine(
+                        printer: widget.printer,
+                        queue: _status.queue,
+                        onChanged: _statusService.pollNow,
+                        compact: true,
+                      ),
                     ],
                   ))),
                   if (_status.filename != null && _status.isPrinting)
@@ -1115,6 +1124,12 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                         ),
                       if (_status.tempWatches.isNotEmpty)
                         TileTempWatchLine(printer: widget.printer, status: _status),
+                      QueueNextLine(
+                        printer: widget.printer,
+                        queue: _status.queue,
+                        onChanged: _statusService.pollNow,
+                        compact: true,
+                      ),
                     ],
                   )),
                   // Connection-state label when there's nothing live to show.

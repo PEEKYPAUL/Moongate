@@ -1413,6 +1413,113 @@ class AppLocalizationsDe extends AppLocalizations {
       'Keine Temperatursensoren gemeldet. Versuche es erneut, wenn der Drucker online ist.';
 
   @override
+  String get queueTitle => 'Druckwarteschlange';
+
+  @override
+  String get queueChip => 'Warteschlange';
+
+  @override
+  String get queueStateReady => 'Bereit';
+
+  @override
+  String get queueStatePaused => 'Pausiert';
+
+  @override
+  String get queueStateLoading => 'Lädt';
+
+  @override
+  String get queueStateStarting => 'Startet';
+
+  @override
+  String get queueIntroReady =>
+      'Der nächste Auftrag startet, sobald der Drucker frei ist.';
+
+  @override
+  String get queueIntroPaused =>
+      'Pausiert. Tippe auf Warteschlange starten, um den nächsten Auftrag zu drucken.';
+
+  @override
+  String get queueEmpty =>
+      'Nichts in der Warteschlange. Füge Dateien aus Druck starten hinzu oder tippe unten auf Dateien hinzufügen.';
+
+  @override
+  String get queueFailed =>
+      'Der Drucker hat nicht geantwortet. Versuche es erneut.';
+
+  @override
+  String get queueAddFiles => 'Dateien hinzufügen';
+
+  @override
+  String get queueStart => 'Warteschlange starten';
+
+  @override
+  String get queuePause => 'Warteschlange pausieren';
+
+  @override
+  String get queueClear => 'Warteschlange leeren';
+
+  @override
+  String get queueClearConfirm =>
+      'Alle wartenden Aufträge entfernen? Der laufende Druck ist nicht betroffen.';
+
+  @override
+  String get queueMoveToFront => 'Nach vorne';
+
+  @override
+  String get queueRemove => 'Aus der Warteschlange entfernen';
+
+  @override
+  String get queueStartsWhenIdle => 'Startet, sobald der Drucker frei ist';
+
+  @override
+  String get queueUpNext => 'Als Nächstes';
+
+  @override
+  String get queueNext => 'Nächster';
+
+  @override
+  String queueCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count wartend',
+      one: '1 wartend',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get queueAddTooltip => 'Zur Warteschlange hinzufügen';
+
+  @override
+  String queueAddedToast(int count) {
+    return 'Eingereiht, $count in der Warteschlange';
+  }
+
+  @override
+  String get queueStartedToast => 'Warteschlange gestartet';
+
+  @override
+  String get queuePausedToast => 'Warteschlange pausiert';
+
+  @override
+  String get queueMovedToast => 'Nach vorne verschoben';
+
+  @override
+  String get queueRemovedToast => 'Aus der Warteschlange entfernt';
+
+  @override
+  String get queueHintManual =>
+      'Dieser Drucker druckt pro Start einen wartenden Auftrag und pausiert dann. Damit die ganze Warteschlange unbeaufsichtigt durchläuft, füge [job_queue] mit automatic_transition: True in moonraker.conf ein und starte Moonraker neu.';
+
+  @override
+  String get queueHintAuto =>
+      'Dieser Drucker arbeitet die ganze Warteschlange selbstständig ab.';
+
+  @override
+  String get queueModeIntro => 'Tippe auf eine Datei, um sie einzureihen.';
+
+  @override
   String cameraFallbackName(int number) {
     return 'Kamera $number';
   }
