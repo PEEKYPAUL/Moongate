@@ -41,7 +41,7 @@ dependencies:
   # QR code scanning (pairing screen).
   # 7.x rewrites the Android start path - fixes the `analysis.resolutionInfo!!`
   # NPE in 5.x that fired on Samsung One UI as `genericError / NPE getClass()`.
-  mobile_scanner: ^7.4.2
+  mobile_scanner: ^7.5.0
 
   # State management + navigation
   flutter_riverpod: ^2.5.0
@@ -81,7 +81,7 @@ dependencies:
   url_launcher: ^6.3.3
 
   # SVG rendering (Mainsail / Fluidd logos in webcam placeholder)
-  flutter_svg: ^2.0.0
+  flutter_svg: ^2.3.2
 
   # Explicit camera permission check before opening the QR scanner.
   # Separates permission request from camera initialisation so mobile_scanner
@@ -110,7 +110,7 @@ dependencies:
   local_auth: ^2.3.0
 
   # Salted SHA-256 hashing for the app-lock PIN (stored in flutter_secure_storage).
-  crypto: ^3.0.0
+  crypto: ^3.0.8
 
   # Print notifications (opt-in, off by default). A foreground service keeps a
   # background isolate alive to poll /status (LAN-first, slow interval) and post
