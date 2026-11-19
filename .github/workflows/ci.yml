@@ -29,7 +29,11 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
+          # Pinned: Flutter 3.50 deprecates package:flutter/material.dart
+          # (material_ui split) and analyze fails on the 50 infos. Lift the
+          # pin once the app has migrated to package:material_ui.
           channel: stable
+          flutter-version: 3.47.x
           cache: true
 
       - name: Install dependencies

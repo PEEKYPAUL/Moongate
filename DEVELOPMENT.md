@@ -46,6 +46,8 @@ java -version          # should report 17.x
 
 `flutter doctor` should be green on Flutter, Android toolchain, and at least one connected device or emulator before you proceed.
 
+> Flutter version: CI pins the **3.47.x** stable line (`flutter-version` in the three workflows). Flutter 3.50 deprecates `package:flutter/material.dart` in favour of the new `package:material_ui` split, and `flutter analyze` fails on the resulting infos. Stay on 3.47.x locally until the app has migrated to `material_ui`, then lift the pin.
+
 > Windows note: if the Java toolchain complains about `AF_UNIX` sockets, your `TEMP` path probably contains a short-name segment (e.g. `~1`). The repo includes [`run.ps1`](run.ps1) which sets `TEMP=C:\tmp` and pins JDK 17 - use that wrapper instead of plain `flutter` if you hit the issue.
 
 ---
