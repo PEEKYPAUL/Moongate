@@ -1869,6 +1869,42 @@ class AppLocalizationsIt extends AppLocalizations {
   String get printAlertError => 'Errore della stampante';
 
   @override
+  String get printAlertFinished => 'Stampa completata';
+
+  @override
+  String get notifWatchSectionTitle => 'Avvisi di fine e di avanzamento';
+
+  @override
+  String get notifWatchSectionIntro =>
+      'Avvisi brevi che arrivano anche a un orologio associato. La scheda della stampa in corso resta sul telefono: Android non passa mai una scheda fissata a un orologio.';
+
+  @override
+  String get notifFinishedAlertTitle => 'Vibra quando una stampa finisce';
+
+  @override
+  String get notifFinishedAlertSubtitle =>
+      'Un avviso sonoro nella categoria “Printer alerts”, oltre alla scheda silenziosa di fine';
+
+  @override
+  String get notifMilestonesTitle => 'Traguardi di avanzamento';
+
+  @override
+  String get notifMilestonesSubtitle =>
+      'Un breve avviso a ogni passo superato, con tempo rimanente e ora di fine';
+
+  @override
+  String get notifMilestoneOff => 'Spento';
+
+  @override
+  String get notifMilestoneEvery25 => 'Ogni 25 %';
+
+  @override
+  String get notifMilestoneEvery10 => 'Ogni 10 %';
+
+  @override
+  String get notifMilestoneHourly => 'Ogni ora';
+
+  @override
   String get printStatusReady => 'Pronta';
 
   @override

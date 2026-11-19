@@ -57,7 +57,7 @@ Free, source-available **iPhone and Android** control for your **Klipper 3D prin
 - **G-code layer viewer** - open any stored file as a 3D layer stack you spin with a finger, coloured like Orca's preview: temperature, flow rate, layer time, speed, fan speed, or the filament colours of a multi-material print with a key per tool (and, on an MMU, a switch to what is loaded in the gates right now), layer by layer, then start the print from there, or save the file to your phone.
 - **Cameras** - Mainsail cameras auto-detected, go2rtc included; add an external IP camera; full-screen view with pinch-to-zoom; switch between several on one printer.
 - **Multi-toolhead** - IDEX and tool changers show every hotend as its own chip, active tool highlighted, preheat for all at once.
-- **Notifications** - opt-in start / finish / pause / error alerts with the reason, live progress in the shade, heat-soak and "cool enough to remove" alerts, and a `MOONGATE_NOTIFY` macro for your own gcode.
+- **Notifications** - opt-in start / finish / pause / error alerts with the reason, live progress in the shade, heat-soak and "cool enough to remove" alerts, and a `MOONGATE_NOTIFY` macro for your own gcode. Optional finished and progress alerts reach a paired smartwatch without a watch app (v0.9.79).
 - **Lighting** - a bulb on the tile drives your light macros and shows the real on/off state.
 - **App lock** - PIN or biometric, auto-lock, screenshot protection. Off by default.
 - **Themes and layout** - light, dark or custom colours and background, Material You on Android, a 36-font picker, 1-3 columns, landscape.

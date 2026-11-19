@@ -50,6 +50,8 @@ class SettingsBackup {
     'notif_fields_order':          _Kind.string,
     'notif_fields_enabled':        _Kind.string,
     'notif_online_only':           _Kind.boolean,
+    'notif_finished_alert':        _Kind.boolean,
+    'notif_milestones':            _Kind.string,
     'app_locale':                  _Kind.string,
     'show_camera_config_icons':    _Kind.boolean,
     'show_dashboard_buttons':      _Kind.boolean,

@@ -10,6 +10,8 @@
 /// Kept free of Flutter imports so the transition matrix is unit-testable.
 library;
 
+import 'notif_fields.dart';
+
 /// An exceptional printer moment worth a buzzing notification.
 enum PrintEvent { paused, failed, machineError }
 
@@ -63,3 +65,45 @@ String firstDetailLine(String? raw) {
   }
   return '';
 }
+
+// ── Progress milestones (v0.9.79) ───────────────────────────────────────────
+
+/// The progress milestone a running print has reached under [mode]: the
+/// number of whole steps passed (25 % steps → 0..3, 10 % → 0..9, hourly → whole
+/// hours of print time). The step AT 100 % never counts - the finished alert
+/// covers the end - so a percent mode tops out one step short. Null when
+/// milestones are off.
+int? milestoneIndex(MilestoneMode mode, double progress, double elapsedSec) {
+  switch (mode) {
+    case MilestoneMode.off:
+      return null;
+    case MilestoneMode.every25:
+      return _stepIndex(progress, 25);
+    case MilestoneMode.every10:
+      return _stepIndex(progress, 10);
+    case MilestoneMode.hourly:
+      return elapsedSec <= 0 ? 0 : (elapsedSec / 3600).floor();
+  }
+}
+
+int _stepIndex(double progress, int stepPct) {
+  final pct  = progress.clamp(0.0, 1.0) * 100;
+  final idx  = (pct / stepPct).floor();
+  final last = (100 ~/ stepPct) - 1; // the step before 100 %
+  return idx > last ? last : idx;
+}
+
+/// Whether a freshly computed milestone [cur] should alert. The first
+/// observation of a print ([prev] null) is a baseline only - the service may
+/// have started mid-print, and replaying "50%" then would be stale. After that
+/// only going UP alerts; a progress dip (the file-relative recalculation once
+/// metadata loads) stays quiet.
+bool shouldAlertMilestone(int? prev, int cur) => prev != null && cur > prev;
+
+/// The percent a step index stands for under a percent [mode] ("25", "50"),
+/// or null for hourly / off, whose label is the elapsed time instead.
+int? milestonePercent(MilestoneMode mode, int idx) => switch (mode) {
+      MilestoneMode.every25 => idx * 25,
+      MilestoneMode.every10 => idx * 10,
+      _ => null,
+    };

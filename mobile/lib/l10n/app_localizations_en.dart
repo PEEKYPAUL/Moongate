@@ -1837,6 +1837,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get printAlertError => 'Printer error';
 
   @override
+  String get printAlertFinished => 'Print finished';
+
+  @override
+  String get notifWatchSectionTitle => 'Finished and progress alerts';
+
+  @override
+  String get notifWatchSectionIntro =>
+      'Short alerts that also reach a paired watch. The live print card stays on the phone: Android never passes a pinned card to a watch.';
+
+  @override
+  String get notifFinishedAlertTitle => 'Buzz when a print finishes';
+
+  @override
+  String get notifFinishedAlertSubtitle =>
+      'A loud alert in the Printer alerts category, on top of the quiet finished card';
+
+  @override
+  String get notifMilestonesTitle => 'Progress milestones';
+
+  @override
+  String get notifMilestonesSubtitle =>
+      'A short alert as the print passes each step, with time left and the finish time';
+
+  @override
+  String get notifMilestoneOff => 'Off';
+
+  @override
+  String get notifMilestoneEvery25 => 'Every 25%';
+
+  @override
+  String get notifMilestoneEvery10 => 'Every 10%';
+
+  @override
+  String get notifMilestoneHourly => 'Every hour';
+
+  @override
   String get printStatusReady => 'Ready';
 
   @override

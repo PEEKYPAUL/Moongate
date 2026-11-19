@@ -1857,6 +1857,42 @@ class AppLocalizationsPl extends AppLocalizations {
   String get printAlertError => 'Błąd drukarki';
 
   @override
+  String get printAlertFinished => 'Wydruk zakończony';
+
+  @override
+  String get notifWatchSectionTitle => 'Alerty o zakończeniu i postępie';
+
+  @override
+  String get notifWatchSectionIntro =>
+      'Krótkie alerty, które docierają też do sparowanego zegarka. Karta trwającego wydruku zostaje na telefonie: Android nigdy nie przekazuje przypiętej karty do zegarka.';
+
+  @override
+  String get notifFinishedAlertTitle => 'Wibracja po zakończeniu wydruku';
+
+  @override
+  String get notifFinishedAlertSubtitle =>
+      'Głośny alert w kategorii „Printer alerts”, oprócz cichej karty zakończenia';
+
+  @override
+  String get notifMilestonesTitle => 'Kamienie milowe postępu';
+
+  @override
+  String get notifMilestonesSubtitle =>
+      'Krótki alert po każdym kroku, z pozostałym czasem i godziną zakończenia';
+
+  @override
+  String get notifMilestoneOff => 'Wył.';
+
+  @override
+  String get notifMilestoneEvery25 => 'Co 25 %';
+
+  @override
+  String get notifMilestoneEvery10 => 'Co 10 %';
+
+  @override
+  String get notifMilestoneHourly => 'Co godzinę';
+
+  @override
   String get printStatusReady => 'Gotowa';
 
   @override

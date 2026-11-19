@@ -36,6 +36,34 @@ const String kAutoArrangeByStatusKey = 'auto_arrange_by_status';
 /// settings backup - a restore should never silently cut remote access.
 const String kLocalOnlyKey = 'local_only_mode';
 
+/// Opt-in loud "Print finished" alert (v0.9.79). When true, a completed print
+/// also posts a buzzing alert on the Printer alerts channel - the one a paired
+/// watch receives - on top of the silent finished card. Off by default. Read by
+/// the switch (notifFinishedAlertProvider) and the background isolate. Rides
+/// the settings backup.
+const String kNotifFinishedAlertKey = 'notif_finished_alert';
+
+/// Progress-milestone alerts (v0.9.79): a short, NON-ongoing alert as a print
+/// passes each step, so it bridges to a watch (Android never bridges the pinned
+/// live card). Stored as a [MilestoneMode] name; unset = off. Rides the backup.
+const String kNotifMilestonesKey = 'notif_milestones';
+
+/// How often a running print posts a progress-milestone alert.
+enum MilestoneMode {
+  off,
+  every25,
+  every10,
+  hourly;
+
+  /// The stored name, or [off] for anything unknown / unset.
+  static MilestoneMode fromPref(String? raw) {
+    for (final m in values) {
+      if (m.name == raw) return m;
+    }
+    return off;
+  }
+}
+
 /// Inline markers prefixing the finish-time / temperature segments so each stays
 /// self-describing even when the user reorders them. Shared by the live
 /// notification renderer and the settings-screen preview so the two never drift.

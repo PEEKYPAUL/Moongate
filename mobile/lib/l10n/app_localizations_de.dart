@@ -1864,6 +1864,42 @@ class AppLocalizationsDe extends AppLocalizations {
   String get printAlertError => 'Druckerfehler';
 
   @override
+  String get printAlertFinished => 'Druck fertig';
+
+  @override
+  String get notifWatchSectionTitle => 'Fertig- und Fortschrittsmeldungen';
+
+  @override
+  String get notifWatchSectionIntro =>
+      'Kurze Meldungen, die auch eine gekoppelte Uhr erreichen. Die laufende Druckkarte bleibt auf dem Telefon: Android reicht angeheftete Karten nie an eine Uhr weiter.';
+
+  @override
+  String get notifFinishedAlertTitle => 'Vibrieren, wenn ein Druck fertig ist';
+
+  @override
+  String get notifFinishedAlertSubtitle =>
+      'Eine laute Meldung in der Kategorie „Printer alerts“, zusätzlich zur stillen Fertig-Karte';
+
+  @override
+  String get notifMilestonesTitle => 'Fortschrittsmeldungen';
+
+  @override
+  String get notifMilestonesSubtitle =>
+      'Eine kurze Meldung bei jedem Schritt, mit Restzeit und Fertigstellungszeit';
+
+  @override
+  String get notifMilestoneOff => 'Aus';
+
+  @override
+  String get notifMilestoneEvery25 => 'Alle 25 %';
+
+  @override
+  String get notifMilestoneEvery10 => 'Alle 10 %';
+
+  @override
+  String get notifMilestoneHourly => 'Jede Stunde';
+
+  @override
   String get printStatusReady => 'Bereit';
 
   @override

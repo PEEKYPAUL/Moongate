@@ -1865,6 +1865,42 @@ class AppLocalizationsPt extends AppLocalizations {
   String get printAlertError => 'Erro da impressora';
 
   @override
+  String get printAlertFinished => 'Impressão concluída';
+
+  @override
+  String get notifWatchSectionTitle => 'Alertas de fim e de progresso';
+
+  @override
+  String get notifWatchSectionIntro =>
+      'Alertas curtos que também chegam a um relógio emparelhado. O cartão da impressão em curso fica no telemóvel: o Android nunca passa um cartão fixo para um relógio.';
+
+  @override
+  String get notifFinishedAlertTitle => 'Vibrar quando uma impressão termina';
+
+  @override
+  String get notifFinishedAlertSubtitle =>
+      'Um alerta sonoro na categoria «Printer alerts», além do cartão silencioso de fim';
+
+  @override
+  String get notifMilestonesTitle => 'Marcos de progresso';
+
+  @override
+  String get notifMilestonesSubtitle =>
+      'Um alerta curto a cada passo, com o tempo restante e a hora de fim';
+
+  @override
+  String get notifMilestoneOff => 'Desligado';
+
+  @override
+  String get notifMilestoneEvery25 => 'A cada 25 %';
+
+  @override
+  String get notifMilestoneEvery10 => 'A cada 10 %';
+
+  @override
+  String get notifMilestoneHourly => 'A cada hora';
+
+  @override
   String get printStatusReady => 'Pronto';
 
   @override

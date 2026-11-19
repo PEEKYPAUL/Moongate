@@ -1857,6 +1857,42 @@ class AppLocalizationsRu extends AppLocalizations {
   String get printAlertError => 'Ошибка принтера';
 
   @override
+  String get printAlertFinished => 'Печать завершена';
+
+  @override
+  String get notifWatchSectionTitle => 'Уведомления о завершении и прогрессе';
+
+  @override
+  String get notifWatchSectionIntro =>
+      'Короткие уведомления, которые приходят и на сопряжённые часы. Карточка текущей печати остаётся на телефоне: Android никогда не передаёт закреплённую карточку на часы.';
+
+  @override
+  String get notifFinishedAlertTitle => 'Вибрация по завершении печати';
+
+  @override
+  String get notifFinishedAlertSubtitle =>
+      'Громкое уведомление в категории «Printer alerts» в дополнение к тихой карточке завершения';
+
+  @override
+  String get notifMilestonesTitle => 'Этапы прогресса';
+
+  @override
+  String get notifMilestonesSubtitle =>
+      'Короткое уведомление на каждом шаге с оставшимся временем и временем окончания';
+
+  @override
+  String get notifMilestoneOff => 'Выкл.';
+
+  @override
+  String get notifMilestoneEvery25 => 'Каждые 25 %';
+
+  @override
+  String get notifMilestoneEvery10 => 'Каждые 10 %';
+
+  @override
+  String get notifMilestoneHourly => 'Каждый час';
+
+  @override
   String get printStatusReady => 'Готов';
 
   @override
