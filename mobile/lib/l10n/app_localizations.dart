@@ -3376,6 +3376,72 @@ abstract class AppLocalizations {
   /// **'Printer error'**
   String get printAlertError;
 
+  /// Loud opt-in alert when a print completes (v0.9.79); the filename and the print time follow, dot-separated.
+  ///
+  /// In en, this message translates to:
+  /// **'Print finished'**
+  String get printAlertFinished;
+
+  /// Section header on the Notification content screen for the watch-friendly extras.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished and progress alerts'**
+  String get notifWatchSectionTitle;
+
+  /// Explains that these alerts reach a paired smartwatch while the pinned live card cannot (Android never bridges ongoing notifications).
+  ///
+  /// In en, this message translates to:
+  /// **'Short alerts that also reach a paired watch. The live print card stays on the phone: Android never passes a pinned card to a watch.'**
+  String get notifWatchSectionIntro;
+
+  /// Switch: post a loud alert when a print completes.
+  ///
+  /// In en, this message translates to:
+  /// **'Buzz when a print finishes'**
+  String get notifFinishedAlertTitle;
+
+  /// Subtitle of that switch. 'Printer alerts' is the Android notification category's name, shown in English in Android settings.
+  ///
+  /// In en, this message translates to:
+  /// **'A loud alert in the Printer alerts category, on top of the quiet finished card'**
+  String get notifFinishedAlertSubtitle;
+
+  /// Row: how often a running print posts a short progress alert.
+  ///
+  /// In en, this message translates to:
+  /// **'Progress milestones'**
+  String get notifMilestonesTitle;
+
+  /// Subtitle of the milestones row.
+  ///
+  /// In en, this message translates to:
+  /// **'A short alert as the print passes each step, with time left and the finish time'**
+  String get notifMilestonesSubtitle;
+
+  /// Milestone picker option: none.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get notifMilestoneOff;
+
+  /// Milestone picker option: an alert at 25, 50 and 75 percent.
+  ///
+  /// In en, this message translates to:
+  /// **'Every 25%'**
+  String get notifMilestoneEvery25;
+
+  /// Milestone picker option: an alert every 10 percent.
+  ///
+  /// In en, this message translates to:
+  /// **'Every 10%'**
+  String get notifMilestoneEvery10;
+
+  /// Milestone picker option: an alert every hour of printing.
+  ///
+  /// In en, this message translates to:
+  /// **'Every hour'**
+  String get notifMilestoneHourly;
+
   /// Printer status in the notification: idle and ready to print.
   ///
   /// In en, this message translates to:

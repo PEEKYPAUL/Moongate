@@ -43,6 +43,10 @@ class NotificationContentScreen extends ConsumerWidget {
             child: _PreviewCard(cfg: cfg),
           ),
           const Divider(height: 1),
+          // The watch-friendly extras (v0.9.79): a loud finished alert and
+          // progress milestones - ordinary alerts, so a paired watch gets them.
+          const _WatchAlertsSection(),
+          const Divider(height: 1),
           Expanded(
             child: ReorderableListView(
               // Drag only from the handle so the row's switch stays tappable.
@@ -162,5 +166,73 @@ class _FieldRow extends StatelessWidget {
         NotifField.eta => l.notifFieldEta,
         NotifField.hotend => l.notifFieldHotend,
         NotifField.bed => l.notifFieldBed,
+      };
+}
+
+/// The opt-in finished alert switch and the progress-milestone cadence picker.
+/// Both post ordinary (non-ongoing) alerts, which is what lets them reach a
+/// paired watch; the pinned live card above never bridges, by Android design.
+class _WatchAlertsSection extends ConsumerWidget {
+  const _WatchAlertsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l        = AppLocalizations.of(context);
+    final cs       = Theme.of(context).colorScheme;
+    final finished = ref.watch(notifFinishedAlertProvider);
+    final mode     = ref.watch(notifMilestonesProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: Text(l.notifWatchSectionTitle,
+              style: Theme.of(context).textTheme.titleSmall),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          child: Text(
+            l.notifWatchSectionIntro,
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: cs.onSurfaceVariant),
+          ),
+        ),
+        SwitchListTile(
+          title:    Text(l.notifFinishedAlertTitle),
+          subtitle: Text(l.notifFinishedAlertSubtitle),
+          value:    finished,
+          onChanged: (v) async {
+            await ref.read(notifFinishedAlertProvider.notifier).set(v);
+            PrintNotificationService.instance.refreshNow();
+          },
+        ),
+        ListTile(
+          title:    Text(l.notifMilestonesTitle),
+          subtitle: Text(l.notifMilestonesSubtitle),
+          trailing: DropdownButton<MilestoneMode>(
+            value: mode,
+            underline: const SizedBox.shrink(),
+            items: [
+              for (final m in MilestoneMode.values)
+                DropdownMenuItem(value: m, child: Text(_label(l, m))),
+            ],
+            onChanged: (m) async {
+              if (m == null) return;
+              await ref.read(notifMilestonesProvider.notifier).set(m);
+              PrintNotificationService.instance.refreshNow();
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _label(AppLocalizations l, MilestoneMode m) => switch (m) {
+        MilestoneMode.off     => l.notifMilestoneOff,
+        MilestoneMode.every25 => l.notifMilestoneEvery25,
+        MilestoneMode.every10 => l.notifMilestoneEvery10,
+        MilestoneMode.hourly  => l.notifMilestoneHourly,
       };
 }

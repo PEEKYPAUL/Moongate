@@ -51,6 +51,8 @@ void main() async {
   await container.read(notifPollIntervalProvider.notifier).load();
   await container.read(notificationFieldsProvider.notifier).load();
   await container.read(notifOnlineOnlyProvider.notifier).load();
+  await container.read(notifFinishedAlertProvider.notifier).load();
+  await container.read(notifMilestonesProvider.notifier).load();
   await container.read(dashboardBackgroundProvider.notifier).load();
   await container.read(globalPowerButtonProvider.notifier).load();
   await container.read(dashboardButtonsProvider.notifier).load();

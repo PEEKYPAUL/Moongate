@@ -127,6 +127,15 @@ Loud Android alerts for these moments arrived in **v0.9.61** - older versions on
 
 Direct (LAN/VPN) printers are the documented exception: no notifications in cloud-free mode.
 
+## Nothing shows on my smartwatch (Wear OS, Galaxy Watch, Apple Watch)
+
+Moongate has no watch app and doesn't need one: the phone passes its own notifications to a paired watch. What arrives, and what never will:
+
+- **Arrives:** the loud **Printer alerts** (paused, failed, printer error, `MOONGATE_NOTIFY`), the **Heat alerts**, and from **v0.9.79** the optional **finished alert** and **progress milestones** (menu → Print notifications → Notification content). On iPhone, every push mirrors to an Apple Watch while the phone is locked.
+- **Never arrives, by design:** the live print card and the fleet status line. Android does not pass *ongoing* (pinned) notifications to a watch, and both of those are pinned so they can't be swiped away mid-print. The milestones exist precisely to put progress on your wrist: switch them on and a short, swipeable alert goes out at each step.
+
+If the alerts above don't reach a **Galaxy Watch**, open the **Galaxy Wearable** app → Watch settings → Notifications and check Moongate is allowed; Samsung lists apps there individually. **Wear OS** has the same per-app list in the Wear OS / Pixel Watch app. An **Apple Watch** shows iPhone notifications only while the iPhone is locked or asleep; with the phone unlocked they stay on the phone.
+
 ## The heat-soak alert never arrived (and how to be told when a heater is actually at temperature)
 
 The **Heat-soak alert** in a tile's Preheat sheet (long-press the temperatures while the printer is idle) reads the printer's **live temperatures** on every background check (rebuilt this way in v0.9.67; before that it was a plain countdown from the moment you pressed Set). With a soak time of 0 it fires the moment every temperature you set is reached ("At temperature: Bed 100° · Chamber 45°"); with a soak time it starts the clock once everything is at temperature and fires when the time is up ("Heat-soak complete: ... · soaked 20 min"). It is delivered by the same Android background monitoring as the alerts above, so the same rules apply, plus a few of its own:

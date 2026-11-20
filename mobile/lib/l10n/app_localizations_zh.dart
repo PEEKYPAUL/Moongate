@@ -1752,6 +1752,41 @@ class AppLocalizationsZh extends AppLocalizations {
   String get printAlertError => '打印机错误';
 
   @override
+  String get printAlertFinished => '打印完成';
+
+  @override
+  String get notifWatchSectionTitle => '完成与进度提醒';
+
+  @override
+  String get notifWatchSectionIntro =>
+      '简短提醒也会送达已配对的手表。进行中的打印卡片只留在手机上：Android 从不把固定卡片转发到手表。';
+
+  @override
+  String get notifFinishedAlertTitle => '打印完成时振动';
+
+  @override
+  String get notifFinishedAlertSubtitle =>
+      '在“Printer alerts”类别中发出响铃提醒，叠加在静音完成卡片之上';
+
+  @override
+  String get notifMilestonesTitle => '进度里程碑';
+
+  @override
+  String get notifMilestonesSubtitle => '每经过一个节点发出简短提醒，附剩余时间和完成时间';
+
+  @override
+  String get notifMilestoneOff => '关闭';
+
+  @override
+  String get notifMilestoneEvery25 => '每 25%';
+
+  @override
+  String get notifMilestoneEvery10 => '每 10%';
+
+  @override
+  String get notifMilestoneHourly => '每小时';
+
+  @override
   String get printStatusReady => '就绪';
 
   @override

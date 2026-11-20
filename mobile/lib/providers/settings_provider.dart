@@ -804,6 +804,51 @@ class NotifOnlineOnlyNotifier extends Notifier<bool> {
 final notifOnlineOnlyProvider =
     NotifierProvider<NotifOnlineOnlyNotifier, bool>(NotifOnlineOnlyNotifier.new);
 
+/// Opt-in loud "Print finished" alert (v0.9.79) - see kNotifFinishedAlertKey.
+/// Off by default; travels in backups. The background isolate reads the same
+/// pref directly, so the switch and the service stay in step.
+class NotifFinishedAlertNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  Future<void> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getBool(kNotifFinishedAlertKey) ?? false;
+  }
+
+  Future<void> set(bool enabled) async {
+    state = enabled;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(kNotifFinishedAlertKey, enabled);
+  }
+}
+
+final notifFinishedAlertProvider =
+    NotifierProvider<NotifFinishedAlertNotifier, bool>(
+        NotifFinishedAlertNotifier.new);
+
+/// Progress-milestone alert cadence (v0.9.79) - see kNotifMilestonesKey.
+/// Off by default; travels in backups as the mode's name.
+class NotifMilestonesNotifier extends Notifier<MilestoneMode> {
+  @override
+  MilestoneMode build() => MilestoneMode.off;
+
+  Future<void> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = MilestoneMode.fromPref(prefs.getString(kNotifMilestonesKey));
+  }
+
+  Future<void> set(MilestoneMode mode) async {
+    state = mode;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(kNotifMilestonesKey, mode.name);
+  }
+}
+
+final notifMilestonesProvider =
+    NotifierProvider<NotifMilestonesNotifier, MilestoneMode>(
+        NotifMilestonesNotifier.new);
+
 // ---------------------------------------------------------------------------
 // App lock  (optional biometric / PIN gate on launch)
 // ---------------------------------------------------------------------------

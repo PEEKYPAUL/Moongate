@@ -2,6 +2,13 @@
 
 What changed in each Moongate release, newest first, in plain language. The full technical write-up of every change is in the pull request that shipped it (linked from each GitHub release) and in the commit history.
 
+## v0.9.79
+
+- Buzz when a print finishes: an optional loud alert that also reaches a paired smartwatch, no watch app needed
+- Progress milestones: an optional short alert every 25% (or 10%, or hourly) with time left and the finish time, watch-friendly too
+- Finished and milestone alerts show the print's thumbnail
+- Both switches are under Print notifications, Notification content
+
 ## v0.9.78
 
 - New print queue: queue files from Start a print and see what is up next on the tile and the single-printer dashboard

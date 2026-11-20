@@ -87,6 +87,16 @@ const _eventChannelDesc =
 // (`notif_poll_interval`). The chosen interval is the ACTUAL poll rate - there
 // is no idle backoff, so a print start / error / recovery shows within one
 // tick. LAN-first, so it's free at home and a long print costs ~1-2 MB cellular.
+// Progress-milestone alerts (v0.9.79): DEFAULT importance (sounds once, no
+// heads-up), separately mutable, and - being ordinary non-ongoing
+// notifications - bridged to a paired watch, which the pinned live card never
+// is. The opt-in finished alert rides the Printer alerts channel instead.
+const _milestoneChannelId   = 'moongate_milestones';
+const _milestoneChannelName = 'Progress milestones';
+const _milestoneChannelDesc =
+    'A short alert as a print passes each progress step you chose. '
+    'Reaches a paired watch.';
+
 const _defaultPollIntervalMs = 30000;
 
 /// Map the persisted `notif_poll_interval` enum name to milliseconds.
@@ -305,6 +315,17 @@ class _PrintTaskHandler extends TaskHandler {
   // Local-only mode (kLocalOnlyKey) - re-read each tick like _fields; while
   // true the tunnel is skipped as a transport in _poll/_isReachable.
   bool _localOnly = false;
+  // The opt-in loud finished alert + the progress-milestone cadence (v0.9.79),
+  // re-read each tick like _fields.
+  bool _finishedAlert = false;
+  MilestoneMode _milestones = MilestoneMode.off;
+  // Last milestone index alerted (or baselined) per printer for its CURRENT
+  // print - see _maybeFireMilestone. Cleared when the print ends.
+  final Map<String, int> _lastMilestone = {};
+  // The current print's thumbnail per printer, tagged with its filename, for
+  // the big-picture finished / milestone alerts. Null bytes = the file has no
+  // embedded thumbnail (looked up once, not retried). See _fetchThumb.
+  final Map<String, (String, Uint8List?)> _thumbs = {};
 
   void _log(String msg) => dev.log(msg, name: 'MOONGATE/NOTIF');
 
@@ -358,6 +379,17 @@ class _PrintTaskHandler extends TaskHandler {
         _eventChannelName,
         description: _eventChannelDesc,
         importance: Importance.high,
+      ),
+    );
+
+    // DEFAULT-importance channel for the opt-in progress milestones (v0.9.79):
+    // sounds once per milestone, no heads-up banner, mutable on its own.
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _milestoneChannelId,
+        _milestoneChannelName,
+        description: _milestoneChannelDesc,
+        importance: Importance.defaultImportance,
       ),
     );
 
@@ -434,6 +466,11 @@ class _PrintTaskHandler extends TaskHandler {
       // skipped in _poll, so a printer with no LAN answer reads Offline. The
       // reload() above keeps this in step with the toggle within one tick.
       _localOnly = prefs.getBool(kLocalOnlyKey) ?? false;
+      // The watch-friendly extras (v0.9.79), toggled on the Notification
+      // content screen.
+      _finishedAlert = prefs.getBool(kNotifFinishedAlertKey) ?? false;
+      _milestones =
+          MilestoneMode.fromPref(prefs.getString(kNotifMilestonesKey));
       // Mirror the dashboard's "Auto-arrange by status" toggle (same key +
       // default as autoArrangeProvider): ON floats active prints to the top by
       // live status; OFF keeps the user's saved manual order so the roster
@@ -800,6 +837,14 @@ class _PrintTaskHandler extends TaskHandler {
         offsets =
             await _fetchOffsets(printerId, base, token, filename, isLan: isLan);
       }
+      // The print's thumbnail for the big-picture finished / milestone alerts
+      // (v0.9.79) - one lookup per print, and only while either alert is on.
+      if ((_finishedAlert || _milestones != MilestoneMode.off) &&
+          (state == 'printing' || state == 'paused') &&
+          filename != null &&
+          filename.isNotEmpty) {
+        await _fetchThumb(printerId, base, token, filename, isLan: isLan);
+      }
       final progress = computePrintProgress(
         filePosition:    (sdcard?['file_position'] as num?)?.toDouble(),
         gcodeStartByte:  offsets?.startByte,
@@ -960,6 +1005,55 @@ class _PrintTaskHandler extends TaskHandler {
     } catch (_) {
       return cached;
     }
+  }
+
+  /// Fetch the current print's embedded thumbnail once per file (the largest
+  /// no wider than 400 px, like the dashboard tile) and cache it per printer
+  /// for the big-picture alerts. A missing thumbnail is remembered as null so
+  /// the file isn't re-queried every tick; a transport failure is simply
+  /// retried next tick. Same header rule as the other supplements.
+  Future<void> _fetchThumb(
+      String printerId, String base, String token, String filename,
+      {required bool isLan}) async {
+    final cached = _thumbs[printerId];
+    if (cached != null && cached.$1 == filename) return;
+    try {
+      final headers = isLan ? null : {'Authorization': 'Bearer $token'};
+      final metaUri = Uri.parse(
+          '$base/server/files/metadata?filename=${Uri.encodeComponent(filename)}');
+      final metaResp = await http
+          .get(metaUri, headers: headers)
+          .timeout(const Duration(seconds: 5));
+      if (metaResp.statusCode != 200) return;
+      final thumbs = (jsonDecode(metaResp.body)['result']?['thumbnails']
+              as List<dynamic>?) ??
+          const [];
+      int widthOf(Map<String, dynamic> t) => (t['width'] as num?)?.toInt() ?? 0;
+      final sized = thumbs.whereType<Map<String, dynamic>>().toList()
+        ..sort((a, b) => widthOf(a).compareTo(widthOf(b)));
+      if (sized.isEmpty) {
+        _thumbs[printerId] = (filename, null);
+        return;
+      }
+      final capped = sized.where((t) => widthOf(t) <= 400).toList();
+      final rel =
+          (capped.isNotEmpty ? capped.last : sized.first)['relative_path']
+              as String?;
+      if (rel == null) {
+        _thumbs[printerId] = (filename, null);
+        return;
+      }
+      // relative_path is relative to the gcode's own folder.
+      final slash = filename.lastIndexOf('/');
+      final path  = slash < 0 ? rel : '${filename.substring(0, slash)}/$rel';
+      final imgUri = Uri.parse('$base/server/files/gcodes/'
+          '${path.split('/').map(Uri.encodeComponent).join('/')}');
+      final imgResp = await http
+          .get(imgUri, headers: headers)
+          .timeout(const Duration(seconds: 8));
+      if (imgResp.statusCode != 200) return;
+      _thumbs[printerId] = (filename, imgResp.bodyBytes);
+    } catch (_) {}
   }
 
   // ── Multi-toolhead temps (extra hotends) ─────────────────────────────────
@@ -1180,6 +1274,7 @@ class _PrintTaskHandler extends TaskHandler {
           p.id, () => DateTime.now().millisecondsSinceEpoch);
       await _postActiveCard(p, s, startedMs);
       _cardPhase[p.id] = _CardPhase.active;
+      await _maybeFireMilestone(p, s);
     } else if (isTerminal) {
       // Only collapse to a Done card if we were actually tracking a live print.
       // Klipper holds the terminal state until the next print, so seeing it from
@@ -1191,6 +1286,10 @@ class _PrintTaskHandler extends TaskHandler {
         await _postDoneCard(p, cur, startedMs, reason: s.reason);
         _cardPhase[p.id] = _CardPhase.done;
         postedDoneThisTick.add(p.id);
+        // The opt-in loud "Print finished" (v0.9.79) - only for a print we
+        // watched complete, never for a re-observed terminal state.
+        if (cur == 'complete' && _finishedAlert) await _postFinishedAlert(p, s);
+        _lastMilestone.remove(p.id);
       }
     } else {
       // standby / idle / starting up: the printer is free. Clear any card we
@@ -1200,6 +1299,8 @@ class _PrintTaskHandler extends TaskHandler {
         await _alerts.cancel(_cardId(p.id));
         _cardPhase[p.id] = _CardPhase.none;
         _cardStartedAt.remove(p.id);
+        _lastMilestone.remove(p.id);
+        _thumbs.remove(p.id);
       }
     }
   }
@@ -1446,6 +1547,119 @@ class _PrintTaskHandler extends TaskHandler {
       detail.isEmpty ? base : '$base: $detail',
       const NotificationDetails(android: android),
     );
+  }
+
+  // ── Finished + milestone alerts (v0.9.79) ───────────────────────────────────
+  //
+  // Both are ordinary, non-ongoing notifications, so a paired watch (Wear OS /
+  // Galaxy Watch) receives them - Android never bridges the pinned live card or
+  // the roster. Milestones replace one another (one id per printer) and the
+  // finished alert takes that same slot, so a print leaves exactly one card.
+
+  /// Per-printer notification id for its milestone / finished alert. High bits
+  /// 0x60000000 keep it clear of the service id (4711), the print cards
+  /// (0x10000000), the heat-soak alerts (0x20000000) and the event alerts
+  /// (0x40000000), and outside onStart's stale-card sweep (`& 0x10000000`).
+  int _progressAlertId(String printerId) =>
+      0x60000000 | (printerId.hashCode & 0x0FFFFFFF);
+
+  /// Post a progress milestone when a RUNNING print has crossed into a new
+  /// step (milestoneIndex / shouldAlertMilestone). The first look at a print is
+  /// a baseline, so a service started mid-print never replays a stale step; a
+  /// paused print holds its place.
+  Future<void> _maybeFireMilestone(PrinterConfig p, _Poll s) async {
+    if (_milestones == MilestoneMode.off) {
+      _lastMilestone.remove(p.id);
+      return;
+    }
+    if (s.state != 'printing') return;
+    final idx = milestoneIndex(_milestones, s.progress, s.printDurationSec);
+    if (idx == null) return;
+    final prev = _lastMilestone[p.id];
+    _lastMilestone[p.id] = idx;
+    if (!shouldAlertMilestone(prev, idx)) return;
+
+    final segs = <String>[];
+    final pct  = milestonePercent(_milestones, idx);
+    if (pct != null) {
+      segs.add('$pct%');
+    } else {
+      // Hourly: how long it has been printing, then the live percent.
+      segs.add('${_l.printStatusPrinting} ${_formatRemaining(s.printDurationSec)}');
+      segs.add('${(s.progress * 100).round()}%');
+    }
+    final rem = _remainingSeconds(s);
+    if (rem != null) {
+      segs.add('~${_formatRemaining(rem)}');
+      final clock = _formatFinishClock(rem);
+      if (clock != null) segs.add('$kNotifEtaMarker$clock');
+    }
+    await _postProgressAlert(
+      p,
+      segs.join(' · '),
+      channelId:   _milestoneChannelId,
+      channelName: _milestoneChannelName,
+      channelDesc: _milestoneChannelDesc,
+      importance:  Importance.defaultImportance,
+      priority:    Priority.defaultPriority,
+    );
+  }
+
+  /// The opt-in loud "Print finished" - printer name as the title, then
+  /// `Print finished · file · 2h 21m`, on the Printer alerts channel so it
+  /// buzzes (and reaches a watch) unlike the silent finished card.
+  Future<void> _postFinishedAlert(PrinterConfig p, _Poll s) async {
+    final file = s.filename ?? '';
+    final body = [
+      _l.printAlertFinished,
+      if (file.isNotEmpty) file,
+      if (s.printDurationSec > 0) _formatRemaining(s.printDurationSec),
+    ].join(' · ');
+    await _postProgressAlert(
+      p,
+      body,
+      channelId:   _eventChannelId,
+      channelName: _eventChannelName,
+      channelDesc: _eventChannelDesc,
+      importance:  Importance.high,
+      priority:    Priority.high,
+    );
+  }
+
+  /// One milestone / finished alert, with the print's thumbnail as the large
+  /// icon and expanded big picture when the file carries one.
+  Future<void> _postProgressAlert(
+    PrinterConfig p,
+    String body, {
+    required String channelId,
+    required String channelName,
+    required String channelDesc,
+    required Importance importance,
+    required Priority priority,
+  }) async {
+    final bytes = _thumbs[p.id]?.$2;
+    final bitmap = bytes == null ? null : ByteArrayAndroidBitmap(bytes);
+    final android = AndroidNotificationDetails(
+      channelId,
+      channelName,
+      channelDescription: channelDesc,
+      importance: importance,
+      priority: priority,
+      icon: 'ic_stat_moongate',
+      autoCancel: true,
+      largeIcon: bitmap,
+      styleInformation: bitmap == null
+          ? null
+          : BigPictureStyleInformation(
+              bitmap,
+              largeIcon: bitmap,
+              hideExpandedLargeIcon: true,
+              contentTitle: p.name,
+              summaryText: body,
+            ),
+    );
+    await _alerts.show(
+        _progressAlertId(p.id), p.name, body, NotificationDetails(android: android));
   }
 
   // ── Heat-soak alerts ────────────────────────────────────────────────────────
