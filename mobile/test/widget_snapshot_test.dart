@@ -150,39 +150,25 @@ void main() {
     });
   });
 
-  group('DeepLinkService - the widget\'s tap links', () {
-    test('printer and dashboard links are widget links, on the pairing scheme', () {
-      expect(DeepLinkService.isWidgetUri(Uri.parse('moongate://dashboard')), isTrue);
-      expect(DeepLinkService.isWidgetUri(Uri.parse('moongate://printer?id=abc-123')),
-          isTrue);
-      expect(DeepLinkService.isWidgetUri(Uri.parse('moongate://printer/abc-123')),
-          isTrue);
-      expect(DeepLinkService.isWidgetUri(Uri.parse('moongate://pair?v=3')), isFalse);
-      expect(DeepLinkService.isWidgetUri(Uri.parse('https://printer/abc')), isFalse);
-    });
-
-    test('the printer id rides as the id query parameter (no path, so the '
-        'platform initial route stays on /)', () {
-      final uri = Uri.parse(
-          'moongate://printer?id=8580b6c4-fca5-4b08-a53a-ed2156ee4815');
-      expect(DeepLinkService.widgetPrinterId(uri),
-          '8580b6c4-fca5-4b08-a53a-ed2156ee4815');
+  group('DeepLinkService - the widget\'s tap link', () {
+    test('the dashboard link is the one widget link, on the pairing scheme', () {
+      final uri = Uri.parse('moongate://dashboard');
+      expect(DeepLinkService.isWidgetUri(uri), isTrue);
+      // Host only: a path here would reach go_router as the platform's
+      // initial route (the first test build's printer links crashed on that).
       expect(uri.path, isEmpty);
-      expect(DeepLinkService.widgetPrinterId(Uri.parse('moongate://printer?id=')),
-          isNull);
-      expect(DeepLinkService.widgetPrinterId(Uri.parse('moongate://printer')), isNull);
-      expect(DeepLinkService.widgetPrinterId(Uri.parse('moongate://dashboard')), isNull);
+      expect(DeepLinkService.isWidgetUri(Uri.parse('moongate://pair?v=3')), isFalse);
+      expect(DeepLinkService.isWidgetUri(Uri.parse('https://dashboard')), isFalse);
     });
 
-    test('the first test build\'s path form is still read', () {
-      expect(DeepLinkService.widgetPrinterId(Uri.parse('moongate://printer/abc-123')),
-          'abc-123');
-      expect(DeepLinkService.widgetPrinterId(Uri.parse('moongate://printer/abc/x')),
-          isNull);
+    test('the retired per-printer links are no longer widget links', () {
+      expect(DeepLinkService.isWidgetUri(Uri.parse('moongate://printer/abc-123')),
+          isFalse);
+      expect(DeepLinkService.isWidgetUri(Uri.parse('moongate://printer?id=abc')),
+          isFalse);
     });
 
     test('widget links never read as pairing payloads', () {
-      expect(DeepLinkService.isPairingUri(Uri.parse('moongate://printer/abc')), isFalse);
       expect(DeepLinkService.isPairingUri(Uri.parse('moongate://dashboard')), isFalse);
     });
   });

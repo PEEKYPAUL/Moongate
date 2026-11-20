@@ -3,11 +3,8 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:go_router/go_router.dart';
 
-import 'printer_registry.dart';
-
 /// Routes OS-delivered `moongate://` links: tap-to-pair into the pairing
-/// screen, and (v0.9.79) the home-screen widget's taps into the dashboard or
-/// a printer.
+/// screen, and (v0.9.79) the home-screen widget's tap onto the dashboard.
 ///
 /// The Pi's moongate-pair.html renders its QR payload as a tappable link for
 /// the no-second-screen case (the phone that should pair is the one showing
@@ -35,28 +32,14 @@ class DeepLinkService {
   static bool isPairingUri(Uri uri) =>
       uri.scheme == 'moongate' && (uri.host == 'pair' || uri.host == 'lan');
 
-  /// The home-screen widget's two tap targets, on the same scheme the pair
-  /// links use so one intent filter and one delivery path serve both:
-  ///   • `moongate://dashboard`         - empty widget space;
-  ///   • `moongate://printer?id=<id>`   - a printer's row / ring.
-  /// The id is a query parameter, not a path: Flutter also hands a launching
-  /// intent's PATH to go_router as the initial route, and `/<id>` has no route
-  /// (v0.9.79 device pass: "GoException: no routes for location").
+  /// The home-screen widget's one tap target, `moongate://dashboard`, on the
+  /// same scheme the pair links use so one intent filter and one delivery path
+  /// serve both. Deliberately host-only with no path: Flutter also hands a
+  /// launching intent's PATH to go_router as the initial route, and the first
+  /// test build's `moongate://printer/<id>` links crashed there ("GoException:
+  /// no routes for location"). Per-printer links were dropped with them.
   static bool isWidgetUri(Uri uri) =>
-      uri.scheme == 'moongate' &&
-      (uri.host == 'dashboard' || uri.host == 'printer');
-
-  /// The printer id a widget link names, or null for the dashboard link and
-  /// for a malformed printer link. The query form (`?id=`) is current; the
-  /// single-path-segment form (`moongate://printer/<id>`) is still read so a
-  /// widget placed by the first v0.9.79 test build keeps working.
-  static String? widgetPrinterId(Uri uri) {
-    if (uri.scheme != 'moongate' || uri.host != 'printer') return null;
-    final q = uri.queryParameters['id'];
-    if (q != null && q.isNotEmpty) return q;
-    final segs = uri.pathSegments.where((s) => s.isNotEmpty).toList();
-    return segs.length == 1 ? segs.single : null;
-  }
+      uri.scheme == 'moongate' && uri.host == 'dashboard';
 
   /// Idempotent. Wired from the app root, which owns the router.
   void start(GoRouter router) {
@@ -73,20 +56,10 @@ class DeepLinkService {
       _lastAt  = now;
       // Land on the dashboard first so the next screen pops back to it from
       // every entry point (cold start included - this also cancels the
-      // splash's own pending hop, its navigation is mounted-guarded).
+      // splash's own pending hop, its navigation is mounted-guarded). A
+      // widget tap ends here.
       router.go('/dashboard');
-      if (pairing) {
-        router.push('/pair', extra: uri.toString());
-        return;
-      }
-      // Widget tap: open the printer when it still exists (the registry is
-      // loaded before the first frame, so a cold start resolves it too); a
-      // removed printer's stale widget row just lands on the dashboard.
-      final id = widgetPrinterId(uri);
-      if (id != null &&
-          PrinterRegistry.instance.printers.any((p) => p.id == id)) {
-        router.push('/printer/$id');
-      }
+      if (pairing) router.push('/pair', extra: uri.toString());
     });
   }
 }

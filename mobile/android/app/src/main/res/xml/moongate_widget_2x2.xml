@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Moongate's home-screen widget (v0.9.79). ONE resizable widget type: the
-     Glance code (MoongateWidget.kt) picks its layout from the size the launcher
-     grants - 2x2 (one printer, ring), 4x1 (one-line strip), 4x2 (one printer in
-     detail, or one row per printer when several are paired). It is pushed, not
-     polled: updatePeriodMillis is 0 because the print-notification service
-     redraws it after every poll through home_widget. -->
+<!-- Moongate home-screen widget, the 2x2 picker entry (width x height in
+     launcher cells). One of seven near-identical providers that differ only
+     in default / minimum size so the picker offers a choice; all render the
+     same Glance widget (MoongateWidget.kt), which lays itself out by the size
+     actually granted, and stay resizable. Pushed, not polled: the
+     print-notification service redraws them through home_widget. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="110dp"
     android:minHeight="110dp"
     android:minResizeWidth="110dp"
     android:minResizeHeight="40dp"
     android:maxResizeWidth="400dp"
-    android:maxResizeHeight="250dp"
+    android:maxResizeHeight="400dp"
     android:targetCellWidth="2"
     android:targetCellHeight="2"
     android:resizeMode="horizontal|vertical"

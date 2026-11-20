@@ -23,9 +23,20 @@ abstract final class WidgetFeed {
   static const snapshotKey = 'fleet_snapshot';
   static const stringsKey  = 'widget_strings';
 
-  /// The Glance receiver, fully qualified (the Kotlin package is the
-  /// applicationId, shared by both flavors).
-  static const receiver = 'com.moongate.app.moongate.MoongateWidgetReceiver';
+  /// The Glance receivers, fully qualified (the Kotlin package is the
+  /// applicationId, shared by both flavors): one app-widget provider per
+  /// picker size (width x height in cells), all rendering the same widget -
+  /// see MoongateWidgetReceivers.kt. A redraw has to be asked of each.
+  static const _pkg = 'com.moongate.app.moongate.MoongateWidgetReceiver';
+  static const receivers = [
+    '${_pkg}2x2',
+    '${_pkg}2x4',
+    '${_pkg}3x2',
+    '${_pkg}3x4',
+    '${_pkg}4x2',
+    '${_pkg}4x3',
+    '${_pkg}4x4',
+  ];
 
   /// The URI the widget's refresh glyph fires into [registerRefreshCallback]'s
   /// callback via home_widget's background intent.
@@ -52,7 +63,7 @@ abstract final class WidgetFeed {
     if (!_supported) return;
     try {
       await HomeWidget.saveWidgetData<String>(snapshotKey, snapshot.encode());
-      await HomeWidget.updateWidget(qualifiedAndroidName: receiver);
+      await _redrawAll();
     } catch (e) {
       _log('publish failed: $e');
     }
@@ -64,9 +75,17 @@ abstract final class WidgetFeed {
     try {
       await HomeWidget.saveWidgetData<String>(
           stringsKey, jsonEncode(templates(l)));
-      await HomeWidget.updateWidget(qualifiedAndroidName: receiver);
+      await _redrawAll();
     } catch (e) {
       _log('publishStrings failed: $e');
+    }
+  }
+
+  /// Ask every provider to redraw its placed widgets (a provider with none
+  /// placed is a no-op broadcast).
+  static Future<void> _redrawAll() async {
+    for (final name in receivers) {
+      await HomeWidget.updateWidget(qualifiedAndroidName: name);
     }
   }
 

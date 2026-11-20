@@ -13,7 +13,8 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.ColorFilter
@@ -24,6 +25,7 @@ import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.LocalSize
+import androidx.glance.action.Action
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.LinearProgressIndicator
@@ -32,6 +34,8 @@ import androidx.glance.appwidget.action.actionSendBroadcast
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.appWidgetBackground
 import androidx.glance.appwidget.cornerRadius
+import androidx.glance.appwidget.lazy.LazyColumn
+import androidx.glance.appwidget.lazy.items
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.currentState
@@ -59,43 +63,55 @@ import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
  * Moongate's home-screen widget (v0.9.79, Android): live printer status, fed by
  * the print-notification service through home_widget - no poller of its own.
  *
- * ONE widget type, resizable. The launcher's grant picks the layout
- * ([SizeMode.Responsive]): 2x2 shows the printer that matters most (name,
- * progress ring, state, time left + finish clock), 4x1 a one-line strip of
- * the same printer, 4x2 that printer in detail (file, layer, temperatures,
- * bar) or, with several printers paired, one row each (up to four). "Matters
- * most" is Dart's call, by the dashboard ranking (error, then printing /
- * paused / heating, then ready, idle, offline) - see WidgetSnapshot.featured.
+ * One Glance widget behind SEVEN app-widget providers (see
+ * MoongateWidgetReceivers.kt), one per preset size, so the launcher's picker
+ * lists "Moongate 2x2" ... "Moongate 4x4" and the user picks the size when
+ * adding. Every provider renders the same snapshot; the layout follows the
+ * size actually granted ([SizeMode.Exact]):
+ *   • narrower than three cells (2x2, 2x4): the printer that matters most -
+ *     name, progress ring, state, time left + finish clock, and on the tall
+ *     2x4 also the file / layer line and the temperatures;
+ *   • three cells or wider (3x2, 3x4, 4x2, 4x3, 4x4): the WHOLE fleet, one
+ *     dashboard-style row per printer in a scrolling list (swipe for more).
+ * "Matters most" is Dart's call, by the dashboard ranking (error, then
+ * printing / paused / heating, then ready, idle, offline) - see
+ * WidgetSnapshot.featured.
  *
  * Every word comes pre-rendered and localised from Dart ([WidgetSnapshot]);
  * this file lays out, colours and draws. While the service is off the last
  * snapshot is shown greyed with an "updated N min ago" hint and a refresh
  * glyph that runs a one-shot Dart poll in the background.
  *
- * Taps: a printer opens that printer in the app (`moongate://printer?id=<id>`),
- * empty space the dashboard (`moongate://dashboard`) - both delivered as
- * ordinary VIEW intents on the scheme the pairing links already use, so
- * DeepLinkService handles them.
+ * Tap: anywhere on the widget, any size, opens the dashboard
+ * (`moongate://dashboard`, a plain VIEW intent on the scheme the pairing
+ * links already use, so DeepLinkService handles it). There are no per-printer
+ * links: the path of a launching VIEW intent is also fed to go_router as the
+ * initial route, and `moongate://dashboard` has none.
  */
 class MoongateWidget : GlanceAppWidget() {
 
     companion object {
-        /** 2 x 2 cells. */
-        val SMALL = DpSize(110.dp, 110.dp)
-        /** 4 x 1 cells. */
-        val STRIP = DpSize(250.dp, 40.dp)
-        /** 4 x 2 cells. */
-        val LARGE = DpSize(250.dp, 110.dp)
-
         /** home_widget SharedPreferences keys - WidgetFeed.snapshotKey / stringsKey in Dart. */
         const val KEY_SNAPSHOT = "fleet_snapshot"
         const val KEY_STRINGS  = "widget_strings"
+
+        /** The whole-tile tap target - DeepLinkService routes it to the dashboard. */
+        const val DASHBOARD_URI = "moongate://dashboard"
 
         /** The refresh glyph's background URI - WidgetFeed.refreshUri in Dart. */
         const val REFRESH_URI = "moongate://widget/refresh"
 
         /** home_widget's background action (HomeWidgetBackgroundIntent keeps it private). */
         private const val HOME_WIDGET_BACKGROUND_ACTION = "es.antonborri.home_widget.action.BACKGROUND"
+
+        // Launcher cells are about 70 dp each minus 30 dp of gutter: two cells
+        // never reach 180 dp, three cells always do. Below this width the tile
+        // is a one-printer view; from it on, the fleet list.
+        private val FLEET_MIN_WIDTH = 180.dp
+        // From here on a row has room for the temperature line too.
+        private val DETAIL_MIN_WIDTH = 240.dp
+        // A one-printer tile this tall (2x4) gains the file and temperature lines.
+        private val TALL_MIN_HEIGHT = 180.dp
 
         // State colours as the dashboard tiles use them: printing = the theme's
         // primary (dynamic colour), paused / heating = orange, error = red,
@@ -110,7 +126,8 @@ class MoongateWidget : GlanceAppWidget() {
 
     override val stateDefinition = HomeWidgetGlanceStateDefinition()
 
-    override val sizeMode = SizeMode.Responsive(setOf(SMALL, STRIP, LARGE))
+    /** The granted size decides the layout, so render for the exact size. */
+    override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
@@ -148,7 +165,7 @@ class MoongateWidget : GlanceAppWidget() {
                 .fillMaxSize()
                 .appWidgetBackground()
                 .background(GlanceTheme.colors.widgetBackground)
-                .clickable(openApp(context, "moongate://dashboard"))
+                .clickable(openDashboard(context))
             card = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 card.cornerRadius(android.R.dimen.system_app_widget_background_radius)
             } else {
@@ -158,7 +175,7 @@ class MoongateWidget : GlanceAppWidget() {
                 when {
                     snapshot == null            -> Message(strings.noData)
                     snapshot.printers.isEmpty() -> Message(strings.noPrinters)
-                    else                        -> Fleet(snapshot, strings)
+                    else                        -> Content(snapshot, strings)
                 }
                 if (snapshot != null && !snapshot.monitoring) {
                     Box(
@@ -173,16 +190,15 @@ class MoongateWidget : GlanceAppWidget() {
     }
 
     @Composable
-    private fun Fleet(snapshot: WidgetSnapshot, strings: WidgetStrings) {
+    private fun Content(snapshot: WidgetSnapshot, strings: WidgetStrings) {
         val size  = LocalSize.current
         val stale = !snapshot.monitoring
         val hint  = if (stale) strings.updatedAgo(snapshot.updatedAt) else null
-        val one   = snapshot.featuredPrinter ?: return
-        when {
-            size.height < 80.dp              -> StripLayout(one, stale, hint)
-            size.width  < 180.dp             -> SmallLayout(one, stale, hint)
-            snapshot.printers.size > 1       -> FleetLayout(snapshot.printers, stale, hint)
-            else                             -> SingleLayout(one, stale, hint)
+        if (size.width < FLEET_MIN_WIDTH) {
+            val one = snapshot.featuredPrinter ?: return
+            FeaturedLayout(one, stale, hint, tall = size.height >= TALL_MIN_HEIGHT)
+        } else {
+            FleetLayout(snapshot.printers, stale, hint, detail = size.width >= DETAIL_MIN_WIDTH)
         }
     }
 
@@ -197,13 +213,12 @@ class MoongateWidget : GlanceAppWidget() {
         }
     }
 
-    // ── 2 x 2: one printer, ring ─────────────────────────────────────────────
+    // ── Two cells wide: the one printer that matters most ────────────────────
 
     @Composable
-    private fun SmallLayout(p: WidgetPrinter, stale: Boolean, hint: String?) {
-        val context = LocalContext.current
+    private fun FeaturedLayout(p: WidgetPrinter, stale: Boolean, hint: String?, tall: Boolean) {
         Column(
-            modifier = GlanceModifier.fillMaxSize().clickable(openApp(context, printerUri(p))),
+            modifier = GlanceModifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalAlignment   = Alignment.CenterVertically,
         ) {
@@ -211,112 +226,84 @@ class MoongateWidget : GlanceAppWidget() {
             Spacer(GlanceModifier.height(4.dp))
             Ring(p, stale, 54.dp, 6.dp, 14.sp)
             Spacer(GlanceModifier.height(4.dp))
-            Text(p.stateLabel, style = TextStyle(color = stateColor(p, stale), fontSize = 11.sp, fontWeight = FontWeight.Medium), maxLines = 1)
-            val line = hint ?: etaLine(p)
-            if (line != null) Text(line, style = secondary(10.sp), maxLines = 1)
-        }
-    }
-
-    // ── 4 x 1: one-line strip ────────────────────────────────────────────────
-
-    @Composable
-    private fun StripLayout(p: WidgetPrinter, stale: Boolean, hint: String?) {
-        val context = LocalContext.current
-        Row(
-            modifier = GlanceModifier.fillMaxSize().clickable(openApp(context, printerUri(p))),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Dot(p, stale)
-            Spacer(GlanceModifier.width(6.dp))
-            Text(p.name, style = title(13.sp), maxLines = 1)
-            Spacer(GlanceModifier.width(8.dp))
-            if (p.isActive) {
-                Bar(p, stale, GlanceModifier.defaultWeight().height(6.dp))
-                Spacer(GlanceModifier.width(8.dp))
-                Text(hint ?: progressLine(p), style = secondary(12.sp), maxLines = 1)
-            } else {
-                Text(p.stateLabel, style = TextStyle(color = stateColor(p, stale), fontSize = 12.sp, fontWeight = FontWeight.Medium), maxLines = 1)
-                Spacer(GlanceModifier.defaultWeight())
-                if (hint != null) Text(hint, style = secondary(11.sp), maxLines = 1)
-            }
-            // Keep the strip's text clear of the refresh glyph in the corner.
-            if (stale) Spacer(GlanceModifier.width(22.dp))
-        }
-    }
-
-    // ── 4 x 2: one printer in detail ─────────────────────────────────────────
-
-    @Composable
-    private fun SingleLayout(p: WidgetPrinter, stale: Boolean, hint: String?) {
-        val context = LocalContext.current
-        Row(
-            modifier = GlanceModifier.fillMaxSize().clickable(openApp(context, printerUri(p))),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Ring(p, stale, 64.dp, 7.dp, 15.sp)
-            Spacer(GlanceModifier.width(12.dp))
-            Column(modifier = GlanceModifier.defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(p.name, style = title(14.sp), maxLines = 1)
-                    Spacer(GlanceModifier.width(8.dp))
-                    Text(p.stateLabel, style = TextStyle(color = stateColor(p, stale), fontSize = 12.sp, fontWeight = FontWeight.Medium), maxLines = 1)
-                }
-                val detail = listOfNotNull(p.filename, p.layerLabel).joinToString(" · ")
-                if (detail.isNotEmpty()) Text(detail, style = secondary(11.sp), maxLines = 1)
-                val eta = etaLine(p)
-                if (eta != null) Text(eta, style = secondary(11.sp), maxLines = 1)
-                Text(tempsLine(p), style = secondary(11.sp), maxLines = 1)
-                if (hint != null) Text(hint, style = secondary(10.sp), maxLines = 1)
-                if (p.isActive) {
+            Text(p.stateLabel, style = stateStyle(p, stale, 11.sp), maxLines = 1)
+            val eta = etaLine(p)
+            if (eta != null) Text(eta, style = secondary(10.sp), maxLines = 1)
+            if (tall) {
+                val detail = detailLine(p)
+                if (detail != null) {
                     Spacer(GlanceModifier.height(6.dp))
-                    Bar(p, stale, GlanceModifier.fillMaxWidth().height(6.dp))
+                    Text(detail, style = secondary(10.sp), maxLines = 2)
                 }
-            }
-            if (stale) Spacer(GlanceModifier.width(18.dp))
-        }
-    }
-
-    // ── 4 x 2: one row per printer ───────────────────────────────────────────
-
-    @Composable
-    private fun FleetLayout(printers: List<WidgetPrinter>, stale: Boolean, hint: String?) {
-        val context = LocalContext.current
-        val rows = printers.take(if (hint != null) 3 else 4)
-        Column(modifier = GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
-            for (p in rows) {
-                Row(
-                    modifier = GlanceModifier
-                        .fillMaxWidth()
-                        .padding(vertical = 2.dp)
-                        .clickable(openApp(context, printerUri(p))),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Dot(p, stale)
-                    Spacer(GlanceModifier.width(6.dp))
-                    Text(p.name, style = title(12.sp), maxLines = 1, modifier = GlanceModifier.defaultWeight())
-                    Spacer(GlanceModifier.width(8.dp))
-                    if (p.isActive) {
-                        Bar(p, stale, GlanceModifier.width(64.dp).height(5.dp))
-                        Spacer(GlanceModifier.width(8.dp))
-                        Text(progressLine(p), style = secondary(11.sp), maxLines = 1)
-                    } else {
-                        Text(p.stateLabel, style = TextStyle(color = stateColor(p, stale), fontSize = 11.sp, fontWeight = FontWeight.Medium), maxLines = 1)
-                    }
-                }
+                Spacer(GlanceModifier.height(4.dp))
+                Text(tempsLine(p), style = secondary(10.sp), maxLines = 1)
             }
             if (hint != null) {
-                Row(modifier = GlanceModifier.fillMaxWidth().padding(top = 2.dp)) {
+                Spacer(GlanceModifier.height(4.dp))
+                Text(hint, style = secondary(10.sp), maxLines = 1)
+            }
+        }
+    }
+
+    // ── Three cells or wider: the whole fleet, one row per printer ───────────
+
+    @Composable
+    private fun FleetLayout(printers: List<WidgetPrinter>, stale: Boolean, hint: String?, detail: Boolean) {
+        val context = LocalContext.current
+        Column(modifier = GlanceModifier.fillMaxSize()) {
+            if (hint != null) {
+                // Above the list, clear of the refresh glyph in the corner.
+                Row(modifier = GlanceModifier.fillMaxWidth().padding(bottom = 2.dp)) {
                     Text(hint, style = secondary(10.sp), maxLines = 1)
+                    Spacer(GlanceModifier.width(22.dp))
                 }
+            }
+            // A scrolling list: every printer gets a row, swipe for the rest.
+            // Rows carry the dashboard click themselves - the list view takes
+            // the touches, so the card's own clickable never sees them.
+            LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
+                items(printers, itemId = { it.id.hashCode().toLong() }) { p ->
+                    PrinterRow(p, stale, detail, openDashboard(context))
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun PrinterRow(p: WidgetPrinter, stale: Boolean, detail: Boolean, onClick: Action) {
+        Column(
+            modifier = GlanceModifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+                .clickable(onClick),
+        ) {
+            Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Dot(p, stale)
+                Spacer(GlanceModifier.width(6.dp))
+                Text(p.name, style = title(12.sp), maxLines = 1, modifier = GlanceModifier.defaultWeight())
+                Spacer(GlanceModifier.width(8.dp))
+                Text(p.stateLabel, style = stateStyle(p, stale, 11.sp), maxLines = 1)
+            }
+            if (p.isActive) {
+                Spacer(GlanceModifier.height(3.dp))
+                Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Bar(p, stale, GlanceModifier.defaultWeight().height(5.dp))
+                    Spacer(GlanceModifier.width(8.dp))
+                    Text(progressLine(p), style = secondary(11.sp), maxLines = 1)
+                }
+            }
+            val lines = listOfNotNull(detailLine(p), if (detail) tempsLine(p) else null)
+            if (lines.isNotEmpty()) {
+                Text(lines.joinToString("   "), style = secondary(10.sp), maxLines = 1)
             }
         }
     }
 
     // ── Pieces ───────────────────────────────────────────────────────────────
 
-    /** Progress ring with the percent inside; the state word when idle. */
+    /** Progress ring with the percent inside; the track alone when idle. */
     @Composable
-    private fun Ring(p: WidgetPrinter, stale: Boolean, size: androidx.compose.ui.unit.Dp, stroke: androidx.compose.ui.unit.Dp, fontSize: androidx.compose.ui.unit.TextUnit) {
+    private fun Ring(p: WidgetPrinter, stale: Boolean, size: Dp, stroke: Dp, fontSize: TextUnit) {
         val context = LocalContext.current
         val color   = stateColor(p, stale).getColor(context).toArgb()
         val bitmap  = ringBitmap(context, if (p.isActive) p.progress else 0f, color, TRACK.toArgb(), size.value, stroke.value)
@@ -359,16 +346,20 @@ class MoongateWidget : GlanceAppWidget() {
     }
 
     @Composable
-    private fun title(size: androidx.compose.ui.unit.TextUnit) =
+    private fun title(size: TextUnit) =
         TextStyle(color = GlanceTheme.colors.onSurface, fontSize = size, fontWeight = FontWeight.Bold)
 
     @Composable
-    private fun secondary(size: androidx.compose.ui.unit.TextUnit) =
+    private fun secondary(size: TextUnit) =
         TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = size)
+
+    @Composable
+    private fun stateStyle(p: WidgetPrinter, stale: Boolean, size: TextUnit) =
+        TextStyle(color = stateColor(p, stale), fontSize = size, fontWeight = FontWeight.Medium)
 
     /** The tile's state colour; a flat grey once the snapshot is stale. */
     @Composable
-    private fun stateColor(p: WidgetPrinter, stale: Boolean): androidx.glance.unit.ColorProvider {
+    private fun stateColor(p: WidgetPrinter, stale: Boolean): ColorProvider {
         if (stale) return ColorProvider(GREY)
         return when (p.state) {
             "printing"           -> GlanceTheme.colors.primary
@@ -389,6 +380,12 @@ class MoongateWidget : GlanceAppWidget() {
         return if (parts.isEmpty()) null else parts.joinToString(" · ")
     }
 
+    /** "benchy.gcode · Layer 84 / 200", or null when idle. */
+    private fun detailLine(p: WidgetPrinter): String? {
+        val parts = listOfNotNull(p.filename, p.layerLabel)
+        return if (parts.isEmpty()) null else parts.joinToString(" · ")
+    }
+
     /** Hotend / bed / chamber, the notification's own markers, chamber only when sensed. */
     private fun tempsLine(p: WidgetPrinter): String {
         val parts = mutableListOf("🔥${p.hotend.toInt()}°", "🟧${p.bed.toInt()}°")
@@ -396,21 +393,10 @@ class MoongateWidget : GlanceAppWidget() {
         return parts.joinToString("  ")
     }
 
-    /**
-     * A printer's tap link. The id rides as a QUERY parameter, never a path
-     * segment: when a VIEW intent launches the Flutter activity, Flutter also
-     * hands the URI's path to go_router as the initial route, and a path like
-     * `/<id>` has no route (the device pass hit "GoException: no routes for
-     * location" that way). With an empty path the router lands on `/` and
-     * DeepLinkService does the navigation.
-     */
-    private fun printerUri(p: WidgetPrinter): String =
-        "moongate://printer?id=" + Uri.encode(p.id)
-
-    /** An explicit VIEW intent into MainActivity on the pairing links' scheme. */
-    private fun openApp(context: Context, uri: String) =
+    /** The whole-tile tap: an explicit VIEW intent into MainActivity. */
+    private fun openDashboard(context: Context): Action =
         actionStartActivity(
-            Intent(Intent.ACTION_VIEW, Uri.parse(uri), context, MainActivity::class.java)
+            Intent(Intent.ACTION_VIEW, Uri.parse(DASHBOARD_URI), context, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
 
