@@ -37,16 +37,23 @@ class DeepLinkService {
 
   /// The home-screen widget's two tap targets, on the same scheme the pair
   /// links use so one intent filter and one delivery path serve both:
-  ///   • `moongate://dashboard`      - empty widget space;
-  ///   • `moongate://printer/<id>`   - a printer's row / ring.
+  ///   • `moongate://dashboard`         - empty widget space;
+  ///   • `moongate://printer?id=<id>`   - a printer's row / ring.
+  /// The id is a query parameter, not a path: Flutter also hands a launching
+  /// intent's PATH to go_router as the initial route, and `/<id>` has no route
+  /// (v0.9.79 device pass: "GoException: no routes for location").
   static bool isWidgetUri(Uri uri) =>
       uri.scheme == 'moongate' &&
       (uri.host == 'dashboard' || uri.host == 'printer');
 
   /// The printer id a widget link names, or null for the dashboard link and
-  /// for a malformed printer link (no id, or extra path).
+  /// for a malformed printer link. The query form (`?id=`) is current; the
+  /// single-path-segment form (`moongate://printer/<id>`) is still read so a
+  /// widget placed by the first v0.9.79 test build keeps working.
   static String? widgetPrinterId(Uri uri) {
     if (uri.scheme != 'moongate' || uri.host != 'printer') return null;
+    final q = uri.queryParameters['id'];
+    if (q != null && q.isNotEmpty) return q;
     final segs = uri.pathSegments.where((s) => s.isNotEmpty).toList();
     return segs.length == 1 ? segs.single : null;
   }

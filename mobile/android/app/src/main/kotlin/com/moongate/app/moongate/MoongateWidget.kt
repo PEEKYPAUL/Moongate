@@ -72,7 +72,7 @@ import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
  * snapshot is shown greyed with an "updated N min ago" hint and a refresh
  * glyph that runs a one-shot Dart poll in the background.
  *
- * Taps: a printer opens that printer in the app (`moongate://printer/<id>`),
+ * Taps: a printer opens that printer in the app (`moongate://printer?id=<id>`),
  * empty space the dashboard (`moongate://dashboard`) - both delivered as
  * ordinary VIEW intents on the scheme the pairing links already use, so
  * DeepLinkService handles them.
@@ -203,7 +203,7 @@ class MoongateWidget : GlanceAppWidget() {
     private fun SmallLayout(p: WidgetPrinter, stale: Boolean, hint: String?) {
         val context = LocalContext.current
         Column(
-            modifier = GlanceModifier.fillMaxSize().clickable(openApp(context, "moongate://printer/${p.id}")),
+            modifier = GlanceModifier.fillMaxSize().clickable(openApp(context, printerUri(p))),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalAlignment   = Alignment.CenterVertically,
         ) {
@@ -223,7 +223,7 @@ class MoongateWidget : GlanceAppWidget() {
     private fun StripLayout(p: WidgetPrinter, stale: Boolean, hint: String?) {
         val context = LocalContext.current
         Row(
-            modifier = GlanceModifier.fillMaxSize().clickable(openApp(context, "moongate://printer/${p.id}")),
+            modifier = GlanceModifier.fillMaxSize().clickable(openApp(context, printerUri(p))),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Dot(p, stale)
@@ -250,7 +250,7 @@ class MoongateWidget : GlanceAppWidget() {
     private fun SingleLayout(p: WidgetPrinter, stale: Boolean, hint: String?) {
         val context = LocalContext.current
         Row(
-            modifier = GlanceModifier.fillMaxSize().clickable(openApp(context, "moongate://printer/${p.id}")),
+            modifier = GlanceModifier.fillMaxSize().clickable(openApp(context, printerUri(p))),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Ring(p, stale, 64.dp, 7.dp, 15.sp)
@@ -288,7 +288,7 @@ class MoongateWidget : GlanceAppWidget() {
                     modifier = GlanceModifier
                         .fillMaxWidth()
                         .padding(vertical = 2.dp)
-                        .clickable(openApp(context, "moongate://printer/${p.id}")),
+                        .clickable(openApp(context, printerUri(p))),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Dot(p, stale)
@@ -395,6 +395,17 @@ class MoongateWidget : GlanceAppWidget() {
         if (p.chamber > 0f) parts.add("🏠${p.chamber.toInt()}°")
         return parts.joinToString("  ")
     }
+
+    /**
+     * A printer's tap link. The id rides as a QUERY parameter, never a path
+     * segment: when a VIEW intent launches the Flutter activity, Flutter also
+     * hands the URI's path to go_router as the initial route, and a path like
+     * `/<id>` has no route (the device pass hit "GoException: no routes for
+     * location" that way). With an empty path the router lands on `/` and
+     * DeepLinkService does the navigation.
+     */
+    private fun printerUri(p: WidgetPrinter): String =
+        "moongate://printer?id=" + Uri.encode(p.id)
 
     /** An explicit VIEW intent into MainActivity on the pairing links' scheme. */
     private fun openApp(context: Context, uri: String) =
