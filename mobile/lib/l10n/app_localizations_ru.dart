@@ -2839,4 +2839,29 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get singleWebInterface => 'Веб-интерфейс';
+
+  @override
+  String get widgetNoData =>
+      'Включите уведомления о печати в Moongate, чтобы виджет получал данные';
+
+  @override
+  String get widgetNoPrinters => 'Принтеры ещё не подключены';
+
+  @override
+  String get widgetUpdatedJustNow => 'Обновлено только что';
+
+  @override
+  String widgetUpdatedMinutesAgo(String n) {
+    return 'Обновлено $n мин назад';
+  }
+
+  @override
+  String widgetUpdatedHoursAgo(String n) {
+    return 'Обновлено $n ч назад';
+  }
+
+  @override
+  String widgetUpdatedDaysAgo(String n) {
+    return 'Обновлено $n дн назад';
+  }
 }

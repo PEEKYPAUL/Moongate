@@ -844,5 +844,11 @@
   "singlePosition": "位置",
   "singleMove": "移动",
   "singlePrintFiles": "打印文件",
-  "singleWebInterface": "网页界面"
+  "singleWebInterface": "网页界面",
+  "widgetNoData": "在 Moongate 中开启打印通知，以便更新此小组件",
+  "widgetNoPrinters": "尚未配对打印机",
+  "widgetUpdatedJustNow": "刚刚更新",
+  "widgetUpdatedMinutesAgo": "{n} 分钟前更新",
+  "widgetUpdatedHoursAgo": "{n} 小时前更新",
+  "widgetUpdatedDaysAgo": "{n} 天前更新"
 }

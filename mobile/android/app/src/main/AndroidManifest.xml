@@ -70,6 +70,102 @@
              this service too, so the special-use subtype requires a Play Console
              review declaration (justified by long prints exceeding dataSync's
              6h cap). The GitHub/KIAUH sideload channel needs no such review. -->
+        <!-- Home-screen widget (v0.9.79): seven picker entries, one per preset
+             size (width x height in cells), all the same Glance widget - the
+             picker only offers a provider's one default size, so a size choice
+             means a provider per size (MoongateWidgetReceivers.kt). Fed by the
+             print-notification service above through home_widget, so it needs
+             no permission and no poller of its own. Ships in both flavors. -->
+        <receiver
+            android:name=".MoongateWidgetReceiver2x2"
+            android:exported="true"
+            android:label="Moongate 2x2">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/moongate_widget_2x2" />
+        </receiver>
+        <receiver
+            android:name=".MoongateWidgetReceiver2x4"
+            android:exported="true"
+            android:label="Moongate 2x4">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/moongate_widget_2x4" />
+        </receiver>
+        <receiver
+            android:name=".MoongateWidgetReceiver3x2"
+            android:exported="true"
+            android:label="Moongate 3x2">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/moongate_widget_3x2" />
+        </receiver>
+        <receiver
+            android:name=".MoongateWidgetReceiver3x4"
+            android:exported="true"
+            android:label="Moongate 3x4">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/moongate_widget_3x4" />
+        </receiver>
+        <receiver
+            android:name=".MoongateWidgetReceiver4x2"
+            android:exported="true"
+            android:label="Moongate 4x2">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/moongate_widget_4x2" />
+        </receiver>
+        <receiver
+            android:name=".MoongateWidgetReceiver4x3"
+            android:exported="true"
+            android:label="Moongate 4x3">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/moongate_widget_4x3" />
+        </receiver>
+        <receiver
+            android:name=".MoongateWidgetReceiver4x4"
+            android:exported="true"
+            android:label="Moongate 4x4">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/moongate_widget_4x4" />
+        </receiver>
+
+        <!-- home_widget's receiver for the widget's refresh glyph: it runs the
+             registered Dart callback (widgetRefreshCallback) in a headless
+             engine via WorkManager. Declared here because the plugin's own
+             manifest is empty by design (apps opt in). -->
+        <receiver
+            android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             android:foregroundServiceType="specialUse"

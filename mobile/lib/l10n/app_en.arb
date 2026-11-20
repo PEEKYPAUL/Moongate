@@ -1633,5 +1633,17 @@
   "singlePrintFiles": "Print files",
   "@singlePrintFiles": {"description": "Big button that opens the printer's G-code file list to start a print."},
   "singleWebInterface": "Web interface",
-  "@singleWebInterface": {"description": "Button that opens the printer's own web page when its type (Mainsail / Fluidd) isn't known yet."}
+  "@singleWebInterface": {"description": "Button that opens the printer's own web page when its type (Mainsail / Fluidd) isn't known yet."},
+  "widgetNoData": "Turn on print notifications in Moongate to feed this widget",
+  "@widgetNoData": {"description": "Home-screen widget (Android): shown when the app has never written a status snapshot. The widget is fed by the print-notification service."},
+  "widgetNoPrinters": "No printers paired yet",
+  "@widgetNoPrinters": {"description": "Home-screen widget: the snapshot exists but lists no printers."},
+  "widgetUpdatedJustNow": "Updated just now",
+  "@widgetUpdatedJustNow": {"description": "Home-screen widget: age of the last update while monitoring is off, under a minute."},
+  "widgetUpdatedMinutesAgo": "Updated {n} min ago",
+  "@widgetUpdatedMinutesAgo": {"description": "Home-screen widget: age of the last update while monitoring is off. {n} is a number of minutes, filled in by the widget itself - keep the literal {n}.", "placeholders": {"n": {"type": "String"}}},
+  "widgetUpdatedHoursAgo": "Updated {n} h ago",
+  "@widgetUpdatedHoursAgo": {"description": "Home-screen widget: age of the last update in hours. {n} is filled in by the widget - keep the literal {n}.", "placeholders": {"n": {"type": "String"}}},
+  "widgetUpdatedDaysAgo": "Updated {n} d ago",
+  "@widgetUpdatedDaysAgo": {"description": "Home-screen widget: age of the last update in days. {n} is filled in by the widget - keep the literal {n}.", "placeholders": {"n": {"type": "String"}}}
 }
