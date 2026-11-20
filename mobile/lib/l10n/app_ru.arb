@@ -844,5 +844,11 @@
   "singlePosition": "Положение",
   "singleMove": "Перемещение",
   "singlePrintFiles": "Файлы печати",
-  "singleWebInterface": "Веб-интерфейс"
+  "singleWebInterface": "Веб-интерфейс",
+  "widgetNoData": "Включите уведомления о печати в Moongate, чтобы виджет получал данные",
+  "widgetNoPrinters": "Принтеры ещё не подключены",
+  "widgetUpdatedJustNow": "Обновлено только что",
+  "widgetUpdatedMinutesAgo": "Обновлено {n} мин назад",
+  "widgetUpdatedHoursAgo": "Обновлено {n} ч назад",
+  "widgetUpdatedDaysAgo": "Обновлено {n} дн назад"
 }

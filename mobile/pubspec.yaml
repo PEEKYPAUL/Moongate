@@ -136,6 +136,13 @@ dependencies:
   # 6.x pin below (dependency_overrides) still governs the resolved version.
   app_links: ^6.4.0
 
+  # Android home-screen widget (v0.9.79): the print-notification isolate writes
+  # one JSON fleet snapshot per poll through saveWidgetData, and the Jetpack
+  # Glance widget (android/.../MoongateWidget.kt) renders it. The refresh glyph
+  # runs a Dart one-shot poll via registerInteractivityCallback. iOS has no
+  # widget yet, but the snapshot feed is written once for a WidgetKit twin.
+  home_widget: ^0.10.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

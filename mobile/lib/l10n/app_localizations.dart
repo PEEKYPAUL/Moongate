@@ -5073,6 +5073,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Web interface'**
   String get singleWebInterface;
+
+  /// Home-screen widget (Android): shown when the app has never written a status snapshot. The widget is fed by the print-notification service.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on print notifications in Moongate to feed this widget'**
+  String get widgetNoData;
+
+  /// Home-screen widget: the snapshot exists but lists no printers.
+  ///
+  /// In en, this message translates to:
+  /// **'No printers paired yet'**
+  String get widgetNoPrinters;
+
+  /// Home-screen widget: age of the last update while monitoring is off, under a minute.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated just now'**
+  String get widgetUpdatedJustNow;
+
+  /// Home-screen widget: age of the last update while monitoring is off. {n} is a number of minutes, filled in by the widget itself - keep the literal {n}.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {n} min ago'**
+  String widgetUpdatedMinutesAgo(String n);
+
+  /// Home-screen widget: age of the last update in hours. {n} is filled in by the widget - keep the literal {n}.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {n} h ago'**
+  String widgetUpdatedHoursAgo(String n);
+
+  /// Home-screen widget: age of the last update in days. {n} is filled in by the widget - keep the literal {n}.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {n} d ago'**
+  String widgetUpdatedDaysAgo(String n);
 }
 
 class _AppLocalizationsDelegate

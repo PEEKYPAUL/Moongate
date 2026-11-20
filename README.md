@@ -58,6 +58,7 @@ Free, source-available **iPhone and Android** control for your **Klipper 3D prin
 - **Cameras** - Mainsail cameras auto-detected, go2rtc included; add an external IP camera; full-screen view with pinch-to-zoom; switch between several on one printer.
 - **Multi-toolhead** - IDEX and tool changers show every hotend as its own chip, active tool highlighted, preheat for all at once.
 - **Notifications** - opt-in start / finish / pause / error alerts with the reason, live progress in the shade, heat-soak and "cool enough to remove" alerts, and a `MOONGATE_NOTIFY` macro for your own gcode. Optional finished and progress alerts reach a paired smartwatch without a watch app (v0.9.79).
+- **Home-screen widget (Android)** - live printer status on your home screen, resizable from a 2x2 progress ring to a 4x2 fleet list; fed by the print notifications, so it costs no extra battery.
 - **Lighting** - a bulb on the tile drives your light macros and shows the real on/off state.
 - **App lock** - PIN or biometric, auto-lock, screenshot protection. Off by default.
 - **Themes and layout** - light, dark or custom colours and background, Material You on Android, a 36-font picker, 1-3 columns, landscape.

@@ -70,6 +70,34 @@
              this service too, so the special-use subtype requires a Play Console
              review declaration (justified by long prints exceeding dataSync's
              6h cap). The GitHub/KIAUH sideload channel needs no such review. -->
+        <!-- Home-screen widget (v0.9.79). ONE resizable widget; the Glance code
+             picks 2x2 / 4x1 / 4x2 layouts from the size granted. Fed by the
+             print-notification service above through home_widget, so it needs
+             no permission and no poller of its own. Ships in both flavors. -->
+        <receiver
+            android:name=".MoongateWidgetReceiver"
+            android:exported="true"
+            android:label="Moongate">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/moongate_widget_info" />
+        </receiver>
+
+        <!-- home_widget's receiver for the widget's refresh glyph: it runs the
+             registered Dart callback (widgetRefreshCallback) in a headless
+             engine via WorkManager. Declared here because the plugin's own
+             manifest is empty by design (apps opt in). -->
+        <receiver
+            android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             android:foregroundServiceType="specialUse"

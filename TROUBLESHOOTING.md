@@ -107,6 +107,18 @@ Right after the power-on itself, also give the printer a little time: some Pis t
 
 If print notifications were on but the ongoing status notification is gone and you're no longer getting updates, you may have **paused** them. Since **v0.9.46** there's a **pause/play button** in the dashboard top bar (it appears when notifications are on): tapping **pause** stops Moongate checking your printers in the background, which saves battery and removes the ongoing notification. Tap the same button (now a **play** icon) to resume. A pause is remembered across app restarts and reboots, so it stays off until you tap play.
 
+## Home-screen widget (Android, v0.9.79+): adding it, and why it can go grey
+
+**What it shows.** One resizable widget. At **2x2** it shows the printer that matters most right now (an error first, then a running or paused print, then an idle one): name, progress ring with the percentage, state, time left and the projected finish time. At **4x1** the same printer on one line. At **4x2** that printer in detail (file, layer when the slicer reports it, hotend / bed / chamber temperatures, progress bar), or, when you have several printers, **one row each** (up to four) with a bar and "42% · ~1h05m" or the state word. Tap a printer to open it in the app; tap empty space for the dashboard. The words, times and colours are the same ones the notification shade and the tiles use.
+
+**How to add it.** Long-press an empty spot on your home screen, choose **Widgets**, find **Moongate** and drag it out, then resize it as you like. The layout switches on its own with the size.
+
+**It is grey, says "Updated 20 min ago" and has a refresh arrow.** The widget has no checker of its own: it is fed by the **print notifications** service, after every check that service makes. When print notifications are **off**, or **paused** with the top-bar pause button, nothing is feeding it, so it keeps the last status it saw, greys it, and says how old it is. Two ways out: turn print notifications on (menu) or tap **play** in the top bar to resume them, and the widget goes live again within one check; or tap the **refresh arrow** on the widget for a one-off check of every printer without turning monitoring on (it stays grey, with a fresh time). Direct (LAN/VPN) printers are not polled by the notification service, so they show as offline on the widget too.
+
+**It says "Turn on print notifications in Moongate to feed this widget".** Nothing has ever been written to it: the app was installed but monitoring has not run yet. Turn on print notifications once and the first check fills it.
+
+**Nothing happens when I tap the refresh arrow.** The one-off check runs in the background and needs a network path to your printers (home Wi-Fi, or the tunnel) plus a few seconds; the time line updates when it lands. If the phone is in a strict battery-saver mode that blocks background work, open the app instead: it does not need the widget's own check.
+
 ## No notification appeared on your iPhone - but everything says it was sent
 
 If you were **inside the Moongate app** (or any app, with Moongate in the foreground) when the alert fired, that's normal iPhone behaviour: iOS doesn't show a banner for a push notification while the app it belongs to is on screen. The alert still exists - swipe down from the top of the screen (Notification Centre) and it's there. Lock the phone or switch apps and the next one will banner normally.

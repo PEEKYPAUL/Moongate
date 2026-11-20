@@ -2855,4 +2855,29 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get singleWebInterface => 'Interfaccia web';
+
+  @override
+  String get widgetNoData =>
+      'Attiva le notifiche di stampa in Moongate per alimentare questo widget';
+
+  @override
+  String get widgetNoPrinters => 'Nessuna stampante associata';
+
+  @override
+  String get widgetUpdatedJustNow => 'Aggiornato adesso';
+
+  @override
+  String widgetUpdatedMinutesAgo(String n) {
+    return 'Aggiornato $n min fa';
+  }
+
+  @override
+  String widgetUpdatedHoursAgo(String n) {
+    return 'Aggiornato $n h fa';
+  }
+
+  @override
+  String widgetUpdatedDaysAgo(String n) {
+    return 'Aggiornato $n g fa';
+  }
 }
