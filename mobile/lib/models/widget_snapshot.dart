@@ -236,6 +236,9 @@ abstract final class WidgetStrings {
   /// freeze at whatever it said when last drawn.
   static const updatedAt    = 'updatedAt';
 
+  /// "Status" - the label in the printing block's "Name | Status: Printing".
+  static const status       = 'status';
+
   /// Every template key, in the order they are written.
-  static const all = [noData, noPrinters, updatedAt];
+  static const all = [noData, noPrinters, updatedAt, status];
 }

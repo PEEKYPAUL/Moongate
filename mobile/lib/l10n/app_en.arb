@@ -1641,5 +1641,7 @@
   "widgetUpdatedAt": "Updated {n}",
   "@widgetUpdatedAt": {"description": "Home-screen widget: when the shown status was last fetched, shown while monitoring is off. {n} is a clock time (today) or date and time, filled in by the widget - keep the literal {n}.", "placeholders": {"n": {"type": "String"}}},
   "widgetPoweredOff": "Powered off",
-  "@widgetPoweredOff": {"description": "Home-screen widget only: the state word for a printer the phone cannot reach at all (its Pi is switched off). The dashboard tiles keep saying Offline."}
+  "@widgetPoweredOff": {"description": "Home-screen widget only: the state word for a printer the phone cannot reach at all (its Pi is switched off). The dashboard tiles keep saying Offline."},
+  "widgetStatus": "Status",
+  "@widgetStatus": {"description": "Home-screen widget: the label in a printing printer\u2019s top line, rendered as \"Name | Status: Printing\". A short noun."}
 }

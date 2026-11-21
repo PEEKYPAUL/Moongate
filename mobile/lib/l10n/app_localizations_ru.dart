@@ -2854,4 +2854,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get widgetPoweredOff => 'Выключен';
+
+  @override
+  String get widgetStatus => 'Статус';
 }

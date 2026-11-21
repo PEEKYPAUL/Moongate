@@ -5097,6 +5097,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Powered off'**
   String get widgetPoweredOff;
+
+  /// Home-screen widget: the label in a printing printer’s top line, rendered as "Name | Status: Printing". A short noun.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get widgetStatus;
 }
 
 class _AppLocalizationsDelegate

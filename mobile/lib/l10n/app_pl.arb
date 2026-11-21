@@ -848,5 +848,6 @@
   "widgetNoData": "Włącz powiadomienia o druku w Moongate, aby zasilać ten widżet",
   "widgetNoPrinters": "Nie sparowano jeszcze żadnej drukarki",
   "widgetUpdatedAt": "Zaktualizowano {n}",
-  "widgetPoweredOff": "Wyłączona"
+  "widgetPoweredOff": "Wyłączona",
+  "widgetStatus": "Stan"
 }

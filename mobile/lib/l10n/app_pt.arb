@@ -850,5 +850,6 @@
   "widgetNoData": "Ative as notificações de impressão no Moongate para alimentar este widget",
   "widgetNoPrinters": "Nenhuma impressora emparelhada ainda",
   "widgetUpdatedAt": "Atualizado {n}",
-  "widgetPoweredOff": "Desligada"
+  "widgetPoweredOff": "Desligada",
+  "widgetStatus": "Estado"
 }

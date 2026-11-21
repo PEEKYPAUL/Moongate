@@ -2866,4 +2866,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get widgetPoweredOff => 'Desligada';
+
+  @override
+  String get widgetStatus => 'Estado';
 }

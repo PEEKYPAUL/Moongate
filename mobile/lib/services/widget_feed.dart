@@ -52,6 +52,7 @@ abstract final class WidgetFeed {
         WidgetStrings.noData:     l.widgetNoData,
         WidgetStrings.noPrinters: l.widgetNoPrinters,
         WidgetStrings.updatedAt:  l.widgetUpdatedAt('{n}'),
+        WidgetStrings.status:     l.widgetStatus,
       };
 
   /// Save [snapshot] and redraw every placed widget.

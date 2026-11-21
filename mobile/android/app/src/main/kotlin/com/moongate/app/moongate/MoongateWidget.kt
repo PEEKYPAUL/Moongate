@@ -74,10 +74,11 @@ import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
  *     2x4 also the file / layer line and the temperatures;
  *   • three cells or wider (3x2, 3x4, 4x2, 4x3, 4x4): the WHOLE fleet, one
  *     row per printer. A printing / paused printer gets the "printing block"
- *     (Paul's mock-up): a progress ring with the percent on the far left and,
- *     stacked to its right, the name, "time left · 🏁 finish", a progress bar
- *     and the truncated file; an idle printer keeps a compact row (name,
- *     state, temperatures). The rows share the tile's full height (so four
+ *     (Paul's screenshot): "Name | Status: Printing" on top, the progress ring
+ *     with the percent on the far left, "~20m · 🏁10:04 PM" beside it with the
+ *     temperatures large on the far right, and a full-width progress bar
+ *     underneath; an idle printer keeps a compact row (name, state,
+ *     temperatures). The rows share the tile's full height (so four
  *     printers fill a 4x4, not a block at the top), type and ring scale with
  *     the room per row ([Type]), and only when more printers are paired than
  *     the tile can show does the list scroll (swipe for more).
@@ -123,9 +124,9 @@ class MoongateWidget : GlanceAppWidget() {
         // Fleet type buckets by tile height: two cells (under 180 dp), three
         // (under 300 dp), four and up. The row minimum is what a row needs at
         // that type before the list has to scroll instead of sharing the height.
-        private val TYPE_SMALL  = Type(name = 13.sp, body = 11.sp, fine = 10.sp, bar = 5.dp,  gap = 4.dp,  rowMin = 46.dp, fileChars = 28)
-        private val TYPE_MEDIUM = Type(name = 16.sp, body = 13.sp, fine = 12.sp, bar = 7.dp,  gap = 8.dp,  rowMin = 68.dp, fileChars = 30)
-        private val TYPE_LARGE  = Type(name = 19.sp, body = 15.sp, fine = 13.sp, bar = 8.dp,  gap = 10.dp, rowMin = 84.dp, fileChars = 34)
+        private val TYPE_SMALL  = Type(name = 13.sp, body = 11.sp, fine = 10.sp, bar = 5.dp,  gap = 4.dp,  rowMin = 46.dp)
+        private val TYPE_MEDIUM = Type(name = 16.sp, body = 13.sp, fine = 12.sp, bar = 7.dp,  gap = 8.dp,  rowMin = 68.dp)
+        private val TYPE_LARGE  = Type(name = 19.sp, body = 15.sp, fine = 13.sp, bar = 8.dp,  gap = 10.dp, rowMin = 84.dp)
 
         // State colours as the dashboard tiles use them: printing = the theme's
         // primary (dynamic colour), paused / heating = orange, error = red,
@@ -212,7 +213,7 @@ class MoongateWidget : GlanceAppWidget() {
             val one = snapshot.featuredPrinter ?: return
             FeaturedLayout(one, stale, hint, tall = size.height >= TALL_MIN_HEIGHT)
         } else {
-            FleetLayout(snapshot.printers, stale, hint, size)
+            FleetLayout(snapshot.printers, stale, hint, strings, size)
         }
     }
 
@@ -269,8 +270,6 @@ class MoongateWidget : GlanceAppWidget() {
         val bar: Dp,
         val gap: Dp,
         val rowMin: Dp,
-        /** Characters of file name a row shows before "…" (no ellipsize in Glance). */
-        val fileChars: Int,
     )
 
     private fun typeFor(size: DpSize): Type = when {
@@ -287,7 +286,7 @@ class MoongateWidget : GlanceAppWidget() {
     }
 
     @Composable
-    private fun FleetLayout(printers: List<WidgetPrinter>, stale: Boolean, hint: String?, size: DpSize) {
+    private fun FleetLayout(printers: List<WidgetPrinter>, stale: Boolean, hint: String?, strings: WidgetStrings, size: DpSize) {
         val context = LocalContext.current
         val detail  = size.width >= DETAIL_MIN_WIDTH
         // EVERY paired printer gets a row. First try the tile's own type
@@ -315,7 +314,7 @@ class MoongateWidget : GlanceAppWidget() {
             if (fitting != null) {
                 printers.forEachIndexed { i, p ->
                     if (i > 0) Divider()
-                    PrinterRow(p, stale, detail, t, rowDp, openDashboard(context),
+                    PrinterRow(p, stale, detail, t, strings, rowDp, openDashboard(context),
                         GlanceModifier.fillMaxWidth().defaultWeight())
                 }
             } else {
@@ -324,7 +323,7 @@ class MoongateWidget : GlanceAppWidget() {
                 LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
                     items(printers) { p ->
                         Column(modifier = GlanceModifier.fillMaxWidth()) {
-                            PrinterRow(p, stale, detail, t, rowMin(p, t), openDashboard(context),
+                            PrinterRow(p, stale, detail, t, strings, rowMin(p, t), openDashboard(context),
                                 GlanceModifier.fillMaxWidth())
                             Divider()
                         }
@@ -336,7 +335,7 @@ class MoongateWidget : GlanceAppWidget() {
 
     /** The height (dp) a printer's row needs at this type: more for a printing block. */
     private fun rowMin(p: WidgetPrinter, t: Type): Float =
-        if (p.isActive) t.rowMin.value + 18f else t.rowMin.value
+        if (p.isActive) t.rowMin.value + 24f else t.rowMin.value
 
     /** A hairline between fleet rows, so the spacing reads as deliberate. */
     @Composable
@@ -349,9 +348,9 @@ class MoongateWidget : GlanceAppWidget() {
      * fleet fits, else the row minimum) and sizes the printing block's ring.
      */
     @Composable
-    private fun PrinterRow(p: WidgetPrinter, stale: Boolean, detail: Boolean, t: Type, rowDp: Float, onClick: Action, modifier: GlanceModifier) {
+    private fun PrinterRow(p: WidgetPrinter, stale: Boolean, detail: Boolean, t: Type, strings: WidgetStrings, rowDp: Float, onClick: Action, modifier: GlanceModifier) {
         if (p.isActive) {
-            PrintingBlock(p, stale, detail, t, rowDp, onClick, modifier)
+            PrintingBlock(p, stale, detail, t, strings, rowDp, onClick, modifier)
             return
         }
         // Compact row for a printer that is not printing: dot, name, state
@@ -378,52 +377,55 @@ class MoongateWidget : GlanceAppWidget() {
     }
 
     /**
-     * Paul's printing block: the progress ring with the percent on the far
-     * left, sized to the row, and to its right the name (state word at the
-     * end), "~46m · 🏁 2:52 PM" (temperatures right-aligned when there is
-     * width), the progress bar, and the file cut to the row's budget. On a
-     * tight row the file goes first, then the finish clock; the ring, percent
-     * and bar always stay. Paused prints use the same block in the paused
-     * colour; a print still heating shows the ring at 0 % with the
-     * temperatures where the time line would be.
+     * Paul's printing block, from his screenshot: the top line reads
+     * "<name> | <Status>: <state word>" (the "Status" label is a Dart-written,
+     * localised template); under it the progress ring with the percent on the
+     * far left, "~20m · 🏁10:04 PM" beside it, and the temperatures LARGE on
+     * the far right (chamber only when the printer reports one); then a
+     * progress bar across the whole block. No file line. On a narrow tile the
+     * temperatures wrap under the time line instead of sitting far right, at
+     * the same large size; on a tight row the finish clock goes before
+     * anything else. Paused prints use the same block in the paused colour; a
+     * print still heating shows the ring at 0 % with "Heating" as its state.
      */
     @Composable
-    private fun PrintingBlock(p: WidgetPrinter, stale: Boolean, detail: Boolean, t: Type, rowDp: Float, onClick: Action, modifier: GlanceModifier) {
+    private fun PrintingBlock(p: WidgetPrinter, stale: Boolean, detail: Boolean, t: Type, strings: WidgetStrings, rowDp: Float, onClick: Action, modifier: GlanceModifier) {
         val inner    = rowDp - 2f * t.gap.value
-        val ringDp   = (inner - 6f).coerceIn(34f, 84f)
+        // What is left beside the ring once the status line and the bar have
+        // their share decides how big the ring can be.
+        val ringDp   = (inner - t.bar.value - 30f).coerceIn(34f, 84f)
         val ringFont = (ringDp / 3.6f).coerceIn(11f, 22f)
-        val showFile = inner >= 58f
-        val showEnd  = inner >= 46f
-        Row(
+        val showEnd  = inner >= 56f
+        Column(
             modifier = modifier.padding(vertical = t.gap).clickable(onClick),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Ring(p, stale, ringDp.dp, (ringDp / 9f).dp, ringFont.sp)
-            Spacer(GlanceModifier.width(10.dp))
-            Column(modifier = GlanceModifier.defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-                Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(p.name, style = title(t.name), maxLines = 1, modifier = GlanceModifier.defaultWeight())
+            // Top line: "V-Minion | Status: Printing".
+            Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(p.name, style = title(t.name), maxLines = 1)
+                Text(" | ${strings.status}: ", style = secondary(t.body), maxLines = 1)
+                Text(p.stateLabel, style = stateStyle(p, stale, t.body), maxLines = 1)
+            }
+            Spacer(GlanceModifier.height(4.dp))
+            Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Ring(p, stale, ringDp.dp, (ringDp / 9f).dp, ringFont.sp)
+                Spacer(GlanceModifier.width(10.dp))
+                if (detail) {
+                    // Wide enough: time on the left, temperatures far right.
+                    Text(timeLine(p, showEnd) ?: "", style = secondary(t.body), maxLines = 1, modifier = GlanceModifier.defaultWeight())
                     Spacer(GlanceModifier.width(8.dp))
-                    Text(p.stateLabel, style = stateStyle(p, stale, t.body), maxLines = 1)
-                }
-                Spacer(GlanceModifier.height(2.dp))
-                Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(timeLine(p, showEnd) ?: tempsLine(p), style = secondary(t.body), maxLines = 1, modifier = GlanceModifier.defaultWeight())
-                    if (detail && timeLine(p, showEnd) != null) {
-                        Spacer(GlanceModifier.width(8.dp))
-                        Text(tempsLine(p), style = secondary(t.fine), maxLines = 1)
-                    }
-                }
-                Spacer(GlanceModifier.height(4.dp))
-                Bar(p, stale, GlanceModifier.fillMaxWidth().height(t.bar))
-                if (showFile) {
-                    val file = fileLine(p, t.fileChars)
-                    if (file != null) {
-                        Spacer(GlanceModifier.height(3.dp))
-                        Text(file, style = secondary(t.fine), maxLines = 1)
+                    Text(tempsLine(p), style = temps(t), maxLines = 1)
+                } else {
+                    // Narrow: temperatures wrap under the time line, same size.
+                    Column(modifier = GlanceModifier.defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+                        val time = timeLine(p, showEnd)
+                        if (time != null) Text(time, style = secondary(t.body), maxLines = 1)
+                        Text(tempsLine(p), style = temps(t), maxLines = 1)
                     }
                 }
             }
+            Spacer(GlanceModifier.height(5.dp))
+            Bar(p, stale, GlanceModifier.fillMaxWidth().height(t.bar))
         }
     }
 
@@ -481,6 +483,11 @@ class MoongateWidget : GlanceAppWidget() {
     private fun secondary(size: TextUnit) =
         TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = size)
 
+    /** The printing block's temperatures: as large as the name, in the body colour. */
+    @Composable
+    private fun temps(t: Type) =
+        TextStyle(color = GlanceTheme.colors.onSurface, fontSize = t.name, fontWeight = FontWeight.Medium)
+
     @Composable
     private fun stateStyle(p: WidgetPrinter, stale: Boolean, size: TextUnit) =
         TextStyle(color = stateColor(p, stale), fontSize = size, fontWeight = FontWeight.Medium)
@@ -525,17 +532,6 @@ class MoongateWidget : GlanceAppWidget() {
             if (withEnd) p.finishClock?.let { "🏁$it" } else null,
         )
         return if (parts.isEmpty()) null else parts.joinToString(" · ")
-    }
-
-    /**
-     * The file for a fleet row: slicer suffix dropped, cut to [budget]
-     * characters with an ellipsis, then the layer line if there is one.
-     */
-    private fun fileLine(p: WidgetPrinter, budget: Int): String? {
-        var name = p.filename ?: return p.layerLabel
-        name = name.removeSuffix(".gcode").removeSuffix(".gco").removeSuffix(".g")
-        if (name.length > budget) name = name.take((budget - 1).coerceAtLeast(1)).trimEnd() + "…"
-        return listOfNotNull(name, p.layerLabel).joinToString(" · ")
     }
 
     /** Hotend / bed / chamber, the notification's own markers, chamber only when sensed. */

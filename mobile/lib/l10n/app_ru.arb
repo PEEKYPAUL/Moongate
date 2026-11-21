@@ -848,5 +848,6 @@
   "widgetNoData": "Включите уведомления о печати в Moongate, чтобы виджет получал данные",
   "widgetNoPrinters": "Принтеры ещё не подключены",
   "widgetUpdatedAt": "Обновлено {n}",
-  "widgetPoweredOff": "Выключен"
+  "widgetPoweredOff": "Выключен",
+  "widgetStatus": "Статус"
 }

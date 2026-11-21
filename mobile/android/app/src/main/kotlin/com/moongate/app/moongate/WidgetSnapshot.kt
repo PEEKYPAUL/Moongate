@@ -150,6 +150,8 @@ class WidgetStrings(private val map: Map<String, String>) {
     val noData: String      get() = map["noData"]     ?: "Turn on print notifications in Moongate to feed this widget"
     val noPrinters: String  get() = map["noPrinters"] ?: "No printers paired yet"
     private val updatedTpl  get() = map["updatedAt"]  ?: "Updated {n}"
+    /** The "Status" label of the printing block's "Name | Status: Printing" line. */
+    val status: String      get() = map["status"]     ?: "Status"
 
     /**
      * "Updated 14:05" (today) or "Updated 20 Nov, 14:05" for a snapshot written

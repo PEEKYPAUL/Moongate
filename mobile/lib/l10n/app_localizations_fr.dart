@@ -2879,4 +2879,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get widgetPoweredOff => 'Éteinte';
+
+  @override
+  String get widgetStatus => 'État';
 }

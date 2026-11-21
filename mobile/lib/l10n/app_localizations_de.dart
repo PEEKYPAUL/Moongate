@@ -2861,4 +2861,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get widgetPoweredOff => 'Ausgeschaltet';
+
+  @override
+  String get widgetStatus => 'Status';
 }

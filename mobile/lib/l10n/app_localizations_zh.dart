@@ -2688,4 +2688,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get widgetPoweredOff => '已关机';
+
+  @override
+  String get widgetStatus => '状态';
 }

@@ -2870,4 +2870,7 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get widgetPoweredOff => 'Spenta';
+
+  @override
+  String get widgetStatus => 'Stato';
 }
