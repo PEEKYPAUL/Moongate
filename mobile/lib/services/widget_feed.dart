@@ -47,15 +47,11 @@ abstract final class WidgetFeed {
   static void _log(String msg) => dev.log(msg, name: 'MOONGATE/WIDGET');
 
   /// The localised templates, keyed by [WidgetStrings]. `{n}` is left in the
-  /// "ago" lines for the widget to fill, since the age moves while the
-  /// snapshot stands still.
+  /// "Updated {n}" line for the widget to fill with the snapshot's clock time.
   static Map<String, String> templates(AppLocalizations l) => {
         WidgetStrings.noData:     l.widgetNoData,
         WidgetStrings.noPrinters: l.widgetNoPrinters,
-        WidgetStrings.justNow:    l.widgetUpdatedJustNow,
-        WidgetStrings.minutesAgo: l.widgetUpdatedMinutesAgo('{n}'),
-        WidgetStrings.hoursAgo:   l.widgetUpdatedHoursAgo('{n}'),
-        WidgetStrings.daysAgo:    l.widgetUpdatedDaysAgo('{n}'),
+        WidgetStrings.updatedAt:  l.widgetUpdatedAt('{n}'),
       };
 
   /// Save [snapshot] and redraw every placed widget.

@@ -2848,20 +2848,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get widgetNoPrinters => 'Принтеры ещё не подключены';
 
   @override
-  String get widgetUpdatedJustNow => 'Обновлено только что';
-
-  @override
-  String widgetUpdatedMinutesAgo(String n) {
-    return 'Обновлено $n мин назад';
-  }
-
-  @override
-  String widgetUpdatedHoursAgo(String n) {
-    return 'Обновлено $n ч назад';
-  }
-
-  @override
-  String widgetUpdatedDaysAgo(String n) {
-    return 'Обновлено $n дн назад';
+  String widgetUpdatedAt(String n) {
+    return 'Обновлено $n';
   }
 }

@@ -2868,20 +2868,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get widgetNoPrinters => 'Aún no hay impresoras emparejadas';
 
   @override
-  String get widgetUpdatedJustNow => 'Actualizado justo ahora';
-
-  @override
-  String widgetUpdatedMinutesAgo(String n) {
-    return 'Actualizado hace $n min';
-  }
-
-  @override
-  String widgetUpdatedHoursAgo(String n) {
-    return 'Actualizado hace $n h';
-  }
-
-  @override
-  String widgetUpdatedDaysAgo(String n) {
-    return 'Actualizado hace $n d';
+  String widgetUpdatedAt(String n) {
+    return 'Actualizado $n';
   }
 }

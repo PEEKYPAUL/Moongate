@@ -2855,20 +2855,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get widgetNoPrinters => 'Noch keine Drucker gekoppelt';
 
   @override
-  String get widgetUpdatedJustNow => 'Gerade eben aktualisiert';
-
-  @override
-  String widgetUpdatedMinutesAgo(String n) {
-    return 'Vor $n Min. aktualisiert';
-  }
-
-  @override
-  String widgetUpdatedHoursAgo(String n) {
-    return 'Vor $n Std. aktualisiert';
-  }
-
-  @override
-  String widgetUpdatedDaysAgo(String n) {
-    return 'Vor $n Tagen aktualisiert';
+  String widgetUpdatedAt(String n) {
+    return 'Aktualisiert $n';
   }
 }

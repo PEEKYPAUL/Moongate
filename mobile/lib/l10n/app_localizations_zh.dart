@@ -2682,20 +2682,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get widgetNoPrinters => '尚未配对打印机';
 
   @override
-  String get widgetUpdatedJustNow => '刚刚更新';
-
-  @override
-  String widgetUpdatedMinutesAgo(String n) {
-    return '$n 分钟前更新';
-  }
-
-  @override
-  String widgetUpdatedHoursAgo(String n) {
-    return '$n 小时前更新';
-  }
-
-  @override
-  String widgetUpdatedDaysAgo(String n) {
-    return '$n 天前更新';
+  String widgetUpdatedAt(String n) {
+    return '更新于 $n';
   }
 }

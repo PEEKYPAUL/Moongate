@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -72,7 +73,10 @@ import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
  *     name, progress ring, state, time left + finish clock, and on the tall
  *     2x4 also the file / layer line and the temperatures;
  *   • three cells or wider (3x2, 3x4, 4x2, 4x3, 4x4): the WHOLE fleet, one
- *     dashboard-style row per printer in a scrolling list (swipe for more).
+ *     dashboard-style row per printer. The rows share the tile's full height
+ *     (so four printers fill a 4x4, not a block at the top), type scales with
+ *     the tile ([Type]), and only when more printers are paired than the tile
+ *     can show does the list scroll (swipe for more).
  * "Matters most" is Dart's call, by the dashboard ranking (error, then
  * printing / paused / heating, then ready, idle, offline) - see
  * WidgetSnapshot.featured.
@@ -112,6 +116,12 @@ class MoongateWidget : GlanceAppWidget() {
         private val DETAIL_MIN_WIDTH = 240.dp
         // A one-printer tile this tall (2x4) gains the file and temperature lines.
         private val TALL_MIN_HEIGHT = 180.dp
+        // Fleet type buckets by tile height: two cells (under 180 dp), three
+        // (under 300 dp), four and up. The row minimum is what a row needs at
+        // that type before the list has to scroll instead of sharing the height.
+        private val TYPE_SMALL  = Type(name = 13.sp, body = 11.sp, fine = 10.sp, bar = 5.dp,  gap = 4.dp,  rowMin = 46.dp, fileChars = 28)
+        private val TYPE_MEDIUM = Type(name = 16.sp, body = 13.sp, fine = 12.sp, bar = 7.dp,  gap = 8.dp,  rowMin = 68.dp, fileChars = 30)
+        private val TYPE_LARGE  = Type(name = 19.sp, body = 15.sp, fine = 13.sp, bar = 8.dp,  gap = 10.dp, rowMin = 84.dp, fileChars = 34)
 
         // State colours as the dashboard tiles use them: printing = the theme's
         // primary (dynamic colour), paused / heating = orange, error = red,
@@ -193,12 +203,12 @@ class MoongateWidget : GlanceAppWidget() {
     private fun Content(snapshot: WidgetSnapshot, strings: WidgetStrings) {
         val size  = LocalSize.current
         val stale = !snapshot.monitoring
-        val hint  = if (stale) strings.updatedAgo(snapshot.updatedAt) else null
+        val hint  = if (stale) strings.updatedAt(LocalContext.current, snapshot.updatedAt) else null
         if (size.width < FLEET_MIN_WIDTH) {
             val one = snapshot.featuredPrinter ?: return
             FeaturedLayout(one, stale, hint, tall = size.height >= TALL_MIN_HEIGHT)
         } else {
-            FleetLayout(snapshot.printers, stale, hint, detail = size.width >= DETAIL_MIN_WIDTH)
+            FleetLayout(snapshot.printers, stale, hint, size)
         }
     }
 
@@ -247,54 +257,108 @@ class MoongateWidget : GlanceAppWidget() {
 
     // ── Three cells or wider: the whole fleet, one row per printer ───────────
 
+    /** Type and spacing for one tile-size bucket (see TYPE_SMALL / MEDIUM / LARGE). */
+    private data class Type(
+        val name: TextUnit,
+        val body: TextUnit,
+        val fine: TextUnit,
+        val bar: Dp,
+        val gap: Dp,
+        val rowMin: Dp,
+        /** Characters of file name a row shows before "…" (no ellipsize in Glance). */
+        val fileChars: Int,
+    )
+
+    private fun typeFor(size: DpSize): Type = when {
+        size.height >= 300.dp -> TYPE_LARGE
+        size.height >= 180.dp -> TYPE_MEDIUM
+        else                  -> TYPE_SMALL
+    }
+
     @Composable
-    private fun FleetLayout(printers: List<WidgetPrinter>, stale: Boolean, hint: String?, detail: Boolean) {
+    private fun FleetLayout(printers: List<WidgetPrinter>, stale: Boolean, hint: String?, size: DpSize) {
         val context = LocalContext.current
+        val t       = typeFor(size)
+        val detail  = size.width >= DETAIL_MIN_WIDTH
+        // Does every printer get a row at this type without scrolling? Then
+        // the rows share the whole height (weights) so the tile is filled;
+        // otherwise a scrolling list, swipe for the rest.
+        val headerDp = if (hint != null) 22.dp else 0.dp
+        val fits     = printers.size * t.rowMin.value <= (size.height - headerDp - 20.dp).value
         Column(modifier = GlanceModifier.fillMaxSize()) {
             if (hint != null) {
                 // Above the list, clear of the refresh glyph in the corner.
                 Row(modifier = GlanceModifier.fillMaxWidth().padding(bottom = 2.dp)) {
-                    Text(hint, style = secondary(10.sp), maxLines = 1)
+                    Text(hint, style = secondary(t.fine), maxLines = 1)
                     Spacer(GlanceModifier.width(22.dp))
                 }
             }
-            // A scrolling list: every printer gets a row, swipe for the rest.
-            // Rows carry the dashboard click themselves - the list view takes
-            // the touches, so the card's own clickable never sees them.
-            LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
-                items(printers, itemId = { it.id.hashCode().toLong() }) { p ->
-                    PrinterRow(p, stale, detail, openDashboard(context))
+            if (fits) {
+                printers.forEachIndexed { i, p ->
+                    if (i > 0) Divider()
+                    PrinterRow(p, stale, detail, t, openDashboard(context),
+                        GlanceModifier.fillMaxWidth().defaultWeight())
+                }
+            } else {
+                // Rows carry the dashboard click themselves - the list view
+                // takes the touches, so the card's own clickable never sees them.
+                LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
+                    items(printers, itemId = { it.id.hashCode().toLong() }) { p ->
+                        Column(modifier = GlanceModifier.fillMaxWidth()) {
+                            PrinterRow(p, stale, detail, t, openDashboard(context),
+                                GlanceModifier.fillMaxWidth())
+                            Divider()
+                        }
+                    }
                 }
             }
         }
     }
 
+    /** A hairline between fleet rows, so the spacing reads as deliberate. */
     @Composable
-    private fun PrinterRow(p: WidgetPrinter, stale: Boolean, detail: Boolean, onClick: Action) {
+    private fun Divider() {
+        Box(modifier = GlanceModifier.fillMaxWidth().height(1.dp).background(ColorProvider(TRACK))) {}
+    }
+
+    @Composable
+    private fun PrinterRow(p: WidgetPrinter, stale: Boolean, detail: Boolean, t: Type, onClick: Action, modifier: GlanceModifier) {
         Column(
-            modifier = GlanceModifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp)
-                .clickable(onClick),
+            modifier = modifier.padding(vertical = t.gap).clickable(onClick),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            // Line 1: dot, name, state word.
             Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Dot(p, stale)
+                Dot(p, stale, t.body)
                 Spacer(GlanceModifier.width(6.dp))
-                Text(p.name, style = title(12.sp), maxLines = 1, modifier = GlanceModifier.defaultWeight())
+                Text(p.name, style = title(t.name), maxLines = 1, modifier = GlanceModifier.defaultWeight())
                 Spacer(GlanceModifier.width(8.dp))
-                Text(p.stateLabel, style = stateStyle(p, stale, 11.sp), maxLines = 1)
+                Text(p.stateLabel, style = stateStyle(p, stale, t.body), maxLines = 1)
             }
-            if (p.isActive) {
+            // Line 2: the numbers ("45% · ~46m · 13:20") on the left, the
+            // temperatures right-aligned; an idle printer keeps just the temps.
+            val numbers = if (p.isActive) activeLine(p) else null
+            if (numbers != null || detail) {
                 Spacer(GlanceModifier.height(3.dp))
                 Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Bar(p, stale, GlanceModifier.defaultWeight().height(5.dp))
-                    Spacer(GlanceModifier.width(8.dp))
-                    Text(progressLine(p), style = secondary(11.sp), maxLines = 1)
+                    Text(numbers ?: "", style = secondary(t.body), maxLines = 1, modifier = GlanceModifier.defaultWeight())
+                    if (detail) {
+                        Spacer(GlanceModifier.width(8.dp))
+                        Text(tempsLine(p), style = secondary(t.body), maxLines = 1)
+                    }
                 }
             }
-            val lines = listOfNotNull(detailLine(p), if (detail) tempsLine(p) else null)
-            if (lines.isNotEmpty()) {
-                Text(lines.joinToString("   "), style = secondary(10.sp), maxLines = 1)
+            if (p.isActive) {
+                Spacer(GlanceModifier.height(4.dp))
+                Bar(p, stale, GlanceModifier.fillMaxWidth().height(t.bar))
+                // Line 3: the file (and layer), truncated to the row's budget -
+                // Glance Text has no ellipsize, so a long slicer name would
+                // otherwise run the whole width and push the temps off the edge.
+                val file = fileLine(p, t.fileChars)
+                if (file != null) {
+                    Spacer(GlanceModifier.height(3.dp))
+                    Text(file, style = secondary(t.fine), maxLines = 1)
+                }
             }
         }
     }
@@ -327,8 +391,8 @@ class MoongateWidget : GlanceAppWidget() {
 
     /** A coloured status dot: the tile's state colour, grey when stale. */
     @Composable
-    private fun Dot(p: WidgetPrinter, stale: Boolean) {
-        Text("●", style = TextStyle(color = stateColor(p, stale), fontSize = 11.sp), maxLines = 1)
+    private fun Dot(p: WidgetPrinter, stale: Boolean, size: TextUnit = 11.sp) {
+        Text("●", style = TextStyle(color = stateColor(p, stale), fontSize = size), maxLines = 1)
     }
 
     @Composable
@@ -380,10 +444,25 @@ class MoongateWidget : GlanceAppWidget() {
         return if (parts.isEmpty()) null else parts.joinToString(" · ")
     }
 
-    /** "benchy.gcode · Layer 84 / 200", or null when idle. */
+    /** "benchy.gcode · Layer 84 / 200", or null when idle (the featured tile). */
     private fun detailLine(p: WidgetPrinter): String? {
         val parts = listOfNotNull(p.filename, p.layerLabel)
         return if (parts.isEmpty()) null else parts.joinToString(" · ")
+    }
+
+    /** "45% · ~46m · 13:20" for a running / paused print. */
+    private fun activeLine(p: WidgetPrinter): String =
+        listOfNotNull("${p.percent}%", p.remainingLabel, p.finishClock).joinToString(" · ")
+
+    /**
+     * The file for a fleet row: slicer suffix dropped, cut to [budget]
+     * characters with an ellipsis, then the layer line if there is one.
+     */
+    private fun fileLine(p: WidgetPrinter, budget: Int): String? {
+        var name = p.filename ?: return p.layerLabel
+        name = name.removeSuffix(".gcode").removeSuffix(".gco").removeSuffix(".g")
+        if (name.length > budget) name = name.take((budget - 1).coerceAtLeast(1)).trimEnd() + "…"
+        return listOfNotNull(name, p.layerLabel).joinToString(" · ")
     }
 
     /** Hotend / bed / chamber, the notification's own markers, chamber only when sensed. */

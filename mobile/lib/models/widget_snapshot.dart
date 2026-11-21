@@ -145,7 +145,7 @@ class WidgetSnapshot {
   final int featured;
 
   /// The localised templates the widget needs for text it must build itself
-  /// (the moving "updated ago" hint, the empty states). Keys are
+  /// (the "Updated 14:05" stale hint, the empty states). Keys are
   /// [WidgetStrings] constants; `{n}` is the one substitution the widget does.
   final Map<String, String> strings;
 
@@ -230,19 +230,12 @@ abstract final class WidgetStrings {
   /// A snapshot with zero printers: nothing paired yet.
   static const noPrinters   = 'noPrinters';
 
-  /// "Updated just now" - the stale hint under a minute old.
-  static const justNow      = 'justNow';
+  /// "Updated {n}" - the stale hint; `{n}` becomes the snapshot's time (and
+  /// date when not today), formatted by the phone. An absolute time, not an
+  /// age: a stale widget is only redrawn when poked, so "N min ago" would
+  /// freeze at whatever it said when last drawn.
+  static const updatedAt    = 'updatedAt';
 
-  /// "Updated {n} min ago".
-  static const minutesAgo   = 'minutesAgo';
-
-  /// "Updated {n} h ago".
-  static const hoursAgo     = 'hoursAgo';
-
-  /// "Updated {n} d ago".
-  static const daysAgo      = 'daysAgo';
-
-  /// The pre-key the templates are saved under alongside the snapshot, so a
-  /// fresh install's widget has words before the service has ever run.
-  static const all = [noData, noPrinters, justNow, minutesAgo, hoursAgo, daysAgo];
+  /// Every template key, in the order they are written.
+  static const all = [noData, noPrinters, updatedAt];
 }

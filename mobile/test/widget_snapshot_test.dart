@@ -19,7 +19,7 @@ void main() {
         updatedAt:  1763640000000,
         monitoring: true,
         featured:   1,
-        strings:    {WidgetStrings.justNow: 'Updated just now'},
+        strings:    {WidgetStrings.updatedAt: 'Updated {n}'},
         printers: [
           WidgetPrinter(
             id: 'a', name: 'Voron', state: 'standby', stateLabel: 'Ready',
@@ -49,7 +49,7 @@ void main() {
       expect(back.updatedAt, 1763640000000);
       expect(back.monitoring, isTrue);
       expect(back.featured, 1);
-      expect(back.strings[WidgetStrings.justNow], 'Updated just now');
+      expect(back.strings[WidgetStrings.updatedAt], 'Updated {n}');
       expect(back.printers, hasLength(2));
 
       final b = back.printers[1];

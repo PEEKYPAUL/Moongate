@@ -5086,29 +5086,11 @@ abstract class AppLocalizations {
   /// **'No printers paired yet'**
   String get widgetNoPrinters;
 
-  /// Home-screen widget: age of the last update while monitoring is off, under a minute.
+  /// Home-screen widget: when the shown status was last fetched, shown while monitoring is off. {n} is a clock time (today) or date and time, filled in by the widget - keep the literal {n}.
   ///
   /// In en, this message translates to:
-  /// **'Updated just now'**
-  String get widgetUpdatedJustNow;
-
-  /// Home-screen widget: age of the last update while monitoring is off. {n} is a number of minutes, filled in by the widget itself - keep the literal {n}.
-  ///
-  /// In en, this message translates to:
-  /// **'Updated {n} min ago'**
-  String widgetUpdatedMinutesAgo(String n);
-
-  /// Home-screen widget: age of the last update in hours. {n} is filled in by the widget - keep the literal {n}.
-  ///
-  /// In en, this message translates to:
-  /// **'Updated {n} h ago'**
-  String widgetUpdatedHoursAgo(String n);
-
-  /// Home-screen widget: age of the last update in days. {n} is filled in by the widget - keep the literal {n}.
-  ///
-  /// In en, this message translates to:
-  /// **'Updated {n} d ago'**
-  String widgetUpdatedDaysAgo(String n);
+  /// **'Updated {n}'**
+  String widgetUpdatedAt(String n);
 }
 
 class _AppLocalizationsDelegate

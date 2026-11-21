@@ -847,8 +847,5 @@
   "singleWebInterface": "Interface web",
   "widgetNoData": "Activez les notifications d'impression dans Moongate pour alimenter ce widget",
   "widgetNoPrinters": "Aucune imprimante associée pour l'instant",
-  "widgetUpdatedJustNow": "Mis à jour à l'instant",
-  "widgetUpdatedMinutesAgo": "Mis à jour il y a {n} min",
-  "widgetUpdatedHoursAgo": "Mis à jour il y a {n} h",
-  "widgetUpdatedDaysAgo": "Mis à jour il y a {n} j"
+  "widgetUpdatedAt": "Mis à jour {n}"
 }

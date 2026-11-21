@@ -1,5 +1,7 @@
 package com.moongate.app.moongate
 
+import android.content.Context
+import android.text.format.DateUtils
 import org.json.JSONObject
 
 /**
@@ -138,29 +140,30 @@ data class WidgetSnapshot(
 }
 
 /**
- * The localised templates the widget needs for text that moves after the
- * snapshot was written (the stale hint's age) and for the empty states. The
- * app writes them at start-up under their own key, and every snapshot carries
- * the same set, so the freshest copy wins. English fallbacks guard a widget
- * placed before the app ever ran.
+ * The localised templates the widget needs for text it builds itself (the
+ * stale hint's time stamp, the empty states). The app writes them at start-up
+ * under their own key, and every snapshot carries the same set, so the
+ * freshest copy wins. English fallbacks guard a widget placed before the app
+ * ever ran.
  */
 class WidgetStrings(private val map: Map<String, String>) {
     val noData: String      get() = map["noData"]     ?: "Turn on print notifications in Moongate to feed this widget"
     val noPrinters: String  get() = map["noPrinters"] ?: "No printers paired yet"
-    private val justNow     get() = map["justNow"]    ?: "Updated just now"
-    private val minutesAgo  get() = map["minutesAgo"] ?: "Updated {n} min ago"
-    private val hoursAgo    get() = map["hoursAgo"]   ?: "Updated {n} h ago"
-    private val daysAgo     get() = map["daysAgo"]    ?: "Updated {n} d ago"
+    private val updatedTpl  get() = map["updatedAt"]  ?: "Updated {n}"
 
-    /** "Updated 12 min ago" for a snapshot written at [updatedAt] (epoch ms). */
-    fun updatedAgo(updatedAt: Long, now: Long = System.currentTimeMillis()): String {
-        val minutes = ((now - updatedAt).coerceAtLeast(0L) / 60_000L)
-        return when {
-            minutes < 1    -> justNow
-            minutes < 60   -> minutesAgo.replace("{n}", minutes.toString())
-            minutes < 1440 -> hoursAgo.replace("{n}", (minutes / 60).toString())
-            else           -> daysAgo.replace("{n}", (minutes / 1440).toString())
+    /**
+     * "Updated 14:05" (today) or "Updated 20 Nov, 14:05" for a snapshot written
+     * at [updatedAt] (epoch ms UTC, shown in the phone's zone, 12/24 h as the
+     * phone is set). An absolute time on purpose: a stale widget is only
+     * redrawn when something pokes it, so a relative "N min ago" would freeze
+     * at whatever it said when last drawn and quietly go wrong.
+     */
+    fun updatedAt(context: Context, updatedAt: Long): String {
+        var flags = DateUtils.FORMAT_SHOW_TIME
+        if (!DateUtils.isToday(updatedAt)) {
+            flags = flags or DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH
         }
+        return updatedTpl.replace("{n}", DateUtils.formatDateTime(context, updatedAt, flags))
     }
 
     companion object {
