@@ -847,5 +847,6 @@
   "singleWebInterface": "Weboberfläche",
   "widgetNoData": "Schalte Druckbenachrichtigungen in Moongate ein, damit dieses Widget Daten erhält",
   "widgetNoPrinters": "Noch keine Drucker gekoppelt",
-  "widgetUpdatedAt": "Aktualisiert {n}"
+  "widgetUpdatedAt": "Aktualisiert {n}",
+  "widgetPoweredOff": "Ausgeschaltet"
 }

@@ -847,5 +847,6 @@
   "singleWebInterface": "Interfejs WWW",
   "widgetNoData": "Włącz powiadomienia o druku w Moongate, aby zasilać ten widżet",
   "widgetNoPrinters": "Nie sparowano jeszcze żadnej drukarki",
-  "widgetUpdatedAt": "Zaktualizowano {n}"
+  "widgetUpdatedAt": "Zaktualizowano {n}",
+  "widgetPoweredOff": "Wyłączona"
 }

@@ -847,5 +847,6 @@
   "singleWebInterface": "网页界面",
   "widgetNoData": "在 Moongate 中开启打印通知，以便更新此小组件",
   "widgetNoPrinters": "尚未配对打印机",
-  "widgetUpdatedAt": "更新于 {n}"
+  "widgetUpdatedAt": "更新于 {n}",
+  "widgetPoweredOff": "已关机"
 }

@@ -5091,6 +5091,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Updated {n}'**
   String widgetUpdatedAt(String n);
+
+  /// Home-screen widget only: the state word for a printer the phone cannot reach at all (its Pi is switched off). The dashboard tiles keep saying Offline.
+  ///
+  /// In en, this message translates to:
+  /// **'Powered off'**
+  String get widgetPoweredOff;
 }
 
 class _AppLocalizationsDelegate

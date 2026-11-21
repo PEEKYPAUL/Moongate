@@ -71,6 +71,26 @@ void main() {
       expect(a.filename, isNull);
     });
 
+    test('every paired printer rides the snapshot, in order (four-printer fleet)', () {
+      // Paul's fleet: Micron+ printing, V-Minion ready, K3 powered off, 2.4 idle.
+      final fleet = [
+        _p('micron', 'printing', progress: 0.05),
+        _p('vminion', 'standby'),
+        _p('k3', 'offline'),
+        _p('v24', 'standby'),
+      ];
+      final back = WidgetSnapshot.decode(WidgetSnapshot(
+        updatedAt:  1,
+        monitoring: true,
+        featured:   pickFeaturedIndex(fleet),
+        printers:   fleet,
+      ).encode())!;
+      expect(back.printers.map((p) => p.id), ['micron', 'vminion', 'k3', 'v24']);
+      expect(back.printers, hasLength(4));
+      expect(back.featured, 0);
+      expect(back.printers[2].state, 'offline');
+    });
+
     test('carries the schema version and each printer\'s dashboard rank', () {
       final j = jsonDecode(WidgetSnapshot(
         updatedAt:  1,

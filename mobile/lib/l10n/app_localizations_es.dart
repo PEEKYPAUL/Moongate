@@ -2871,4 +2871,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String widgetUpdatedAt(String n) {
     return 'Actualizado $n';
   }
+
+  @override
+  String get widgetPoweredOff => 'Apagada';
 }

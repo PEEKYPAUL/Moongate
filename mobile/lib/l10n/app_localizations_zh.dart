@@ -2685,4 +2685,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String widgetUpdatedAt(String n) {
     return '更新于 $n';
   }
+
+  @override
+  String get widgetPoweredOff => '已关机';
 }

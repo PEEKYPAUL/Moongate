@@ -610,9 +610,16 @@ class _PrintTaskHandler extends TaskHandler {
   /// One printer's widget row from its poll. The raw [WidgetPrinter.state]
   /// is normalised to what the colour and the rank key off ('offline' for
   /// unreachable / shut down, 'heating' while warming, 'waiting' for the
-  /// reachable-but-silent placeholder); the label is the roster's word.
+  /// reachable-but-silent placeholder); the label is the roster's word, except
+  /// that a printer the phone cannot reach at all reads "Powered off" on the
+  /// widget (Paul's wording; the tiles keep "Offline"). A Klipper that is
+  /// reachable but shut down keeps the roster's "Offline".
   WidgetPrinter _widgetPrinter(PrinterConfig p, _Poll? s) {
-    if (s == null || s.state == 'shutdown') {
+    if (s == null) {
+      return WidgetPrinter(
+          id: p.id, name: p.name, state: 'offline', stateLabel: _l.widgetPoweredOff);
+    }
+    if (s.state == 'shutdown') {
       return WidgetPrinter(
           id: p.id, name: p.name, state: 'offline', stateLabel: _rosterLabel(s));
     }

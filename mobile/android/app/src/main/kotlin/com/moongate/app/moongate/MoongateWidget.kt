@@ -279,20 +279,31 @@ class MoongateWidget : GlanceAppWidget() {
         else                  -> TYPE_SMALL
     }
 
+    /** The buckets from the tile's own down to the smallest, for sizing rows down. */
+    private fun typesFrom(t: Type): List<Type> = when (t) {
+        TYPE_LARGE  -> listOf(TYPE_LARGE, TYPE_MEDIUM, TYPE_SMALL)
+        TYPE_MEDIUM -> listOf(TYPE_MEDIUM, TYPE_SMALL)
+        else        -> listOf(TYPE_SMALL)
+    }
+
     @Composable
     private fun FleetLayout(printers: List<WidgetPrinter>, stale: Boolean, hint: String?, size: DpSize) {
         val context = LocalContext.current
-        val t       = typeFor(size)
         val detail  = size.width >= DETAIL_MIN_WIDTH
-        // Does every printer get a row at this type without scrolling? A
-        // printing block needs more height than a compact row. If they all fit,
-        // the rows share the whole height (weights) so the tile is filled;
-        // otherwise a scrolling list at the minimum row height, swipe for more.
+        // EVERY paired printer gets a row. First try the tile's own type
+        // bucket; if the rows (a printing block needs more height than a
+        // compact row) do not all fit, step the type down a bucket, then
+        // another, so four printers on a 4x3 still sit on one screen. When
+        // they all fit, the rows share the whole height (weights) so the
+        // tile is filled. Only when even the smallest type cannot seat them
+        // all does the list scroll (swipe for more) - never drop a printer.
         val headerDp = if (hint != null) 22f else 0f
         val avail    = size.height.value - headerDp - 20f
-        val needed   = printers.sumOf { rowMin(it, t).toDouble() }.toFloat()
-        val fits     = needed <= avail
-        val rowDp    = if (fits) avail / printers.size else 0f
+        val fitting  = typesFrom(typeFor(size)).firstOrNull { t ->
+            printers.sumOf { rowMin(it, t).toDouble() } <= avail
+        }
+        val t        = fitting ?: TYPE_SMALL
+        val rowDp    = if (fitting != null) avail / printers.size else 0f
         Column(modifier = GlanceModifier.fillMaxSize()) {
             if (hint != null) {
                 // Above the list, clear of the refresh glyph in the corner.
@@ -301,7 +312,7 @@ class MoongateWidget : GlanceAppWidget() {
                     Spacer(GlanceModifier.width(22.dp))
                 }
             }
-            if (fits) {
+            if (fitting != null) {
                 printers.forEachIndexed { i, p ->
                     if (i > 0) Divider()
                     PrinterRow(p, stale, detail, t, rowDp, openDashboard(context),
@@ -311,7 +322,7 @@ class MoongateWidget : GlanceAppWidget() {
                 // Rows carry the dashboard click themselves - the list view
                 // takes the touches, so the card's own clickable never sees them.
                 LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
-                    items(printers, itemId = { it.id.hashCode().toLong() }) { p ->
+                    items(printers) { p ->
                         Column(modifier = GlanceModifier.fillMaxWidth()) {
                             PrinterRow(p, stale, detail, t, rowMin(p, t), openDashboard(context),
                                 GlanceModifier.fillMaxWidth())

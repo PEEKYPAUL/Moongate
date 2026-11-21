@@ -2863,4 +2863,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String widgetUpdatedAt(String n) {
     return 'Atualizado $n';
   }
+
+  @override
+  String get widgetPoweredOff => 'Desligada';
 }
