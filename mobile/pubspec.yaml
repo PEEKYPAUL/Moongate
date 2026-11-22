@@ -81,7 +81,7 @@ dependencies:
   url_launcher: ^6.3.3
 
   # SVG rendering (Mainsail / Fluidd logos in webcam placeholder)
-  flutter_svg: ^2.4.0
+  flutter_svg: ^2.5.0
 
   # Explicit camera permission check before opening the QR scanner.
   # Separates permission request from camera initialisation so mobile_scanner
