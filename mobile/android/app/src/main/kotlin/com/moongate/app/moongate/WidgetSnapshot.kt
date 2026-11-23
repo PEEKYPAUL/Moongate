@@ -36,6 +36,8 @@ data class WidgetPrinter(
     val bedTarget: Float,
     /** 0 when the printer has no chamber sensor. */
     val chamber: Float,
+    /** Dart's call whether the row shows temperatures (never for an unreachable printer). */
+    val showsTemps: Boolean,
 ) {
     val isActive: Boolean get() = state == "printing" || state == "paused"
     val percent: Int get() = (progress * 100).toInt().coerceIn(0, 100)
@@ -56,6 +58,7 @@ data class WidgetPrinter(
             bed            = j.optDouble("bed", 0.0).toFloat(),
             bedTarget      = j.optDouble("bedTarget", 0.0).toFloat(),
             chamber        = j.optDouble("chamber", 0.0).toFloat(),
+            showsTemps     = j.optBoolean("showsTemps", j.optString("state", "offline") != "offline"),
         )
     }
 }
@@ -127,12 +130,14 @@ data class WidgetSnapshot(
                     stateLabel = "Printing", progress = 0.42f, remainingLabel = "~1h05m",
                     finishClock = "13:20", filename = "benchy.gcode", layerLabel = "Layer 84 / 200",
                     hotend = 245f, hotendTarget = 245f, bed = 105f, bedTarget = 105f, chamber = 48f,
+                    showsTemps = true,
                 ),
                 WidgetPrinter(
                     id = "sample-2", name = "Micron+", state = "standby",
                     stateLabel = "Ready", progress = 0f, remainingLabel = null,
                     finishClock = null, filename = null, layerLabel = null,
                     hotend = 24f, hotendTarget = 0f, bed = 23f, bedTarget = 0f, chamber = 0f,
+                    showsTemps = true,
                 ),
             ),
         )

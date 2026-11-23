@@ -139,6 +139,34 @@ void main() {
       expect(stale.printers.single.progress, 0.5);
       expect(stale.strings, live.strings);
     });
+
+    test('temperatures ride along for a reachable printer only', () {
+      // Unreachable ("Powered off"): the heading alone, no 0° / 0° noise.
+      const off = WidgetPrinter(
+          id: 'a', name: 'A', state: 'offline', stateLabel: 'Powered off');
+      expect(off.showsTemps, isFalse);
+      expect(off.toJson()['showsTemps'], isFalse);
+      // A shut-down Klipper may still report room temperature: still hidden.
+      const shut = WidgetPrinter(
+          id: 'b', name: 'B', state: 'offline', stateLabel: 'Offline',
+          hotend: 24, bed: 23);
+      expect(shut.showsTemps, isFalse);
+      // Powered on and idle: real readings, shown.
+      const ready = WidgetPrinter(
+          id: 'c', name: 'C', state: 'standby', stateLabel: 'Ready',
+          hotend: 24.4, bed: 23.1);
+      expect(ready.showsTemps, isTrue);
+      expect(ready.toJson()['showsTemps'], isTrue);
+      // Reachable but silent (no reading at all yet): nothing to show.
+      const silent = WidgetPrinter(
+          id: 'd', name: 'D', state: 'waiting', stateLabel: 'Waiting');
+      expect(silent.showsTemps, isFalse);
+      // A printing printer always has readings.
+      const printing = WidgetPrinter(
+          id: 'e', name: 'E', state: 'printing', stateLabel: 'Printing',
+          progress: 0.4, hotend: 245, hotendTarget: 245, bed: 105, bedTarget: 105);
+      expect(printing.showsTemps, isTrue);
+    });
   });
 
   group('pickFeaturedIndex - the printer the small layouts show', () {

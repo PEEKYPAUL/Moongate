@@ -86,6 +86,15 @@ class WidgetPrinter {
   /// ready, idle, offline) - the small layouts show the lowest rank.
   int get rank => printerStatusRank(state);
 
+  /// Whether the widget shows this printer's temperatures. Never for a
+  /// printer the phone cannot reach (state 'offline': "Powered off", or a
+  /// Klipper that is shut down), whose 0° / 0° would say nothing; otherwise
+  /// whenever the poll carried a reading or a target. Decided here, carried in
+  /// the JSON, so the Kotlin side only renders.
+  bool get showsTemps =>
+      state != 'offline' &&
+      (hotend > 0 || bed > 0 || hotendTarget > 0 || bedTarget > 0);
+
   Map<String, dynamic> toJson() => {
         'id':             id,
         'name':           name,
@@ -103,6 +112,7 @@ class WidgetPrinter {
         'bedTarget':      bedTarget,
         'chamber':        chamber,
         'rank':           rank,
+        'showsTemps':     showsTemps,
       };
 
   factory WidgetPrinter.fromJson(Map<String, dynamic> j) => WidgetPrinter(
