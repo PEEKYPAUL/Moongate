@@ -75,8 +75,9 @@ import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
  *     row per printer. A printing / paused printer gets the "printing block"
  *     (Paul's sketch): a LARGE progress ring with the percent, spanning the
  *     block's height on the left; beside it the name over "Status: Printing"
- *     over "~20m · 🏁10:04 PM"; the temperatures large on the far right of the
- *     same band. No bar (the ring already shows the percent). The printing
+ *     over "~20m · 🏁10:04 PM"; then one tall column per temperature sensor
+ *     (icon over a large value: hotend, bed, and chamber only when the
+ *     printer reports one). No bar (the ring already shows the percent). The printing
  *     rows take all the height the idle rows leave, so the ring is the
  *     dominant element;
  *     every other printer carries the same heading, "Name |
@@ -468,20 +469,22 @@ class MoongateWidget : GlanceAppWidget() {
         if (name.length <= max) name else name.take((max - 1).coerceAtLeast(1)) + "\u2026"
 
     /**
-     * Paul's printing block, from his sketch: one band of three parts. LEFT,
-     * the progress ring - the dominant element, LARGE, the percent centred
-     * inside, spanning the block's height. MIDDLE (taking the slack), three
-     * short lines vertically centred against the ring: the printer name on a
-     * line of its own (bold, so an ordinary name never clips), "<Status>:
+     * Paul's printing block, as he approved it: one band, left to right.
+     * LEFT, the progress ring - the dominant element, LARGE, the percent
+     * centred inside, spanning the block's height. MIDDLE (taking the slack),
+     * three short lines vertically centred against the ring: the printer name
+     * on a line of its own (bold, so an ordinary name never clips), "<Status>:
      * <state word>" under it, then "~20m · 🏁10:04 PM" (time left and finish
-     * clock). FAR RIGHT, level with the ring, the temperatures LARGE (chamber
-     * only when the printer reports one) - never in the middle column. No
-     * progress bar (the ring already shows the percent) and no file line. The
-     * ring takes the row's whole inner height (the fleet layout hands
-     * printing rows the idle rows' slack for exactly this), capped by a
-     * third of the width so the name keeps room; the percent scales with it.
-     * Paused prints use the same block in the paused colour; a print still
-     * heating shows the ring at 0 % with "Heating" as its state.
+     * clock). RIGHT, one tall column per temperature sensor, each the icon
+     * over a LARGE value (sized with the ring's percent): hotend, bed, and
+     * chamber only when the printer reports one, a hairline between them. On
+     * a tile too narrow for them all the chamber column goes first, then the
+     * bed, the hotend always stays - never an overflow. No progress bar (the
+     * ring already shows the percent) and no file line. The ring takes the
+     * row's whole inner height (the fleet layout hands printing rows the idle
+     * rows' slack for exactly this), capped by a third of the width so the
+     * name keeps room. Paused prints use the same block in the paused colour;
+     * a print still heating shows the ring at 0 % with "Heating" as its state.
      */
     @Composable
     private fun PrintingBlock(p: WidgetPrinter, stale: Boolean, t: Type, strings: WidgetStrings, rowDp: Float, widthDp: Float, onClick: Action, modifier: GlanceModifier) {
@@ -491,10 +494,18 @@ class MoongateWidget : GlanceAppWidget() {
         val ringDp   = inner.coerceIn(40f, 150f).coerceAtMost(widthDp * 0.36f)
         val ringFont = (ringDp / 3.2f).coerceIn(12f, 38f)
         val showEnd  = widthDp >= DETAIL_MIN_WIDTH.value
-        val tempText = tempsLine(p)
-        // The name's budget is what the ring, the gaps and the temperatures
-        // leave of the width - it has its line to itself.
-        val room     = widthDp - 24f - ringDp - 20f - estWidth(tempText, t.name.value)
+        // The temperature value, a touch under the ring's percent, never
+        // below the name size.
+        val valueSp  = (ringFont * 0.78f).coerceIn(t.name.value, 30f)
+        // Which columns fit: all that apply, the chamber dropped first, then
+        // the bed, so the name keeps about eight characters of its line.
+        val all      = tempColumns(p)
+        val fixed    = 24f + ringDp + 12f + 8f * t.heading.value * 0.55f
+        var columns  = all
+        while (columns.size > 1 && fixed + columnsDp(columns, valueSp, t) > widthDp) {
+            columns = columns.dropLast(1)
+        }
+        val room     = widthDp - fixed - columnsDp(columns, valueSp, t) + 8f * t.heading.value * 0.55f
         val maxChars = (room / (t.heading.value * 0.55f)).toInt().coerceAtLeast(4)
         Row(
             modifier = modifier.padding(vertical = t.gap).clickable(onClick),
@@ -515,9 +526,53 @@ class MoongateWidget : GlanceAppWidget() {
                     Text(time, style = secondary(t.body), maxLines = 1)
                 }
             }
-            Spacer(GlanceModifier.width(8.dp))
-            Text(tempText, style = temps(t), maxLines = 1)
+            columns.forEachIndexed { i, c ->
+                if (i == 0) {
+                    Spacer(GlanceModifier.width(10.dp))
+                } else {
+                    Spacer(GlanceModifier.width(8.dp))
+                    VerticalRule((ringDp * 0.55f).dp)
+                    Spacer(GlanceModifier.width(8.dp))
+                }
+                TempColumn(c.first, c.second, t, valueSp.sp)
+            }
         }
+    }
+
+    /** The sensors a printing block shows, in drop order reversed: hotend, bed, then chamber only when sensed. */
+    private fun tempColumns(p: WidgetPrinter): List<Pair<String, String>> {
+        val cols = mutableListOf("🔥" to "${p.hotend.toInt()}°", "🟧" to "${p.bed.toInt()}°")
+        if (p.chamber > 0f) cols.add("🏠" to "${p.chamber.toInt()}°")
+        return cols
+    }
+
+    /** The width (dp) the temperature columns take, gaps and rules included. */
+    private fun columnsDp(columns: List<Pair<String, String>>, valueSp: Float, t: Type): Float {
+        var w = 10f
+        columns.forEachIndexed { i, c ->
+            if (i > 0) w += 17f
+            w += maxOf(estWidth(c.second, valueSp), t.name.value * 1.15f)
+        }
+        return w
+    }
+
+    /** One temperature: the sensor's icon over its value, large, centred against the ring. */
+    @Composable
+    private fun TempColumn(icon: String, value: String, t: Type, valueSize: TextUnit) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalAlignment   = Alignment.CenterVertically,
+        ) {
+            Text(icon, style = TextStyle(fontSize = t.name), maxLines = 1)
+            Spacer(GlanceModifier.height(2.dp))
+            Text(value, style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = valueSize, fontWeight = FontWeight.Bold), maxLines = 1)
+        }
+    }
+
+    /** A hairline between the temperature columns. */
+    @Composable
+    private fun VerticalRule(height: Dp) {
+        Box(modifier = GlanceModifier.width(1.dp).height(height).background(ColorProvider(TRACK))) {}
     }
 
     // ── Pieces ───────────────────────────────────────────────────────────────
