@@ -76,8 +76,10 @@ import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
  *     (Paul's sketch): a LARGE progress ring with the percent, spanning the
  *     block's height on the left; beside it the name over "Status: Printing"
  *     over "~20m · 🏁10:04 PM"; then one tall column per temperature sensor
- *     (icon over a large value: hotend, bed, and chamber only when the
- *     printer reports one). No bar (the ring already shows the percent). The printing
+ *     (the sensor's icon over a large value: a nozzle for the hotend, a
+ *     radiator for the bed, a boxed fan for the chamber, the chamber only when
+ *     the printer reports one; nozzle and radiator turn red while that heater
+ *     is hot). No bar (the ring already shows the percent). The printing
  *     rows take all the height the idle rows leave, so the ring is the
  *     dominant element;
  *     every other printer carries the same heading, "Name |
@@ -475,9 +477,11 @@ class MoongateWidget : GlanceAppWidget() {
      * three short lines vertically centred against the ring: the printer name
      * on a line of its own (bold, so an ordinary name never clips), "<Status>:
      * <state word>" under it, then "~20m · 🏁10:04 PM" (time left and finish
-     * clock). RIGHT, one tall column per temperature sensor, each the icon
-     * over a LARGE value (sized with the ring's percent): hotend, bed, and
-     * chamber only when the printer reports one, a hairline between them. On
+     * clock). RIGHT, one tall column per temperature sensor, each the sensor's
+     * icon (nozzle, radiator, boxed fan; the nozzle and radiator red while
+     * that heater is hot, Dart's call) over a LARGE value (sized with the
+     * ring's percent): hotend, bed, and chamber only when the printer reports
+     * one, a hairline between them. On
      * a tile too narrow for them all the chamber column goes first, then the
      * bed, the hotend always stays - never an overflow. No progress bar (the
      * ring already shows the percent) and no file line. The ring takes the
@@ -534,38 +538,56 @@ class MoongateWidget : GlanceAppWidget() {
                     VerticalRule((ringDp * 0.55f).dp)
                     Spacer(GlanceModifier.width(8.dp))
                 }
-                TempColumn(c.first, c.second, t, valueSp.sp)
+                TempColumn(c, t, valueSp.sp)
             }
         }
     }
 
+    /** One temperature column: the sensor's icon, its value, and whether the icon reads red. */
+    private data class TempCol(val icon: Int, val value: String, val hot: Boolean)
+
     /** The sensors a printing block shows, in drop order reversed: hotend, bed, then chamber only when sensed. */
-    private fun tempColumns(p: WidgetPrinter): List<Pair<String, String>> {
-        val cols = mutableListOf("🔥" to "${p.hotend.toInt()}°", "🟧" to "${p.bed.toInt()}°")
-        if (p.chamber > 0f) cols.add("🏠" to "${p.chamber.toInt()}°")
+    private fun tempColumns(p: WidgetPrinter): List<TempCol> {
+        val cols = mutableListOf(
+            TempCol(R.drawable.ic_widget_nozzle,   "${p.hotend.toInt()}°", p.hotendHot),
+            TempCol(R.drawable.ic_widget_radiator, "${p.bed.toInt()}°",    p.bedHot),
+        )
+        // The chamber is never coloured by heat.
+        if (p.chamber > 0f) cols.add(TempCol(R.drawable.ic_widget_chamber_fan, "${p.chamber.toInt()}°", false))
         return cols
     }
 
     /** The width (dp) the temperature columns take, gaps and rules included. */
-    private fun columnsDp(columns: List<Pair<String, String>>, valueSp: Float, t: Type): Float {
+    private fun columnsDp(columns: List<TempCol>, valueSp: Float, t: Type): Float {
         var w = 10f
         columns.forEachIndexed { i, c ->
             if (i > 0) w += 17f
-            w += maxOf(estWidth(c.second, valueSp), t.name.value * 1.15f)
+            w += maxOf(estWidth(c.value, valueSp), t.name.value * 1.3f)
         }
         return w
     }
 
-    /** One temperature: the sensor's icon over its value, large, centred against the ring. */
+    /**
+     * One temperature: the sensor's icon over its value, large, centred
+     * against the ring. The icon is a tinted vector: red while the heater is
+     * hot, the text colour otherwise (and always for the chamber).
+     */
     @Composable
-    private fun TempColumn(icon: String, value: String, t: Type, valueSize: TextUnit) {
+    private fun TempColumn(c: TempCol, t: Type, valueSize: TextUnit) {
+        val tint   = if (c.hot) ColorProvider(RED) else GlanceTheme.colors.onSurface
+        val iconDp = (t.name.value * 1.3f).dp
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalAlignment   = Alignment.CenterVertically,
         ) {
-            Text(icon, style = TextStyle(fontSize = t.name), maxLines = 1)
+            Image(
+                provider           = ImageProvider(c.icon),
+                contentDescription = null,
+                colorFilter        = ColorFilter.tint(tint),
+                modifier           = GlanceModifier.size(iconDp),
+            )
             Spacer(GlanceModifier.height(2.dp))
-            Text(value, style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = valueSize, fontWeight = FontWeight.Bold), maxLines = 1)
+            Text(c.value, style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = valueSize, fontWeight = FontWeight.Bold), maxLines = 1)
         }
     }
 

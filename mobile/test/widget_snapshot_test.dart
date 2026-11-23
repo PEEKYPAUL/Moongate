@@ -167,6 +167,35 @@ void main() {
           progress: 0.4, hotend: 245, hotendTarget: 245, bed: 105, bedTarget: 105);
       expect(printing.showsTemps, isTrue);
     });
+
+    test('a heater reads hot with a target set or while still warm', () {
+      const cold = WidgetPrinter(
+          id: 'a', name: 'A', state: 'standby', stateLabel: 'Ready',
+          hotend: 24, bed: 23);
+      expect(cold.hotendHot, isFalse);
+      expect(cold.bedHot, isFalse);
+      // Heating up: targets set, temperatures still low.
+      const heating = WidgetPrinter(
+          id: 'b', name: 'B', state: 'heating', stateLabel: 'Heating',
+          hotend: 30, hotendTarget: 245, bed: 28, bedTarget: 105);
+      expect(heating.hotendHot, isTrue);
+      expect(heating.bedHot, isTrue);
+      // Just finished: targets off, still too hot to touch.
+      const cooling = WidgetPrinter(
+          id: 'c', name: 'C', state: 'complete', stateLabel: 'Finished',
+          hotend: 180, bed: 60);
+      expect(cooling.hotendHot, isTrue);
+      expect(cooling.bedHot, isTrue);
+      // Bed on, hotend off: independent flags.
+      const bedOnly = WidgetPrinter(
+          id: 'd', name: 'D', state: 'standby', stateLabel: 'Ready',
+          hotend: 26, bed: 40, bedTarget: 60);
+      expect(bedOnly.hotendHot, isFalse);
+      expect(bedOnly.bedHot, isTrue);
+      final j = bedOnly.toJson();
+      expect(j['hotendHot'], isFalse);
+      expect(j['bedHot'], isTrue);
+    });
   });
 
   group('pickFeaturedIndex - the printer the small layouts show', () {

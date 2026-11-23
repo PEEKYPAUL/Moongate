@@ -95,6 +95,16 @@ class WidgetPrinter {
       state != 'offline' &&
       (hotend > 0 || bed > 0 || hotendTarget > 0 || bedTarget > 0);
 
+  /// Above this a heater with no target still counts as hot (cooling down).
+  static const hotAboveC = 50.0;
+
+  /// Whether the hotend's icon shows red: a target is set, or it is still
+  /// above [hotAboveC]. Decided here, carried in the JSON.
+  bool get hotendHot => hotendTarget > 0 || hotend > hotAboveC;
+
+  /// The bed's twin of [hotendHot].
+  bool get bedHot => bedTarget > 0 || bed > hotAboveC;
+
   Map<String, dynamic> toJson() => {
         'id':             id,
         'name':           name,
@@ -113,6 +123,8 @@ class WidgetPrinter {
         'chamber':        chamber,
         'rank':           rank,
         'showsTemps':     showsTemps,
+        'hotendHot':      hotendHot,
+        'bedHot':         bedHot,
       };
 
   factory WidgetPrinter.fromJson(Map<String, dynamic> j) => WidgetPrinter(

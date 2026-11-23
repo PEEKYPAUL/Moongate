@@ -38,12 +38,21 @@ data class WidgetPrinter(
     val chamber: Float,
     /** Dart's call whether the row shows temperatures (never for an unreachable printer). */
     val showsTemps: Boolean,
+    /** Dart's call: the hotend has a target or is still warm, so its icon reads red. */
+    val hotendHot: Boolean,
+    /** The bed's twin of [hotendHot]. */
+    val bedHot: Boolean,
 ) {
     val isActive: Boolean get() = state == "printing" || state == "paused"
     val percent: Int get() = (progress * 100).toInt().coerceIn(0, 100)
 
     companion object {
-        fun from(j: JSONObject): WidgetPrinter = WidgetPrinter(
+        fun from(j: JSONObject): WidgetPrinter {
+            val hotend       = j.optDouble("hotend", 0.0).toFloat()
+            val hotendTarget = j.optDouble("hotendTarget", 0.0).toFloat()
+            val bed          = j.optDouble("bed", 0.0).toFloat()
+            val bedTarget    = j.optDouble("bedTarget", 0.0).toFloat()
+            return WidgetPrinter(
             id             = j.optString("id"),
             name           = j.optString("name"),
             state          = j.optString("state", "offline"),
@@ -53,13 +62,17 @@ data class WidgetPrinter(
             finishClock    = j.optStringOrNull("finishClock"),
             filename       = j.optStringOrNull("filename"),
             layerLabel     = j.optStringOrNull("layerLabel"),
-            hotend         = j.optDouble("hotend", 0.0).toFloat(),
-            hotendTarget   = j.optDouble("hotendTarget", 0.0).toFloat(),
-            bed            = j.optDouble("bed", 0.0).toFloat(),
-            bedTarget      = j.optDouble("bedTarget", 0.0).toFloat(),
+            hotend         = hotend,
+            hotendTarget   = hotendTarget,
+            bed            = bed,
+            bedTarget      = bedTarget,
             chamber        = j.optDouble("chamber", 0.0).toFloat(),
             showsTemps     = j.optBoolean("showsTemps", j.optString("state", "offline") != "offline"),
-        )
+            // Older snapshots lack the flags: the same rule Dart applies.
+            hotendHot      = j.optBoolean("hotendHot", hotendTarget > 0f || hotend > 50f),
+            bedHot         = j.optBoolean("bedHot", bedTarget > 0f || bed > 50f),
+            )
+        }
     }
 }
 
@@ -130,14 +143,14 @@ data class WidgetSnapshot(
                     stateLabel = "Printing", progress = 0.42f, remainingLabel = "~1h05m",
                     finishClock = "13:20", filename = "benchy.gcode", layerLabel = "Layer 84 / 200",
                     hotend = 245f, hotendTarget = 245f, bed = 105f, bedTarget = 105f, chamber = 48f,
-                    showsTemps = true,
+                    showsTemps = true, hotendHot = true, bedHot = true,
                 ),
                 WidgetPrinter(
                     id = "sample-2", name = "Micron+", state = "standby",
                     stateLabel = "Ready", progress = 0f, remainingLabel = null,
                     finishClock = null, filename = null, layerLabel = null,
                     hotend = 24f, hotendTarget = 0f, bed = 23f, bedTarget = 0f, chamber = 0f,
-                    showsTemps = true,
+                    showsTemps = true, hotendHot = false, bedHot = false,
                 ),
             ),
         )
