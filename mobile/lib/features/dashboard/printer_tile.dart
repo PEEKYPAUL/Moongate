@@ -30,6 +30,7 @@ import 'gcode_files_overlay.dart';
 import 'preheat_overlay.dart';
 import 'queue_overlay.dart';
 import '../../widgets/app_icons.dart';
+import '../../widgets/heater_icon.dart';
 
 class PrinterTile extends ConsumerStatefulWidget {
   final PrinterConfig printer;
@@ -510,7 +511,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
         TutorialAnchors.instance.tempHotend,
         _TempChip(
           icon: AppIcons.whatshot,
-          color: Colors.deepOrange,
+          heatReactive: true,
           temp: _status.hotendTemp,
           target: _status.hotendTarget,
           stack: stack,
@@ -520,7 +521,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
         TutorialAnchors.instance.tempBed,
         _TempChip(
           icon: AppIcons.bed,
-          color: Colors.blue,
+          heatReactive: true,
           temp: _status.bedTemp,
           target: _status.bedTarget,
           stack: stack,
@@ -530,8 +531,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
         _anchor(
           TutorialAnchors.instance.tempChamber,
           _chamberPickable(_TempChip(
-            icon: AppIcons.sensor_window,
-            color: Colors.teal,
+            iconAsset: kChamberIconAsset,
             temp: _status.chamberTemp,
             target: _status.chamberTarget,
             stack: stack,
@@ -567,7 +567,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
         TutorialAnchors.instance.tempBed,
         _TempChip(
           icon: AppIcons.bed,
-          color: Colors.blue,
+          heatReactive: true,
           temp: _status.bedTemp,
           target: _status.bedTarget,
           stack: stack,
@@ -577,8 +577,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
         _anchor(
           TutorialAnchors.instance.tempChamber,
           _chamberPickable(_TempChip(
-            icon: AppIcons.sensor_window,
-            color: Colors.teal,
+            iconAsset: kChamberIconAsset,
             temp: _status.chamberTemp,
             target: _status.chamberTarget,
             stack: stack,
@@ -1841,8 +1840,17 @@ class _StatusBadgeState extends State<TileStatusBadge> {
 // ── Temperature chip ──────────────────────────────────────────────────────────
 
 class _TempChip extends StatelessWidget {
-  final IconData icon;
-  final Color color;
+  /// A font glyph (hotend nozzle / bed radiator), or null when [iconAsset] is
+  /// used (the chamber SVG).
+  final IconData? icon;
+
+  /// The custom chamber SVG asset, drawn instead of [icon] when set.
+  final String? iconAsset;
+
+  /// Hotend/bed: the icon turns red while the heater is hot. The chamber icon
+  /// is never heat-coloured.
+  final bool heatReactive;
+
   final double temp;
   final double target;
 
@@ -1853,8 +1861,9 @@ class _TempChip extends StatelessWidget {
   final bool? stack;
 
   const _TempChip({
-    required this.icon,
-    required this.color,
+    this.icon,
+    this.iconAsset,
+    this.heatReactive = false,
     required this.temp,
     required this.target,
     this.stack,
@@ -1865,11 +1874,15 @@ class _TempChip extends StatelessWidget {
     // Temps must stay legible on BOTH themes. The old white-family colours were
     // invisible on the Light theme (white text + icons on a near-white card).
     // Use the same neutral blueGrey as the "Ready" idle label above the name -
-    // it reads on light and dark alike. A heating element keeps its accent
-    // colour (orange/blue/teal) on the icon while it has a target set.
+    // it reads on light and dark alike. The hotend and bed icons go red while
+    // their heater is hot (target set or still warm), like Duet's heated icons;
+    // the chamber icon stays neutral.
     const neutral = Colors.blueGrey;
     final muted   = neutral.withValues(alpha: 0.7);
-    final iconWidget = Icon(icon, size: 13, color: target > 0 ? color : muted);
+    final iconColor =
+        heatReactive && heaterIsHot(temp, target) ? kHeaterHotColour : muted;
+    final iconWidget =
+        heaterIcon(icon: icon, asset: iconAsset, size: 13, color: iconColor);
     final valueWidget = Text(
       '${temp.toStringAsFixed(0)}°',
       style: TextStyle(
@@ -1979,8 +1992,11 @@ class _ToolheadChip extends StatelessWidget {
     final muted   = neutral.withValues(alpha: 0.7);
     final heating = tool.target > 0;
 
+    // The nozzle goes red while the tool is hot (target set or still warm),
+    // like Duet's heated icons; label and value keep the target-based accent.
     final iconWidget = Icon(AppIcons.whatshot,
-        size: 13, color: heating ? Colors.deepOrange : muted);
+        size: 13,
+        color: heaterIsHot(tool.temp, tool.target) ? kHeaterHotColour : muted);
     final labelWidget = Text(
       'T${tool.index}',
       style: TextStyle(

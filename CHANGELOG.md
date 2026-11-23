@@ -5,6 +5,7 @@ What changed in each Moongate release, newest first, in plain language. The full
 ## v0.9.80
 
 - Fresh icon set across the app for a cleaner, more consistent look
+- New printer-style hotend, bed and chamber icons that turn red when a heater is hot
 - Pick your icon colour in the Theme menu, or leave it following your theme
 
 ## v0.9.79

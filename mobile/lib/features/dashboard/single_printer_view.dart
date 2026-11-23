@@ -28,6 +28,7 @@ import 'preheat_overlay.dart';
 import 'queue_overlay.dart';
 import 'printer_tile.dart';
 import '../../widgets/app_icons.dart';
+import '../../widgets/heater_icon.dart';
 
 /// The Single-printer dashboard: one printer full screen, Klipper-screen style
 /// but Moongate-shaped. Top to bottom - a pinned status header (the Local /
@@ -927,7 +928,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
       for (final t in s.toolheads) {
         final cell = _TempCell(
           icon: AppIcons.whatshot,
-          color: Colors.deepOrange,
+          heatReactive: true,
           temp: t.temp,
           target: t.target,
           label: 'T${t.index}',
@@ -940,7 +941,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
         a.tempHotend,
         _TempCell(
           icon: AppIcons.whatshot,
-          color: Colors.deepOrange,
+          heatReactive: true,
           temp: s.hotendTemp,
           target: s.hotendTarget,
           label: l.preheatHotend,
@@ -951,7 +952,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
       a.tempBed,
       _TempCell(
         icon: AppIcons.bed,
-        color: Colors.blue,
+        heatReactive: true,
         temp: s.bedTemp,
         target: s.bedTarget,
         label: l.preheatBed,
@@ -974,8 +975,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
             );
           },
           child: _TempCell(
-            icon: AppIcons.sensor_window,
-            color: Colors.teal,
+            iconAsset: kChamberIconAsset,
             temp: s.chamberTemp,
             target: s.chamberTarget,
             label: l.preheatChamber,
@@ -1339,8 +1339,17 @@ class _Pill extends StatelessWidget {
 /// One temperature: the heater's icon (in colour only while it has a target),
 /// the reading, the target, and a label underneath.
 class _TempCell extends StatelessWidget {
-  final IconData icon;
-  final Color color;
+  /// A font glyph (hotend nozzle / bed radiator), or null when [iconAsset] is
+  /// used (the chamber SVG).
+  final IconData? icon;
+
+  /// The custom chamber SVG asset, drawn instead of [icon] when set.
+  final String? iconAsset;
+
+  /// Hotend/bed: the icon turns red while the heater is hot. The chamber icon
+  /// is never heat-coloured.
+  final bool heatReactive;
+
   final double temp;
   final double target;
   final String label;
@@ -1349,8 +1358,9 @@ class _TempCell extends StatelessWidget {
   final bool emphasise;
 
   const _TempCell({
-    required this.icon,
-    required this.color,
+    this.icon,
+    this.iconAsset,
+    this.heatReactive = false,
     required this.temp,
     required this.target,
     required this.label,
@@ -1372,7 +1382,14 @@ class _TempCell extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 18, color: active ? color : Colors.blueGrey),
+              heaterIcon(
+                icon: icon,
+                asset: iconAsset,
+                size: 18,
+                color: heatReactive && heaterIsHot(temp, target)
+                    ? kHeaterHotColour
+                    : Colors.blueGrey,
+              ),
               const SizedBox(width: 3),
               Text(
                 '${temp.toStringAsFixed(0)}°',

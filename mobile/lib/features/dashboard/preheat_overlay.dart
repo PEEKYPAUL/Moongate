@@ -12,6 +12,7 @@ import '../../services/heatsoak_timers.dart';
 import '../../services/print_control_service.dart';
 import '../../services/print_notification_service.dart';
 import '../../widgets/app_icons.dart';
+import '../../widgets/heater_icon.dart';
 
 /// Client-side sanity cap on an entered target. Klipper enforces each heater's
 /// real `max_temp` and rejects anything above it (surfaced as a failure
@@ -386,7 +387,7 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
                 _TempField(
                   controller: _chamberCtl,
                   label: l.preheatChamber,
-                  icon: AppIcons.sensor_window,
+                  iconAsset: kChamberIconAsset,
                   color: Colors.teal,
                   currentTarget: widget.chamberTarget,
                   helperText: l.preheatChamberHelp,
@@ -478,7 +479,8 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
 class _TempField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
-  final IconData icon;
+  final IconData? icon;
+  final String? iconAsset;
   final Color color;
   final double currentTarget;
   final String? helperText;
@@ -488,7 +490,8 @@ class _TempField extends StatelessWidget {
   const _TempField({
     required this.controller,
     required this.label,
-    required this.icon,
+    this.icon,
+    this.iconAsset,
     required this.color,
     required this.currentTarget,
     this.helperText,
@@ -505,7 +508,7 @@ class _TempField extends StatelessWidget {
       onChanged: onChanged,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: color),
+        prefixIcon: heaterIcon(icon: icon, asset: iconAsset, size: 24, color: color),
         suffixText: '°C',
         hintText: currentTarget > 0 ? currentTarget.round().toString() : null,
         helperText: helperText,

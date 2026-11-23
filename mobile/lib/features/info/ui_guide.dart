@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/custom_theme_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/app_icons.dart';
+import '../../widgets/heater_icon.dart';
 
 /// Shows the dashboard icon guide as a centered popup.
 ///
@@ -69,8 +70,8 @@ class _UiGuideDialog extends ConsumerWidget {
                     l.uiGuideHotendDesc),
                 _row(AppIcons.bed, Colors.blue, l.uiGuideBedTitle,
                     l.uiGuideBedDesc),
-                _row(AppIcons.sensor_window, Colors.teal, l.uiGuideChamberTitle,
-                    l.uiGuideChamberDesc),
+                _row(null, Colors.teal, l.uiGuideChamberTitle,
+                    l.uiGuideChamberDesc, asset: kChamberIconAsset),
 
                 _header(context, l.uiGuideSectionControls),
                 _row(AppIcons.play_arrow_rounded, Colors.green,
@@ -144,11 +145,12 @@ class _UiGuideDialog extends ConsumerWidget {
         ),
       );
 
-  Widget _row(IconData icon, Color color, String title, String desc) =>
+  Widget _row(IconData? icon, Color color, String title, String desc,
+          {String? asset}) =>
       ListTile(
         contentPadding: EdgeInsets.zero,
         dense: true,
-        leading: Icon(icon, color: color),
+        leading: heaterIcon(icon: icon, asset: asset, size: 24, color: color),
         title: Text(title),
         subtitle: Text(desc),
       );

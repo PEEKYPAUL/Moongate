@@ -30,7 +30,9 @@ class AppIcons {
   static const IconData hourglass_empty = IconData(0xF06AD, fontFamily: _family); // mdi:timer-sand-empty
   static const IconData chevron_right = IconData(0xF0142, fontFamily: _family); // mdi:chevron-right
   static const IconData add = IconData(0xF0415, fontFamily: _family); // mdi:plus
-  static const IconData whatshot = IconData(0xF0238, fontFamily: _family); // mdi:fire
+  // The per-printer HOTEND temperature icon: the plain 3D-printer nozzle, to
+  // match what Duet's web UI shows (not a generic flame).
+  static const IconData whatshot = IconData(0xF0E5B, fontFamily: _family); // mdi:printer-3d-nozzle
   static const IconData cloud_outlined = IconData(0xF0163, fontFamily: _family); // mdi:cloud-outline
   static const IconData check = IconData(0xF012C, fontFamily: _family); // mdi:check
   static const IconData refresh = IconData(0xF0450, fontFamily: _family); // mdi:refresh
@@ -38,7 +40,9 @@ class AppIcons {
   static const IconData cloud_off = IconData(0xF0164, fontFamily: _family); // mdi:cloud-off-outline
   static const IconData close = IconData(0xF0156, fontFamily: _family); // mdi:close
   static const IconData check_circle_outline = IconData(0xF05E1, fontFamily: _family); // mdi:check-circle-outline
-  static const IconData bed = IconData(0xF02E3, fontFamily: _family); // mdi:bed
+  // The heated-bed temperature icon: a radiator, to match Duet's web UI (not a
+  // furniture bed).
+  static const IconData bed = IconData(0xF0438, fontFamily: _family); // mdi:radiator
   static const IconData arrow_back = IconData(0xF004D, fontFamily: _family); // mdi:arrow-left
   static const IconData wifi_rounded = IconData(0xF05A9, fontFamily: _family); // mdi:wifi
   static const IconData wifi_off = IconData(0xF05AA, fontFamily: _family); // mdi:wifi-off
