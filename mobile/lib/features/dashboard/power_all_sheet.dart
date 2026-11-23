@@ -4,6 +4,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/printer_config.dart';
 import '../../services/print_control_service.dart';
 import '../../services/printer_status_registry.dart';
+import '../../widgets/app_icons.dart';
 
 /// Outcome of a global power action, surfaced as a snackbar by the caller after
 /// the sheet closes (the sheet's own context is gone once it pops).
@@ -228,7 +229,7 @@ class _GlobalPowerSheetState extends State<_GlobalPowerSheet> {
           children: [
             Row(
               children: [
-                const Icon(Icons.power_settings_new, size: 22),
+                const Icon(AppIcons.power_settings_new, size: 22),
                 const SizedBox(width: 8),
                 Text(l.globalPowerSheetTitle,
                     style: theme.textTheme.titleLarge),
@@ -264,7 +265,7 @@ class _GlobalPowerSheetState extends State<_GlobalPowerSheet> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: _busy ? null : _powerOnAll,
-                    icon: const Icon(Icons.power_settings_new, size: 18),
+                    icon: const Icon(AppIcons.power_settings_new, size: 18),
                     label: Text(l.globalPowerOnAll),
                   ),
                 ),
@@ -320,7 +321,7 @@ class _GlobalPowerSheetState extends State<_GlobalPowerSheet> {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Icon(Icons.print_outlined,
+          Icon(AppIcons.print_outlined,
               size: 18, color: r.reachable ? null : theme.disabledColor),
           const SizedBox(width: 10),
           Expanded(
@@ -403,7 +404,7 @@ class _SlideToConfirmState extends State<_SlideToConfirm> {
                   decoration:
                       BoxDecoration(color: cs.error, shape: BoxShape.circle),
                   child: Icon(
-                      _committed ? Icons.check : Icons.power_settings_new,
+                      _committed ? AppIcons.check : AppIcons.power_settings_new,
                       color: cs.onError),
                 ),
               ),

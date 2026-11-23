@@ -9,6 +9,12 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get iconColourTitle => '图标颜色';
+
+  @override
+  String get iconColourFollowTheme => '跟随主题';
+
+  @override
   String get updateDownloading => '正在下载更新…';
 
   @override

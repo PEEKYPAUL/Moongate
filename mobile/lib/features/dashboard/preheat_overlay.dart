@@ -11,6 +11,7 @@ import '../../providers/settings_provider.dart';
 import '../../services/heatsoak_timers.dart';
 import '../../services/print_control_service.dart';
 import '../../services/print_notification_service.dart';
+import '../../widgets/app_icons.dart';
 
 /// Client-side sanity cap on an entered target. Klipper enforces each heater's
 /// real `max_temp` and rejects anything above it (surfaced as a failure
@@ -339,7 +340,7 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
                   _HeaterRow(
                     controller: _hotendCtls[i],
                     label: 'T${_tools[i].index}',
-                    icon: Icons.whatshot,
+                    icon: AppIcons.whatshot,
                     color: Colors.deepOrange,
                     currentTarget: _tools[i].target,
                     active: _tools[i].active,
@@ -350,7 +351,7 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
                 _HeaterRow(
                   controller: _bedCtl,
                   label: l.preheatBed,
-                  icon: Icons.bed,
+                  icon: AppIcons.bed,
                   color: Colors.blue,
                   currentTarget: widget.bedTarget,
                   active: false,
@@ -360,7 +361,7 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
                 _TempField(
                   controller: _hotendCtls[0],
                   label: l.preheatHotend,
-                  icon: Icons.whatshot,
+                  icon: AppIcons.whatshot,
                   color: Colors.deepOrange,
                   currentTarget: widget.hotendTarget,
                   onChanged: (_) => setState(() {}),
@@ -369,7 +370,7 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
                 _TempField(
                   controller: _bedCtl,
                   label: l.preheatBed,
-                  icon: Icons.bed,
+                  icon: AppIcons.bed,
                   color: Colors.blue,
                   currentTarget: widget.bedTarget,
                   onChanged: (_) => setState(() {}),
@@ -385,7 +386,7 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
                 _TempField(
                   controller: _chamberCtl,
                   label: l.preheatChamber,
-                  icon: Icons.sensor_window,
+                  icon: AppIcons.sensor_window,
                   color: Colors.teal,
                   currentTarget: widget.chamberTarget,
                   helperText: l.preheatChamberHelp,
@@ -411,7 +412,7 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
                   value: _soakOn,
                   onChanged: (v) => setState(() => _soakOn = v),
                   contentPadding: EdgeInsets.zero,
-                  secondary: const Icon(Icons.thermostat_outlined),
+                  secondary: const Icon(AppIcons.thermostat_outlined),
                   title: Text(l.preheatSoakSwitch),
                   subtitle: Text(l.preheatSoakSwitchHelp),
                 ),
@@ -425,7 +426,7 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
                     decoration: InputDecoration(
                       labelText: l.preheatSoakLabel,
                       helperText: l.preheatSoakHelp,
-                      prefixIcon: const Icon(Icons.timer_outlined),
+                      prefixIcon: const Icon(AppIcons.timer_outlined),
                       suffixText: l.preheatMinutes,
                       border: const OutlineInputBorder(),
                     ),
@@ -458,7 +459,7 @@ class _PreheatSheetState extends ConsumerState<_PreheatSheet> {
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.local_fire_department),
+                      : const Icon(AppIcons.local_fire_department),
                   label: Text(l.preheatSet),
                 ),
               ),
@@ -598,7 +599,7 @@ class _NotifWarning extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.notifications_off_outlined,
+          Icon(AppIcons.notifications_off_outlined,
               size: 20, color: theme.colorScheme.onSecondaryContainer),
           const SizedBox(width: 10),
           Expanded(

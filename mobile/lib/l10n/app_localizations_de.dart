@@ -9,6 +9,12 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get iconColourTitle => 'Symbolfarbe';
+
+  @override
+  String get iconColourFollowTheme => 'Dem Design folgen';
+
+  @override
   String get updateDownloading => 'Update wird heruntergeladen…';
 
   @override

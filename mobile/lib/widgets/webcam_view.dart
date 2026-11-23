@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import '../l10n/app_localizations.dart';
 import '../providers/settings_provider.dart';
 import '../services/webcam_fetch_diag.dart';
+import 'app_icons.dart';
 
 /// How long a frameless camera shows the "waking up" spinner before falling
 /// back to the honest plain placeholder. Generous on purpose: a go2rtc
@@ -523,7 +524,7 @@ class _WebcamUnreachable extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.videocam_off_outlined,
+        const Icon(AppIcons.videocam_off_outlined,
             size: 30, color: Colors.white38),
         const SizedBox(height: 8),
         Padding(
@@ -574,6 +575,6 @@ class _WebcamPlaceholder extends StatelessWidget {
         ),
       );
     }
-    return const Icon(Icons.videocam_off, color: Colors.white30, size: 40);
+    return const Icon(AppIcons.videocam_off, color: Colors.white30, size: 40);
   }
 }

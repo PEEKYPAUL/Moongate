@@ -4,6 +4,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/printer_config.dart';
 import '../../services/print_control_service.dart';
 import 'gcode_files_overlay.dart';
+import '../../widgets/app_icons.dart';
 
 /// The print queue sheet (v0.9.78): Moonraker's own job queue, driven from
 /// the phone. Opened from the "Up next" line on the Single-printer status
@@ -161,7 +162,7 @@ class _QueueSheetState extends State<_QueueSheet> {
                     const Spacer(),
                     if (hasJobs)
                       IconButton(
-                        icon: const Icon(Icons.delete_sweep_outlined),
+                        icon: const Icon(AppIcons.delete_sweep_outlined),
                         tooltip: l.queueClear,
                         onPressed: _busy ? null : () => _clear(l),
                       ),
@@ -191,7 +192,7 @@ class _QueueSheetState extends State<_QueueSheet> {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: _busy ? null : _addFiles,
-                        icon: const Icon(Icons.playlist_add),
+                        icon: const Icon(AppIcons.playlist_add),
                         label: Text(l.queueAddFiles),
                       ),
                     ),
@@ -209,8 +210,8 @@ class _QueueSheetState extends State<_QueueSheet> {
                                       : l.queueStartedToast,
                                 ),
                         icon: Icon(running
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded),
+                            ? AppIcons.pause_rounded
+                            : AppIcons.play_arrow_rounded),
                         label: Text(running ? l.queuePause : l.queueStart),
                       ),
                     ),
@@ -285,7 +286,7 @@ class _QueueSheetState extends State<_QueueSheet> {
             children: [
               if (i > 0)
                 IconButton(
-                  icon: const Icon(Icons.vertical_align_top),
+                  icon: const Icon(AppIcons.vertical_align_top),
                   tooltip: l.queueMoveToFront,
                   onPressed: _busy
                       ? null
@@ -293,7 +294,7 @@ class _QueueSheetState extends State<_QueueSheet> {
                           toast: l.queueMovedToast),
                 ),
               IconButton(
-                icon: const Icon(Icons.close),
+                icon: const Icon(AppIcons.close),
                 tooltip: l.queueRemove,
                 onPressed: _busy
                     ? null
@@ -368,7 +369,7 @@ class QueueNextLine extends StatelessWidget {
         padding: EdgeInsets.symmetric(vertical: compact ? 2 : 6),
         child: Row(
           children: [
-            Icon(Icons.playlist_play, size: compact ? 14 : 18,
+            Icon(AppIcons.playlist_play, size: compact ? 14 : 18,
                 color: theme.colorScheme.primary),
             const SizedBox(width: 6),
             Text(label,
@@ -394,7 +395,7 @@ class QueueNextLine extends StatelessWidget {
               Text(l.queueCount(q.count),
                   style: theme.textTheme.bodySmall
                       ?.copyWith(color: theme.hintColor)),
-              Icon(Icons.chevron_right, size: 18, color: theme.hintColor),
+              Icon(AppIcons.chevron_right, size: 18, color: theme.hintColor),
             ],
           ],
         ),

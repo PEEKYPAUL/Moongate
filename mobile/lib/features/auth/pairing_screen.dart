@@ -15,6 +15,7 @@ import '../../services/printer_webview_cache.dart';
 import '../../services/supabase_service.dart';
 import '../../widgets/keyboard_affordance.dart';
 import '../dashboard/feedback_sheet.dart';
+import '../../widgets/app_icons.dart';
 
 /// v0.3.0 pairing flow (with v0.4.2 manual-entry fallback):
 ///
@@ -654,7 +655,7 @@ class _PairingScreenState extends State<PairingScreen> {
         title: Text(l.pairingTitle),
         leading: PrinterRegistry.instance.printers.isNotEmpty
             ? IconButton(
-                icon: const Icon(Icons.arrow_back),
+                icon: const Icon(AppIcons.arrow_back),
                 onPressed: () => context.go('/dashboard'),
               )
             : null,
@@ -681,12 +682,12 @@ class _PairingScreenState extends State<PairingScreen> {
                 ButtonSegment(
                   value: false,
                   label: Text(l.pairingModeCloud),
-                  icon:  const Icon(Icons.cloud_outlined),
+                  icon:  const Icon(AppIcons.cloud_outlined),
                 ),
                 ButtonSegment(
                   value: true,
                   label: Text(l.pairingModeDirect),
-                  icon:  const Icon(Icons.lan_outlined),
+                  icon:  const Icon(AppIcons.lan_outlined),
                 ),
               ],
               selected: {_directMode},
@@ -731,7 +732,7 @@ class _PairingScreenState extends State<PairingScreen> {
             // ── Scan button / scanned status / manual entry ───────────
             if (!hasScan && !hasLanScan && !_scanning) ...[
               FilledButton.icon(
-                icon: const Icon(Icons.qr_code_scanner),
+                icon: const Icon(AppIcons.qr_code_scanner),
                 label: Text(l.pairingScanButton),
                 onPressed: _loading ? null : _openScanner,
               ),
@@ -825,7 +826,7 @@ class _PairingScreenState extends State<PairingScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.warning_amber_rounded,
+                    Icon(AppIcons.warning_amber_rounded,
                         size: 18, color: Colors.amber.shade700),
                     const SizedBox(width: 8),
                     Expanded(
@@ -861,7 +862,7 @@ class _PairingScreenState extends State<PairingScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              isDenied ? Icons.no_photography : Icons.videocam_off,
+                              isDenied ? AppIcons.no_photography : AppIcons.videocam_off,
                               color: Colors.orange,
                               size: 40,
                             ),
@@ -878,7 +879,7 @@ class _PairingScreenState extends State<PairingScreen> {
                             const SizedBox(height: 12),
                             OutlinedButton.icon(
                               onPressed: _restartScanner,
-                              icon: const Icon(Icons.refresh, color: Colors.white70),
+                              icon: const Icon(AppIcons.refresh, color: Colors.white70),
                               label: Text(l.commonRetry,
                                   style: const TextStyle(color: Colors.white70)),
                               style: OutlinedButton.styleFrom(
@@ -894,7 +895,7 @@ class _PairingScreenState extends State<PairingScreen> {
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
-                icon: const Icon(Icons.close),
+                icon: const Icon(AppIcons.close),
                 label: Text(l.pairingCancelScan),
                 onPressed: _closeScanner,
               ),
@@ -910,7 +911,7 @@ class _PairingScreenState extends State<PairingScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.check_circle, color: cs.primary, size: 20),
+                    Icon(AppIcons.check_circle, color: cs.primary, size: 20),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -1043,7 +1044,7 @@ class _PairingScreenState extends State<PairingScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(children: [
-                      Icon(Icons.info_outline, size: 18, color: cs.primary),
+                      Icon(AppIcons.info_outline, size: 18, color: cs.primary),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -1086,13 +1087,13 @@ class _PairingScreenState extends State<PairingScreen> {
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: _loading ? null : _importConfig,
-                icon: const Icon(Icons.file_download_outlined),
+                icon: const Icon(AppIcons.file_download_outlined),
                 label: Text(l.pairingImportButton),
               ),
               const SizedBox(height: 4),
               TextButton.icon(
                 onPressed: _loading ? null : _reportPairingProblem,
-                icon: const Icon(Icons.bug_report_outlined, size: 18),
+                icon: const Icon(AppIcons.bug_report_outlined, size: 18),
                 label: Text(l.pairingReportButton),
               ),
             ],

@@ -13,6 +13,7 @@ import '../../services/printer_access_cache.dart';
 import '../../services/printer_registry.dart';
 import '../../services/printer_webview_cache.dart';
 import 'pin_pad.dart';
+import '../../widgets/app_icons.dart';
 
 /// The full-screen lock shown by [AppLockGate] while the app is locked. Offers
 /// PIN entry and, when enabled+available, a biometric prompt (auto-triggered
@@ -159,7 +160,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                     color: cs.primaryContainer,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Icon(Icons.lock_rounded, size: 38, color: cs.primary),
+                  child: Icon(AppIcons.lock_rounded, size: 38, color: cs.primary),
                 ),
                 const SizedBox(height: 8),
                 PinEntryView(
@@ -176,7 +177,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                       if (showBiometric)
                         TextButton.icon(
                           onPressed: lockedOut ? null : _promptBiometric,
-                          icon: const Icon(Icons.fingerprint),
+                          icon: const Icon(AppIcons.fingerprint),
                           label: Text(l.lockUseBiometrics),
                         ),
                       TextButton(

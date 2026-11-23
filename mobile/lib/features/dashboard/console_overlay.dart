@@ -10,6 +10,7 @@ import '../../models/klipper_schema.dart';
 import '../../services/print_control_service.dart';
 import '../../services/gcode_completion_service.dart';
 import '../../services/klipper_schema_service.dart';
+import '../../widgets/app_icons.dart';
 
 /// Bottom-sheet G-code console. Opens with the printer's rolling history
 /// (Moonraker's `server/gcode_store`, so lines from before the sheet existed
@@ -323,7 +324,7 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.refresh),
+                  icon: const Icon(AppIcons.refresh),
                   tooltip: l.commonRetry,
                   onPressed: _retry,
                 ),
@@ -436,7 +437,7 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
                       ),
                       const SizedBox(width: 8),
                       IconButton.filled(
-                        icon: const Icon(Icons.send_rounded),
+                        icon: const Icon(AppIcons.send_rounded),
                         tooltip: l.consoleSend,
                         onPressed: _sending &&
                                 _input.text.trim().toUpperCase() != 'M112'
@@ -472,7 +473,7 @@ class _ConsoleSheetState extends State<_ConsoleSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.cloud_off, size: 40, color: theme.colorScheme.outline),
+            Icon(AppIcons.cloud_off, size: 40, color: theme.colorScheme.outline),
             const SizedBox(height: 12),
             Text(l.consoleError,
                 textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),

@@ -3,11 +3,13 @@ import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dynamic_color/dynamic_color.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/notif_fields.dart';
+import 'custom_theme_provider.dart';
 
 // ---------------------------------------------------------------------------
 // Theme mode
@@ -193,6 +195,43 @@ class FontScaleNotifier extends Notifier<double> {
 final fontScaleProvider = NotifierProvider<FontScaleNotifier, double>(
   FontScaleNotifier.new,
 );
+
+// ---------------------------------------------------------------------------
+// Icon colour  (null = follow the theme; a colour tints the app's icons)
+// ---------------------------------------------------------------------------
+
+/// An optional single colour applied to the app's icons through the active
+/// theme's [IconThemeData] (see app.dart). `null` - the default - means
+/// "follow the theme": icons keep the colour the theme gives them, exactly as
+/// before this setting existed, in every theme mode. Picking a colour tints
+/// every icon that does not set its own colour; icons with an explicit colour
+/// (status greens/reds, the accent, the E-stop red) keep theirs. Stored as
+/// "#RRGGBB" (the key is absent for follow-theme), reusing [CustomTheme]'s hex
+/// helpers so it matches the rest of the colour settings. Travels in backups.
+class IconColourNotifier extends Notifier<Color?> {
+  static const _key = 'icon_colour';
+
+  @override
+  Color? build() => null;
+
+  Future<void> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = CustomTheme.parseHex(prefs.getString(_key));
+  }
+
+  Future<void> set(Color? colour) async {
+    state = colour;
+    final prefs = await SharedPreferences.getInstance();
+    if (colour == null) {
+      await prefs.remove(_key);
+    } else {
+      await prefs.setString(_key, CustomTheme.hexOf(colour));
+    }
+  }
+}
+
+final iconColourProvider =
+    NotifierProvider<IconColourNotifier, Color?>(IconColourNotifier.new);
 
 // ---------------------------------------------------------------------------
 // Grid columns  (1 | 2 | 3 - portrait preference; landscape auto-bumps +1)

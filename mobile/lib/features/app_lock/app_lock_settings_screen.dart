@@ -6,6 +6,7 @@ import '../../providers/app_lock_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/pin_service.dart';
 import 'pin_pad.dart';
+import '../../widgets/app_icons.dart';
 
 /// Configure the optional app lock: enable/disable (with PIN setup/verify),
 /// biometric unlock, auto-lock timeout, and changing the PIN. Reached from the
@@ -38,7 +39,7 @@ class AppLockSettingsScreen extends ConsumerWidget {
             ),
           ),
           SwitchListTile(
-            secondary: const Icon(Icons.lock_outline),
+            secondary: const Icon(AppIcons.lock_outline),
             title: Text(l.appLockTitle),
             subtitle: Text(l.appLockSubtitle),
             value: enabled,
@@ -48,7 +49,7 @@ class AppLockSettingsScreen extends ConsumerWidget {
             const Divider(),
             if (bioAvailable)
               SwitchListTile(
-                secondary: const Icon(Icons.fingerprint),
+                secondary: const Icon(AppIcons.fingerprint),
                 title: Text(l.appLockBiometricTitle),
                 subtitle: Text(l.appLockBiometricSubtitle),
                 value: biometric,
@@ -56,12 +57,12 @@ class AppLockSettingsScreen extends ConsumerWidget {
                     ref.read(biometricUnlockProvider.notifier).set(v),
               ),
             ListTile(
-              leading: const Icon(Icons.password_outlined),
+              leading: const Icon(AppIcons.password_outlined),
               title: Text(l.appLockChangePin),
               onTap: () => _changePin(context, ref),
             ),
             ListTile(
-              leading: const Icon(Icons.timer_outlined),
+              leading: const Icon(AppIcons.timer_outlined),
               title: Text(l.appLockAutoLock),
               subtitle: Text(_timeoutLabel(l, timeout)),
               onTap: () => _pickTimeout(context, ref, timeout),
@@ -143,7 +144,7 @@ class AppLockSettingsScreen extends ConsumerWidget {
         children: AutoLockTimeout.values
             .map((t) => ListTile(
                   title: Text(_timeoutLabel(l, t)),
-                  trailing: t == current ? const Icon(Icons.check) : null,
+                  trailing: t == current ? const Icon(AppIcons.check) : null,
                   onTap: () => Navigator.pop(ctx, t),
                 ))
             .toList(),

@@ -7,6 +7,7 @@ import '../../models/printer_config.dart';
 import '../../services/klipper_include_resolver.dart';
 import '../../services/klipper_schema_service.dart';
 import '../../services/print_control_service.dart';
+import '../../widgets/app_icons.dart';
 
 /// Structured config editor as a near-full-height bottom sheet: sections as
 /// cards, option NAMES fixed as labels, only the VALUES editable - the file
@@ -671,17 +672,17 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.add),
+                    icon: const Icon(AppIcons.add),
                     tooltip: l.fsAddSection,
                     onPressed: _schema == null ? null : _addSection,
                   ),
                   IconButton(
-                    icon: const Icon(Icons.account_tree_outlined),
+                    icon: const Icon(AppIcons.account_tree_outlined),
                     tooltip: l.fsAddInclude,
                     onPressed: widget.files.isEmpty ? null : _addInclude,
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(AppIcons.close),
                     onPressed: () => Navigator.of(context).maybePop(),
                   ),
                 ],
@@ -705,7 +706,7 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
                 padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
                 child: Row(
                   children: [
-                    Icon(Icons.warning_amber_rounded,
+                    Icon(AppIcons.warning_amber_rounded,
                         color: theme.colorScheme.onErrorContainer),
                     const SizedBox(width: 10),
                     Expanded(
@@ -721,7 +722,7 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
                         child: Text(l.fsRestoreBackup),
                       ),
                     IconButton(
-                      icon: Icon(Icons.close,
+                      icon: Icon(AppIcons.close,
                           size: 18, color: theme.colorScheme.onErrorContainer),
                       onPressed: () =>
                           setState(() => _restart = _RestartPhase.none),
@@ -793,7 +794,7 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.cloud_off, size: 40, color: theme.colorScheme.outline),
+              Icon(AppIcons.cloud_off, size: 40, color: theme.colorScheme.outline),
               const SizedBox(height: 12),
               Text(l.fsEditorLoadError,
                   textAlign: TextAlign.center,
@@ -818,7 +819,7 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
           return Card(
             child: ListTile(
               leading:
-                  Icon(Icons.lock_outline, color: theme.colorScheme.outline),
+                  Icon(AppIcons.lock_outline, color: theme.colorScheme.outline),
               title: Text(
                 l.fsAutosaveBlock,
                 style: theme.textTheme.bodySmall
@@ -845,11 +846,11 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
       return Card(
         child: ListTile(
           dense: true,
-          leading: Icon(Icons.subdirectory_arrow_right_rounded,
+          leading: Icon(AppIcons.subdirectory_arrow_right_rounded,
               color: theme.colorScheme.outline),
           title: Text('[${section.name}]', style: mono),
           subtitle: Text(widget.path),
-          trailing: const Icon(Icons.chevron_right),
+          trailing: const Icon(AppIcons.chevron_right),
           onTap: () => _openInclude(section),
         ),
       );
@@ -866,7 +867,7 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
                 if (doc.macroGcodeOption(section) != null)
                   IconButton(
                     visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    icon: const Icon(AppIcons.edit_outlined, size: 18),
                     tooltip: l.fsEditMacro,
                     onPressed: () => _editMacro(section),
                   ),
@@ -876,7 +877,7 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
                     true)
                   IconButton(
                     visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.add, size: 18),
+                    icon: const Icon(AppIcons.add, size: 18),
                     tooltip: l.fsAddField,
                     onPressed: () => _addOption(section),
                   ),
@@ -917,7 +918,7 @@ class _ConfigEditorSheetState extends State<_ConfigEditorSheet> {
         children: [
           Expanded(child: label),
           const SizedBox(width: 8),
-          Icon(Icons.lock_outline, size: 14, color: theme.colorScheme.outline),
+          Icon(AppIcons.lock_outline, size: 14, color: theme.colorScheme.outline),
           const SizedBox(width: 4),
           Text(
             l.fsViewOnly,

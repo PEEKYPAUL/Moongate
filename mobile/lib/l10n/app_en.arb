@@ -1,5 +1,9 @@
 {
   "@@locale": "en",
+  "iconColourTitle": "Icon colour",
+  "@iconColourTitle": {"description": "Row title for the app-wide icon colour setting in the Theme section."},
+  "iconColourFollowTheme": "Follow theme",
+  "@iconColourFollowTheme": {"description": "Icon colour option and subtitle meaning the icons keep the colour the active theme gives them (the default)."},
   "updateDownloading": "Downloading update…",
   "@updateDownloading": {"description": "Title of the in-app update dialog while the new APK is downloading."},
   "updateOpeningInstaller": "Opening installer…",

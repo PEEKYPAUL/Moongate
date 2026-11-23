@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/printer_config.dart';
+import '../../widgets/app_icons.dart';
 
 IconData macroControlIcon(String value) => switch (value) {
-      'filament' => Icons.cable_rounded,
-      'tune' => Icons.tune_rounded,
-      'clean' => Icons.cleaning_services_rounded,
-      _ => Icons.play_arrow_rounded,
+      'filament' => AppIcons.cable_rounded,
+      'tune' => AppIcons.tune_rounded,
+      'clean' => AppIcons.cleaning_services_rounded,
+      _ => AppIcons.play_arrow_rounded,
     };
 
 Color macroControlColor(BuildContext context, String value) => switch (value) {
@@ -274,7 +275,7 @@ class _MacroControlBuilderState extends State<_MacroControlBuilder> {
                   ),
                   TextButton.icon(
                     onPressed: _editParameter,
-                    icon: const Icon(Icons.add),
+                    icon: const Icon(AppIcons.add),
                     label: Text(l.macroControlAddParameter),
                   ),
                 ],
@@ -286,7 +287,7 @@ class _MacroControlBuilderState extends State<_MacroControlBuilder> {
                   subtitle: Text('${_parameters[i].name} · ${_parameters[i].kind.name}'),
                   onTap: () => _editParameter(i),
                   trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline),
+                    icon: const Icon(AppIcons.delete_outline),
                     onPressed: () => setState(() => _parameters.removeAt(i)),
                   ),
                 ),
@@ -294,7 +295,7 @@ class _MacroControlBuilderState extends State<_MacroControlBuilder> {
               FilledButton.icon(
                 // Disabled rather than a silent no-op on an empty label.
                 onPressed: _label.text.trim().isEmpty ? null : _save,
-                icon: const Icon(Icons.check),
+                icon: const Icon(AppIcons.check),
                 label: Text(l.commonSave),
               ),
             ],
@@ -395,7 +396,7 @@ Future<String?> showMacroControlRunner(
             FilledButton.icon(
               onPressed:
                   preview == null ? null : () => Navigator.pop(context, preview),
-              icon: const Icon(Icons.play_arrow_rounded),
+              icon: const Icon(AppIcons.play_arrow_rounded),
               label: Text(AppLocalizations.of(context).macroRunAction),
             ),
           ],

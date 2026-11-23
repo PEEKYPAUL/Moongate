@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.9.80",
+    "bullets": [
+      "Fresh icon set across the app for a cleaner, more consistent look",
+      "Pick your icon colour in the Theme menu, or leave it following your theme"
+    ]
+  },
+  {
     "version": "v0.9.79",
     "bullets": [
       "Buzz when a print finishes: an optional loud alert that also reaches a paired smartwatch, no watch app needed",

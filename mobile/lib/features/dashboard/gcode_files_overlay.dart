@@ -12,6 +12,7 @@ import '../../services/print_control_service.dart';
 import '../printer/gcode_save.dart';
 import '../printer/gcode_viewer_screen.dart';
 import 'queue_overlay.dart';
+import '../../widgets/app_icons.dart';
 
 /// Bottom-sheet G-code browser. Lists the files already stored on the printer
 /// (Moonraker's `gcodes` root), lets the user pick one, and starts it after a
@@ -257,7 +258,7 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
                   // Hidden inside the queue sheet's own Add files mode.
                   if (!widget.queueMode)
                     ActionChip(
-                      avatar: const Icon(Icons.playlist_play, size: 18),
+                      avatar: const Icon(AppIcons.playlist_play, size: 18),
                       label: Text(_queueCount == null || _queueCount == 0
                           ? l.queueChip
                           : '${l.queueChip} · $_queueCount'),
@@ -270,7 +271,7 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
                               })),
                     ),
                   IconButton(
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(AppIcons.refresh),
                     tooltip: l.commonRetry,
                     onPressed: _reload,
                   ),
@@ -301,7 +302,7 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
                   if (listing == null) {
                     return _Centered(
                       child: _Message(
-                        icon: Icons.cloud_off,
+                        icon: AppIcons.cloud_off,
                         text: l.gcodeError,
                         action: FilledButton.tonal(
                           onPressed: _reload,
@@ -314,7 +315,7 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
                   if (files.isEmpty) {
                     return _Centered(
                       child: _Message(
-                        icon: Icons.folder_off_outlined,
+                        icon: AppIcons.folder_off_outlined,
                         text: l.gcodeEmpty,
                       ),
                     );
@@ -362,11 +363,11 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (selected)
-                              Icon(Icons.check_circle,
+                              Icon(AppIcons.check_circle,
                                   color: theme.colorScheme.primary),
                             // v0.9.78: add to the print queue.
                             IconButton(
-                              icon: const Icon(Icons.playlist_add),
+                              icon: const Icon(AppIcons.playlist_add),
                               tooltip: l.queueAddTooltip,
                               onPressed:
                                   _queueing ? null : () => _enqueue(f),
@@ -377,14 +378,14 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
                             // cooling / hotend heat map. Tapping the row
                             // itself still just selects the file.
                             IconButton(
-                              icon: const Icon(Icons.download_outlined),
+                              icon: const Icon(AppIcons.download_outlined),
                               tooltip: l.gcodeSaveToPhone,
                               onPressed: () => saveGcodeToPhone(
                                   context, _control, f,
                                   base: listing.base, isLan: listing.isLan),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.layers_outlined),
+                              icon: const Icon(AppIcons.layers_outlined),
                               tooltip: l.gcodeViewTooltip,
                               onPressed: () => _view(f, listing),
                             ),
@@ -425,7 +426,7 @@ class _GcodeFilesSheetState extends State<_GcodeFilesSheet> {
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.white),
                           )
-                        : const Icon(Icons.play_arrow_rounded),
+                        : const Icon(AppIcons.play_arrow_rounded),
                     label: Text(l.gcodeStartButton),
                   ),
                 ),
@@ -798,7 +799,7 @@ class _GcodeThumbPreview extends StatelessWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.image_not_supported_outlined,
+                          Icon(AppIcons.image_not_supported_outlined,
                               size: 40, color: theme.colorScheme.outline),
                           const SizedBox(height: 8),
                           Text(l.gcodeInfoNoThumb,
@@ -849,7 +850,7 @@ class _GcodeThumb extends StatelessWidget {
             }
             // Loading, or the file has no embedded thumbnail - show a clear
             // glyph rather than the faint outline icon it replaces.
-            return Icon(Icons.description,
+            return Icon(AppIcons.description,
                 size: 24, color: theme.colorScheme.onSurfaceVariant);
           },
         ),

@@ -29,6 +29,7 @@ import 'file_system_overlay.dart';
 import 'gcode_files_overlay.dart';
 import 'preheat_overlay.dart';
 import 'queue_overlay.dart';
+import '../../widgets/app_icons.dart';
 
 class PrinterTile extends ConsumerStatefulWidget {
   final PrinterConfig printer;
@@ -508,7 +509,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
       _anchor(
         TutorialAnchors.instance.tempHotend,
         _TempChip(
-          icon: Icons.whatshot,
+          icon: AppIcons.whatshot,
           color: Colors.deepOrange,
           temp: _status.hotendTemp,
           target: _status.hotendTarget,
@@ -518,7 +519,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
       _anchor(
         TutorialAnchors.instance.tempBed,
         _TempChip(
-          icon: Icons.bed,
+          icon: AppIcons.bed,
           color: Colors.blue,
           temp: _status.bedTemp,
           target: _status.bedTarget,
@@ -529,7 +530,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
         _anchor(
           TutorialAnchors.instance.tempChamber,
           _chamberPickable(_TempChip(
-            icon: Icons.sensor_window,
+            icon: AppIcons.sensor_window,
             color: Colors.teal,
             temp: _status.chamberTemp,
             target: _status.chamberTarget,
@@ -565,7 +566,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
       _anchor(
         TutorialAnchors.instance.tempBed,
         _TempChip(
-          icon: Icons.bed,
+          icon: AppIcons.bed,
           color: Colors.blue,
           temp: _status.bedTemp,
           target: _status.bedTarget,
@@ -576,7 +577,7 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
         _anchor(
           TutorialAnchors.instance.tempChamber,
           _chamberPickable(_TempChip(
-            icon: Icons.sensor_window,
+            icon: AppIcons.sensor_window,
             color: Colors.teal,
             temp: _status.chamberTemp,
             target: _status.chamberTarget,
@@ -893,8 +894,8 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                                 children: [
                                   Icon(
                                     _status.connection == PrinterConnection.local
-                                        ? Icons.wifi_rounded
-                                        : Icons.cloud_outlined,
+                                        ? AppIcons.wifi_rounded
+                                        : AppIcons.cloud_outlined,
                                     size: 11,
                                     color: connColor,
                                   ),
@@ -1092,8 +1093,8 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
                             const SizedBox(width: 4),
                             Icon(
                               _status.connection == PrinterConnection.local
-                                  ? Icons.wifi_rounded
-                                  : Icons.cloud_outlined,
+                                  ? AppIcons.wifi_rounded
+                                  : AppIcons.cloud_outlined,
                               size: 11,
                               color: connColor,
                             ),
@@ -1182,7 +1183,7 @@ class _ToolsRow extends StatelessWidget {
         children: [
           Expanded(
             child: AdaptiveToolButton(
-              icon: Icons.terminal_rounded,
+              icon: AppIcons.terminal_rounded,
               label: l.tileConsole,
               onPressed: () => showConsoleSheet(context, printer),
             ),
@@ -1190,7 +1191,7 @@ class _ToolsRow extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: AdaptiveToolButton(
-              icon: Icons.folder_open_rounded,
+              icon: AppIcons.folder_open_rounded,
               label: l.tileFileSystem,
               onPressed: () => showFileSystemSheet(context, printer),
             ),
@@ -1311,14 +1312,14 @@ class _ActionRow extends StatelessWidget {
           ],
           if (paused)
             _Btn(
-              icon: Icons.play_arrow_rounded,
+              icon: AppIcons.play_arrow_rounded,
               color: Colors.green,
               tooltip: l.tileResume,
               onTap: onResume,
             ),
           if (printing)
             _Btn(
-              icon: Icons.pause_rounded,
+              icon: AppIcons.pause_rounded,
               color: Colors.orange,
               tooltip: l.tilePause,
               onTap: onPause,
@@ -1326,7 +1327,7 @@ class _ActionRow extends StatelessWidget {
           // Print a stored file - only when online and ready to accept a job.
           if (ready)
             _Btn(
-              icon: Icons.folder_open_rounded,
+              icon: AppIcons.folder_open_rounded,
               color: theme.colorScheme.primary,
               tooltip: l.tileOpenFiles,
               onTap: onOpenFiles,
@@ -1335,7 +1336,7 @@ class _ActionRow extends StatelessWidget {
           if (canRunMacros) ...[
             const SizedBox(width: 4),
             _Btn(
-              icon: Icons.code_rounded,
+              icon: AppIcons.code_rounded,
               color: theme.colorScheme.primary,
               tooltip: l.controlPanelTitle,
               onTap: onOpenMacros,
@@ -1351,9 +1352,9 @@ class _ActionRow extends StatelessWidget {
             _Btn(
               icon: active
                   ? (stopConfirmPending
-                      ? Icons.stop_circle_rounded
-                      : Icons.stop_rounded)
-                  : Icons.restart_alt,
+                      ? AppIcons.stop_circle_rounded
+                      : AppIcons.stop_rounded)
+                  : AppIcons.restart_alt,
               color: active
                   ? (stopConfirmPending ? Colors.red : Colors.redAccent)
                   : Colors.orange,
@@ -1378,11 +1379,11 @@ class _IdleLabel extends StatelessWidget {
     final theme = Theme.of(context);
     final l = AppLocalizations.of(context);
     final (label, icon, color) = switch (status.state) {
-      'complete'  => (l.tilePrintComplete, Icons.check_circle_outline,  Colors.teal),
-      'cancelled' => (l.tilePrintCancelled, Icons.cancel_outlined,      Colors.blueGrey),
-      'error'     => (l.tilePrinterError,  Icons.error_outline,        Colors.red),
-      'startup'   => (l.tileKlipperStarting, Icons.hourglass_empty,     Colors.blueGrey),
-      _           => (l.tileReady,           Icons.check_circle_outline, Colors.blueGrey),
+      'complete'  => (l.tilePrintComplete, AppIcons.check_circle_outline,  Colors.teal),
+      'cancelled' => (l.tilePrintCancelled, AppIcons.cancel_outlined,      Colors.blueGrey),
+      'error'     => (l.tilePrinterError,  AppIcons.error_outline,        Colors.red),
+      'startup'   => (l.tileKlipperStarting, AppIcons.hourglass_empty,     Colors.blueGrey),
+      _           => (l.tileReady,           AppIcons.check_circle_outline, Colors.blueGrey),
     };
     return Row(
       children: [
@@ -1418,10 +1419,10 @@ class _CompactStateLabel extends StatelessWidget {
     final theme = Theme.of(context);
     final l = AppLocalizations.of(context);
     final (label, icon) = switch (state) {
-      'offline'     => (l.tileOffline,    Icons.wifi_off),
-      'starting_up' => (l.tileStartingUp, Icons.hourglass_empty),
-      'waiting'     => (l.tileConnected,  Icons.hourglass_empty),
-      _             => (l.tileConnecting, Icons.sync),
+      'offline'     => (l.tileOffline,    AppIcons.wifi_off),
+      'starting_up' => (l.tileStartingUp, AppIcons.hourglass_empty),
+      'waiting'     => (l.tileConnected,  AppIcons.hourglass_empty),
+      _             => (l.tileConnecting, AppIcons.sync),
     };
     return Row(
       children: [
@@ -1517,7 +1518,7 @@ class TileEstopButton extends ConsumerWidget {
             shape: BoxShape.circle,
             border: Border.all(color: c, width: 2),
           ),
-          child: Icon(Icons.warning_rounded, color: c, size: size * 14 / 24),
+          child: Icon(AppIcons.warning_rounded, color: c, size: size * 14 / 24),
         ),
       ),
     );
@@ -1554,7 +1555,7 @@ class TileRestartButton extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(color: Colors.orange, width: 2),
           ),
-          child: Icon(Icons.restart_alt, color: Colors.orange, size: size * 14 / 24),
+          child: Icon(AppIcons.restart_alt, color: Colors.orange, size: size * 14 / 24),
         ),
       ),
     );
@@ -1608,7 +1609,7 @@ class TileConnectionProbe extends StatelessWidget {
     Widget? accent;
     if (!hasLogo) {
       if (state == 'offline') {
-        accent = const Icon(Icons.wifi_off, size: 32, color: Colors.white30);
+        accent = const Icon(AppIcons.wifi_off, size: 32, color: Colors.white30);
       } else if (state == 'connecting' || state == 'starting_up') {
         accent = const SizedBox(
           width: 28,
@@ -1700,7 +1701,7 @@ class TileTunnelStatusDot extends StatelessWidget {
       child: Tooltip(
         message: ready ? l.tileRemoteReady : l.tileRemoteConnecting,
         child: Icon(
-          ready ? Icons.cloud_done_rounded : Icons.cloud_sync_outlined,
+          ready ? AppIcons.cloud_done_rounded : AppIcons.cloud_sync_outlined,
           size: 11,
           color: ready ? Colors.green : Colors.orangeAccent,
         ),
@@ -1815,7 +1816,7 @@ class _StatusBadgeState extends State<TileStatusBadge> {
                     child: CircularProgressIndicator(
                         strokeWidth: 1.6, color: Colors.white),
                   )
-                : const Icon(Icons.close_rounded,
+                : const Icon(AppIcons.close_rounded,
                     size: 14, color: Colors.white),
           ],
         ],
@@ -1932,7 +1933,7 @@ class _EtaChip extends StatelessWidget {
     final value = clock ?? '~${formatRemainingDuration(remainingSeconds)}';
 
     final iconWidget = Icon(
-      clock != null ? Icons.sports_score : Icons.schedule,
+      clock != null ? AppIcons.sports_score : AppIcons.schedule,
       size: 13,
       color: muted,
     );
@@ -1978,7 +1979,7 @@ class _ToolheadChip extends StatelessWidget {
     final muted   = neutral.withValues(alpha: 0.7);
     final heating = tool.target > 0;
 
-    final iconWidget = Icon(Icons.whatshot,
+    final iconWidget = Icon(AppIcons.whatshot,
         size: 13, color: heating ? Colors.deepOrange : muted);
     final labelWidget = Text(
       'T${tool.index}',
@@ -2059,7 +2060,7 @@ class TileCameraConfigButton extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.all(5),
               child: Icon(
-                Icons.settings,
+                AppIcons.settings,
                 size: 17,
                 color: Colors.white.withValues(alpha: 0.85),
               ),
@@ -2108,7 +2109,7 @@ class TileCameraDownNotice extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.videocam_off_outlined,
+              Icon(AppIcons.videocam_off_outlined,
                   size: 12, color: Colors.amber.shade400),
               const SizedBox(width: 4),
               ConstrainedBox(
@@ -2173,7 +2174,7 @@ class TileCameraSwitchButton extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(5),
             child: Icon(
-              Icons.cameraswitch_outlined,
+              AppIcons.cameraswitch_outlined,
               size: 17,
               color: Colors.white.withValues(alpha: 0.85),
             ),
@@ -2213,7 +2214,7 @@ class TileCameraExpandButton extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(5),
             child: Icon(
-              Icons.visibility_outlined,
+              AppIcons.visibility_outlined,
               size: 18,
               color: Colors.white.withValues(alpha: 0.6),
             ),
@@ -2255,7 +2256,7 @@ class TilePluginUpdateButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final icon = Icon(
-      Icons.system_update_alt,
+      AppIcons.system_update_alt,
       size: 18,
       color: onSurface ? Colors.amber.shade700 : Colors.amber,
     );
@@ -2308,7 +2309,7 @@ class TilePluginUpdateButton extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         title: Row(
           children: [
-            Icon(Icons.system_update_alt, color: Colors.amber.shade700, size: 22),
+            Icon(AppIcons.system_update_alt, color: Colors.amber.shade700, size: 22),
             const SizedBox(width: 8),
             Expanded(child: Text(l.pluginUpdateTitle)),
           ],
@@ -2346,7 +2347,7 @@ class TilePluginUpdateButton extends StatelessWidget {
           ),
           if (canPush && !printing)
             FilledButton.icon(
-              icon: const Icon(Icons.system_update_alt, size: 18),
+              icon: const Icon(AppIcons.system_update_alt, size: 18),
               label: Text(l.pluginUpdateNow),
               onPressed: () async {
                 Navigator.pop(ctx);
@@ -2538,7 +2539,7 @@ class _LightBulbButtonState extends State<TileLightBulbButton> {
                         strokeWidth: 2, color: cs.primary),
                   )
                 : Icon(
-                    on ? Icons.lightbulb : Icons.lightbulb_outline,
+                    on ? AppIcons.lightbulb : AppIcons.lightbulb_outline,
                     size: 20,
                     color: color,
                   ),
@@ -2564,7 +2565,7 @@ class _LightBulbButtonState extends State<TileLightBulbButton> {
                         strokeWidth: 2, color: Colors.white70),
                   )
                 : Icon(
-                    on ? Icons.lightbulb : Icons.lightbulb_outline,
+                    on ? AppIcons.lightbulb : AppIcons.lightbulb_outline,
                     size: 18,
                     color: !_online
                         ? Colors.white24
@@ -2844,7 +2845,7 @@ class _PowerButtonState extends State<TilePowerButton> {
                   : Colors.white70,
             ),
           )
-        : Icon(Icons.power_settings_new,
+        : Icon(AppIcons.power_settings_new,
             size: 18,
             color: widget.onSurface ? surfaceIconColor : overlayIconColor);
     if (widget.onSurface) {
@@ -3048,13 +3049,13 @@ class TileTempWatchLine extends StatelessWidget {
     switch (line.kind) {
       case TempWatchTileKind.soaking:
         text = l.tileSoaking(line.minutesLeft);
-        icon = Icons.hourglass_bottom_rounded;
+        icon = AppIcons.hourglass_bottom_rounded;
       case TempWatchTileKind.waitingForTemp:
         text = l.tileWaitingTemp;
-        icon = Icons.thermostat_rounded;
+        icon = AppIcons.thermostat_rounded;
       case TempWatchTileKind.coolDownArmed:
         text = l.tileCoolArmed;
-        icon = Icons.ac_unit_rounded;
+        icon = AppIcons.ac_unit_rounded;
     }
     final color = theme.colorScheme.primary;
     return Padding(

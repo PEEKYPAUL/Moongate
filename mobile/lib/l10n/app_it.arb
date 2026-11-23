@@ -1,5 +1,7 @@
 {
   "@@locale": "it",
+  "iconColourTitle": "Colore delle icone",
+  "iconColourFollowTheme": "Segui il tema",
   "updateDownloading": "Download dell'aggiornamento…",
   "updateOpeningInstaller": "Apertura dell'installer…",
   "updateFailed": "Impossibile completare l'aggiornamento automaticamente.",

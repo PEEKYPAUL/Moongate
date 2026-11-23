@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../widgets/app_icons.dart';
 
 /// The PayPal "tip jar" link. Single source of truth - also used by the
 /// drawer's "Buy me a coffee" item.
@@ -18,7 +19,7 @@ Future<bool> showDonationPrompt(BuildContext context) async {
     builder: (ctx) => AlertDialog(
       title: Row(
         children: [
-          const Icon(Icons.favorite, color: Colors.redAccent, size: 22),
+          const Icon(AppIcons.favorite, color: Colors.redAccent, size: 22),
           const SizedBox(width: 8),
           Expanded(child: Text(l.donationPromptTitle)),
         ],
@@ -31,7 +32,7 @@ Future<bool> showDonationPrompt(BuildContext context) async {
         ),
         FilledButton.icon(
           onPressed: () => Navigator.of(ctx).pop(true),
-          icon: const Icon(Icons.coffee_outlined, size: 18),
+          icon: const Icon(AppIcons.coffee_outlined, size: 18),
           label: Text(l.dashboardBuyMeCoffee),
         ),
       ],

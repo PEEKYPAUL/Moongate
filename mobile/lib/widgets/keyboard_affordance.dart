@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
+import 'app_icons.dart';
 
 /// Force the soft keyboard (IME) to (re)appear for [node].
 ///
@@ -32,7 +33,7 @@ class ShowKeyboardButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      icon: const Icon(Icons.keyboard_outlined),
+      icon: const Icon(AppIcons.keyboard_outlined),
       iconSize: 20,
       visualDensity: VisualDensity.compact,
       color: Theme.of(context).colorScheme.onSurfaceVariant,

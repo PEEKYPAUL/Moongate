@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/printer_config.dart';
 import '../../services/print_control_service.dart';
 import 'config_editor_overlay.dart';
+import '../../widgets/app_icons.dart';
 
 /// Bottom-sheet file browser over the printer's `config` root (printer.cfg
 /// and friends). One recursive Moonraker listing feeds the whole browse -
@@ -81,7 +82,7 @@ class _FileSystemSheetState extends State<_FileSystemSheet> {
               children: [
                 if (_dir.isNotEmpty)
                   IconButton(
-                    icon: const Icon(Icons.arrow_back),
+                    icon: const Icon(AppIcons.arrow_back),
                     onPressed: () => setState(() {
                       final i = _dir.lastIndexOf('/');
                       _dir = i > 0 ? _dir.substring(0, i) : '';
@@ -106,7 +107,7 @@ class _FileSystemSheetState extends State<_FileSystemSheet> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.refresh),
+                  icon: const Icon(AppIcons.refresh),
                   tooltip: l.commonRetry,
                   onPressed: _reload,
                 ),
@@ -138,7 +139,7 @@ class _FileSystemSheetState extends State<_FileSystemSheet> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.cloud_off,
+                        Icon(AppIcons.cloud_off,
                             size: 40, color: theme.colorScheme.outline),
                         const SizedBox(height: 12),
                         Text(l.fsError,
@@ -220,10 +221,10 @@ class _FileSystemSheetState extends State<_FileSystemSheet> {
       children: [
         for (final d in sortedFolders)
           ListTile(
-            leading: Icon(Icons.folder_rounded,
+            leading: Icon(AppIcons.folder_rounded,
                 color: theme.colorScheme.outline),
             title: Text(d, maxLines: 1, overflow: TextOverflow.ellipsis),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(AppIcons.chevron_right),
             onTap: () =>
                 setState(() => _dir = _dir.isEmpty ? d : '$_dir/$d'),
           ),
@@ -231,8 +232,8 @@ class _FileSystemSheetState extends State<_FileSystemSheet> {
           ListTile(
             leading: Icon(
               f.isEditable
-                  ? Icons.description_outlined
-                  : Icons.insert_drive_file_outlined,
+                  ? AppIcons.description_outlined
+                  : AppIcons.insert_drive_file_outlined,
               color: f.isEditable
                   ? theme.colorScheme.primary
                   : theme.colorScheme.outline,

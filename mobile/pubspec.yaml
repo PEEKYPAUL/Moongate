@@ -1,6 +1,6 @@
 name: moongate
 description: Remote control interface for Klipper 3D printers via local WiFi or Cloudflare tunnel.
-version: 0.9.79+152
+version: 0.9.80+153
 publish_to: none
 
 environment:
@@ -135,7 +135,6 @@ dependencies:
   # screen). Was already in the graph transitively via supabase_flutter; the
   # 6.x pin below (dependency_overrides) still governs the resolved version.
   app_links: ^6.4.0
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -171,6 +170,14 @@ flutter:
   # (one file covers all weights); Atkinson is static, so we ship Regular + Bold.
   # Licenses live in assets/fonts/OFL-*.txt.
   fonts:
+    # Material Design Icons (Pictogrammers) - the app-wide icon set. Not a text
+    # face: the glyphs are referenced through lib/widgets/app_icons.dart
+    # (AppIcons.*). Licensed under the Pictogrammers Free License (icons and
+    # fonts: Apache 2.0); see assets/fonts/LICENSE-MaterialDesignIcons.txt and
+    # THIRD_PARTY_NOTICES.md.
+    - family: MaterialDesignIcons
+      fonts:
+        - asset: assets/fonts/MaterialDesignIcons.ttf
     - family: Nunito
       fonts:
         - asset: assets/fonts/Nunito-variable.ttf

@@ -36,6 +36,7 @@ void main() async {
   await container.read(localeProvider.notifier).load();
   await container.read(customThemeProvider.notifier).load();
   await container.read(fontScaleProvider.notifier).load();
+  await container.read(iconColourProvider.notifier).load();
   await container.read(appFontProvider.notifier).load();
   await container.read(gridColumnsProvider.notifier).load();
   await container.read(allowRotationProvider.notifier).load();

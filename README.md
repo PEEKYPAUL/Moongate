@@ -60,7 +60,7 @@ Free, source-available **iPhone and Android** control for your **Klipper 3D prin
 - **Notifications** - opt-in start / finish / pause / error alerts with the reason, live progress in the shade, heat-soak and "cool enough to remove" alerts, and a `MOONGATE_NOTIFY` macro for your own gcode. Optional finished and progress alerts reach a paired smartwatch without a watch app (v0.9.79).
 - **Lighting** - a bulb on the tile drives your light macros and shows the real on/off state.
 - **App lock** - PIN or biometric, auto-lock, screenshot protection. Off by default.
-- **Themes and layout** - light, dark or custom colours and background, Material You on Android, a 36-font picker, 1-3 columns, landscape.
+- **Themes and layout** - light, dark or custom colours and background, Material You on Android, a 36-font picker, an optional icon colour, 1-3 columns, landscape.
 - **9 languages** - English, German, French, Spanish, Italian, Chinese, Russian, Polish and Brazilian Portuguese.
 - **Backup and restore** - move to a new phone and your printers come back with no re-pairing.
 - **In-app updates** - the early-access APK updates itself, and a tile badge updates the printer's plugin from your phone.

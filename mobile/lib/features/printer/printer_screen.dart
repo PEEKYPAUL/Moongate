@@ -20,6 +20,7 @@ import '../../services/supabase_service.dart';
 import '../../services/webview_link_policy.dart';
 import '../../widgets/keyboard_affordance.dart';
 import 'printer_camera_screen.dart';
+import '../../widgets/app_icons.dart';
 
 /// Full-screen WebView showing the printer's Mainsail/Fluidd interface.
 ///
@@ -576,7 +577,7 @@ class _PrinterScreenState extends State<PrinterScreen>
           children: [
             // Edit icon directly before the name (name + advanced address).
             IconButton(
-              icon: const Icon(Icons.edit, size: 18),
+              icon: const Icon(AppIcons.edit, size: 18),
               tooltip: l.printerEdit,
               visualDensity: VisualDensity.compact,
               padding: EdgeInsets.zero,
@@ -605,7 +606,7 @@ class _PrinterScreenState extends State<PrinterScreen>
           ],
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(AppIcons.arrow_back),
           onPressed: () => context.pop(),
         ),
         actions: [
@@ -614,12 +615,12 @@ class _PrinterScreenState extends State<PrinterScreen>
           // for an external phone-cam when remote), this renders through the
           // resolved snapshot URL - /mg-extcam-proxied over the tunnel.
           IconButton(
-            icon: const Icon(Icons.videocam_outlined),
+            icon: const Icon(AppIcons.videocam_outlined),
             tooltip: l.printerCameraTooltip,
             onPressed: _openCamera,
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(AppIcons.refresh),
             onPressed: () {
               // Drop the warm session + access token so we reload from scratch
               // (also re-fetches a fresh tunnel URL - handles cloudflared
@@ -656,7 +657,7 @@ class _PrinterScreenState extends State<PrinterScreen>
                   padding: const EdgeInsets.fromLTRB(14, 4, 4, 4),
                   child: Row(
                     children: [
-                      Icon(Icons.videocam_outlined,
+                      Icon(AppIcons.videocam_outlined,
                           size: 20, color: cs.onSecondaryContainer),
                       const SizedBox(width: 10),
                       Expanded(
@@ -673,7 +674,7 @@ class _PrinterScreenState extends State<PrinterScreen>
                         child: Text(l.cameraHintOpen),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close, size: 18),
+                        icon: const Icon(AppIcons.close, size: 18),
                         color: cs.onSecondaryContainer,
                         onPressed: _dismissCameraHint,
                       ),
@@ -702,7 +703,7 @@ class _PrinterScreenState extends State<PrinterScreen>
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.cloud_off_outlined,
+                          Icon(AppIcons.cloud_off_outlined,
                               size: 64, color: cs.error),
                           const SizedBox(height: 20),
                           Text(
@@ -730,7 +731,7 @@ class _PrinterScreenState extends State<PrinterScreen>
                                   .invalidate(widget.printer.id);
                               _start();
                             },
-                            icon: const Icon(Icons.refresh),
+                            icon: const Icon(AppIcons.refresh),
                             label: Text(l.commonRetry),
                           ),
                           // No tunnel escape hatch in Local-only mode - the
@@ -739,7 +740,7 @@ class _PrinterScreenState extends State<PrinterScreen>
                             const SizedBox(height: 12),
                             OutlinedButton.icon(
                               onPressed: _retryViaTunnel,
-                              icon: const Icon(Icons.cloud_outlined),
+                              icon: const Icon(AppIcons.cloud_outlined),
                               label: Text(l.printerUseTunnel),
                             ),
                           ],

@@ -13,6 +13,7 @@ import '../../services/gcode_cache.dart';
 import '../../services/gcode_layer_parser.dart';
 import '../../services/print_control_service.dart';
 import 'gcode_save.dart';
+import '../../widgets/app_icons.dart';
 
 /// Full-screen G-code layer viewer, opened from the View button on a row of
 /// the Start-a-print sheet (features/dashboard/gcode_files_overlay.dart).
@@ -734,7 +735,7 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
                 value: _kSaveToPhone,
                 child: Row(
                   children: [
-                    Icon(Icons.download_outlined,
+                    Icon(AppIcons.download_outlined,
                         size: 20, color: theme.colorScheme.onSurfaceVariant),
                     const SizedBox(width: 12),
                     Text(l.gcodeSaveToPhone),
@@ -775,7 +776,7 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.cloud_download_outlined,
+              Icon(AppIcons.cloud_download_outlined,
                   size: 40, color: theme.colorScheme.outline),
               const SizedBox(height: 12),
               Text(l.gcodeViewerLargeFile(_formatSize(widget.file.size)),
@@ -841,7 +842,7 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(_noLayers ? Icons.layers_clear_outlined : Icons.cloud_off_outlined,
+              Icon(_noLayers ? AppIcons.layers_clear_outlined : AppIcons.cloud_off_outlined,
                   size: 40, color: theme.colorScheme.outline),
               const SizedBox(height: 12),
               Text(_noLayers ? l.gcodeViewerNoLayers : l.gcodeViewerError,
@@ -883,8 +884,8 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
           children: [
             Icon(
                 _openWith == value
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_off,
+                    ? AppIcons.radio_button_checked
+                    : AppIcons.radio_button_off,
                 size: 20,
                 color: _openWith == value
                     ? theme.colorScheme.primary
@@ -1197,7 +1198,7 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
                   bottom: 6,
                   child: Column(
                     children: [
-                      _repeatButton(Icons.keyboard_arrow_up,
+                      _repeatButton(AppIcons.keyboard_arrow_up,
                           l.gcodeViewerLayerUp, 1),
                       Expanded(
                         child: RotatedBox(
@@ -1221,7 +1222,7 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
                           ),
                         ),
                       ),
-                      _repeatButton(Icons.keyboard_arrow_down,
+                      _repeatButton(AppIcons.keyboard_arrow_down,
                           l.gcodeViewerLayerDown, -1),
                     ],
                   ),
@@ -1240,16 +1241,16 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
                 IconButton.outlined(
                   isSelected: _only,
                   tooltip: l.gcodeViewerOnlyLayer,
-                  icon: const Icon(Icons.layers_outlined),
-                  selectedIcon: const Icon(Icons.layers),
+                  icon: const Icon(AppIcons.layers_outlined),
+                  selectedIcon: const Icon(AppIcons.layers),
                   onPressed: () => setState(() => _only = !_only),
                 ),
                 const SizedBox(width: 8),
                 IconButton.outlined(
                   isSelected: top,
                   tooltip: l.gcodeViewerTopDown,
-                  icon: const Icon(Icons.crop_square_outlined),
-                  selectedIcon: const Icon(Icons.crop_square),
+                  icon: const Icon(AppIcons.crop_square_outlined),
+                  selectedIcon: const Icon(AppIcons.crop_square),
                   onPressed: _toggleTop,
                 ),
                 const SizedBox(width: 12),
@@ -1258,7 +1259,7 @@ class _GcodeViewerScreenState extends State<GcodeViewerScreen> {
                     height: 48,
                     child: FilledButton.icon(
                       onPressed: () => Navigator.of(context).pop(true),
-                      icon: const Icon(Icons.play_arrow_rounded),
+                      icon: const Icon(AppIcons.play_arrow_rounded),
                       label: Text(l.gcodeStartButton),
                     ),
                   ),
