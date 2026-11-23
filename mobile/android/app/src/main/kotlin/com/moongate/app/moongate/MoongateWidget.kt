@@ -258,7 +258,7 @@ class MoongateWidget : GlanceAppWidget() {
                 }
                 if (p.showsTemps) {
                     Spacer(GlanceModifier.height(4.dp))
-                    Text(tempsLine(p), style = secondary(10.sp), maxLines = 1)
+                    TempsInline(p, 10.sp, GlanceTheme.colors.onSurfaceVariant)
                 }
             }
             if (hint != null) {
@@ -387,9 +387,8 @@ class MoongateWidget : GlanceAppWidget() {
         // both); a powered-off one shows the heading alone - its 0° / 0°
         // would say nothing. The content is centred in the row's band rather
         // than pinned to its top.
-        val tempText = if (p.showsTemps) tempsLine(p) else null
-        val sameLine = tempText != null && detail
-        val reserved = if (sameLine) estWidth(tempText!!, t.name.value) + 12f else 0f
+        val sameLine = p.showsTemps && detail
+        val reserved = if (sameLine) inlineDp(p, t.name.value) + 12f else 0f
         Box(
             modifier = modifier.padding(vertical = t.gap).clickable(onClick),
             contentAlignment = Alignment.CenterStart,
@@ -399,18 +398,52 @@ class MoongateWidget : GlanceAppWidget() {
                     Heading(p, stale, t, strings, nameChars(p, t, strings, widthDp, reserved))
                     if (sameLine) {
                         Spacer(GlanceModifier.defaultWeight())
-                        Text(tempText!!, style = temps(t), maxLines = 1)
+                        TempsInline(p, t.name, GlanceTheme.colors.onSurface)
                     }
                 }
-                if (tempText != null && !sameLine) {
+                if (p.showsTemps && !sameLine) {
                     Spacer(GlanceModifier.height(2.dp))
                     Row(modifier = GlanceModifier.fillMaxWidth()) {
                         Spacer(GlanceModifier.defaultWeight())
-                        Text(tempText, style = temps(t), maxLines = 1)
+                        TempsInline(p, t.name, GlanceTheme.colors.onSurface)
                     }
                 }
             }
         }
+    }
+
+    /**
+     * The temperatures on one line, each sensor's icon before its value
+     * (the same drawables and red-when-hot tint as the printing block's
+     * columns): "[nozzle] 25°  [radiator] 26°  [fan] 25°", chamber only when
+     * sensed. [size] sizes the values; the icons follow it.
+     */
+    @Composable
+    private fun TempsInline(p: WidgetPrinter, size: TextUnit, color: ColorProvider) {
+        val iconDp = (size.value * 1.15f).dp
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            tempColumns(p).forEachIndexed { i, c ->
+                if (i > 0) Spacer(GlanceModifier.width(8.dp))
+                Image(
+                    provider           = ImageProvider(c.icon),
+                    contentDescription = null,
+                    colorFilter        = ColorFilter.tint(if (c.hot) ColorProvider(RED) else color),
+                    modifier           = GlanceModifier.size(iconDp),
+                )
+                Spacer(GlanceModifier.width(2.dp))
+                Text(c.value, style = TextStyle(color = color, fontSize = size, fontWeight = FontWeight.Medium), maxLines = 1)
+            }
+        }
+    }
+
+    /** The width (dp) [TempsInline] takes at [sp]: icons, gaps and values. */
+    private fun inlineDp(p: WidgetPrinter, sp: Float): Float {
+        var w = 0f
+        tempColumns(p).forEachIndexed { i, c ->
+            if (i > 0) w += 8f
+            w += sp * 1.15f + 2f + estWidth(c.value, sp)
+        }
+        return w
     }
 
     /**
@@ -635,11 +668,6 @@ class MoongateWidget : GlanceAppWidget() {
     private fun secondary(size: TextUnit) =
         TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = size)
 
-    /** The printing block's temperatures: as large as the name, in the body colour. */
-    @Composable
-    private fun temps(t: Type) =
-        TextStyle(color = GlanceTheme.colors.onSurface, fontSize = t.name, fontWeight = FontWeight.Medium)
-
     @Composable
     private fun stateStyle(p: WidgetPrinter, stale: Boolean, size: TextUnit) =
         TextStyle(color = stateColor(p, stale), fontSize = size, fontWeight = FontWeight.Medium)
@@ -684,13 +712,6 @@ class MoongateWidget : GlanceAppWidget() {
             if (withEnd) p.finishClock?.let { "🏁$it" } else null,
         )
         return if (parts.isEmpty()) null else parts.joinToString(" · ")
-    }
-
-    /** Hotend / bed / chamber, the notification's own markers, chamber only when sensed. */
-    private fun tempsLine(p: WidgetPrinter): String {
-        val parts = mutableListOf("🔥${p.hotend.toInt()}°", "🟧${p.bed.toInt()}°")
-        if (p.chamber > 0f) parts.add("🏠${p.chamber.toInt()}°")
-        return parts.joinToString("  ")
     }
 
     /** The whole-tile tap: an explicit VIEW intent into MainActivity. */
