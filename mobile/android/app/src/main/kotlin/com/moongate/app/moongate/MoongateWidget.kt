@@ -74,10 +74,10 @@ import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
  *     2x4 also the file / layer line and the temperatures;
  *   • three cells or wider (3x2, 3x4, 4x2, 4x3, 4x4): the WHOLE fleet, one
  *     row per printer. A printing / paused printer gets the "printing block"
- *     (Paul's screenshot): "Name | Status: Printing" on top, the progress ring
- *     with the percent on the far left, "~20m · 🏁10:04 PM" beside it with the
- *     temperatures large on the far right, and a full-width progress bar
- *     underneath; every other printer carries the same heading, "Name |
+ *     (Paul's sketch): a LARGE progress ring with the percent, spanning the
+ *     block's height on the left, and beside it, stacked, "Name | Status:
+ *     Printing", "~20m · 🏁10:04 PM" and the temperatures large; a full-width
+ *     progress bar underneath; every other printer carries the same heading, "Name |
  *     Status: Ready", with its temperatures on the right while it is on and
  *     nothing more once it is powered off. The rows share the tile's full height (so four
  *     printers fill a 4x4, not a block at the top), type and ring scale with
@@ -356,7 +356,7 @@ class MoongateWidget : GlanceAppWidget() {
     @Composable
     private fun PrinterRow(p: WidgetPrinter, stale: Boolean, detail: Boolean, t: Type, strings: WidgetStrings, rowDp: Float, widthDp: Float, onClick: Action, modifier: GlanceModifier) {
         if (p.isActive) {
-            PrintingBlock(p, stale, detail, t, strings, rowDp, widthDp, onClick, modifier)
+            PrintingBlock(p, stale, t, strings, rowDp, widthDp, onClick, modifier)
             return
         }
         // Not printing: the shared heading, "<name> | Status: Ready", on the
@@ -409,9 +409,6 @@ class MoongateWidget : GlanceAppWidget() {
 
     private fun statusLabel(strings: WidgetStrings): String = " | ${strings.status}: "
 
-    /** The heading line's height in dp with the spacers around it, for sizing the ring. */
-    private fun headingDp(t: Type): Float = t.heading.value * 1.3f + 9f
-
     /**
      * How many characters of the name fit on the heading line: the tile's
      * width less the card padding, the status label and state word, and
@@ -441,51 +438,47 @@ class MoongateWidget : GlanceAppWidget() {
         if (name.length <= max) name else name.take((max - 1).coerceAtLeast(1)) + "\u2026"
 
     /**
-     * Paul's printing block, from his screenshot: the top line reads
-     * "<name> | <Status>: <state word>" (the [Heading] every row shares; the
-     * "Status" label is a Dart-written, localised template); under it the
-     * progress ring with the percent on the
-     * far left, "~20m · 🏁10:04 PM" beside it, and the temperatures LARGE on
-     * the far right (chamber only when the printer reports one); then a
-     * progress bar across the whole block. No file line. On a narrow tile the
-     * temperatures wrap under the time line instead of sitting far right, at
-     * the same large size; on a tight row the finish clock goes before
-     * anything else. Paused prints use the same block in the paused colour; a
-     * print still heating shows the ring at 0 % with "Heating" as its state.
+     * Paul's printing block, from his sketch: the progress ring is the
+     * dominant element - LARGE, the percent centred inside, spanning the whole
+     * height of the block on the left - and beside it, stacked and vertically
+     * centred, three lines: "<name> | <Status>: <state word>" (the [Heading]
+     * every row shares), "~20m · 🏁10:04 PM" (time left and finish clock), and
+     * the temperatures LARGE (chamber only when the printer reports one). A
+     * progress bar runs across the whole block underneath. No file line. The
+     * ring takes everything the bar leaves of the row's height, so it grows
+     * with the tile (up to 140 dp) and shrinks only on a tight row; the
+     * percent scales with it. Paused prints use the same block in the paused
+     * colour; a print still heating shows the ring at 0 % with "Heating" as
+     * its state.
      */
     @Composable
-    private fun PrintingBlock(p: WidgetPrinter, stale: Boolean, detail: Boolean, t: Type, strings: WidgetStrings, rowDp: Float, widthDp: Float, onClick: Action, modifier: GlanceModifier) {
+    private fun PrintingBlock(p: WidgetPrinter, stale: Boolean, t: Type, strings: WidgetStrings, rowDp: Float, widthDp: Float, onClick: Action, modifier: GlanceModifier) {
         val inner    = rowDp - 2f * t.gap.value
-        // What is left beside the ring once the heading and the bar have
-        // their share decides how big the ring can be.
-        val ringDp   = (inner - t.bar.value - headingDp(t)).coerceIn(34f, 84f)
-        val ringFont = (ringDp / 3.6f).coerceIn(11f, 22f)
-        val showEnd  = inner >= 56f
+        // The ring spans the row: all the height the bar and its spacer leave.
+        val ringDp   = (inner - t.bar.value - 6f).coerceIn(40f, 140f)
+        val ringFont = (ringDp / 3.4f).coerceIn(12f, 34f)
+        val showEnd  = widthDp >= DETAIL_MIN_WIDTH.value
         Column(
             modifier = modifier.padding(vertical = t.gap).clickable(onClick),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Top line: "V-Minion | Status: Printing" - the heading every row shares.
-            Heading(p, stale, t, strings, nameChars(p, t, strings, widthDp, 0f))
-            Spacer(GlanceModifier.height(4.dp))
             Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Ring(p, stale, ringDp.dp, (ringDp / 9f).dp, ringFont.sp)
-                Spacer(GlanceModifier.width(10.dp))
-                if (detail) {
-                    // Wide enough: time on the left, temperatures far right.
-                    Text(timeLine(p, showEnd) ?: "", style = secondary(t.body), maxLines = 1, modifier = GlanceModifier.defaultWeight())
-                    Spacer(GlanceModifier.width(8.dp))
-                    Text(tempsLine(p), style = temps(t), maxLines = 1)
-                } else {
-                    // Narrow: temperatures wrap under the time line, same size.
-                    Column(modifier = GlanceModifier.defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-                        val time = timeLine(p, showEnd)
-                        if (time != null) Text(time, style = secondary(t.body), maxLines = 1)
-                        Text(tempsLine(p), style = temps(t), maxLines = 1)
+                Ring(p, stale, ringDp.dp, (ringDp / 10f).dp, ringFont.sp)
+                Spacer(GlanceModifier.width(12.dp))
+                // The three lines beside the ring; the name's budget is what
+                // the ring and the gap leave of the width.
+                Column(modifier = GlanceModifier.defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+                    Heading(p, stale, t, strings, nameChars(p, t, strings, widthDp, ringDp + 12f))
+                    val time = timeLine(p, showEnd)
+                    if (time != null) {
+                        Spacer(GlanceModifier.height(2.dp))
+                        Text(time, style = secondary(t.body), maxLines = 1)
                     }
+                    Spacer(GlanceModifier.height(2.dp))
+                    Text(tempsLine(p), style = temps(t), maxLines = 1)
                 }
             }
-            Spacer(GlanceModifier.height(5.dp))
+            Spacer(GlanceModifier.height(6.dp))
             Bar(p, stale, GlanceModifier.fillMaxWidth().height(t.bar))
         }
     }
