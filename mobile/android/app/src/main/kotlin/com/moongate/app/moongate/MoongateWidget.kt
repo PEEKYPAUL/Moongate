@@ -29,7 +29,6 @@ import androidx.glance.LocalSize
 import androidx.glance.action.Action
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.LinearProgressIndicator
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionSendBroadcast
 import androidx.glance.appwidget.action.actionStartActivity
@@ -75,10 +74,11 @@ import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
  *   • three cells or wider (3x2, 3x4, 4x2, 4x3, 4x4): the WHOLE fleet, one
  *     row per printer. A printing / paused printer gets the "printing block"
  *     (Paul's sketch): a LARGE progress ring with the percent, spanning the
- *     block's height on the left; beside it "Name | Status: Printing" over
- *     "~20m · 🏁10:04 PM"; the temperatures large on the far right of the same
- *     band; a full-width progress bar underneath. The printing rows take all
- *     the height the idle rows leave, so the ring is the dominant element;
+ *     block's height on the left; beside it the name over "Status: Printing"
+ *     over "~20m · 🏁10:04 PM"; the temperatures large on the far right of the
+ *     same band. No bar (the ring already shows the percent). The printing
+ *     rows take all the height the idle rows leave, so the ring is the
+ *     dominant element;
  *     every other printer carries the same heading, "Name |
  *     Status: Ready", with its temperatures on the right while it is on and
  *     nothing more once it is powered off. The rows share the tile's full height (so four
@@ -127,9 +127,9 @@ class MoongateWidget : GlanceAppWidget() {
         // Fleet type buckets by tile height: two cells (under 180 dp), three
         // (under 300 dp), four and up. The row minimum is what a row needs at
         // that type before the list has to scroll instead of sharing the height.
-        private val TYPE_SMALL  = Type(heading = 15.sp, name = 13.sp, body = 11.sp, fine = 10.sp, bar = 5.dp,  gap = 4.dp,  rowMin = 46.dp)
-        private val TYPE_MEDIUM = Type(heading = 19.sp, name = 16.sp, body = 13.sp, fine = 12.sp, bar = 7.dp,  gap = 8.dp,  rowMin = 68.dp)
-        private val TYPE_LARGE  = Type(heading = 23.sp, name = 19.sp, body = 15.sp, fine = 13.sp, bar = 8.dp,  gap = 10.dp, rowMin = 84.dp)
+        private val TYPE_SMALL  = Type(heading = 15.sp, name = 13.sp, body = 11.sp, fine = 10.sp, gap = 4.dp,  rowMin = 46.dp)
+        private val TYPE_MEDIUM = Type(heading = 19.sp, name = 16.sp, body = 13.sp, fine = 12.sp, gap = 8.dp,  rowMin = 68.dp)
+        private val TYPE_LARGE  = Type(heading = 23.sp, name = 19.sp, body = 15.sp, fine = 13.sp, gap = 10.dp, rowMin = 84.dp)
 
         // State colours as the dashboard tiles use them: printing = the theme's
         // primary (dynamic colour), paused / heating = orange, error = red,
@@ -274,7 +274,6 @@ class MoongateWidget : GlanceAppWidget() {
         val name: TextUnit,
         val body: TextUnit,
         val fine: TextUnit,
-        val bar: Dp,
         val gap: Dp,
         val rowMin: Dp,
     )
@@ -441,13 +440,24 @@ class MoongateWidget : GlanceAppWidget() {
         return (room / (t.heading.value * 0.6f)).toInt().coerceAtLeast(4)
     }
 
-    /** A rough text width in dp: emoji and symbols count wide, letters an average glyph. */
+    /**
+     * A rough text width in dp, by glyph class: emoji and symbols wide,
+     * capitals and digits a little over half an em, spaces narrow, the rest
+     * about half. Deliberately close rather than generous - it only guards the
+     * name against gross overflow, so an ordinary name must never be cut.
+     */
     private fun estWidth(text: String, sp: Float): Float {
         var w = 0f
         var i = 0
         while (i < text.length) {
             val cp = text.codePointAt(i)
-            w += if (cp > 0x2000) sp * 1.25f else sp * 0.58f
+            w += sp * when {
+                cp > 0x2000                 -> 1.15f
+                cp == ' '.code              -> 0.28f
+                Character.isDigit(cp)       -> 0.56f
+                Character.isUpperCase(cp)   -> 0.65f
+                else                        -> 0.5f
+            }
             i += Character.charCount(cp)
         }
         return w
@@ -458,53 +468,55 @@ class MoongateWidget : GlanceAppWidget() {
         if (name.length <= max) name else name.take((max - 1).coerceAtLeast(1)) + "\u2026"
 
     /**
-     * Paul's printing block, from his sketch: one band of three parts, then
-     * the bar. LEFT, the progress ring - the dominant element, LARGE, the
-     * percent centred inside, spanning the block's height. MIDDLE (taking the
-     * slack), two lines vertically centred against the ring: "<name> |
-     * <Status>: <state word>" (the [Heading] every row shares) over
-     * "~20m · 🏁10:04 PM" (time left and finish clock). FAR RIGHT, level with
-     * the ring, the temperatures LARGE (chamber only when the printer reports
-     * one) - never under the time line. Below the band a progress bar runs
-     * across the whole block. No file line. The ring takes everything the bar
-     * leaves of the row's height (the fleet layout hands printing rows the
-     * idle rows' slack for exactly this), capped by a third of the width so
-     * the name keeps room; the percent scales with it. Paused prints use the
-     * same block in the paused colour; a print still heating shows the ring
-     * at 0 % with "Heating" as its state.
+     * Paul's printing block, from his sketch: one band of three parts. LEFT,
+     * the progress ring - the dominant element, LARGE, the percent centred
+     * inside, spanning the block's height. MIDDLE (taking the slack), three
+     * short lines vertically centred against the ring: the printer name on a
+     * line of its own (bold, so an ordinary name never clips), "<Status>:
+     * <state word>" under it, then "~20m · 🏁10:04 PM" (time left and finish
+     * clock). FAR RIGHT, level with the ring, the temperatures LARGE (chamber
+     * only when the printer reports one) - never in the middle column. No
+     * progress bar (the ring already shows the percent) and no file line. The
+     * ring takes the row's whole inner height (the fleet layout hands
+     * printing rows the idle rows' slack for exactly this), capped by a
+     * third of the width so the name keeps room; the percent scales with it.
+     * Paused prints use the same block in the paused colour; a print still
+     * heating shows the ring at 0 % with "Heating" as its state.
      */
     @Composable
     private fun PrintingBlock(p: WidgetPrinter, stale: Boolean, t: Type, strings: WidgetStrings, rowDp: Float, widthDp: Float, onClick: Action, modifier: GlanceModifier) {
         val inner    = rowDp - 2f * t.gap.value
-        // The ring spans the band: all the height the bar and its spacer
-        // leave, up to 140 dp and never more than a third of the width.
-        val ringDp   = (inner - t.bar.value - 6f).coerceIn(40f, 140f).coerceAtMost(widthDp * 0.34f)
-        val ringFont = (ringDp / 3.2f).coerceIn(12f, 36f)
+        // The ring spans the band: the whole inner height, up to 150 dp and
+        // never more than a third of the width.
+        val ringDp   = inner.coerceIn(40f, 150f).coerceAtMost(widthDp * 0.36f)
+        val ringFont = (ringDp / 3.2f).coerceIn(12f, 38f)
         val showEnd  = widthDp >= DETAIL_MIN_WIDTH.value
         val tempText = tempsLine(p)
-        val tempsDp  = estWidth(tempText, t.name.value) + 8f
-        Column(
+        // The name's budget is what the ring, the gaps and the temperatures
+        // leave of the width - it has its line to itself.
+        val room     = widthDp - 24f - ringDp - 20f - estWidth(tempText, t.name.value)
+        val maxChars = (room / (t.heading.value * 0.55f)).toInt().coerceAtLeast(4)
+        Row(
             modifier = modifier.padding(vertical = t.gap).clickable(onClick),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Ring(p, stale, ringDp.dp, (ringDp / 10f).dp, ringFont.sp)
-                Spacer(GlanceModifier.width(12.dp))
-                // Name over time, taking the slack; the name's budget is what
-                // the ring, the gap and the temperatures leave of the width.
-                Column(modifier = GlanceModifier.defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
-                    Heading(p, stale, t, strings, nameChars(p, t, strings, widthDp, ringDp + 12f + tempsDp))
-                    val time = timeLine(p, showEnd)
-                    if (time != null) {
-                        Spacer(GlanceModifier.height(2.dp))
-                        Text(time, style = secondary(t.body), maxLines = 1)
-                    }
+            Ring(p, stale, ringDp.dp, (ringDp / 10f).dp, ringFont.sp)
+            Spacer(GlanceModifier.width(12.dp))
+            Column(modifier = GlanceModifier.defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+                Text(fitName(p.name, maxChars), style = title(t.heading), maxLines = 1)
+                Spacer(GlanceModifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("${strings.status}: ", style = secondary(t.body), maxLines = 1)
+                    Text(p.stateLabel, style = stateStyle(p, stale, t.body), maxLines = 1)
                 }
-                Spacer(GlanceModifier.width(8.dp))
-                Text(tempText, style = temps(t), maxLines = 1)
+                val time = timeLine(p, showEnd)
+                if (time != null) {
+                    Spacer(GlanceModifier.height(2.dp))
+                    Text(time, style = secondary(t.body), maxLines = 1)
+                }
             }
-            Spacer(GlanceModifier.height(6.dp))
-            Bar(p, stale, GlanceModifier.fillMaxWidth().height(t.bar))
+            Spacer(GlanceModifier.width(8.dp))
+            Text(tempText, style = temps(t), maxLines = 1)
         }
     }
 
@@ -522,16 +534,6 @@ class MoongateWidget : GlanceAppWidget() {
                 Text("${p.percent}%", style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = fontSize, fontWeight = FontWeight.Bold), maxLines = 1)
             }
         }
-    }
-
-    @Composable
-    private fun Bar(p: WidgetPrinter, stale: Boolean, modifier: GlanceModifier) {
-        LinearProgressIndicator(
-            progress        = p.progress,
-            modifier        = modifier,
-            color           = stateColor(p, stale),
-            backgroundColor = ColorProvider(TRACK),
-        )
     }
 
     @Composable
