@@ -251,6 +251,8 @@ curl -s -o /dev/null -w "%{http_code}\n" https://<your-tunnel-url>/
 
 If none of the three respond, the Pi is fully offline. If only the third fails, restart `moongate-tunnel` and `moongate-authproxy`.
 
+If **every** tile says this while **tapping a tile opens the printer normally**, the Pi is fine and the app has lost its cloud account - see [Every tile says offline, but tapping a tile opens the printer fine](#every-tile-says-offline---printer-unreachable-but-tapping-a-tile-opens-the-printer-fine).
+
 ## Tile shows "Tunnel" badge when I'm on home WiFi
 
 The app finds printers on your network two ways: the address it learned at pairing, and an automatic broadcast discovery (mDNS) that heals address changes. A tile stuck on **Tunnel** at home means both are failing for that printer - almost always a network quirk, not the printer:
@@ -555,6 +557,20 @@ To reconnect it to the app, just run **`MOONGATE_PAIR`** in the Klipper console 
 In **v0.4.2+** the recovery is one macro: `MOONGATE_RESET_OWNER` on the Pi (Klipper console) wipes the local owner record **and** releases the cloud-side association (the Pi signs the release request with its own device key - same key it already uses for heartbeats). Then `MOONGATE_PAIR` and pair again from any app install.
 
 Before v0.4.2 the cloud row could be orphaned by a fresh app install (new anonymous identity), which would cause `already_paired` on re-pair. That's gone now - the Pi can clean up its own cloud row without the original app being reachable.
+
+## Every tile says "Offline - Printer unreachable", but tapping a tile opens the printer fine
+
+**Symptom:** Every printer tile shows "Offline - Printer unreachable" (often with the Mainsail / Fluidd logo in place of the camera), yet tapping a tile opens the printer page and everything there works, on your home WiFi and sometimes over the tunnel too. Restoring a config backup makes no difference. Reported in November 2026 by users with print notifications switched on.
+
+**Cause:** Before v0.9.81, an app with print notifications on could silently lose its cloud account: the app and its background notification service each refreshed the cloud session on their own, one of them eventually presented an out-of-date token, the cloud ended the session, and the next time the app started it quietly signed in as a brand-new account. Your printer list stayed on the phone, but in the cloud the printers still belong to the old account - so the tiles (which need the cloud's say-so) are refused, while the printer page (which talks to the printer directly) still works.
+
+**Fix:**
+
+1. Update to **v0.9.81 or newer** first - it stops the account being lost again, and from now on the dashboard shows a banner ("Moongate lost its cloud account...") if it ever happens.
+2. Re-pair each printer: on the Pi run `MOONGATE_RESET_OWNER`, then `MOONGATE_PAIR`, and scan the QR (or type the GATE code) from **+** in the app.
+3. A config backup only helps if it was made **before** the account was lost - a backup taken afterwards carries a restore code for the new, empty account and reconnects nothing (the app says so after the restore).
+
+If you file a bug report from the app, the diagnostics now say outright whether the account was lost and how many printers the cloud returns for it, so the maintainer can re-home your printers for you without a re-pair.
 
 ## All tiles offline after reinstalling the app (or a new phone)
 
