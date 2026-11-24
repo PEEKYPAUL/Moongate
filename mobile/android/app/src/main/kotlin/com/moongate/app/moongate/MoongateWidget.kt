@@ -125,6 +125,12 @@ class MoongateWidget : GlanceAppWidget() {
         private val FLEET_MIN_WIDTH = 180.dp
         // From here on a row has room for the temperature line too.
         private val DETAIL_MIN_WIDTH = 240.dp
+        // Breathing room inside every fleet row, on top of the card's own 12 dp:
+        // the names sit this far in from the left edge and the temperatures
+        // this far in from the right (Paul's marked-up screenshot). Smaller on
+        // a three-cell-wide tile, where the width is tight.
+        private val ROW_INSET        = 10.dp
+        private val ROW_INSET_NARROW = 6.dp
         // A one-printer tile this tall (2x4) gains the file and temperature lines.
         private val TALL_MIN_HEIGHT = 180.dp
         // Fleet type buckets by tile height: two cells (under 180 dp), three
@@ -344,6 +350,10 @@ class MoongateWidget : GlanceAppWidget() {
         }
     }
 
+    /** The side inset every fleet row gets (see ROW_INSET), smaller on a narrow tile. */
+    private fun rowInset(widthDp: Float): Dp =
+        if (widthDp >= DETAIL_MIN_WIDTH.value) ROW_INSET else ROW_INSET_NARROW
+
     /** The height (dp) a printer's row needs at this type: more for a printing block. */
     private fun rowMin(p: WidgetPrinter, t: Type): Float =
         if (p.isActive) t.rowMin.value + 24f else t.rowMin.value
@@ -390,7 +400,7 @@ class MoongateWidget : GlanceAppWidget() {
         val sameLine = p.showsTemps && detail
         val reserved = if (sameLine) inlineDp(p, t.name.value) + 12f else 0f
         Box(
-            modifier = modifier.padding(vertical = t.gap).clickable(onClick),
+            modifier = modifier.padding(horizontal = rowInset(widthDp), vertical = t.gap).clickable(onClick),
             contentAlignment = Alignment.CenterStart,
         ) {
             Column(modifier = GlanceModifier.fillMaxWidth()) {
@@ -480,7 +490,7 @@ class MoongateWidget : GlanceAppWidget() {
      */
     private fun nameChars(p: WidgetPrinter, t: Type, strings: WidgetStrings, widthDp: Float, reservedDp: Float): Int {
         val fixed = estWidth(statusLabel(strings) + p.stateLabel, t.body.value) + reservedDp
-        val room  = widthDp - 24f - fixed
+        val room  = widthDp - 24f - 2f * rowInset(widthDp).value - fixed
         return (room / (t.heading.value * 0.6f)).toInt().coerceAtLeast(4)
     }
 
@@ -545,7 +555,7 @@ class MoongateWidget : GlanceAppWidget() {
         // Which columns fit: all that apply, the chamber dropped first, then
         // the bed, so the name keeps about eight characters of its line.
         val all      = tempColumns(p)
-        val fixed    = 24f + ringDp + 12f + 8f * t.heading.value * 0.55f
+        val fixed    = 24f + 2f * rowInset(widthDp).value + ringDp + 12f + 8f * t.heading.value * 0.55f
         var columns  = all
         while (columns.size > 1 && fixed + columnsDp(columns, valueSp, t) > widthDp) {
             columns = columns.dropLast(1)
@@ -553,7 +563,7 @@ class MoongateWidget : GlanceAppWidget() {
         val room     = widthDp - fixed - columnsDp(columns, valueSp, t) + 8f * t.heading.value * 0.55f
         val maxChars = (room / (t.heading.value * 0.55f)).toInt().coerceAtLeast(4)
         Row(
-            modifier = modifier.padding(vertical = t.gap).clickable(onClick),
+            modifier = modifier.padding(horizontal = rowInset(widthDp), vertical = t.gap).clickable(onClick),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Ring(p, stale, ringDp.dp, (ringDp / 10f).dp, ringFont.sp)
