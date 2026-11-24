@@ -9,6 +9,12 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
+  String get iconColourTitle => 'Цвет значков';
+
+  @override
+  String get iconColourFollowTheme => 'Как в теме';
+
+  @override
   String get updateDownloading => 'Загрузка обновления…';
 
   @override

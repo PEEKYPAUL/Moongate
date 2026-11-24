@@ -4,6 +4,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/printer_config.dart';
 import '../../services/printer_registry.dart';
 import '../../services/printer_status_service.dart';
+import '../../widgets/app_icons.dart';
 
 /// Bottom sheet that picks which Klipper object the chamber reading comes
 /// from (v0.9.77), opened by holding the chamber chip on a tile or on the
@@ -209,7 +210,7 @@ class _SensorRow extends StatelessWidget {
     return ListTile(
       dense: true,
       leading: Icon(
-        selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+        selected ? AppIcons.radio_button_checked : AppIcons.radio_button_unchecked,
         color: selected ? primary : null,
       ),
       title: Text(

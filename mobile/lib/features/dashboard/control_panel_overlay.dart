@@ -8,6 +8,7 @@ import '../../services/print_control_service.dart';
 import '../../services/printer_registry.dart';
 import 'macro_control_builder.dart';
 import 'macros_overlay.dart';
+import '../../widgets/app_icons.dart';
 
 Future<void> showControlPanel(
     BuildContext context, PrinterConfig printer, PrinterStatus status) {
@@ -163,7 +164,7 @@ class _ControlPanelState extends State<_ControlPanel> {
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(backgroundColor: color),
                 title: Text(AppLocalizations.of(context).macroControlColor),
-                trailing: const Icon(Icons.colorize),
+                trailing: const Icon(AppIcons.colorize),
                 onTap: () async {
                   final picked = await _pickColor(color);
                   if (picked != null) setDialogState(() => color = picked);
@@ -245,9 +246,9 @@ class _ControlPanelState extends State<_ControlPanel> {
         : (color.computeLuminance() < 0.25 ? Colors.white : color);
     final title = module.title.isEmpty ? _moduleName(module.type) : module.title;
     final icon = switch (module.type) {
-      ControlPanelModuleType.temperatures => Icons.thermostat_rounded,
-      ControlPanelModuleType.motion => Icons.open_with_rounded,
-      ControlPanelModuleType.macros => Icons.bolt_rounded,
+      ControlPanelModuleType.temperatures => AppIcons.thermostat_rounded,
+      ControlPanelModuleType.motion => AppIcons.open_with_rounded,
+      ControlPanelModuleType.macros => AppIcons.bolt_rounded,
     };
     final content = switch (module.type) {
       ControlPanelModuleType.temperatures => _TemperatureModule(
@@ -291,15 +292,15 @@ class _ControlPanelState extends State<_ControlPanel> {
                 ),
                 if (_editing) ...[
                   IconButton(
-                    icon: const Icon(Icons.edit_outlined),
+                    icon: const Icon(AppIcons.edit_outlined),
                     onPressed: () => _editModule(module),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.delete_outline),
+                    icon: const Icon(AppIcons.delete_outline),
                     onPressed: () => _saveModules(
                         _modules.where((item) => item.id != module.id).toList()),
                   ),
-                  const Icon(Icons.drag_handle),
+                  const Icon(AppIcons.drag_handle),
                 ],
               ],
             ),
@@ -332,12 +333,12 @@ class _ControlPanelState extends State<_ControlPanel> {
               ),
               IconButton(
                 tooltip: l.controlPanelPresets,
-                icon: const Icon(Icons.auto_awesome_outlined),
+                icon: const Icon(AppIcons.auto_awesome_outlined),
                 onPressed: _choosePreset,
               ),
               TextButton.icon(
                 onPressed: () => setState(() => _editing = !_editing),
-                icon: Icon(_editing ? Icons.check : Icons.dashboard_customize),
+                icon: Icon(_editing ? AppIcons.check : AppIcons.dashboard_customize),
                 label: Text(_editing ? l.commonDone : l.controlPanelCustomize),
               ),
             ],
@@ -349,7 +350,7 @@ class _ControlPanelState extends State<_ControlPanel> {
               ? Center(
                   child: FilledButton.icon(
                     onPressed: _addModule,
-                    icon: const Icon(Icons.add),
+                    icon: const Icon(AppIcons.add),
                     label: Text(l.controlPanelAddModule),
                   ),
                 )
@@ -373,7 +374,7 @@ class _ControlPanelState extends State<_ControlPanel> {
                         padding: const EdgeInsets.only(top: 8),
                         child: OutlinedButton.icon(
                           onPressed: _addModule,
-                          icon: const Icon(Icons.add),
+                          icon: const Icon(AppIcons.add),
                           label: Text(l.controlPanelAddModule),
                         ),
                       );
@@ -705,7 +706,7 @@ class _MotionModuleState extends State<_MotionModule> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 else
-                  Icon(homed ? Icons.check_circle : Icons.warning_amber_rounded,
+                  Icon(homed ? AppIcons.check_circle : AppIcons.warning_amber_rounded,
                       color: statusColor, size: 19),
                 const SizedBox(width: 8),
                 Expanded(
@@ -735,7 +736,7 @@ class _MotionModuleState extends State<_MotionModule> {
               alignment: Alignment.centerRight,
               child: OutlinedButton.icon(
                 onPressed: _moving ? null : _setPosition,
-                icon: const Icon(Icons.my_location_rounded),
+                icon: const Icon(AppIcons.my_location_rounded),
                 label: Text(l.controlPanelSetPosition),
               ),
             ),
@@ -757,10 +758,10 @@ class _MotionModuleState extends State<_MotionModule> {
             children: [
               Column(
                 children: [
-                  button(Icons.keyboard_arrow_up, () => _jog('Y', 1), 'Y+'),
+                  button(AppIcons.keyboard_arrow_up, () => _jog('Y', 1), 'Y+'),
                   Row(
                     children: [
-                      button(Icons.keyboard_arrow_left, () => _jog('X', -1), 'X−'),
+                      button(AppIcons.keyboard_arrow_left, () => _jog('X', -1), 'X−'),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 6),
                         child: FilledButton.tonal(
@@ -768,21 +769,21 @@ class _MotionModuleState extends State<_MotionModule> {
                           child: Text(l.controlPanelHome),
                         ),
                       ),
-                      button(Icons.keyboard_arrow_right, () => _jog('X', 1), 'X+'),
+                      button(AppIcons.keyboard_arrow_right, () => _jog('X', 1), 'X+'),
                     ],
                   ),
-                  button(Icons.keyboard_arrow_down, () => _jog('Y', -1), 'Y−'),
+                  button(AppIcons.keyboard_arrow_down, () => _jog('Y', -1), 'Y−'),
                 ],
               ),
               const SizedBox(width: 24),
               Column(
                 children: [
-                  button(Icons.add, () => _jog('Z', 1), 'Z+'),
+                  button(AppIcons.add, () => _jog('Z', 1), 'Z+'),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Text('Z'),
                   ),
-                  button(Icons.remove, () => _jog('Z', -1), 'Z−'),
+                  button(AppIcons.remove, () => _jog('Z', -1), 'Z−'),
                 ],
               ),
             ],
@@ -802,12 +803,12 @@ class _MotionModuleState extends State<_MotionModule> {
             children: [
               OutlinedButton.icon(
                 onPressed: _moving ? null : () => _extrude(-1),
-                icon: const Icon(Icons.remove),
+                icon: const Icon(AppIcons.remove),
                 label: Text(l.controlPanelRetract),
               ),
               FilledButton.icon(
                 onPressed: _moving ? null : () => _extrude(1),
-                icon: const Icon(Icons.add),
+                icon: const Icon(AppIcons.add),
                 label: Text(l.controlPanelExtrude),
               ),
             ],
@@ -950,7 +951,7 @@ class _MacrosModuleState extends State<_MacrosModule> {
             alignment: Alignment.centerRight,
             child: TextButton.icon(
               onPressed: widget.onManage,
-              icon: const Icon(Icons.settings_outlined),
+              icon: const Icon(AppIcons.settings_outlined),
               label: Text(l.controlPanelManageMacros),
             ),
           ),

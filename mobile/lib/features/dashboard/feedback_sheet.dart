@@ -4,6 +4,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/printer_config.dart';
 import '../../services/diagnostics_service.dart';
 import '../../services/supabase_service.dart';
+import '../../widgets/app_icons.dart';
 
 /// Bottom sheet behind "Report a problem" (dashboard drawer) and "Trouble
 /// pairing?" (Add Printer screen).
@@ -139,7 +140,7 @@ class _FeedbackSheetState extends State<_FeedbackSheet> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.bug_report_outlined,
+                  Icon(AppIcons.bug_report_outlined,
                       color: theme.colorScheme.primary),
                   const SizedBox(width: 10),
                   Text(
@@ -221,7 +222,7 @@ class _FeedbackSheetState extends State<_FeedbackSheet> {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.send_outlined),
+                    : const Icon(AppIcons.send_outlined),
                 label: Text(_sending ? l.feedbackSending : l.feedbackSend),
               ),
             ],

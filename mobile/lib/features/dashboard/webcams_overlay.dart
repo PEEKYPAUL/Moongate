@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/printer_config.dart';
 import '../../services/printer_registry.dart';
+import '../../widgets/app_icons.dart';
 
 /// Bottom sheet listing every dashboard printer with an on/off switch for its
 /// webcam pane. Switching a printer off sets [PrinterConfig.hideWebcam], so its
@@ -75,7 +76,7 @@ class _WebcamsSheetState extends State<_WebcamsSheet> {
                 itemBuilder: (context, i) {
                   final p = _printers[i];
                   return SwitchListTile(
-                    secondary: const Icon(Icons.videocam_outlined),
+                    secondary: const Icon(AppIcons.videocam_outlined),
                     title: Text(p.name,
                         maxLines: 1, overflow: TextOverflow.ellipsis),
                     value: !p.hideWebcam,

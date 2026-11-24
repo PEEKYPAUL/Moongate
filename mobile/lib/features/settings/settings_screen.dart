@@ -7,6 +7,7 @@ import '../../services/printer_access_cache.dart';
 import '../../services/printer_registry.dart';
 import '../../services/printer_webview_cache.dart';
 import '../../services/supabase_service.dart';
+import '../../widgets/app_icons.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -19,7 +20,7 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         children: [
           ListTile(
-            leading: const Icon(Icons.logout, color: Colors.redAccent),
+            leading: const Icon(AppIcons.logout, color: Colors.redAccent),
             title: Text(l.settingsRemoveAllTitle,
                 style: const TextStyle(color: Colors.redAccent)),
             subtitle: Text(l.settingsRemoveAllSubtitle),
@@ -57,7 +58,7 @@ class SettingsScreen extends ConsumerWidget {
           // fresh anonymous identity. Heavier than "remove all printers" above,
           // which only unpairs locally.
           ListTile(
-            leading: const Icon(Icons.delete_forever_outlined,
+            leading: const Icon(AppIcons.delete_forever_outlined,
                 color: Colors.redAccent),
             title: Text(l.dashboardDeleteData,
                 style: const TextStyle(color: Colors.redAccent)),

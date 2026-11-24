@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/custom_theme_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../widgets/app_icons.dart';
+import '../../widgets/heater_icon.dart';
 
 /// Shows the dashboard icon guide as a centered popup.
 ///
@@ -53,68 +55,68 @@ class _UiGuideDialog extends ConsumerWidget {
                 ),
 
                 _header(context, l.uiGuideSectionConnection),
-                _row(Icons.wifi_rounded, Colors.green, l.uiGuideLocalTitle,
+                _row(AppIcons.wifi_rounded, Colors.green, l.uiGuideLocalTitle,
                     l.uiGuideLocalDesc),
-                _row(Icons.cloud_outlined, cs.primary, l.uiGuideTunnelTitle,
+                _row(AppIcons.cloud_outlined, cs.primary, l.uiGuideTunnelTitle,
                     l.uiGuideTunnelDesc),
-                _row(Icons.cloud_done_rounded, Colors.green,
+                _row(AppIcons.cloud_done_rounded, Colors.green,
                     l.uiGuideTunnelReadyTitle, l.uiGuideTunnelReadyDesc),
-                _row(Icons.cloud_sync_outlined, Colors.orange,
+                _row(AppIcons.cloud_sync_outlined, Colors.orange,
                     l.uiGuideTunnelConnectingTitle,
                     l.uiGuideTunnelConnectingDesc),
 
                 _header(context, l.uiGuideSectionTemperatures),
-                _row(Icons.whatshot, Colors.deepOrange, l.uiGuideHotendTitle,
+                _row(AppIcons.whatshot, Colors.deepOrange, l.uiGuideHotendTitle,
                     l.uiGuideHotendDesc),
-                _row(Icons.bed, Colors.blue, l.uiGuideBedTitle,
+                _row(AppIcons.bed, Colors.blue, l.uiGuideBedTitle,
                     l.uiGuideBedDesc),
-                _row(Icons.sensor_window, Colors.teal, l.uiGuideChamberTitle,
-                    l.uiGuideChamberDesc),
+                _row(null, Colors.teal, l.uiGuideChamberTitle,
+                    l.uiGuideChamberDesc, asset: kChamberIconAsset),
 
                 _header(context, l.uiGuideSectionControls),
-                _row(Icons.play_arrow_rounded, Colors.green,
+                _row(AppIcons.play_arrow_rounded, Colors.green,
                     l.uiGuideResumeTitle, l.uiGuideResumeDesc),
-                _row(Icons.pause_rounded, Colors.orange, l.uiGuidePauseTitle,
+                _row(AppIcons.pause_rounded, Colors.orange, l.uiGuidePauseTitle,
                     l.uiGuidePauseDesc),
-                _row(Icons.stop_rounded, Colors.redAccent, l.uiGuideStopTitle,
+                _row(AppIcons.stop_rounded, Colors.redAccent, l.uiGuideStopTitle,
                     l.uiGuideStopDesc),
-                _row(Icons.warning_rounded, estopColor, l.uiGuideEstopTitle,
+                _row(AppIcons.warning_rounded, estopColor, l.uiGuideEstopTitle,
                     l.uiGuideEstopDesc),
-                _row(Icons.restart_alt, cs.primary,
+                _row(AppIcons.restart_alt, cs.primary,
                     l.uiGuideFirmwareRestartTitle,
                     l.uiGuideFirmwareRestartDesc),
 
                 _header(context, l.uiGuideSectionTileButtons),
-                _row(Icons.folder_open_rounded, cs.primary,
+                _row(AppIcons.folder_open_rounded, cs.primary,
                     l.uiGuideFilesTitle, l.uiGuideFilesDesc),
-                _row(Icons.code_rounded, cs.primary, l.uiGuideMacrosTitle,
+                _row(AppIcons.code_rounded, cs.primary, l.uiGuideMacrosTitle,
                     l.uiGuideMacrosDesc),
-                _row(Icons.power_settings_new, Colors.green,
+                _row(AppIcons.power_settings_new, Colors.green,
                     l.uiGuidePowerTitle, l.uiGuidePowerDesc),
-                _row(Icons.lightbulb, Colors.amber, l.uiGuideLightingTitle,
+                _row(AppIcons.lightbulb, Colors.amber, l.uiGuideLightingTitle,
                     l.uiGuideLightingDesc),
-                _row(Icons.visibility_outlined, cs.primary,
+                _row(AppIcons.visibility_outlined, cs.primary,
                     l.uiGuideCameraViewTitle, l.uiGuideCameraViewDesc),
-                _row(Icons.settings, Colors.blueGrey,
+                _row(AppIcons.settings, Colors.blueGrey,
                     l.uiGuideCameraSetupTitle, l.uiGuideCameraSetupDesc),
 
                 _header(context, l.uiGuideSectionStatus),
-                _row(Icons.check_circle_outline, Colors.teal,
+                _row(AppIcons.check_circle_outline, Colors.teal,
                     l.uiGuideStatusReadyTitle, l.uiGuideStatusReadyDesc),
-                _row(Icons.close_rounded, Colors.teal,
+                _row(AppIcons.close_rounded, Colors.teal,
                     l.uiGuideClearJobTitle, l.uiGuideClearJobDesc),
-                _row(Icons.cancel_outlined, Colors.blueGrey,
+                _row(AppIcons.cancel_outlined, Colors.blueGrey,
                     l.uiGuideStatusCancelledTitle,
                     l.uiGuideStatusCancelledDesc),
-                _row(Icons.error_outline, Colors.redAccent,
+                _row(AppIcons.error_outline, Colors.redAccent,
                     l.uiGuideStatusErrorTitle, l.uiGuideStatusErrorDesc),
-                _row(Icons.hourglass_empty, Colors.blueGrey,
+                _row(AppIcons.hourglass_empty, Colors.blueGrey,
                     l.uiGuideStatusStartingTitle, l.uiGuideStatusStartingDesc),
 
                 _header(context, l.uiGuideSectionWebcam),
-                _row(Icons.wifi_off, Colors.redAccent, l.uiGuideOfflineTitle,
+                _row(AppIcons.wifi_off, Colors.redAccent, l.uiGuideOfflineTitle,
                     l.uiGuideOfflineDesc),
-                _row(Icons.videocam_off, Colors.blueGrey,
+                _row(AppIcons.videocam_off, Colors.blueGrey,
                     l.uiGuideNoWebcamTitle, l.uiGuideNoWebcamDesc),
               ],
             ),
@@ -125,7 +127,7 @@ class _UiGuideDialog extends ConsumerWidget {
       actions: [
         FilledButton.icon(
           onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(AppIcons.arrow_back),
           label: Text(l.uiGuideBack),
         ),
       ],
@@ -143,11 +145,12 @@ class _UiGuideDialog extends ConsumerWidget {
         ),
       );
 
-  Widget _row(IconData icon, Color color, String title, String desc) =>
+  Widget _row(IconData? icon, Color color, String title, String desc,
+          {String? asset}) =>
       ListTile(
         contentPadding: EdgeInsets.zero,
         dense: true,
-        leading: Icon(icon, color: color),
+        leading: heaterIcon(icon: icon, asset: asset, size: 24, color: color),
         title: Text(title),
         subtitle: Text(desc),
       );

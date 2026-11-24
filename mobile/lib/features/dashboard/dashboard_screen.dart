@@ -34,6 +34,7 @@ import '../info/ui_guide.dart';
 import '../language/language_picker.dart';
 import '../notifications/notifications_prompt.dart';
 import '../onboarding/dashboard_style_prompt.dart';
+import '../settings/icon_colour_control.dart';
 import '../tutorial/tutorial_anchors.dart';
 import '../tutorial/tutorial_controller.dart';
 import '../tutorial/tutorial_offer.dart';
@@ -43,6 +44,7 @@ import 'single_printer_view.dart';
 import 'camera_feeds_overlay.dart';
 import 'webcams_overlay.dart';
 import 'power_all_sheet.dart';
+import '../../widgets/app_icons.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -360,7 +362,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           // at least one printer to act on.
           if (globalPowerButton && _printers.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.power_settings_new),
+              icon: const Icon(AppIcons.power_settings_new),
               tooltip: l.globalPowerTooltip,
               onPressed: () => showGlobalPowerSheet(context, _printers),
             ),
@@ -372,7 +374,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           if (printNotifications && _printers.isNotEmpty)
             IconButton(
               key: TutorialAnchors.instance.notifPause,
-              icon: Icon(notifPaused ? Icons.play_arrow : Icons.pause),
+              icon: Icon(notifPaused ? AppIcons.play_arrow : AppIcons.pause),
               tooltip:
                   notifPaused ? l.notifResumeTooltip : l.notifPauseTooltip,
               onPressed: _toggleNotificationsPaused,
@@ -384,7 +386,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           if (showLocalOnlyButton && _printers.isNotEmpty)
             IconButton(
               icon: Icon(
-                localOnly ? Icons.cloud_off : Icons.cloud_outlined,
+                localOnly ? AppIcons.cloud_off : AppIcons.cloud_outlined,
                 color: localOnly ? Colors.orange : null,
               ),
               tooltip: l.localOnlyTooltip,
@@ -394,7 +396,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           // menu. Hidden with only one printer; greyed at either end.
           if (singleMode && _printers.length > 1) ...[
             IconButton(
-              icon: const Icon(Icons.chevron_left),
+              icon: const Icon(AppIcons.chevron_left),
               tooltip: l.singlePreviousPrinter,
               visualDensity: VisualDensity.compact,
               onPressed: singleIndex > 0
@@ -402,7 +404,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   : null,
             ),
             IconButton(
-              icon: const Icon(Icons.chevron_right),
+              icon: const Icon(AppIcons.chevron_right),
               tooltip: l.singleNextPrinter,
               visualDensity: VisualDensity.compact,
               onPressed: singleIndex < _printers.length - 1
@@ -413,7 +415,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           Builder(
             builder: (ctx) => IconButton(
               key: TutorialAnchors.instance.menuIcon,
-              icon: const Icon(Icons.menu),
+              icon: const Icon(AppIcons.menu),
               tooltip: l.dashboardMenuTooltip,
               onPressed: () => Scaffold.of(ctx).openEndDrawer(),
             ),
@@ -472,7 +474,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             ? l.dashboardReorderDone
                             : l.dashboardReorderStart,
                         child: _reordering
-                            ? const Icon(Icons.check)
+                            ? const Icon(AppIcons.check)
                             : SvgPicture.asset(
                                 'assets/icons/drag_drop.svg',
                                 width: 24,
@@ -492,7 +494,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         _load();
                       },
                       tooltip: l.dashboardAddPrinter,
-                      child: const Icon(Icons.add),
+                      child: const Icon(AppIcons.add),
                     ),
                   ],
                 ),
@@ -625,7 +627,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
               child: Row(
                 children: [
-                  Icon(Icons.print,
+                  Icon(AppIcons.print,
                       color: Theme.of(context).colorScheme.primary, size: 28),
                   const SizedBox(width: 12),
                   Text('Moongate',
@@ -654,7 +656,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                     ListTile(
-                      leading: const Icon(Icons.add_circle_outline),
+                      leading: const Icon(AppIcons.add_circle_outline),
                       title: Text(l.dashboardAddPrinter),
                       onTap: () async {
                         Navigator.pop(context);
@@ -664,7 +666,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                     if (_printers.isNotEmpty)
                       ListTile(
-                        leading: const Icon(Icons.remove_circle_outline,
+                        leading: const Icon(AppIcons.remove_circle_outline,
                             color: Colors.redAccent),
                         title: Text(l.dashboardRemovePrinter,
                             style: const TextStyle(color: Colors.redAccent)),
@@ -688,7 +690,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         children: [
                     if (_printers.isNotEmpty)
                       ListTile(
-                        leading: const Icon(Icons.upload_file_outlined),
+                        leading: const Icon(AppIcons.upload_file_outlined),
                         title: Text(l.dashboardBackUpConfig),
                         subtitle:
                             Text(l.dashboardBackUpConfigSubtitle),
@@ -698,7 +700,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         },
                       ),
                     ListTile(
-                      leading: const Icon(Icons.file_download_outlined),
+                      leading: const Icon(AppIcons.file_download_outlined),
                       title: Text(l.dashboardRestoreConfig),
                       subtitle: Text(l.dashboardRestoreConfigSubtitle),
                       onTap: () {
@@ -740,12 +742,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           RadioListTile(
                             value: AppThemeMode.dark,
                             title: Text(l.dashboardThemeDark),
-                            secondary: const Icon(Icons.dark_mode),
+                            secondary: const Icon(AppIcons.dark_mode),
                           ),
                           RadioListTile(
                             value: AppThemeMode.light,
                             title: Text(l.dashboardThemeLight),
-                            secondary: const Icon(Icons.light_mode),
+                            secondary: const Icon(AppIcons.light_mode),
                           ),
                           // "Phone colours" (Material You) - shown only where
                           // the OS provides a wallpaper palette (Android 12+).
@@ -753,12 +755,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             RadioListTile(
                               value: AppThemeMode.system,
                               title: Text(l.dashboardThemeSystem),
-                              secondary: const Icon(Icons.auto_awesome),
+                              secondary: const Icon(AppIcons.auto_awesome),
                             ),
                           RadioListTile(
                             value: AppThemeMode.custom,
                             title: Text(l.dashboardThemeCustom),
-                            secondary: const Icon(Icons.palette_outlined),
+                            secondary: const Icon(AppIcons.palette_outlined),
                           ),
                         ],
                       ),
@@ -768,7 +770,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     // tweak a colour without re-tapping the radio.
                     if (themeMode == AppThemeMode.custom)
                       ListTile(
-                        leading: const Icon(Icons.tune),
+                        leading: const Icon(AppIcons.tune),
                         title: Text(l.dashboardCustomiseColours),
                         subtitle: Text(
                             l.dashboardCustomiseColoursSubtitle),
@@ -781,14 +783,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     // font can't be read by a Flutter app, so we offer a small
                     // bundled set instead (see appFontProvider).
                     ListTile(
-                      leading: const Icon(Icons.font_download_outlined),
+                      leading: const Icon(AppIcons.font_download_outlined),
                       title: Text(l.dashboardFontHeading),
                       subtitle: Text(
                         appFontById(appFont).label,
                         style: TextStyle(fontFamily: appFontById(appFont).family),
                       ),
                       trailing: Icon(
-                        Icons.chevron_right,
+                        AppIcons.chevron_right,
                         color: Theme.of(context)
                             .colorScheme
                             .onSurface
@@ -796,6 +798,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ),
                       onTap: () => _showFontPicker(context),
                     ),
+                    // Icon colour - applies app-wide across every theme mode;
+                    // defaults to "Follow theme" so nothing changes unless the
+                    // user picks a colour.
+                    const IconColourRow(),
                     const Divider(),
 
                     // Font size (grouped for the tutorial spotlight).
@@ -817,7 +823,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       child: Row(
                         children: [
-                          const Icon(Icons.text_fields, size: 16),
+                          const Icon(AppIcons.text_fields, size: 16),
                           Expanded(
                             child: Slider(
                               value: fontScale,
@@ -829,7 +835,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   ref.read(fontScaleProvider.notifier).set(v),
                             ),
                           ),
-                          const Icon(Icons.text_fields, size: 22),
+                          const Icon(AppIcons.text_fields, size: 22),
                         ],
                       ),
                     ),
@@ -843,7 +849,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     // Pulled up here (right under Font size) for quick reach -
                     // it was previously buried near the bottom of the About list.
                     ListTile(
-                      leading: const Icon(Icons.lightbulb_outline),
+                      leading: const Icon(AppIcons.lightbulb_outline),
                       title: Text(l.lightingTitle),
                       subtitle: Text(l.lightingMenuSubtitle),
                       onTap: () {
@@ -852,7 +858,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       },
                     ),
                     ListTile(
-                      leading: const Icon(Icons.power_settings_new),
+                      leading: const Icon(AppIcons.power_settings_new),
                       title: Text(l.powerMenuTitle),
                       subtitle: Text(l.powerMenuSubtitle),
                       onTap: () {
@@ -884,7 +890,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     // style on screen, so the checkbox reads either way.
                     CheckboxListTile(
                       dense: true,
-                      secondary: const Icon(Icons.crop_portrait),
+                      secondary: const Icon(AppIcons.crop_portrait),
                       title: Text(l.dashboardSingleMode),
                       subtitle: Text(singleMode
                           ? l.dashboardSingleModeOn
@@ -926,7 +932,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     // Rotation toggle
                     SwitchListTile(
                       dense: true,
-                      secondary: const Icon(Icons.screen_rotation_outlined),
+                      secondary: const Icon(AppIcons.screen_rotation_outlined),
                       title: Text(l.dashboardRotateWithDevice),
                       subtitle: Text(l.dashboardRotateWithDeviceSubtitle),
                       value: allowRotation,
@@ -939,7 +945,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     if (!singleMode)
                     SwitchListTile(
                       dense: true,
-                      secondary: const Icon(Icons.swap_vert),
+                      secondary: const Icon(AppIcons.swap_vert),
                       title: Text(l.dashboardAutoArrange),
                       subtitle: Text(l.dashboardAutoArrangeSubtitle),
                       value: autoArrange,
@@ -950,7 +956,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     // devices (smart plugs / relays).
                     SwitchListTile(
                       dense: true,
-                      secondary: const Icon(Icons.power_settings_new),
+                      secondary: const Icon(AppIcons.power_settings_new),
                       title: Text(l.globalPowerButtonTitle),
                       subtitle: Text(l.globalPowerButtonSubtitle),
                       value: globalPowerButton,
@@ -966,7 +972,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     // toggle must never silently keep remote access off.
                     SwitchListTile(
                       dense: true,
-                      secondary: const Icon(Icons.cloud_off_outlined),
+                      secondary: const Icon(AppIcons.cloud_off_outlined),
                       title: Text(l.localOnlyButtonTitle),
                       subtitle: Text(l.localOnlyButtonSubtitle),
                       value: showLocalOnlyButton,
@@ -988,7 +994,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     if (!singleMode)
                     SwitchListTile(
                       dense: true,
-                      secondary: const Icon(Icons.smart_button_outlined),
+                      secondary: const Icon(AppIcons.smart_button_outlined),
                       title: Text(l.dashboardShowButtons),
                       subtitle: Text(l.dashboardShowButtonsSubtitle),
                       value: showDashboardButtons,
@@ -1001,7 +1007,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     // card shows, so the two always agree.
                     SwitchListTile(
                       dense: true,
-                      secondary: const Icon(Icons.schedule_outlined),
+                      secondary: const Icon(AppIcons.schedule_outlined),
                       title: Text(l.dashboardShowEta),
                       subtitle: Text(l.dashboardShowEtaSubtitle),
                       value: showTileEta,
@@ -1049,10 +1055,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         children: [
                     ListTile(
                       dense: true,
-                      leading: const Icon(Icons.shutter_speed),
+                      leading: const Icon(AppIcons.shutter_speed),
                       title: Text(l.cameraFeedsMenuTitle),
                       subtitle: Text(l.cameraFeedsMenuSubtitle),
-                      trailing: const Icon(Icons.chevron_right),
+                      trailing: const Icon(AppIcons.chevron_right),
                       onTap: () {
                         Navigator.pop(context);
                         showCameraFeedsSheet(context);
@@ -1064,10 +1070,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     // in - and it stops that tile fetching snapshots (data saver).
                     ListTile(
                       dense: true,
-                      leading: const Icon(Icons.videocam_outlined),
+                      leading: const Icon(AppIcons.videocam_outlined),
                       title: Text(l.dashboardShowWebcams),
                       subtitle: Text(l.dashboardShowWebcamsSubtitle),
-                      trailing: const Icon(Icons.chevron_right),
+                      trailing: const Icon(AppIcons.chevron_right),
                       onTap: () {
                         Navigator.pop(context);
                         showWebcamsSheet(context).then((_) => _load());
@@ -1076,7 +1082,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     // Show / hide the per-tile camera config gear.
                     SwitchListTile(
                       dense: true,
-                      secondary: const Icon(Icons.tune),
+                      secondary: const Icon(AppIcons.tune),
                       title: Text(l.dashboardShowCameraIcons),
                       subtitle: Text(l.dashboardShowCameraIconsSubtitle),
                       value: showCameraIcons,
@@ -1100,7 +1106,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       SwitchListTile(
                         dense: true,
                         secondary:
-                            const Icon(Icons.notifications_active_outlined),
+                            const Icon(AppIcons.notifications_active_outlined),
                         title: Text(l.printNotifTitle),
                         subtitle: Text(l.printNotifSubtitle),
                         value: printNotifications,
@@ -1142,7 +1148,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       // Hide offline printers from the persistent status list.
                       SwitchListTile(
                         dense: true,
-                        secondary: const Icon(Icons.filter_alt_outlined),
+                        secondary: const Icon(AppIcons.filter_alt_outlined),
                         title: Text(l.notifOnlineOnlyTitle),
                         subtitle: Text(l.notifOnlineOnlySubtitle),
                         value: notifOnlineOnly,
@@ -1155,7 +1161,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ),
                       // Edit which fields show in the notification + their order.
                       ListTile(
-                        leading: const Icon(Icons.format_list_bulleted),
+                        leading: const Icon(AppIcons.format_list_bulleted),
                         title: Text(l.notifContentTitle),
                         subtitle: Text(l.notifContentSubtitle),
                         onTap: () {
@@ -1177,8 +1183,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           final hidden = snap.data == true;
                           return ListTile(
                             leading: Icon(hidden
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined),
+                                ? AppIcons.visibility_off_outlined
+                                : AppIcons.visibility_outlined),
                             title: Text(l.notifRosterTitle),
                             subtitle: Text(hidden
                                 ? l.notifRosterHiddenSubtitle
@@ -1208,7 +1214,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               ?.copyWith(color: Colors.white54)),
                     ),
                     ListTile(
-                      leading: const Icon(Icons.new_releases_outlined),
+                      leading: const Icon(AppIcons.new_releases_outlined),
                       title: Text(l.dashboardWhatsNew),
                       subtitle: Text(l.dashboardWhatsNewSubtitle),
                       onTap: () {
@@ -1217,7 +1223,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       },
                     ),
                     ListTile(
-                      leading: const Icon(Icons.help_outline),
+                      leading: const Icon(AppIcons.help_outline),
                       title: Text(l.dashboardHowPairingWorks),
                       subtitle: Text(l.dashboardHowPairingWorksSubtitle),
                       onTap: () {
@@ -1226,7 +1232,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       },
                     ),
                     ListTile(
-                      leading: const Icon(Icons.info_outline),
+                      leading: const Icon(AppIcons.info_outline),
                       title: Text(l.uiGuideTitle),
                       subtitle: Text(l.uiGuideMenuSubtitle),
                       onTap: () {
@@ -1235,7 +1241,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       },
                     ),
                     ListTile(
-                      leading: const Icon(Icons.bug_report_outlined),
+                      leading: const Icon(AppIcons.bug_report_outlined),
                       title: Text(l.dashboardReportProblem),
                       subtitle: Text(l.dashboardReportProblemSubtitle),
                       onTap: () {
@@ -1244,7 +1250,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       },
                     ),
                     ListTile(
-                      leading: const Icon(Icons.lock_outline),
+                      leading: const Icon(AppIcons.lock_outline),
                       title: Text(l.dashboardAppLock),
                       subtitle: Text(ref.watch(appLockEnabledProvider)
                           ? l.dashboardAppLockOn
@@ -1262,7 +1268,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     if (Platform.isAndroid)
                       ListTile(
                         key: TutorialAnchors.instance.menuSupport,
-                        leading: const Icon(Icons.coffee_outlined,
+                        leading: const Icon(AppIcons.coffee_outlined,
                             color: Colors.amber),
                         title: Text(l.dashboardBuyMeCoffee),
                         subtitle: Text(l.dashboardBuyMeCoffeeSubtitle),
@@ -1281,7 +1287,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     // only the build number stays pinned at the very bottom.
                     ListTile(
                       key: TutorialAnchors.instance.menuSettings,
-                      leading: const Icon(Icons.settings_outlined),
+                      leading: const Icon(AppIcons.settings_outlined),
                       title: Text(l.dashboardSettings),
                       onTap: () {
                         Navigator.pop(context);
@@ -1290,7 +1296,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                     ListTile(
                       key: TutorialAnchors.instance.menuLanguage,
-                      leading: const Icon(Icons.translate),
+                      leading: const Icon(AppIcons.translate),
                       title: Text(l.menuLanguage),
                       subtitle: Text(
                         nativeLanguageName(ref.watch(localeProvider)) ??
@@ -1310,7 +1316,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             // ── Bottom: tutorial + build number stay pinned ───────────────────
             const Divider(height: 1),
             ListTile(
-              leading: const Icon(Icons.school_outlined),
+              leading: const Icon(AppIcons.school_outlined),
               title: Text(l.tutorialMenuTitle),
               onTap: () {
                 Navigator.pop(context);
@@ -1488,6 +1494,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     await ref.read(localeProvider.notifier).load();
     await ref.read(customThemeProvider.notifier).load();
     await ref.read(fontScaleProvider.notifier).load();
+    await ref.read(iconColourProvider.notifier).load();
     await ref.read(appFontProvider.notifier).load();
     await ref.read(gridColumnsProvider.notifier).load();
     await ref.read(allowRotationProvider.notifier).load();
@@ -1533,13 +1540,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
             ..._printers.map(
               (p) => ListTile(
-                leading: const Icon(Icons.print, color: Colors.redAccent),
+                leading: const Icon(AppIcons.print, color: Colors.redAccent),
                 title: Text(p.name),
                 subtitle: Text(
                   l.dashboardPrinterIdShort(p.id.substring(0, 8)),
                   style: const TextStyle(fontSize: 12),
                 ),
-                trailing: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                trailing: const Icon(AppIcons.delete_outline, color: Colors.redAccent),
                 onTap: () {
                   Navigator.pop(ctx);
                   _removePrinter(p);
@@ -1802,7 +1809,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     _printerPickerRow(ctx, l, p, selected: p.id == currentId),
                   const Divider(),
                   ListTile(
-                    leading: const Icon(Icons.add_circle_outline),
+                    leading: const Icon(AppIcons.add_circle_outline),
                     title: Text(l.dashboardAddPrinter),
                     onTap: () => Navigator.pop(ctx, addPrinter),
                   ),
@@ -1876,7 +1883,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
           if (selected) ...[
             const SizedBox(width: 8),
-            const Icon(Icons.check),
+            const Icon(AppIcons.check),
           ],
         ],
       ),
@@ -2041,7 +2048,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         builder: (ctx, setLocal) => AlertDialog(
           title: Row(
             children: [
-              Icon(Icons.push_pin_outlined, color: cs.primary, size: 22),
+              Icon(AppIcons.push_pin_outlined, color: cs.primary, size: 22),
               const SizedBox(width: 8),
               Expanded(child: Text(l.dashboardHowPairingWorks)),
             ],
@@ -2079,7 +2086,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Icon(Icons.extension, color: cs.primary, size: 20),
+                                  Icon(AppIcons.extension, color: cs.primary, size: 20),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Column(
@@ -2107,7 +2114,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                         'https://github.com/PEEKYPAUL/Moongate#quick-start'),
                                     mode: LaunchMode.externalApplication,
                                   ),
-                                  icon: const Icon(Icons.open_in_new, size: 16),
+                                  icon: const Icon(AppIcons.open_in_new, size: 16),
                                   label: Text(l.dashboardPairingHelpPluginAction),
                                   style: TextButton.styleFrom(
                                     padding:
@@ -2120,16 +2127,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             ],
                           ),
                         ),
-                        _pairingHelpItem(ctx, Icons.qr_code_2, cs.primary,
+                        _pairingHelpItem(ctx, AppIcons.qr_code_2, cs.primary,
                             l.dashboardPairingHelpPairOnceTitle,
                             l.dashboardPairingHelpPairOnceBody),
-                        _pairingHelpItem(ctx, Icons.check_circle_outline, Colors.green,
+                        _pairingHelpItem(ctx, AppIcons.check_circle_outline, Colors.green,
                             l.dashboardPairingHelpUpdatesTitle,
                             l.dashboardPairingHelpUpdatesBody),
-                        _pairingHelpItem(ctx, Icons.cloud_download_outlined, cs.primary,
+                        _pairingHelpItem(ctx, AppIcons.cloud_download_outlined, cs.primary,
                             l.dashboardPairingHelpReinstallTitle,
                             l.dashboardPairingHelpReinstallBody),
-                        _pairingHelpItem(ctx, Icons.restart_alt, Colors.orangeAccent,
+                        _pairingHelpItem(ctx, AppIcons.restart_alt, Colors.orangeAccent,
                             l.dashboardPairingHelpNoBackupTitle,
                             l.dashboardPairingHelpNoBackupBody),
                       ],
@@ -2260,7 +2267,7 @@ class _UpdateBanner extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.system_update_alt_rounded,
+                Icon(AppIcons.system_update_alt_rounded,
                     color: cs.onPrimaryContainer, size: 20),
                 const SizedBox(width: 12),
                 Expanded(
@@ -2548,7 +2555,7 @@ class _ReorderHint extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.drag_indicator, size: 15, color: faint),
+          Icon(AppIcons.drag_indicator, size: 15, color: faint),
           const SizedBox(width: 4),
           Text(
             l.dashboardReorderHint,
@@ -2602,7 +2609,7 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.print_disabled,
+          const Icon(AppIcons.print_disabled,
               size: 72, color: Colors.white24),
           const SizedBox(height: 16),
           Text(l.dashboardEmptyTitle,
@@ -2613,7 +2620,7 @@ class _EmptyState extends StatelessWidget {
               style: const TextStyle(color: Colors.white54)),
           const SizedBox(height: 24),
           FilledButton.icon(
-            icon: const Icon(Icons.add),
+            icon: const Icon(AppIcons.add),
             label: Text(l.dashboardAddPrinter),
             onPressed: onAddPrinter,
           ),

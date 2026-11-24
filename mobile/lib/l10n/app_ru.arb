@@ -1,5 +1,7 @@
 {
   "@@locale": "ru",
+  "iconColourTitle": "Цвет значков",
+  "iconColourFollowTheme": "Как в теме",
   "updateDownloading": "Загрузка обновления…",
   "updateOpeningInstaller": "Открытие установщика…",
   "updateFailed": "Не удалось автоматически завершить обновление.",

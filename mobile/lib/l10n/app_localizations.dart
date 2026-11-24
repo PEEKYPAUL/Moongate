@@ -112,6 +112,18 @@ abstract class AppLocalizations {
     Locale('zh')
   ];
 
+  /// Row title for the app-wide icon colour setting in the Theme section.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon colour'**
+  String get iconColourTitle;
+
+  /// Icon colour option and subtitle meaning the icons keep the colour the active theme gives them (the default).
+  ///
+  /// In en, this message translates to:
+  /// **'Follow theme'**
+  String get iconColourFollowTheme;
+
   /// Title of the in-app update dialog while the new APK is downloading.
   ///
   /// In en, this message translates to:

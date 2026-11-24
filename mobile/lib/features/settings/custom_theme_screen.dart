@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/custom_theme_provider.dart';
 import '../../providers/dashboard_background_provider.dart';
+import '../../widgets/app_icons.dart';
 
 /// Full-screen colour editor for the Custom theme.
 ///
@@ -35,12 +36,12 @@ class CustomThemeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(l.customThemeTitle),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(AppIcons.arrow_back),
           onPressed: () => context.pop(),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.restart_alt),
+            icon: const Icon(AppIcons.restart_alt),
             tooltip: l.customThemeResetTooltip,
             onPressed: () async {
               final confirmed = await showDialog<bool>(
@@ -206,7 +207,7 @@ class _ColourRow extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right,
+            Icon(AppIcons.chevron_right,
                 color: cs.onSurface.withValues(alpha: 0.4)),
           ],
         ),
@@ -495,7 +496,7 @@ class _PreviewTile extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                Icon(Icons.wifi, color: theme.accent, size: 14),
+                Icon(AppIcons.wifi, color: theme.accent, size: 14),
               ],
             ),
             const SizedBox(height: 10),
@@ -539,7 +540,7 @@ class _PreviewTile extends StatelessWidget {
                     color: theme.error.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Icon(Icons.stop_rounded,
+                  child: Icon(AppIcons.stop_rounded,
                       size: 18, color: theme.error),
                 ),
               ],
@@ -577,18 +578,18 @@ class _BackgroundRow extends ConsumerWidget {
     final hasBg = bg != null && bg.isNotEmpty;
     return ListTile(
       contentPadding: const EdgeInsets.fromLTRB(16, 6, 12, 6),
-      leading: Icon(Icons.wallpaper_outlined, color: cs.onSurface),
+      leading: Icon(AppIcons.wallpaper_outlined, color: cs.onSurface),
       title: Text(l.dashboardBackgroundTitle),
       subtitle:
           Text(hasBg ? l.dashboardBackgroundCustom : l.dashboardBackgroundNone),
       trailing: hasBg
           ? IconButton(
-              icon: const Icon(Icons.close),
+              icon: const Icon(AppIcons.close),
               tooltip: l.dashboardBackgroundRemove,
               onPressed: () =>
                   ref.read(dashboardBackgroundProvider.notifier).clear(),
             )
-          : Icon(Icons.chevron_right,
+          : Icon(AppIcons.chevron_right,
               color: cs.onSurface.withValues(alpha: 0.4)),
       onTap: () => _pick(context, ref),
     );

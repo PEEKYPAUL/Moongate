@@ -27,6 +27,9 @@ import 'macros_overlay.dart';
 import 'preheat_overlay.dart';
 import 'queue_overlay.dart';
 import 'printer_tile.dart';
+import '../../widgets/app_icons.dart';
+import '../../widgets/chamber_fan_icon.dart';
+import '../../widgets/heater_icon.dart';
 
 /// The Single-printer dashboard: one printer full screen, Klipper-screen style
 /// but Moongate-shaped. Top to bottom - a pinned status header (the Local /
@@ -498,7 +501,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
               style: theme.textTheme.bodySmall?.copyWith(color: muted),
             ),
           ],
-          Icon(Icons.expand_more, color: muted),
+          Icon(AppIcons.expand_more, color: muted),
         ],
       ),
     );
@@ -509,10 +512,10 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
     // The tile shows these connection states on its camera overlay rather
     // than a badge; the header gives them a matching pill.
     final (String, IconData)? pill = switch (s.state) {
-      'waiting'     => (l.tileConnected, Icons.hourglass_empty),
-      'starting_up' => (l.tileStartingUp, Icons.hourglass_empty),
+      'waiting'     => (l.tileConnected, AppIcons.hourglass_empty),
+      'starting_up' => (l.tileStartingUp, AppIcons.hourglass_empty),
       _ when s.connection == PrinterConnection.offline && s.state != 'connecting'
-                    => (l.tileOffline, Icons.wifi_off),
+                    => (l.tileOffline, AppIcons.wifi_off),
       _             => null,
     };
     if (pill == null) {
@@ -532,7 +535,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
       Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(local ? Icons.wifi_rounded : Icons.cloud_outlined,
+          Icon(local ? AppIcons.wifi_rounded : AppIcons.cloud_outlined,
               size: 16, color: conn),
           const SizedBox(width: 4),
           Text(
@@ -570,7 +573,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(clock != null ? Icons.sports_score : Icons.schedule,
+        Icon(clock != null ? AppIcons.sports_score : AppIcons.schedule,
             size: 15, color: Colors.blueGrey),
         const SizedBox(width: 3),
         Text(
@@ -753,13 +756,13 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
                     ? FilledButton.tonalIcon(
                         onPressed: _live ? _handleResume : null,
                         style: _tinted(Colors.green),
-                        icon: const Icon(Icons.play_arrow_rounded),
+                        icon: const Icon(AppIcons.play_arrow_rounded),
                         label: _label(l.tileResume),
                       )
                     : FilledButton.tonalIcon(
                         onPressed: _live ? _handlePause : null,
                         style: _tinted(Colors.orange),
-                        icon: const Icon(Icons.pause_rounded),
+                        icon: const Icon(AppIcons.pause_rounded),
                         label: _label(l.tilePause),
                       ),
               ),
@@ -772,8 +775,8 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
                     side: BorderSide(color: stopColor.withValues(alpha: 0.6)),
                   ),
                   icon: Icon(_stopConfirmPending
-                      ? Icons.stop_circle_rounded
-                      : Icons.stop_rounded),
+                      ? AppIcons.stop_circle_rounded
+                      : AppIcons.stop_rounded),
                   label: _label(_stopConfirmPending
                       ? l.tileConfirmStop
                       : l.tileStopPrint),
@@ -786,10 +789,10 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
     } else if (_overlay case final overlay?) {
       // No live reading: say why, in the tile overlay's words.
       final (title, sub, icon) = switch (overlay) {
-        'offline'     => (l.tileOffline, l.tilePrinterUnreachable, Icons.wifi_off),
-        'starting_up' => (l.tileStartingUp, l.tileWaitingForHeartbeat, Icons.hourglass_empty),
-        'waiting'     => (l.tileConnected, l.tilePrinterIdle, Icons.hourglass_empty),
-        _             => (l.tileConnecting, l.tileReachingPrinter, Icons.sync),
+        'offline'     => (l.tileOffline, l.tilePrinterUnreachable, AppIcons.wifi_off),
+        'starting_up' => (l.tileStartingUp, l.tileWaitingForHeartbeat, AppIcons.hourglass_empty),
+        'waiting'     => (l.tileConnected, l.tilePrinterIdle, AppIcons.hourglass_empty),
+        _             => (l.tileConnecting, l.tileReachingPrinter, AppIcons.sync),
       };
       body = Row(
         children: [
@@ -814,7 +817,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
         children: [
           Row(
             children: [
-              Icon(error ? Icons.error_outline : Icons.hourglass_empty,
+              Icon(error ? AppIcons.error_outline : AppIcons.hourglass_empty,
                   color: error ? Colors.red : Colors.blueGrey),
               const SizedBox(width: 10),
               Expanded(
@@ -834,7 +837,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
                   child: FilledButton.tonalIcon(
                     onPressed: _live ? _handleFirmwareRestart : null,
                     style: _tinted(Colors.orange),
-                    icon: const Icon(Icons.restart_alt),
+                    icon: const Icon(AppIcons.restart_alt),
                     label: _label(l.tileFirmwareRestart),
                   ),
                 ),
@@ -842,7 +845,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => showConsoleSheet(context, widget.printer),
-                    icon: const Icon(Icons.terminal_rounded),
+                    icon: const Icon(AppIcons.terminal_rounded),
                     label: _label(l.tileConsole),
                   ),
                 ),
@@ -854,9 +857,9 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
     } else {
       // Idle: ready, or a finished / cancelled job still on the badge.
       final (label, icon, color) = switch (s.state) {
-        'complete'  => (l.tilePrintComplete, Icons.check_circle_outline, Colors.teal),
-        'cancelled' => (l.tilePrintCancelled, Icons.cancel_outlined, Colors.blueGrey),
-        _           => (l.tileReady, Icons.check_circle_outline, Colors.blueGrey),
+        'complete'  => (l.tilePrintComplete, AppIcons.check_circle_outline, Colors.teal),
+        'cancelled' => (l.tilePrintCancelled, AppIcons.cancel_outlined, Colors.blueGrey),
+        _           => (l.tileReady, AppIcons.check_circle_outline, Colors.blueGrey),
       };
       final lastFile = s.state == 'standby' ? null : s.filename;
       body = Column(
@@ -895,7 +898,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
                       ? () => showGcodeFilesSheet(context, widget.printer,
                           status: _status)
                       : null,
-                  icon: const Icon(Icons.play_arrow_rounded),
+                  icon: const Icon(AppIcons.play_arrow_rounded),
                   label: _label(l.gcodeSheetTitle),
                 ),
               ),
@@ -903,7 +906,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
               Expanded(
                 child: FilledButton.tonalIcon(
                   onPressed: _canPreheat ? _openPreheat : null,
-                  icon: const Icon(Icons.whatshot),
+                  icon: const Icon(AppIcons.whatshot),
                   label: _label(l.preheatTitle),
                 ),
               ),
@@ -925,8 +928,8 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
     if (s.toolheads.length > 1) {
       for (final t in s.toolheads) {
         final cell = _TempCell(
-          icon: Icons.whatshot,
-          color: Colors.deepOrange,
+          icon: AppIcons.whatshot,
+          heatReactive: true,
           temp: t.temp,
           target: t.target,
           label: 'T${t.index}',
@@ -938,8 +941,8 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
       cells.add(_anchor(
         a.tempHotend,
         _TempCell(
-          icon: Icons.whatshot,
-          color: Colors.deepOrange,
+          icon: AppIcons.whatshot,
+          heatReactive: true,
           temp: s.hotendTemp,
           target: s.hotendTarget,
           label: l.preheatHotend,
@@ -949,8 +952,8 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
     cells.add(_anchor(
       a.tempBed,
       _TempCell(
-        icon: Icons.bed,
-        color: Colors.blue,
+        icon: AppIcons.bed,
+        heatReactive: true,
         temp: s.bedTemp,
         target: s.bedTarget,
         label: l.preheatBed,
@@ -973,8 +976,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
             );
           },
           child: _TempCell(
-            icon: Icons.sensor_window,
-            color: Colors.teal,
+            iconAsset: kChamberIconAsset,
             temp: s.chamberTemp,
             target: s.chamberTarget,
             label: l.preheatChamber,
@@ -1045,7 +1047,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
                 children: [
                   Expanded(
                     child: _BigButton(
-                      icon: Icons.play_circle_outline,
+                      icon: AppIcons.play_circle_outline,
                       label: l.tileMacros,
                       onPressed: klipper
                           ? () => showMacrosSheet(context, widget.printer)
@@ -1055,7 +1057,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
                   const SizedBox(width: 8),
                   Expanded(
                     child: _BigButton(
-                      icon: Icons.terminal_rounded,
+                      icon: AppIcons.terminal_rounded,
                       label: l.tileConsole,
                       onPressed: tools
                           ? () => showConsoleSheet(context, widget.printer)
@@ -1065,7 +1067,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
                   const SizedBox(width: 8),
                   Expanded(
                     child: _BigButton(
-                      icon: Icons.folder_open_rounded,
+                      icon: AppIcons.folder_open_rounded,
                       label: l.singlePrintFiles,
                       onPressed: idle
                           ? () => showGcodeFilesSheet(context, widget.printer,
@@ -1083,7 +1085,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
               children: [
                 Expanded(
                   child: AdaptiveToolButton(
-                    icon: Icons.code_rounded,
+                    icon: AppIcons.code_rounded,
                     label: l.controlPanelTitle,
                     onPressed: idle
                         ? () => showControlPanel(context, widget.printer, _status)
@@ -1093,7 +1095,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
                 const SizedBox(width: 8),
                 Expanded(
                   child: AdaptiveToolButton(
-                    icon: Icons.snippet_folder_outlined,
+                    icon: AppIcons.snippet_folder_outlined,
                     label: l.tileFileSystem,
                     onPressed: tools
                         ? () => showFileSystemSheet(context, widget.printer)
@@ -1103,7 +1105,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
                 const SizedBox(width: 8),
                 Expanded(
                   child: AdaptiveToolButton(
-                    icon: Icons.playlist_play,
+                    icon: AppIcons.playlist_play,
                     label: l.queueChip,
                     onPressed: tools
                         ? () => showQueueSheet(context, widget.printer,
@@ -1115,7 +1117,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
                 const SizedBox(width: 8),
                 Expanded(
                   child: AdaptiveToolButton(
-                    icon: Icons.open_in_new,
+                    icon: AppIcons.open_in_new,
                     label: web,
                     onPressed: tools ? widget.onOpenPrinterPage : null,
                   ),
@@ -1140,10 +1142,10 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
     final homed = axes.contains('x') && axes.contains('y') && axes.contains('z');
     final idle  = _live && _idle;
     final (String strip, IconData stripIcon, Color stripColor) = pos == null
-        ? (l.controlPanelPositionUnknown, Icons.help_outline, muted)
+        ? (l.controlPanelPositionUnknown, AppIcons.help_outline, muted)
         : homed
-            ? (l.controlPanelHomed, Icons.check_circle, Colors.green)
-            : (l.controlPanelNotHomed, Icons.warning_amber_rounded,
+            ? (l.controlPanelHomed, AppIcons.check_circle, Colors.green)
+            : (l.controlPanelNotHomed, AppIcons.warning_amber_rounded,
                 theme.colorScheme.error);
     String value(int i, int digits) =>
         pos == null ? '--' : pos[i].toStringAsFixed(digits);
@@ -1243,7 +1245,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.home_outlined),
+                      : const Icon(AppIcons.home_outlined),
                   label: _label(l.controlPanelHome),
                 ),
               ),
@@ -1253,7 +1255,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
                   onPressed: idle
                       ? () => showControlPanel(context, widget.printer, _status)
                       : null,
-                  icon: const Icon(Icons.open_with),
+                  icon: const Icon(AppIcons.open_with),
                   label: _label(l.singleMove),
                 ),
               ),
@@ -1338,8 +1340,17 @@ class _Pill extends StatelessWidget {
 /// One temperature: the heater's icon (in colour only while it has a target),
 /// the reading, the target, and a label underneath.
 class _TempCell extends StatelessWidget {
-  final IconData icon;
-  final Color color;
+  /// A font glyph (hotend nozzle / bed radiator), or null when [iconAsset] is
+  /// used (the chamber SVG).
+  final IconData? icon;
+
+  /// The custom chamber SVG asset, drawn instead of [icon] when set.
+  final String? iconAsset;
+
+  /// Hotend/bed: the icon turns red while the heater is hot. The chamber icon
+  /// is never heat-coloured.
+  final bool heatReactive;
+
   final double temp;
   final double target;
   final String label;
@@ -1348,8 +1359,9 @@ class _TempCell extends StatelessWidget {
   final bool emphasise;
 
   const _TempCell({
-    required this.icon,
-    required this.color,
+    this.icon,
+    this.iconAsset,
+    this.heatReactive = false,
     required this.temp,
     required this.target,
     required this.label,
@@ -1371,7 +1383,21 @@ class _TempCell extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 18, color: active ? color : Colors.blueGrey),
+              if (iconAsset != null)
+                ChamberFanIcon(
+                  size: 18,
+                  color: heatReactive && heaterIsHot(temp, target)
+                      ? kHeaterHotColour
+                      : Colors.blueGrey,
+                )
+              else
+                Icon(
+                  icon,
+                  size: 18,
+                  color: heatReactive && heaterIsHot(temp, target)
+                      ? kHeaterHotColour
+                      : Colors.blueGrey,
+                ),
               const SizedBox(width: 3),
               Text(
                 '${temp.toStringAsFixed(0)}°',

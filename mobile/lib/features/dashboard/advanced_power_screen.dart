@@ -4,6 +4,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/printer_config.dart';
 import '../../services/print_control_service.dart';
 import '../../services/printer_registry.dart';
+import '../../widgets/app_icons.dart';
 
 /// Per-printer advanced power setup (v0.9.11). For printers whose power is a
 /// Klipper macro rather than a Moonraker `[power …]` device: switch it on and
@@ -43,7 +44,7 @@ class AdvancedPowerScreen extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.power_settings_new,
+                      Icon(AppIcons.power_settings_new,
                           color: theme.colorScheme.onSecondaryContainer),
                       const SizedBox(width: 12),
                       Expanded(
@@ -297,12 +298,12 @@ class _TargetField extends StatelessWidget {
               )
             else if (set)
               IconButton(
-                icon: const Icon(Icons.clear, size: 18),
+                icon: const Icon(AppIcons.clear, size: 18),
                 tooltip: l.lightingClear,
                 onPressed: () => onChanged(null),
               )
             else
-              const Icon(Icons.arrow_drop_down),
+              const Icon(AppIcons.arrow_drop_down),
           ],
         ),
       ),
@@ -344,7 +345,7 @@ Future<({bool clear, String? value})?> _showTargetPicker(
                             dense: true,
                             title: Text(o, overflow: TextOverflow.ellipsis),
                             trailing: o == current
-                                ? Icon(Icons.check,
+                                ? Icon(AppIcons.check,
                                     color: theme.colorScheme.primary)
                                 : null,
                             onTap: () =>

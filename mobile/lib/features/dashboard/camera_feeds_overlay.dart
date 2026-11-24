@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../providers/settings_provider.dart';
+import '../../widgets/app_icons.dart';
 
 /// Bottom sheet that sets the dashboard-tile webcam refresh rate separately for
 /// the LAN ("Local") and remote ("Tunnel") paths. Each tile fetches snapshots
@@ -49,7 +50,7 @@ class _CameraFeedsSheet extends ConsumerWidget {
               ),
             ),
             _RateRow(
-              icon: Icons.wifi_rounded,
+              icon: AppIcons.wifi_rounded,
               label: l.cameraFeedsLocalRate,
               selected: local,
               onChanged: (v) =>
@@ -57,7 +58,7 @@ class _CameraFeedsSheet extends ConsumerWidget {
             ),
             const SizedBox(height: 10),
             _RateRow(
-              icon: Icons.cloud_outlined,
+              icon: AppIcons.cloud_outlined,
               label: l.cameraFeedsTunnelRate,
               selected: tunnel,
               onChanged: (v) =>

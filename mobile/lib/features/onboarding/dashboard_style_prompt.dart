@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../providers/settings_provider.dart';
+import '../../widgets/app_icons.dart';
 
 /// First-run question: one printer or several? Shown once on a fresh install,
 /// straight after the language picker and before the pairing help, so the user
@@ -64,7 +65,7 @@ class _DashboardStyleDialogState extends State<_DashboardStyleDialog> {
               const SizedBox(height: 14),
               Row(
                 children: [
-                  Icon(Icons.menu, size: 18, color: muted),
+                  Icon(AppIcons.menu, size: 18, color: muted),
                   const SizedBox(width: 8),
                   // The language picker's own line - the same promise, the
                   // same menu.

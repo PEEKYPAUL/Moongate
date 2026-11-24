@@ -8,6 +8,7 @@ import '../../providers/settings_provider.dart';
 import '../../services/printer_status_service.dart';
 import '../../widgets/webcam_view.dart';
 import '../dashboard/camera_picker_overlay.dart';
+import '../../widgets/app_icons.dart';
 
 /// Opens the Moongate-native camera view for one printer as a full-screen
 /// **overlay** - a faded dialog over the current screen (no app-bar chrome), the
@@ -127,12 +128,12 @@ class _PrinterCameraOverlayState extends ConsumerState<_PrinterCameraOverlay> {
       body = _CenterMessage(spinner: true, text: l.cameraConnecting);
     } else if (s.connection == PrinterConnection.offline) {
       body = _CenterMessage(
-        icon: Icons.cloud_off_outlined,
+        icon: AppIcons.cloud_off_outlined,
         text: l.printerUnreachable,
       );
     } else {
       body = _CenterMessage(
-        icon: Icons.videocam_off_outlined,
+        icon: AppIcons.videocam_off_outlined,
         text: l.cameraNoCamera,
       );
     }
@@ -150,7 +151,7 @@ class _PrinterCameraOverlayState extends ConsumerState<_PrinterCameraOverlay> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    icon: const Icon(AppIcons.arrow_back, color: Colors.white),
                     tooltip:
                         MaterialLocalizations.of(context).backButtonTooltip,
                     onPressed: () => Navigator.of(context).pop(),
@@ -186,7 +187,7 @@ class _PrinterCameraOverlayState extends ConsumerState<_PrinterCameraOverlay> {
                   if (s != null && cameraSwitchAvailable(widget.printer, s))
                     IconButton(
                       icon: const Icon(
-                        Icons.cameraswitch_outlined,
+                        AppIcons.cameraswitch_outlined,
                         color: Colors.white,
                       ),
                       tooltip: l.cameraSwitchTooltip,

@@ -5,6 +5,7 @@ import '../../models/printer_config.dart';
 import '../../services/print_control_service.dart';
 import '../../services/printer_registry.dart';
 import 'macro_control_builder.dart';
+import '../../widgets/app_icons.dart';
 
 /// Bottom-sheet macro runner. Lists the Klipper macros defined on the printer
 /// (Moonraker's `printer/objects/list`, filtered to `gcode_macro` entries),
@@ -237,7 +238,7 @@ class _MacrosSheetState extends State<_MacrosSheet> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.refresh),
+                  icon: const Icon(AppIcons.refresh),
                   tooltip: l.commonRetry,
                   onPressed: _reload,
                 ),
@@ -268,7 +269,7 @@ class _MacrosSheetState extends State<_MacrosSheet> {
                 if (macros == null) {
                   return _Centered(
                     child: _Message(
-                      icon: Icons.cloud_off,
+                      icon: AppIcons.cloud_off,
                       text: l.macrosError,
                       action: FilledButton.tonal(
                         onPressed: _reload,
@@ -280,7 +281,7 @@ class _MacrosSheetState extends State<_MacrosSheet> {
                 if (macros.isEmpty) {
                   return _Centered(
                     child: _Message(
-                      icon: Icons.code_off,
+                      icon: AppIcons.code_off,
                       text: l.macrosEmpty,
                     ),
                   );
@@ -412,7 +413,7 @@ class _MacroRow extends StatelessWidget {
               height: 22,
               child: CircularProgressIndicator(strokeWidth: 2.5),
             )
-          : Icon(Icons.code_rounded, color: theme.colorScheme.primary),
+          : Icon(AppIcons.code_rounded, color: theme.colorScheme.primary),
       title: Text(
         name,
         maxLines: 1,
@@ -425,13 +426,13 @@ class _MacroRow extends StatelessWidget {
         children: [
           if (onBuildControl != null)
             IconButton(
-              icon: const Icon(Icons.dashboard_customize_outlined),
+              icon: const Icon(AppIcons.dashboard_customize_outlined),
               tooltip: l.macroControlCreate,
               onPressed: onBuildControl,
             ),
           IconButton(
             icon: Icon(
-              favourite ? Icons.star_rounded : Icons.star_border_rounded,
+              favourite ? AppIcons.star_rounded : AppIcons.star_border_rounded,
               color: favourite ? Colors.amber : theme.colorScheme.outline,
             ),
             tooltip: favourite ? l.macroUnfavourite : l.macroFavourite,

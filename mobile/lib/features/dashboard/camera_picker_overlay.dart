@@ -4,6 +4,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/printer_config.dart';
 import '../../services/printer_registry.dart';
 import '../../services/printer_status_service.dart';
+import '../../widgets/app_icons.dart';
 
 /// True when the tile / full-screen camera should offer the camera switcher
 /// for this printer: more than one reported camera (plugin 0.6.22+) and no
@@ -131,7 +132,7 @@ class _CameraRow extends StatelessWidget {
     return ListTile(
       dense: true,
       leading: Icon(
-        selected ? Icons.videocam : Icons.videocam_outlined,
+        selected ? AppIcons.videocam : AppIcons.videocam_outlined,
         color: selected ? theme.colorScheme.primary : null,
       ),
       title: Text(
@@ -144,8 +145,8 @@ class _CameraRow extends StatelessWidget {
             : null,
       ),
       trailing: selected
-          ? Icon(Icons.check_circle, color: theme.colorScheme.primary)
-          : const Icon(Icons.radio_button_unchecked),
+          ? Icon(AppIcons.check_circle, color: theme.colorScheme.primary)
+          : const Icon(AppIcons.radio_button_unchecked),
       onTap: onTap,
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../widgets/app_icons.dart';
 
 /// A numeric PIN entry surface: a dot row plus an on-screen keypad. Shared by
 /// the lock screen and the set / confirm / verify flows (see [showPinSheet]).
@@ -209,7 +210,7 @@ class _Keypad extends StatelessWidget {
             height: 60,
             child: IconButton.filledTonal(
               onPressed: enabled ? onBackspace : null,
-              icon: const Icon(Icons.backspace_outlined),
+              icon: const Icon(AppIcons.backspace_outlined),
             ),
           ),
         );

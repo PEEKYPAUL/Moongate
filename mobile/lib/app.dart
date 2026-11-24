@@ -131,6 +131,8 @@ class _MoongateAppState extends ConsumerState<MoongateApp>
     final custom     = ref.watch(customThemeProvider);
     final localeCode = ref.watch(localeProvider);
     final fontFamily = appFontById(ref.watch(appFontProvider)).family;
+    // Optional user icon tint; null keeps each theme's own icon colour.
+    final iconColour = ref.watch(iconColourProvider);
 
     final isCustom = appMode == AppThemeMode.custom;
     final isSystem = appMode == AppThemeMode.system;
@@ -147,13 +149,13 @@ class _MoongateAppState extends ConsumerState<MoongateApp>
         if (isCustom) {
           // The user is taking over colour decisions, so pin both slots to the
           // same custom theme - the system dark-mode toggle shouldn't flip it.
-          lightTheme = darkTheme = _buildCustomTheme(custom, fontFamily);
+          lightTheme = darkTheme = _buildCustomTheme(custom, fontFamily, iconColour);
         } else if (isSystem && hasDynamic) {
-          lightTheme = _buildDynamicTheme(lightDynamic, fontFamily);
-          darkTheme  = _buildDynamicTheme(darkDynamic, fontFamily);
+          lightTheme = _buildDynamicTheme(lightDynamic, fontFamily, iconColour);
+          darkTheme  = _buildDynamicTheme(darkDynamic, fontFamily, iconColour);
         } else {
-          lightTheme = _buildSeededTheme(Brightness.light, fontFamily);
-          darkTheme  = _buildSeededTheme(Brightness.dark, fontFamily);
+          lightTheme = _buildSeededTheme(Brightness.light, fontFamily, iconColour);
+          darkTheme  = _buildSeededTheme(Brightness.dark, fontFamily, iconColour);
         }
 
         return MaterialApp.router(
@@ -208,12 +210,20 @@ class _MoongateAppState extends ConsumerState<MoongateApp>
         AppThemeMode.system => ThemeMode.system,
       };
 
+  /// Optional app-wide icon tint. `null` keeps the theme's own default icon
+  /// colour (the historic behaviour); a colour becomes the default for every
+  /// icon that doesn't set its own.
+  IconThemeData? _iconTheme(Color? iconColour) =>
+      iconColour == null ? null : IconThemeData(color: iconColour);
+
   /// The original purple-seeded Material 3 theme.  Used for light / dark.
-  ThemeData _buildSeededTheme(Brightness brightness, String? fontFamily) {
+  ThemeData _buildSeededTheme(
+      Brightness brightness, String? fontFamily, Color? iconColour) {
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
       fontFamily: fontFamily,
+      iconTheme: _iconTheme(iconColour),
       colorScheme: ColorScheme.fromSeed(
         seedColor: const Color(0xFF6C63FF),
         brightness: brightness,
@@ -225,11 +235,13 @@ class _MoongateAppState extends ConsumerState<MoongateApp>
   /// Android 12+ "Material You" palette handed to us by DynamicColorBuilder.
   /// Each scheme already carries its own brightness, so the light and dark
   /// slots are built from the two schemes the builder provides.
-  ThemeData _buildDynamicTheme(ColorScheme scheme, String? fontFamily) {
+  ThemeData _buildDynamicTheme(
+      ColorScheme scheme, String? fontFamily, Color? iconColour) {
     return ThemeData(
       useMaterial3: true,
       brightness: scheme.brightness,
       fontFamily: fontFamily,
+      iconTheme: _iconTheme(iconColour),
       colorScheme: scheme,
     );
   }
@@ -238,7 +250,8 @@ class _MoongateAppState extends ConsumerState<MoongateApp>
   /// [ColorScheme.fromSeed] with the accent as the seed so all the Material 3
   /// derivative slots (primary container, tertiary, etc.) stay harmonious,
   /// then overrides the slots the user explicitly picked.
-  ThemeData _buildCustomTheme(CustomTheme c, String? fontFamily) {
+  ThemeData _buildCustomTheme(
+      CustomTheme c, String? fontFamily, Color? iconColour) {
     final isLightBg = c.background.computeLuminance() > 0.5;
     final brightness = isLightBg ? Brightness.light : Brightness.dark;
 
@@ -273,6 +286,7 @@ class _MoongateAppState extends ConsumerState<MoongateApp>
       useMaterial3: true,
       brightness: brightness,
       fontFamily: fontFamily,
+      iconTheme: _iconTheme(iconColour),
       colorScheme: scheme,
       scaffoldBackgroundColor: c.background,
       cardColor: c.surface,

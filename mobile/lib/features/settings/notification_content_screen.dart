@@ -7,6 +7,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/notif_fields.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/print_notification_service.dart';
+import '../../widgets/app_icons.dart';
 
 /// Lets the user choose which details appear on each print's notification card
 /// - and drag them into the order they want on the phone. Reached from the
@@ -151,7 +152,7 @@ class _FieldRow extends StatelessWidget {
     return SwitchListTile(
       secondary: ReorderableDragStartListener(
         index: index,
-        child: const Icon(Icons.drag_handle),
+        child: const Icon(AppIcons.drag_handle),
       ),
       title: Text(_label(l, field)),
       subtitle: Text(notifFieldExample(field)),

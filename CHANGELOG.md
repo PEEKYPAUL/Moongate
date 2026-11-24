@@ -2,6 +2,12 @@
 
 What changed in each Moongate release, newest first, in plain language. The full technical write-up of every change is in the pull request that shipped it (linked from each GitHub release) and in the commit history.
 
+## v0.9.80
+
+- Fresh icon set across the app for a cleaner, more consistent look
+- New printer-style hotend, bed and chamber icons, with a gently spinning chamber fan and red when a heater is hot
+- Pick your icon colour in the Theme menu, or leave it following your theme
+
 ## v0.9.79
 
 - Android home-screen widget: live printer status, pick a size when you add it, the larger sizes list all your printers (swipe for more), tap to open Moongate
