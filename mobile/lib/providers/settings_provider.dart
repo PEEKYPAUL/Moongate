@@ -261,17 +261,20 @@ final gridColumnsProvider = NotifierProvider<GridColumnsNotifier, int>(
 
 // ---------------------------------------------------------------------------
 // Allow rotation  (false = portrait-locked, true = follows device)
+// v0.9.81: follows the device by DEFAULT - users read "portrait only" as the
+// app not supporting landscape at all. Anyone who set the switch keeps their
+// choice (the stored value wins); only installs that never touched it change.
 // ---------------------------------------------------------------------------
 
 class AllowRotationNotifier extends Notifier<bool> {
   static const _key = 'allow_rotation';
 
   @override
-  bool build() => false;
+  bool build() => true;
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
-    state = prefs.getBool(_key) ?? false;
+    state = prefs.getBool(_key) ?? true;
     await _applyOrientation(state);
   }
 

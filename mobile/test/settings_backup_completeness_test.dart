@@ -40,6 +40,7 @@ const Map<String, String> _excluded = {
   'single_dashboard_printer':   'where the single-printer dashboard was left, not a preference',
   // Carried elsewhere / meaningless off-device.
   'moongate_printers':          'the printer list rides the backup envelope itself',
+  'moongate_cloud_uid':         'the cloud identity of this install (the identity-loss detector); another device has its own',
   'dashboard_background_path':  'device-local file path; the image cannot ride a JSON backup',
   // The home-screen widget's feed (home_widget's own prefs file, not ours):
   // a render cache the notification service rewrites every poll.

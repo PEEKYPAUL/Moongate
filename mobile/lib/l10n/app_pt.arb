@@ -104,6 +104,8 @@
   "commonRetry": "Tentar novamente",
   "commonShowKeyboard": "Mostrar teclado",
   "dashboardSignInRetrying": "Reconectando à nuvem - o login está ocupado, tentando novamente. Suas impressoras voltarão automaticamente.",
+  "dashboardIdentityLost": "O Moongate perdeu a sua conta na nuvem, por isso as impressoras emparelhadas antes aparecem offline. Em cada impressora, execute MOONGATE_RESET_OWNER na consola e volte a emparelhá-la com o botão +.",
+  "dashboardIdentityLostDismiss": "Entendi",
   "commonRemove": "Remover",
   "commonDelete": "Excluir",
   "commonEnable": "Ativar",

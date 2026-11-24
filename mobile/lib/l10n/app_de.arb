@@ -118,6 +118,8 @@
   "commonRetry": "Erneut versuchen",
   "commonShowKeyboard": "Tastatur anzeigen",
   "dashboardSignInRetrying": "Verbindung zur Cloud wird wiederhergestellt - die Anmeldung ist ausgelastet, neuer Versuch. Deine Drucker kommen automatisch zurück.",
+  "dashboardIdentityLost": "Moongate hat sein Cloud-Konto verloren, daher zeigen zuvor gekoppelte Drucker Offline an. Führe auf jedem Drucker MOONGATE_RESET_OWNER in der Konsole aus und kopple ihn dann mit der +-Taste erneut.",
+  "dashboardIdentityLostDismiss": "Verstanden",
   "commonRemove": "Entfernen",
   "commonDelete": "Löschen",
   "commonEnable": "Aktivieren",

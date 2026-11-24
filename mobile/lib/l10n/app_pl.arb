@@ -118,6 +118,8 @@
   "commonRetry": "Ponów",
   "commonShowKeyboard": "Pokaż klawiaturę",
   "dashboardSignInRetrying": "Ponowne łączenie z chmurą - logowanie jest zajęte, ponawianie. Twoje drukarki wrócą automatycznie.",
+  "dashboardIdentityLost": "Moongate utracił swoje konto w chmurze, dlatego wcześniej sparowane drukarki pokazują się jako offline. Na każdej drukarce uruchom MOONGATE_RESET_OWNER w konsoli, a potem sparuj ją ponownie przyciskiem +.",
+  "dashboardIdentityLostDismiss": "Rozumiem",
   "commonRemove": "Usuń",
   "commonDelete": "Usuń",
   "commonEnable": "Włącz",

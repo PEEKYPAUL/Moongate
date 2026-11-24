@@ -118,6 +118,8 @@
   "commonRetry": "Повторить",
   "commonShowKeyboard": "Показать клавиатуру",
   "dashboardSignInRetrying": "Повторное подключение к облаку - вход занят, повтор. Принтеры вернутся автоматически.",
+  "dashboardIdentityLost": "Moongate потерял свою облачную учётную запись, поэтому ранее сопряжённые принтеры показаны как офлайн. На каждом принтере выполните MOONGATE_RESET_OWNER в консоли, затем снова выполните сопряжение кнопкой +.",
+  "dashboardIdentityLostDismiss": "Понятно",
   "commonRemove": "Удалить",
   "commonDelete": "Удалить",
   "commonEnable": "Включить",

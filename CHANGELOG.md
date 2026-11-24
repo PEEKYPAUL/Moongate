@@ -2,6 +2,12 @@
 
 What changed in each Moongate release, newest first, in plain language. The full technical write-up of every change is in the pull request that shipped it (linked from each GitHub release) and in the commit history.
 
+## v0.9.81
+
+- Fixes printers showing offline on the dashboard while the printer page still works: the app no longer loses its cloud account when print notifications are on
+- If the cloud account was already lost, the dashboard now says so and explains how to pair the printers again
+- The app now turns to landscape when your phone's auto-rotate is on (the Rotate with device switch in the menu turns it off)
+
 ## v0.9.80
 
 - Fresh icon set across the app for a cleaner, more consistent look

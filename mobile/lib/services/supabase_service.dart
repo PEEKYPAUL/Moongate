@@ -1,8 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer' as dev;
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'session_refresh_policy.dart';
 
 /// Wraps the Supabase client for Moongate v0.3.0:
 ///   • initialise + anonymous sign-in on first launch
@@ -37,26 +41,218 @@ class SupabaseService {
   Timer? _signInRetryTimer;
   int _signInAttempt = 0;
 
+  // ── Single-refresher session handling (v0.9.81) ───────────────────────────
+  // The persisted-session key supabase_flutter writes
+  // (`sb-<project ref>-auth-token`), read back here so an isolate can adopt
+  // what another isolate rotated. Keep in step with [_supabaseUrl].
+  static const _persistKey = 'sb-wlmmaoupmupbrrkcjglj-auth-token';
+  // The cloud user id this install last held - the identity-loss detector.
+  static const _uidKey = 'moongate_cloud_uid';
+  // How often each isolate checks the access token (replaces gotrue's own
+  // 10 s auto-refresh ticker, which is OFF everywhere - see [initialize]).
+  static const _refreshEvery  = Duration(seconds: 30);
+  // Refresh once the access token has less than this left.
+  static const _refreshMargin = Duration(seconds: 90);
+
+  Timer?        _refreshTimer;
+  Future<void>? _refreshing;
+  bool          _signInAllowed = true;
+
+  /// True once this install's cloud identity was found to be gone (no
+  /// persisted session where there used to be one, or a refresh the server
+  /// definitively rejected). The app then signs in as a NEW anonymous user so
+  /// it keeps working, but every printer paired under the old identity is
+  /// orphaned until re-paired - the dashboard shows a banner saying so.
+  final ValueNotifier<bool> identityLost = ValueNotifier<bool>(false);
+
+  /// The user id that was lost (for the bug-report diagnostics), or null.
+  String? previousUserId;
+
   void _log(String msg) => dev.log(msg, name: 'MOONGATE/SUPABASE');
 
   /// Initialise the Supabase client and ensure there's an authenticated
   /// session. Idempotent - safe to call from main() and re-call after
   /// hot-restart.
-  Future<void> initialize() async {
+  ///
+  /// [allowSignIn] is false in background isolates (the print-notification
+  /// service, the widget's one-shot refresh): they only ever REUSE the
+  /// session the UI isolate persisted and must never mint an identity of
+  /// their own. [keepFresh] is false for a one-shot isolate (the widget's
+  /// WorkManager refresh): a periodic timer there would keep the isolate
+  /// alive after its job is done; it still gets one [ensureFreshSession]
+  /// pass at start.
+  Future<void> initialize({
+    bool allowSignIn = true,
+    bool keepFresh   = true,
+  }) async {
     if (_initialized) return;
+    _signInAllowed = allowSignIn;
     await Supabase.initialize(
       url: _supabaseUrl,
       publishableKey: _supabaseAnonKey,
+      // gotrue's own auto-refresh is OFF in every isolate. The
+      // print-notification service (and the widget's one-shot refresh) run
+      // their own Supabase client off the SAME persisted anonymous session;
+      // with each client refreshing from its in-memory copy of the refresh
+      // token, the second one to refresh presented a token the first had
+      // already rotated, GoTrue's reuse detection revoked the whole token
+      // family and the install ended up signed out -> a brand-new anonymous
+      // user on the next cold start, every paired printer orphaned (the
+      // "tiles offline but tapping in works" reports, Nov 2026).
+      // [ensureFreshSession] is now the only refresher: it adopts whatever
+      // another isolate persisted BEFORE it would ever refresh.
+      authOptions: const FlutterAuthClientOptions(autoRefreshToken: false),
     );
     _initialized = true;
+    _refreshTimer?.cancel();
+    if (keepFresh) {
+      _refreshTimer =
+          Timer.periodic(_refreshEvery, (_) => ensureFreshSession().ignore());
+    }
 
     if (client.auth.currentSession != null) {
       _log('Existing session, user_id=${client.auth.currentUser?.id}');
       signedIn.value = true;
+      await _rememberUid();
+      // Expired while the app was closed? Bring it up to date now (adopting a
+      // newer persisted copy first), before the dashboard's first poll.
+      await ensureFreshSession();
       return;
     }
+    if (!allowSignIn) {
+      _log('No persisted session in this isolate; sign-in is the UI\'s job');
+      return;
+    }
+    await _detectIdentityLoss();
     _log('No session yet - signing in anonymously');
     await _trySignIn();
+  }
+
+  /// Make sure the access token is good for the next while, refreshing it
+  /// if needed - but FIRST adopt a newer session another isolate may have
+  /// persisted, so this isolate never presents a refresh token that was
+  /// already rotated elsewhere. Concurrent callers share one pass. Never
+  /// throws: a network blip just leaves the token as it was for the next
+  /// pass; a definitive rejection is handled by [_onSessionLost].
+  Future<void> ensureFreshSession() {
+    return _refreshing ??=
+        _ensureFreshSession().whenComplete(() => _refreshing = null);
+  }
+
+  Future<void> _ensureFreshSession() async {
+    if (!_initialized) return;
+    final auth = client.auth;
+    try {
+      final stored = await _readPersistedSession();
+      if (SessionRefreshPolicy.shouldAdopt(
+          mine: _facts(auth.currentSession), stored: stored?.facts)) {
+        _log('Adopting the session another isolate persisted');
+        // Refreshes inside gotrue when the stored copy itself has expired.
+        await auth.recoverSession(stored!.raw);
+        // recoverSession stays silent when the user id is unchanged, and
+        // Realtime only learns new tokens from auth events - hand it over.
+        final s = auth.currentSession;
+        if (s != null) await client.realtime.setAuth(s.accessToken);
+      }
+      if (SessionRefreshPolicy.needsRefresh(
+          session: _facts(auth.currentSession),
+          now: DateTime.now(),
+          margin: _refreshMargin)) {
+        _log('Refreshing the access token');
+        await auth.refreshSession();
+      }
+      if (auth.currentSession != null && !signedIn.value) {
+        signedIn.value = true;
+      }
+    } on AuthRetryableFetchException catch (e) {
+      _log('Refresh deferred (network): ${e.message}');
+    } on AuthException catch (e) {
+      _log('Refresh rejected: ${e.code} ${e.message}');
+      await _onSessionLost();
+    } catch (e) {
+      _log('ensureFreshSession error: $e');
+    }
+  }
+
+  static SessionFacts? _facts(Session? s) => s == null
+      ? null
+      : SessionFacts(
+          refreshToken: s.refreshToken,
+          expiresAt:    s.expiresAt,
+          userId:       s.user.id,
+        );
+
+  Future<_PersistedSession?> _readPersistedSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload(); // pick up another isolate's write
+      final raw = prefs.getString(_persistKey);
+      if (raw == null) return null;
+      final m = jsonDecode(raw) as Map<String, dynamic>;
+      return _PersistedSession(
+        raw: raw,
+        facts: SessionFacts(
+          refreshToken: m['refresh_token'] as String?,
+          expiresAt:    (m['expires_at'] as num?)?.toInt(),
+          userId:       (m['user'] as Map?)?['id'] as String?,
+        ),
+      );
+    } catch (e) {
+      _log('Persisted session unreadable: $e');
+      return null;
+    }
+  }
+
+  /// The server rejected our refresh token for good (gotrue has already
+  /// dropped the session and its persisted copy). Record the loss, then - in
+  /// the UI isolate only - start a fresh anonymous identity so the app keeps
+  /// working; the dashboard banner explains the re-pair.
+  Future<void> _onSessionLost() async {
+    signedIn.value = false;
+    if (!_signInAllowed) return;
+    await _detectIdentityLoss();
+    _log('Session lost - signing in as a new anonymous user');
+    await _trySignIn();
+  }
+
+  /// No session where this install used to have one = identity loss.
+  Future<void> _detectIdentityLoss() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final old = prefs.getString(_uidKey);
+      if (old != null && old.isNotEmpty) {
+        previousUserId = old;
+        identityLost.value = true;
+        _log('Cloud identity lost (was $old)');
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _rememberUid() async {
+    final uid = userId;
+    if (uid == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_uidKey, uid);
+    } catch (_) {}
+  }
+
+  Future<void> _forgetUid() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_uidKey);
+    } catch (_) {}
+  }
+
+  /// Clears the identity-lost flag once the user has seen the banner.
+  void acknowledgeIdentityLoss() => identityLost.value = false;
+
+  /// When the current access token expires (diagnostics), or null.
+  DateTime? get sessionExpiresAt {
+    final exp = client.auth.currentSession?.expiresAt;
+    return exp == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(exp * 1000, isUtc: true);
   }
 
   /// One anonymous-sign-in attempt. NEVER throws: on success it flips
@@ -71,6 +267,7 @@ class SupabaseService {
       _signInAttempt = 0;
       _signInRetryTimer?.cancel();
       signedIn.value = true;
+      await _rememberUid();
       _log('Anonymous sign-in OK, user_id=${client.auth.currentUser?.id}');
     } catch (e) {
       signedIn.value = false;
@@ -345,6 +542,8 @@ class SupabaseService {
   /// with an empty slate. Throws on failure so the UI can surface an error.
   Future<void> deleteAccount() async {
     await client.functions.invoke('delete-account');
+    // A deliberate new identity - not a loss, so no banner.
+    await _forgetUid();
     await client.auth.signOut();
     signedIn.value = false;
     _log('Account deleted; signing in fresh anonymous identity');
@@ -386,6 +585,14 @@ class SupabaseService {
       rethrow;
     }
   }
+}
+
+/// A session as supabase_flutter persisted it: the raw JSON (what
+/// `recoverSession` takes) plus the facts the refresh policy decides on.
+class _PersistedSession {
+  final String       raw;
+  final SessionFacts facts;
+  const _PersistedSession({required this.raw, required this.facts});
 }
 
 /// Result of a /printer-access call.

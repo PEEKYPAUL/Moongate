@@ -339,6 +339,13 @@ class AppLocalizationsPl extends AppLocalizations {
       'Ponowne łączenie z chmurą - logowanie jest zajęte, ponawianie. Twoje drukarki wrócą automatycznie.';
 
   @override
+  String get dashboardIdentityLost =>
+      'Moongate utracił swoje konto w chmurze, dlatego wcześniej sparowane drukarki pokazują się jako offline. Na każdej drukarce uruchom MOONGATE_RESET_OWNER w konsoli, a potem sparuj ją ponownie przyciskiem +.';
+
+  @override
+  String get dashboardIdentityLostDismiss => 'Rozumiem';
+
+  @override
   String get commonRemove => 'Usuń';
 
   @override

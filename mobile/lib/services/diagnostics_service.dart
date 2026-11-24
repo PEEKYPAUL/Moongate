@@ -44,9 +44,17 @@ class DiagnosticsService {
 
     // Cloud identity - correlate with the printers table. A signed-out state
     // (or all printers offline) is the orphaned-anon-UID signature.
+    final sb = SupabaseService.instance;
     out['cloud'] = {
-      'user_id': SupabaseService.instance.userId,
-      'signed_in': SupabaseService.instance.ready,
+      'user_id': sb.userId,
+      'signed_in': sb.ready,
+      // v0.9.81: an install whose anonymous identity was replaced shows
+      // identity_lost + the old id, and owns 0 cloud rows while its tiles
+      // still list printers - the orphaned-install signature at a glance.
+      'identity_lost': sb.identityLost.value,
+      if (sb.previousUserId != null) 'previous_user_id': sb.previousUserId,
+      'session_expires_at': sb.sessionExpiresAt?.toIso8601String(),
+      'cloud_printer_count': await _cloudPrinterCount(),
     };
 
     // Everything the mDNS browse currently sees - catches "found nothing"
@@ -83,6 +91,21 @@ class DiagnosticsService {
       };
     }
     return {'platform': Platform.operatingSystem};
+  }
+
+  /// How many printer rows the cloud returns for THIS identity (one
+  /// RLS-scoped SELECT, not an Edge call). Null when it cannot be read.
+  static Future<int?> _cloudPrinterCount() async {
+    try {
+      if (!SupabaseService.instance.ready) return null;
+      final rows = await SupabaseService.instance.client
+          .from('printers')
+          .select('id')
+          .timeout(const Duration(seconds: 5));
+      return (rows as List).length;
+    } catch (_) {
+      return null;
+    }
   }
 
   static Future<Map<String, dynamic>> _network() async {

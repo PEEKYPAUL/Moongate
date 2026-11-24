@@ -340,6 +340,13 @@ class AppLocalizationsDe extends AppLocalizations {
       'Verbindung zur Cloud wird wiederhergestellt - die Anmeldung ist ausgelastet, neuer Versuch. Deine Drucker kommen automatisch zurück.';
 
   @override
+  String get dashboardIdentityLost =>
+      'Moongate hat sein Cloud-Konto verloren, daher zeigen zuvor gekoppelte Drucker Offline an. Führe auf jedem Drucker MOONGATE_RESET_OWNER in der Konsole aus und kopple ihn dann mit der +-Taste erneut.';
+
+  @override
+  String get dashboardIdentityLostDismiss => 'Verstanden';
+
+  @override
   String get commonRemove => 'Entfernen';
 
   @override
