@@ -420,9 +420,11 @@ class _PrintTaskHandler extends TaskHandler {
     } catch (_) {}
 
     // Supabase in this isolate re-loads the persisted anon session, so it can
-    // mint the same per-printer access tokens the app uses.
+    // mint the same per-printer access tokens the app uses. Never signs in
+    // here: an identity is the UI isolate's to create (v0.9.81), and the
+    // token refresh adopts the UI's rotation instead of racing it.
     try {
-      await SupabaseService.instance.initialize();
+      await SupabaseService.instance.initialize(allowSignIn: false);
     } catch (e) {
       _log('Supabase init failed in isolate: $e');
     }
@@ -659,7 +661,8 @@ class _PrintTaskHandler extends TaskHandler {
   /// cards and alerts belong to the running service alone.
   Future<void> refreshWidgetOnce() async {
     try {
-      await SupabaseService.instance.initialize();
+      await SupabaseService.instance
+          .initialize(allowSignIn: false, keepFresh: false);
     } catch (e) {
       _log('Supabase init failed for widget refresh: $e');
     }

@@ -339,6 +339,13 @@ class AppLocalizationsIt extends AppLocalizations {
       'Riconnessione al cloud - l\'accesso è occupato, nuovo tentativo. Le tue stampanti torneranno automaticamente.';
 
   @override
+  String get dashboardIdentityLost =>
+      'Moongate ha perso il suo account cloud, quindi le stampanti associate in precedenza risultano offline. Su ogni stampante esegui MOONGATE_RESET_OWNER nella console, poi associala di nuovo con il pulsante +.';
+
+  @override
+  String get dashboardIdentityLostDismiss => 'Ho capito';
+
+  @override
   String get commonRemove => 'Rimuovi';
 
   @override

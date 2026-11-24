@@ -337,6 +337,13 @@ class AppLocalizationsRu extends AppLocalizations {
       'Повторное подключение к облаку - вход занят, повтор. Принтеры вернутся автоматически.';
 
   @override
+  String get dashboardIdentityLost =>
+      'Moongate потерял свою облачную учётную запись, поэтому ранее сопряжённые принтеры показаны как офлайн. На каждом принтере выполните MOONGATE_RESET_OWNER в консоли, затем снова выполните сопряжение кнопкой +.';
+
+  @override
+  String get dashboardIdentityLostDismiss => 'Понятно';
+
+  @override
   String get commonRemove => 'Удалить';
 
   @override

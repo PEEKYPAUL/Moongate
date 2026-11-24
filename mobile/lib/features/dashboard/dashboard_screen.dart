@@ -427,21 +427,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       // app bar is transparent, so the body just renders normally on top of it.
       body: ValueListenableBuilder<bool>(
         valueListenable: SupabaseService.instance.signedIn,
-        builder: (context, signedIn, _) {
-          final banners = <Widget>[
-            if (update != null)
-              _UpdateBanner(
-                update: update,
-                onDismiss: () => setState(() => _updateDismissed = true),
-                onWhatsNew: () => _showUpdateNotes(context, update),
-              ),
-            if (!signedIn) const _SignInBanner(),
-          ];
-          if (banners.isEmpty) return body;
-          return Column(
-            children: [...banners, Expanded(child: body)],
-          );
-        },
+        builder: (context, signedIn, _) => ValueListenableBuilder<bool>(
+          valueListenable: SupabaseService.instance.identityLost,
+          builder: (context, identityLost, _) {
+            final banners = <Widget>[
+              if (update != null)
+                _UpdateBanner(
+                  update: update,
+                  onDismiss: () => setState(() => _updateDismissed = true),
+                  onWhatsNew: () => _showUpdateNotes(context, update),
+                ),
+              if (!signedIn) const _SignInBanner(),
+              if (identityLost) const _IdentityLostBanner(),
+            ];
+            if (banners.isEmpty) return body;
+            return Column(
+              children: [...banners, Expanded(child: body)],
+            );
+          },
+        ),
       ),
       // No floating buttons on the Single-printer dashboard: nothing to
       // reorder, Add printer lives in the menu and the printer list, and the
@@ -2206,6 +2210,58 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
 /// Shown above the dashboard while the app has no cloud session yet - usually
 /// the anonymous sign-in being rate-limited after several reinstalls in a row.
+/// v0.9.81: the install's cloud identity was replaced (see
+/// [SupabaseService.identityLost]), so every printer paired under the old
+/// one shows offline until it is re-paired. Says so once, with the recipe,
+/// instead of leaving a silent wall of offline tiles.
+class _IdentityLostBanner extends StatelessWidget {
+  const _IdentityLostBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final l  = AppLocalizations.of(context);
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: cs.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 8, 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: Icon(AppIcons.cloud_off_outlined,
+                      size: 18, color: cs.onErrorContainer),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    l.dashboardIdentityLost,
+                    style: TextStyle(color: cs.onErrorContainer, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: SupabaseService.instance.acknowledgeIdentityLoss,
+                child: Text(
+                  l.dashboardIdentityLostDismiss,
+                  style: TextStyle(color: cs.onErrorContainer),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// SupabaseService retries on its own, so this is purely informational and
 /// disappears once a session lands and the tiles reconnect.
 class _SignInBanner extends StatelessWidget {

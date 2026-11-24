@@ -342,6 +342,13 @@ class AppLocalizationsPt extends AppLocalizations {
       'Reconectando à nuvem - o login está ocupado, tentando novamente. Suas impressoras voltarão automaticamente.';
 
   @override
+  String get dashboardIdentityLost =>
+      'O Moongate perdeu a sua conta na nuvem, por isso as impressoras emparelhadas antes aparecem offline. Em cada impressora, execute MOONGATE_RESET_OWNER na consola e volte a emparelhá-la com o botão +.';
+
+  @override
+  String get dashboardIdentityLostDismiss => 'Entendi';
+
+  @override
   String get commonRemove => 'Remover';
 
   @override

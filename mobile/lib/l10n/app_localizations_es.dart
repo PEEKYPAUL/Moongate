@@ -340,6 +340,13 @@ class AppLocalizationsEs extends AppLocalizations {
       'Reconectando con la nube: el inicio de sesión está ocupado, reintentando. Tus impresoras volverán automáticamente.';
 
   @override
+  String get dashboardIdentityLost =>
+      'Moongate perdió su cuenta en la nube, por lo que las impresoras emparejadas antes aparecen desconectadas. En cada impresora ejecuta MOONGATE_RESET_OWNER en la consola y vuelve a emparejarla con el botón +.';
+
+  @override
+  String get dashboardIdentityLostDismiss => 'Entendido';
+
+  @override
   String get commonRemove => 'Quitar';
 
   @override

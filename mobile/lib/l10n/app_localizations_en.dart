@@ -337,6 +337,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Reconnecting to the cloud - sign-in is busy, retrying. Your printers will come back automatically.';
 
   @override
+  String get dashboardIdentityLost =>
+      'Moongate lost its cloud account, so printers paired before now show offline. On each printer run MOONGATE_RESET_OWNER in the console, then pair it again with the + button.';
+
+  @override
+  String get dashboardIdentityLostDismiss => 'Got it';
+
+  @override
   String get commonRemove => 'Remove';
 
   @override

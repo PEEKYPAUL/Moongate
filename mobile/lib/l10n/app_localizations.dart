@@ -700,6 +700,18 @@ abstract class AppLocalizations {
   /// **'Reconnecting to the cloud - sign-in is busy, retrying. Your printers will come back automatically.'**
   String get dashboardSignInRetrying;
 
+  /// Dashboard banner shown once the app found its cloud identity replaced (session lost); printers paired under the old identity need a re-pair.
+  ///
+  /// In en, this message translates to:
+  /// **'Moongate lost its cloud account, so printers paired before now show offline. On each printer run MOONGATE_RESET_OWNER in the console, then pair it again with the + button.'**
+  String get dashboardIdentityLost;
+
+  /// Dismiss button on the identity-lost banner.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get dashboardIdentityLostDismiss;
+
   /// Generic Remove button label.
   ///
   /// In en, this message translates to:

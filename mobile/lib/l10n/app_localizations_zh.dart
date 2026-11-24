@@ -324,6 +324,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dashboardSignInRetrying => '正在重新连接云端--登录繁忙，正在重试。您的打印机将自动恢复。';
 
   @override
+  String get dashboardIdentityLost =>
+      'Moongate 丢失了云端账户，因此之前配对的打印机显示为离线。请在每台打印机的控制台运行 MOONGATE_RESET_OWNER，然后用 + 按钮重新配对。';
+
+  @override
+  String get dashboardIdentityLostDismiss => '知道了';
+
+  @override
   String get commonRemove => '移除';
 
   @override
