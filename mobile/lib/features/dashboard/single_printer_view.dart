@@ -28,6 +28,7 @@ import 'preheat_overlay.dart';
 import 'queue_overlay.dart';
 import 'printer_tile.dart';
 import '../../widgets/app_icons.dart';
+import '../../widgets/chamber_fan_icon.dart';
 import '../../widgets/heater_icon.dart';
 
 /// The Single-printer dashboard: one printer full screen, Klipper-screen style
@@ -1382,14 +1383,21 @@ class _TempCell extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              heaterIcon(
-                icon: icon,
-                asset: iconAsset,
-                size: 18,
-                color: heatReactive && heaterIsHot(temp, target)
-                    ? kHeaterHotColour
-                    : Colors.blueGrey,
-              ),
+              if (iconAsset != null)
+                ChamberFanIcon(
+                  size: 18,
+                  color: heatReactive && heaterIsHot(temp, target)
+                      ? kHeaterHotColour
+                      : Colors.blueGrey,
+                )
+              else
+                Icon(
+                  icon,
+                  size: 18,
+                  color: heatReactive && heaterIsHot(temp, target)
+                      ? kHeaterHotColour
+                      : Colors.blueGrey,
+                ),
               const SizedBox(width: 3),
               Text(
                 '${temp.toStringAsFixed(0)}°',

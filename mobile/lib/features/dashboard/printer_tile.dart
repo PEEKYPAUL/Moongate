@@ -30,6 +30,7 @@ import 'gcode_files_overlay.dart';
 import 'preheat_overlay.dart';
 import 'queue_overlay.dart';
 import '../../widgets/app_icons.dart';
+import '../../widgets/chamber_fan_icon.dart';
 import '../../widgets/heater_icon.dart';
 
 class PrinterTile extends ConsumerStatefulWidget {
@@ -1881,8 +1882,10 @@ class _TempChip extends StatelessWidget {
     final muted   = neutral.withValues(alpha: 0.7);
     final iconColor =
         heatReactive && heaterIsHot(temp, target) ? kHeaterHotColour : muted;
-    final iconWidget =
-        heaterIcon(icon: icon, asset: iconAsset, size: 13, color: iconColor);
+    // The chamber is the animated spinning-fan icon; hotend/bed are font glyphs.
+    final iconWidget = iconAsset != null
+        ? ChamberFanIcon(size: 13, color: iconColor)
+        : Icon(icon, size: 13, color: iconColor);
     final valueWidget = Text(
       '${temp.toStringAsFixed(0)}°',
       style: TextStyle(

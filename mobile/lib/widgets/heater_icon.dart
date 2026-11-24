@@ -9,8 +9,16 @@ import 'package:flutter_svg/flutter_svg.dart';
 /// drawn through [heaterIcon] so a call site does not care which kind it is.
 
 /// The custom chamber icon asset (a box with a fan). Rendered with flutter_svg
-/// and tinted at the call site like any other icon.
+/// and tinted at the call site like any other icon. Used where the icon stays
+/// still (the preheat sheet, the UI guide); the dashboard uses the animated
+/// [ChamberFanIcon], which draws the two split layers below.
 const String kChamberIconAsset = 'assets/icons/chamber.svg';
+
+/// The static layer of the chamber icon: the box and the fan housing circle.
+const String kChamberFrameAsset = 'assets/icons/chamber_frame.svg';
+
+/// The spinning layer of the chamber icon: the three fan blades and the hub.
+const String kChamberBladesAsset = 'assets/icons/chamber_blades.svg';
 
 /// Colour a hotend or bed icon takes while its heater is hot or heating, so it
 /// reads like Duet's red heated icons. The chamber icon never uses this.
