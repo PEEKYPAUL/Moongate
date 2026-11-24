@@ -95,7 +95,10 @@ Every feature in depth, with the version it arrived in: **[Feature guide ›](do
 <div align="center">
 <br/>
 <img src="docs/screenshots/notification.png" width="640" alt="Print notifications in the Android notification shade"/>
-<br/><sub><em>Optional print notifications - live fleet status &amp; start / finish / error alerts, right in your notification shade.</em></sub>
+<br/><sub><em>Optional print notifications - live fleet status &amp; start / finish / error alerts, right in your notification shade, and finished / progress alerts to a paired smartwatch with no watch app.</em></sub>
+<br/><br/>
+<img src="docs/screenshots/widget.png" width="440" alt="Android home-screen widget - a printing printer with a big progress ring, its nozzle and bed temperatures, and the rest of the fleet listed below with their status"/>
+<br/><sub><em>Android home-screen widget - your fleet at a glance, in the size you pick from a 2x2 ring to a 4x4 list. Fed by the notifications, so it costs no extra battery.</em></sub>
 </div>
 
 ---
