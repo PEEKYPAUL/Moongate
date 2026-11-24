@@ -422,10 +422,10 @@ class MoongateWidget : GlanceAppWidget() {
     private fun TempsInline(p: WidgetPrinter, size: TextUnit, color: ColorProvider) {
         val iconDp = (size.value * 1.15f).dp
         // One Row per sensor (icon, gap, value), so the line holds at most
-        // three children plus the inset: a Glance container holds at most
+        // three children: a Glance container holds at most
         // ten, and three sensors laid out flat made eleven, which dropped the
-        // chamber's value. The inset keeps the last value off the edge.
-        Row(modifier = GlanceModifier.padding(end = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+        // chamber's value.
+        Row(verticalAlignment = Alignment.CenterVertically) {
             tempColumns(p).forEachIndexed { i, c ->
                 Row(
                     modifier = if (i > 0) GlanceModifier.padding(start = 8.dp) else GlanceModifier,
@@ -444,9 +444,9 @@ class MoongateWidget : GlanceAppWidget() {
         }
     }
 
-    /** The width (dp) [TempsInline] takes at [sp]: icons, gaps, values and the inset. */
+    /** The width (dp) [TempsInline] takes at [sp]: icons, gaps and values. */
     private fun inlineDp(p: WidgetPrinter, sp: Float): Float {
-        var w = 5f
+        var w = 0f
         tempColumns(p).forEachIndexed { i, c ->
             if (i > 0) w += 8f
             w += sp * 1.15f + 2f + estWidth(c.value, sp)
@@ -574,8 +574,7 @@ class MoongateWidget : GlanceAppWidget() {
             // Each column with its own gap (and rule) is ONE child of the
             // band: a Glance container holds at most ten children, and a
             // chamber printer would otherwise push the band past that and
-            // lose its last pieces. A small inset keeps the last column off
-            // the widget's edge.
+            // lose its last pieces.
             columns.forEachIndexed { i, c ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (i == 0) {
@@ -588,7 +587,6 @@ class MoongateWidget : GlanceAppWidget() {
                     TempColumn(c, t, valueSp.sp)
                 }
             }
-            Spacer(GlanceModifier.width(5.dp))
         }
     }
 
@@ -606,9 +604,9 @@ class MoongateWidget : GlanceAppWidget() {
         return cols
     }
 
-    /** The width (dp) the temperature columns take, gaps, rules and the inset included. */
+    /** The width (dp) the temperature columns take, gaps and rules included. */
     private fun columnsDp(columns: List<TempCol>, valueSp: Float, t: Type): Float {
-        var w = 15f
+        var w = 10f
         columns.forEachIndexed { i, c ->
             if (i > 0) w += 17f
             w += maxOf(estWidth(c.value, valueSp), t.name.value * 1.3f)
