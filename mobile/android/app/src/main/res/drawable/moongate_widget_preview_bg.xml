@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Rounded card behind the widget-picker preview (layout/moongate_widget_preview).
+     Moongate's dark surface; fixed because the launcher inflates the preview. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#FF1C1B20" />
+    <corners android:radius="20dp" />
+</shape>

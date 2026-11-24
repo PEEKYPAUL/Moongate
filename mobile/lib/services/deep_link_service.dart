@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:go_router/go_router.dart';
 
-/// Tap-to-pair: routes OS-delivered `moongate://` links into the pairing
-/// screen.
+/// Routes OS-delivered `moongate://` links: tap-to-pair into the pairing
+/// screen, and (v0.9.79) the home-screen widget's tap onto the dashboard.
 ///
 /// The Pi's moongate-pair.html renders its QR payload as a tappable link for
 /// the no-second-screen case (the phone that should pair is the one showing
@@ -32,10 +32,20 @@ class DeepLinkService {
   static bool isPairingUri(Uri uri) =>
       uri.scheme == 'moongate' && (uri.host == 'pair' || uri.host == 'lan');
 
+  /// The home-screen widget's one tap target, `moongate://dashboard`, on the
+  /// same scheme the pair links use so one intent filter and one delivery path
+  /// serve both. Deliberately host-only with no path: Flutter also hands a
+  /// launching intent's PATH to go_router as the initial route, and the first
+  /// test build's `moongate://printer/<id>` links crashed there ("GoException:
+  /// no routes for location"). Per-printer links were dropped with them.
+  static bool isWidgetUri(Uri uri) =>
+      uri.scheme == 'moongate' && uri.host == 'dashboard';
+
   /// Idempotent. Wired from the app root, which owns the router.
   void start(GoRouter router) {
     _sub ??= AppLinks().uriLinkStream.listen((uri) {
-      if (!isPairingUri(uri)) return;
+      final pairing = isPairingUri(uri);
+      if (!pairing && !isWidgetUri(uri)) return;
       final now = DateTime.now();
       if (uri == _lastUri &&
           _lastAt != null &&
@@ -44,11 +54,12 @@ class DeepLinkService {
       }
       _lastUri = uri;
       _lastAt  = now;
-      // Land on the dashboard first so the pairing screen pops back to it
-      // from every entry point (cold start included - this also cancels the
-      // splash's own pending hop, its navigation is mounted-guarded).
+      // Land on the dashboard first so the next screen pops back to it from
+      // every entry point (cold start included - this also cancels the
+      // splash's own pending hop, its navigation is mounted-guarded). A
+      // widget tap ends here.
       router.go('/dashboard');
-      router.push('/pair', extra: uri.toString());
+      if (pairing) router.push('/pair', extra: uri.toString());
     });
   }
 }

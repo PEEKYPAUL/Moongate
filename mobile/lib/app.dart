@@ -26,6 +26,10 @@ import 'services/printer_registry.dart';
 
 final _router = GoRouter(
   initialLocation: '/splash',
+  // Never show go_router's error page: an unknown location (e.g. the path of
+  // an OS-delivered moongate:// link, which Flutter also feeds in as the
+  // platform's initial route) just lands on the dashboard.
+  onException: (_, __, router) => router.go('/'),
   routes: [
     GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
     GoRoute(

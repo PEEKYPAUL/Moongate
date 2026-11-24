@@ -844,5 +844,10 @@
   "singlePosition": "Pozycja",
   "singleMove": "Ruch",
   "singlePrintFiles": "Pliki do druku",
-  "singleWebInterface": "Interfejs WWW"
+  "singleWebInterface": "Interfejs WWW",
+  "widgetNoData": "Włącz powiadomienia o druku w Moongate, aby zasilać ten widżet",
+  "widgetNoPrinters": "Nie sparowano jeszcze żadnej drukarki",
+  "widgetUpdatedAt": "Zaktualizowano {n}",
+  "widgetPoweredOff": "Wyłączona",
+  "widgetStatus": "Stan"
 }

@@ -844,5 +844,10 @@
   "singlePosition": "Posizione",
   "singleMove": "Muovi",
   "singlePrintFiles": "File di stampa",
-  "singleWebInterface": "Interfaccia web"
+  "singleWebInterface": "Interfaccia web",
+  "widgetNoData": "Attiva le notifiche di stampa in Moongate per alimentare questo widget",
+  "widgetNoPrinters": "Nessuna stampante associata",
+  "widgetUpdatedAt": "Aggiornato {n}",
+  "widgetPoweredOff": "Spenta",
+  "widgetStatus": "Stato"
 }

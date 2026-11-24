@@ -11,9 +11,11 @@ import 'services/lan_discovery_service.dart';
 import 'services/ota_installer.dart';
 import 'services/print_notification_service.dart';
 import 'services/printer_liveness_service.dart';
+import 'services/app_l10n_loader.dart';
 import 'services/printer_registry.dart';
 import 'services/push_notification_service.dart';
 import 'services/supabase_service.dart';
+import 'services/widget_feed.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -66,6 +68,13 @@ void main() async {
   // Start listening for Wi-Fi <-> mobile-data changes now, so the dashboard's
   // camera feeds pick the right refresh rate from the first frame.
   container.read(onMobileDataProvider);
+
+  // Home-screen widget (Android, v0.9.79): register the Dart entry point its
+  // refresh glyph runs in the background, and write the localised templates
+  // so a widget placed before the notification service has ever run still
+  // has words. Both best-effort; the snapshot itself comes from the service.
+  WidgetFeed.registerRefreshCallback(widgetRefreshCallback).ignore();
+  loadAppL10n().then(WidgetFeed.publishStrings).ignore();
 
   // Bring the print-notification foreground service in line with the saved
   // preference - starts it if the user left notifications on AND hasn't paused

@@ -844,5 +844,10 @@
   "singlePosition": "Position",
   "singleMove": "Bewegen",
   "singlePrintFiles": "Druckdateien",
-  "singleWebInterface": "Weboberfläche"
+  "singleWebInterface": "Weboberfläche",
+  "widgetNoData": "Schalte Druckbenachrichtigungen in Moongate ein, damit dieses Widget Daten erhält",
+  "widgetNoPrinters": "Noch keine Drucker gekoppelt",
+  "widgetUpdatedAt": "Aktualisiert {n}",
+  "widgetPoweredOff": "Ausgeschaltet",
+  "widgetStatus": "Status"
 }
