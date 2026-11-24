@@ -11,7 +11,7 @@ import '../models/widget_snapshot.dart';
 ///
 /// home_widget stores whatever Dart saves in a SharedPreferences file the
 /// Glance widget reads back (`HomeWidgetPreferences`), and `updateWidget`
-/// broadcasts APPWIDGET_UPDATE to our receiver so it redraws. Two keys:
+/// broadcasts APPWIDGET_UPDATE to a receiver of ours so it redraws. Two keys:
 ///   • [snapshotKey] - the fleet snapshot the print-notification isolate writes
 ///     once per poll ([WidgetSnapshot]);
 ///   • [stringsKey]  - the localised templates alone, written by the app at
@@ -23,20 +23,15 @@ abstract final class WidgetFeed {
   static const snapshotKey = 'fleet_snapshot';
   static const stringsKey  = 'widget_strings';
 
-  /// The Glance receivers, fully qualified (the Kotlin package is the
-  /// applicationId, shared by both flavors): one app-widget provider per
-  /// picker size (width x height in cells), all rendering the same widget -
-  /// see MoongateWidgetReceivers.kt. A redraw has to be asked of each.
-  static const _pkg = 'com.moongate.app.moongate.MoongateWidgetReceiver';
-  static const receivers = [
-    '${_pkg}2x2',
-    '${_pkg}2x4',
-    '${_pkg}3x2',
-    '${_pkg}3x4',
-    '${_pkg}4x2',
-    '${_pkg}4x3',
-    '${_pkg}4x4',
-  ];
+  /// The ONE receiver a publish pokes, fully qualified (the Kotlin package is
+  /// the applicationId, shared by both flavors): MoongateWidgetRefreshReceiver
+  /// finds the widget instances actually placed, across the seven size
+  /// providers, and composes each directly into the launcher. Poking the seven
+  /// providers themselves went through Glance's own update, which hands the
+  /// drawing to a WorkManager job that Android may hold for minutes - the
+  /// widget lagged the notification by that much on a device test.
+  static const refreshReceiver =
+      'com.moongate.app.moongate.MoongateWidgetRefreshReceiver';
 
   /// The URI the widget's refresh glyph fires into [registerRefreshCallback]'s
   /// callback via home_widget's background intent.
@@ -78,13 +73,9 @@ abstract final class WidgetFeed {
     }
   }
 
-  /// Ask every provider to redraw its placed widgets (a provider with none
-  /// placed is a no-op broadcast).
-  static Future<void> _redrawAll() async {
-    for (final name in receivers) {
-      await HomeWidget.updateWidget(qualifiedAndroidName: name);
-    }
-  }
+  /// Redraw every placed widget: one broadcast, see [refreshReceiver].
+  static Future<void> _redrawAll() =>
+      HomeWidget.updateWidget(qualifiedAndroidName: refreshReceiver);
 
   /// Flip the stored snapshot to `monitoring: false`, keeping its data, so the
   /// widget greys out with an "updated N min ago" hint instead of showing a

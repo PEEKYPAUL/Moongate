@@ -154,6 +154,15 @@
                 android:resource="@xml/moongate_widget_4x4" />
         </receiver>
 
+        <!-- The widget's per-poll redraw (MoongateWidgetRefresh.kt): Dart pokes
+             this ONE receiver after each publish and it composes every PLACED
+             widget directly into the launcher, instead of a broadcast per size
+             provider that Glance would turn into a WorkManager job Android may
+             hold for minutes. Same-app explicit intents only. -->
+        <receiver
+            android:name=".MoongateWidgetRefreshReceiver"
+            android:exported="false" />
+
         <!-- home_widget's receiver for the widget's refresh glyph: it runs the
              registered Dart callback (widgetRefreshCallback) in a headless
              engine via WorkManager. Declared here because the plugin's own
