@@ -5085,6 +5085,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Web interface'**
   String get singleWebInterface;
+
+  /// Home-screen widget (Android): shown when the app has never written a status snapshot. The widget is fed by the print-notification service.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on print notifications in Moongate to feed this widget'**
+  String get widgetNoData;
+
+  /// Home-screen widget: the snapshot exists but lists no printers.
+  ///
+  /// In en, this message translates to:
+  /// **'No printers paired yet'**
+  String get widgetNoPrinters;
+
+  /// Home-screen widget: when the shown status was last fetched, shown while monitoring is off. {n} is a clock time (today) or date and time, filled in by the widget - keep the literal {n}.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {n}'**
+  String widgetUpdatedAt(String n);
+
+  /// Home-screen widget only: the state word for a printer the phone cannot reach at all (its Pi is switched off). The dashboard tiles keep saying Offline.
+  ///
+  /// In en, this message translates to:
+  /// **'Powered off'**
+  String get widgetPoweredOff;
+
+  /// Home-screen widget: the label in a printing printer’s top line, rendered as "Name | Status: Printing". A short noun.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get widgetStatus;
 }
 
 class _AppLocalizationsDelegate

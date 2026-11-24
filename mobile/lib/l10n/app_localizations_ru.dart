@@ -2845,4 +2845,22 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get singleWebInterface => 'Веб-интерфейс';
+
+  @override
+  String get widgetNoData =>
+      'Включите уведомления о печати в Moongate, чтобы виджет получал данные';
+
+  @override
+  String get widgetNoPrinters => 'Принтеры ещё не подключены';
+
+  @override
+  String widgetUpdatedAt(String n) {
+    return 'Обновлено $n';
+  }
+
+  @override
+  String get widgetPoweredOff => 'Выключен';
+
+  @override
+  String get widgetStatus => 'Статус';
 }

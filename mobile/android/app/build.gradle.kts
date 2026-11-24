@@ -6,6 +6,12 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
+    // Declared explicitly (Flutter would apply KGP itself with builtInKotlin
+    // off) so the Compose compiler plugin below has a Kotlin plugin to attach
+    // to: the home-screen widget is Jetpack Glance, whose @Composable layouts
+    // need the Compose compiler. Nothing else in the app uses Compose.
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -86,6 +92,20 @@ android {
         // channel out of the Play flavor (SELF_UPDATE == false). AGP 8+/9
         // defaults this OFF, so enable it explicitly.
         buildConfig = true
+        // NOTE: `compose` is left unset on purpose. AGP 9 turns the feature on
+        // by itself when it sees the Compose compiler plugin (the Glance
+        // widget) and ignores an explicit `false` with a warning.
+    }
+
+    // AGP 9.5 wires its Compose Preview tooling into every variant once the
+    // Compose compiler plugin is applied, and that tooling refuses to configure
+    // unless unit tests exist for the variant AND see Android resources
+    // (otherwise `flutter build apk --release` dies at configuration time with
+    // "Compose Preview failed ... Unit tests are disabled for this variant").
+    // There are no Android unit tests or previews in this app, so switching
+    // both on is free: nothing extra runs in an assemble.
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
     }
 
     // Distribution channels. BOTH keep the same applicationId and are built by
@@ -108,6 +128,17 @@ android {
     }
 }
 
+androidComponents {
+    // See the testOptions note above: the release variants arrive here with
+    // unit tests switched off, which AGP's Compose Preview wiring rejects.
+    beforeVariants(selector().all()) { variant ->
+        (variant as? com.android.build.api.variant.HasHostTestsBuilder)
+            ?.hostTests
+            ?.get(com.android.build.api.variant.HostTestBuilder.UNIT_TEST_TYPE)
+            ?.enable = true
+    }
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
@@ -120,4 +151,16 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+
+    // Home-screen widget (v0.9.79): Jetpack Glance renders the fleet snapshot
+    // the print-notification isolate writes through home_widget (which itself
+    // depends on glance-appwidget 1.2.0 - keep these on the same line).
+    // glance-material3 supplies the Material 3 colour scheme the widget falls
+    // back to below Android 12, where there is no dynamic colour.
+    implementation("androidx.glance:glance-appwidget:1.2.0")
+    implementation("androidx.glance:glance-material3:1.2.0")
+    // glance-material3 only carries Material 3 at runtime scope; the widget
+    // calls lightColorScheme / darkColorScheme itself, so it needs the compile
+    // dependency too. Same version glance-material3 1.2.0 already resolves.
+    implementation("androidx.compose.material3:material3:1.0.0")
 }

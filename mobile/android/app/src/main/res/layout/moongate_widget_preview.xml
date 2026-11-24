@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static picture of the widget for the launcher's widget picker on Android
+     12 - 14 (android:previewLayout; Android 15+ renders a live preview from
+     MoongateWidget.providePreview instead). Sample data only - the real widget
+     is drawn by Glance, never by this layout. Fixed colours on purpose: the
+     launcher inflates this with its own theme, so attributes would not
+     resolve to ours. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/moongate_widget_preview_bg"
+    android:orientation="vertical"
+    android:gravity="center_vertical"
+    android:padding="12dp"
+    tools:ignore="HardcodedText">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Voron 2.4"
+        android:textColor="#FFEDEDF2"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="42% · ~1h05m · 13:20"
+        android:textColor="#FFB3B3BC"
+        android:textSize="12sp"
+        android:maxLines="1" />
+
+    <ProgressBar
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="6dp"
+        android:layout_marginTop="8dp"
+        android:max="100"
+        android:progress="42"
+        android:progressTint="#FF9A94FF"
+        android:progressBackgroundTint="#FF3A3A44" />
+</LinearLayout>

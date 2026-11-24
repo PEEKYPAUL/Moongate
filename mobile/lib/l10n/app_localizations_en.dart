@@ -2819,4 +2819,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get singleWebInterface => 'Web interface';
+
+  @override
+  String get widgetNoData =>
+      'Turn on print notifications in Moongate to feed this widget';
+
+  @override
+  String get widgetNoPrinters => 'No printers paired yet';
+
+  @override
+  String widgetUpdatedAt(String n) {
+    return 'Updated $n';
+  }
+
+  @override
+  String get widgetPoweredOff => 'Powered off';
+
+  @override
+  String get widgetStatus => 'Status';
 }

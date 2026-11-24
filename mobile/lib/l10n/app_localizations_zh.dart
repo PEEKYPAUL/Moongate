@@ -2680,4 +2680,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get singleWebInterface => '网页界面';
+
+  @override
+  String get widgetNoData => '在 Moongate 中开启打印通知，以便更新此小组件';
+
+  @override
+  String get widgetNoPrinters => '尚未配对打印机';
+
+  @override
+  String widgetUpdatedAt(String n) {
+    return '更新于 $n';
+  }
+
+  @override
+  String get widgetPoweredOff => '已关机';
+
+  @override
+  String get widgetStatus => '状态';
 }

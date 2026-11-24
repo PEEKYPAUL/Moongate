@@ -10,10 +10,10 @@ What changed in each Moongate release, newest first, in plain language. The full
 
 ## v0.9.79
 
+- Android home-screen widget: live printer status, pick a size when you add it, the larger sizes list all your printers (swipe for more), tap to open Moongate
 - Buzz when a print finishes: an optional loud alert that also reaches a paired smartwatch, no watch app needed
-- Progress milestones: an optional short alert every 25% (or 10%, or hourly) with time left and the finish time, watch-friendly too
-- Finished and milestone alerts show the print's thumbnail
-- Both switches are under Print notifications, Notification content
+- Progress milestones: an optional short alert every 25% (or 10%, or hourly) with time left and the finish time
+- Finished and milestone alerts show the print's thumbnail; both switches are under Print notifications, Notification content
 
 ## v0.9.78
 

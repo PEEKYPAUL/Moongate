@@ -16,12 +16,15 @@ import '../models/heat_alerts.dart';
 import '../models/notif_events.dart';
 import '../models/notif_fields.dart';
 import '../models/printer_config.dart';
+import '../models/widget_snapshot.dart';
+import 'app_l10n_loader.dart';
 import 'heatsoak_timers.dart';
 import 'print_control_service.dart';
 import 'print_progress.dart';
 import 'printer_access_cache.dart';
 import 'printer_registry.dart';
 import 'supabase_service.dart';
+import 'widget_feed.dart';
 
 // ── Tuning ────────────────────────────────────────────────────────────────
 // Two silent LOW channels, plus the loud heat-soak one below:
@@ -108,19 +111,10 @@ int _pollIntervalMsFromPref(String? name) => switch (name) {
       _     => _defaultPollIntervalMs, // 's30' / unset
     };
 
-/// Load the user's chosen UI locale (or the system / English fallback) and
-/// return its AppLocalizations. Usable from the background isolate - it's a pure
-/// Dart load with no BuildContext - so the notification reads in the same
-/// language as the app even though it runs outside the widget tree.
-Future<AppLocalizations> _loadL10n() async {
-  var code = (await SharedPreferences.getInstance()).getString('app_locale');
-  code ??= ui.PlatformDispatcher.instance.locale.languageCode;
-  try {
-    return await AppLocalizations.delegate.load(ui.Locale(code));
-  } catch (_) {
-    return AppLocalizations.delegate.load(const ui.Locale('en'));
-  }
-}
+/// The user's chosen UI locale as AppLocalizations - usable from the
+/// background isolate (no BuildContext), so the notification reads in the same
+/// language as the app. Shared with the widget feed: see [loadAppL10n].
+Future<AppLocalizations> _loadL10n() => loadAppL10n();
 
 /// Main-isolate manager for the opt-in print-notification foreground service.
 /// The actual polling runs in a background isolate (`_PrintTaskHandler`) so it
@@ -193,6 +187,11 @@ class PrintNotificationService {
     if (await FlutterForegroundTask.isRunningService) {
       await FlutterForegroundTask.stopService();
     }
+    // The home-screen widget is fed by this service's ticks: with nothing
+    // polling any more, flip its last snapshot to stale (greyed, "updated N
+    // min ago", refresh glyph) rather than let a dead print read as live.
+    // Idempotent - nothing to do when no snapshot was ever written.
+    await WidgetFeed.markStale();
   }
 
   /// Align the running service with the persisted on/off toggle. Called at
@@ -261,6 +260,21 @@ class PrintNotificationService {
 @pragma('vm:entry-point')
 void startPrintNotificationCallback() {
   FlutterForegroundTask.setTaskHandler(_PrintTaskHandler());
+}
+
+/// Home-screen widget: the refresh glyph's background entry point (home_widget
+/// runs it in a headless engine via its interactivity callback - registered
+/// from main()). Shown only while the service is off, so a one-shot poll is
+/// the only way to get fresh numbers: it reuses the service's own poll code on
+/// a throwaway handler and writes a snapshot still marked `monitoring: false`
+/// (the service is not running; the hint says so). MUST be top-level.
+@pragma('vm:entry-point')
+Future<void> widgetRefreshCallback(Uri? uri) async {
+  if (uri == null || uri.toString() != WidgetFeed.refreshUri) return;
+  try {
+    ui.DartPluginRegistrant.ensureInitialized();
+  } catch (_) {}
+  await _PrintTaskHandler().refreshWidgetOnce();
 }
 
 /// Runs in the background isolate. On each tick it polls every printer's
@@ -445,6 +459,8 @@ class _PrintTaskHandler extends TaskHandler {
         await _alerts.cancel(_cardId(pid));
       } catch (_) {}
     }
+    // The widget's snapshot is no longer live - grey it (see WidgetFeed).
+    await WidgetFeed.markStale();
   }
 
   Future<void> _tick() async {
@@ -489,7 +505,7 @@ class _PrintTaskHandler extends TaskHandler {
       // Function calls even though this service polls 24/7.
       await _refreshLiveness();
 
-      final entries = <(String, _Poll?)>[];
+      final entries = <(PrinterConfig, _Poll?)>[];
       final postedDoneThisTick = <String>{};
 
       for (final p in printers) {
@@ -508,25 +524,18 @@ class _PrintTaskHandler extends TaskHandler {
           await _updateCardFor(p, s, postedDoneThisTick);
         }
 
-        entries.add((p.name, s)); // every printer, online or not
+        entries.add((p, s)); // every printer, online or not
       }
 
       // Float active prints to the top - same ranking the dashboard uses
       // (printerStatusRank), stable within a tier (original order preserved).
       // Only when auto-arrange is on; off = keep the manual dashboard order
       // (entries are already in the registry order the tiles use).
-      final List<(String, _Poll?)> sorted;
-      if (autoArrange) {
-        final ranked = [for (var i = 0; i < entries.length; i++) (i, entries[i])];
-        ranked.sort((a, b) {
-          final ra = _rank(a.$2.$2);
-          final rb = _rank(b.$2.$2);
-          return ra != rb ? ra.compareTo(rb) : a.$1.compareTo(b.$1);
-        });
-        sorted = [for (final r in ranked) r.$2];
-      } else {
-        sorted = entries;
-      }
+      final sorted = _sortEntries(entries, autoArrange);
+
+      // Feed the home-screen widget from this same poll - one snapshot per
+      // tick, every printer in roster order, no second poller (v0.9.79).
+      await _publishWidget(sorted, monitoring: true);
 
       // "Show only online devices": drop offline / shut-down printers from the
       // roster (the foreground service keeps running - this is display-only).
@@ -566,7 +575,117 @@ class _PrintTaskHandler extends TaskHandler {
   /// shut-down Klipper. The "show only online devices" filter hides these.
   static bool _isOffline(_Poll? s) => s == null || s.state == 'shutdown';
 
-  Future<void> _updatePersistent(List<(String, _Poll?)> entries,
+  /// Roster order: by [_rank] when [autoArrange] is on (stable within a tier),
+  /// else the registry's own order, which is the dashboard's manual order.
+  List<(PrinterConfig, _Poll?)> _sortEntries(
+      List<(PrinterConfig, _Poll?)> entries, bool autoArrange) {
+    if (!autoArrange) return entries;
+    final ranked = [for (var i = 0; i < entries.length; i++) (i, entries[i])];
+    ranked.sort((a, b) {
+      final ra = _rank(a.$2.$2);
+      final rb = _rank(b.$2.$2);
+      return ra != rb ? ra.compareTo(rb) : a.$1.compareTo(b.$1);
+    });
+    return [for (final r in ranked) r.$2];
+  }
+
+  // ── Home-screen widget feed ────────────────────────────────────────────────
+
+  /// Write the fleet snapshot the Android home-screen widget renders (see
+  /// models/widget_snapshot.dart): every printer in [entries]' order, each
+  /// with the roster's own state word and the card's remaining / finish
+  /// strings, so the widget agrees with the notification to the character.
+  Future<void> _publishWidget(List<(PrinterConfig, _Poll?)> entries,
+      {required bool monitoring}) async {
+    final printers = [for (final e in entries) _widgetPrinter(e.$1, e.$2)];
+    await WidgetFeed.publish(WidgetSnapshot(
+      updatedAt:  DateTime.now().millisecondsSinceEpoch,
+      monitoring: monitoring,
+      printers:   printers,
+      featured:   pickFeaturedIndex(printers),
+      strings:    WidgetFeed.templates(_l),
+    ));
+  }
+
+  /// One printer's widget row from its poll. The raw [WidgetPrinter.state]
+  /// is normalised to what the colour and the rank key off ('offline' for
+  /// unreachable / shut down, 'heating' while warming, 'waiting' for the
+  /// reachable-but-silent placeholder); the label is the roster's word, except
+  /// that a printer the phone cannot reach at all reads "Powered off" on the
+  /// widget (Paul's wording; the tiles keep "Offline"). A Klipper that is
+  /// reachable but shut down keeps the roster's "Offline".
+  WidgetPrinter _widgetPrinter(PrinterConfig p, _Poll? s) {
+    if (s == null) {
+      return WidgetPrinter(
+          id: p.id, name: p.name, state: 'offline', stateLabel: _l.widgetPoweredOff);
+    }
+    if (s.state == 'shutdown') {
+      return WidgetPrinter(
+          id: p.id, name: p.name, state: 'offline', stateLabel: _rosterLabel(s));
+    }
+    final active = s.state == 'printing' || s.state == 'paused';
+    final rem    = _remainingSeconds(s);
+    final file   = s.filename;
+    final layers = active &&
+            s.currentLayer != null &&
+            (s.totalLayer ?? 0) > 0
+        ? _l.singleLayer(s.currentLayer!, s.totalLayer!)
+        : null;
+    return WidgetPrinter(
+      id:             p.id,
+      name:           p.name,
+      state:          _warming(s) ? 'heating' : s.state,
+      stateLabel:     _rosterLabel(s),
+      progress:       active ? s.progress : 0,
+      remainingSec:   rem?.round(),
+      remainingLabel: rem == null ? null : '~${_formatRemaining(rem)}',
+      finishClock:    rem == null ? null : _formatFinishClock(rem),
+      filename:       active && file != null && file.isNotEmpty
+          ? file.split('/').last
+          : null,
+      layerLabel:     layers,
+      hotend:         s.hotend,
+      hotendTarget:   s.hotendTarget,
+      bed:            s.bed,
+      bedTarget:      s.bedTarget,
+      chamber:        s.chamberTemp,
+    );
+  }
+
+  /// One-shot poll for the widget's refresh glyph (service off): the same
+  /// set-up onStart does for what the poll needs - Supabase for the access
+  /// tokens, the locale, the clock format - then every printer once and a
+  /// snapshot, still `monitoring: false`. No notifications are touched: the
+  /// cards and alerts belong to the running service alone.
+  Future<void> refreshWidgetOnce() async {
+    try {
+      await SupabaseService.instance.initialize();
+    } catch (e) {
+      _log('Supabase init failed for widget refresh: $e');
+    }
+    _l = await _loadL10n();
+    try {
+      await initializeDateFormatting();
+    } catch (_) {}
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      _localOnly        = prefs.getBool(kLocalOnlyKey) ?? false;
+      final autoArrange = prefs.getBool(kAutoArrangeByStatusKey) ?? true;
+      await PrinterRegistry.instance.load();
+      await _refreshLiveness();
+      final entries = <(PrinterConfig, _Poll?)>[];
+      for (final p in PrinterRegistry.instance.printers) {
+        entries.add((p, await _poll(p)));
+      }
+      await _publishWidget(_sortEntries(entries, autoArrange),
+          monitoring: false);
+    } catch (e) {
+      _log('widget refresh failed: $e');
+    }
+  }
+
+  Future<void> _updatePersistent(List<(PrinterConfig, _Poll?)> entries,
       {bool noneOnline = false}) async {
     final String title;
     final String text;
@@ -579,14 +698,15 @@ class _PrintTaskHandler extends TaskHandler {
       text = noneOnline ? _l.printNotifWatching : _l.printNotifNoPrinters;
     } else if (entries.length == 1) {
       // Single printer: emoji + full status on the title line.
-      title = _statusLine(entries.first.$1, entries.first.$2, withEmoji: true);
+      title = _statusLine(entries.first.$1.name, entries.first.$2,
+          withEmoji: true);
       text = '';
     } else {
       // Collapsed glance = just the status emojis (one per printer, in order).
       // Expanded body = the full per-printer lines, with NO repeated emoji so
       // it reads cleanly rather than busy.
       title = entries.map((e) => _emoji(e.$2)).join(' ');
-      text = entries.map((e) => _statusLine(e.$1, e.$2)).join('\n');
+      text = entries.map((e) => _statusLine(e.$1.name, e.$2)).join('\n');
     }
     await FlutterForegroundTask.updateService(
       notificationTitle: title,
@@ -827,6 +947,9 @@ class _PrintTaskHandler extends TaskHandler {
 
       final state    = (printStats['state'] as String?) ?? 'standby';
       final filename = printStats['filename'] as String?;
+      // `print_stats.info.current_layer` / `total_layer` - set by the slicer's
+      // SET_PRINT_STATS_INFO calls; absent otherwise. The widget's layer line.
+      final layerInfo = printStats['info'] as Map<String, dynamic>?;
 
       // File-relative progress, matching Mainsail and the dashboard (shared
       // computePrintProgress). Needs the gcode byte offsets from file metadata;
@@ -910,6 +1033,8 @@ class _PrintTaskHandler extends TaskHandler {
         chamberTemp:      (chamber?['temperature'] as num?)?.toDouble() ?? 0,
         chamberTarget:    (chamber?['target']      as num?)?.toDouble() ?? 0,
         toolheads:        toolheads,
+        currentLayer:     (layerInfo?['current_layer'] as num?)?.toInt(),
+        totalLayer:       (layerInfo?['total_layer']   as num?)?.toInt(),
       );
     } catch (_) {
       return null;
@@ -1855,6 +1980,11 @@ class _Poll {
   /// chip.
   final List<ToolheadTemp> toolheads;
 
+  /// `print_stats.info.current_layer` / `total_layer` when the slicer reports
+  /// them (SET_PRINT_STATS_INFO). Null otherwise. The widget's layer line.
+  final int? currentLayer;
+  final int? totalLayer;
+
   /// True when this came from a real /status read (a genuine Klipper state).
   /// False for the synthesized "reachable but /status didn't answer" Idle
   /// placeholder - those must never drive a state-change alert (see _tick).
@@ -1877,6 +2007,8 @@ class _Poll {
     this.chamberTemp = 0,
     this.chamberTarget = 0,
     this.toolheads = const [],
+    this.currentLayer,
+    this.totalLayer,
     this.live = true,
   });
 

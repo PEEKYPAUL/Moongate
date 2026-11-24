@@ -41,6 +41,10 @@ const Map<String, String> _excluded = {
   // Carried elsewhere / meaningless off-device.
   'moongate_printers':          'the printer list rides the backup envelope itself',
   'dashboard_background_path':  'device-local file path; the image cannot ride a JSON backup',
+  // The home-screen widget's feed (home_widget's own prefs file, not ours):
+  // a render cache the notification service rewrites every poll.
+  'fleet_snapshot':             'widget render cache, rewritten every poll',
+  'widget_strings':             'widget render cache, rewritten at every app start',
 };
 
 /// The idioms preference keys are written in across lib/: `_fooKey = '…'`
