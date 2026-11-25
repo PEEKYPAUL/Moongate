@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.9.82",
+    "bullets": [
+      "Fixes 0.9.81 forgetting its cloud account when the app was opened again after an hour or more away, which made every printer show offline and ask to be paired again",
+      "A busy or briefly unavailable server no longer counts as a lost account: the app keeps its session and tries again"
+    ]
+  },
+  {
     "version": "v0.9.81",
     "bullets": [
       "Fixes printers showing offline on the dashboard while the printer page still works: the app no longer loses its cloud account when print notifications are on",

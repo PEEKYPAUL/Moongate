@@ -54,6 +54,12 @@ class DiagnosticsService {
       'identity_lost': sb.identityLost.value,
       if (sb.previousUserId != null) 'previous_user_id': sb.previousUserId,
       'session_expires_at': sb.sessionExpiresAt?.toIso8601String(),
+      // v0.9.82: a refresh the server did not finally reject is held and
+      // retried instead of being read as a lost identity.
+      'session_recovery_pending': sb.recoveryPending,
+      // The session handling's own trace (last 60 events, UTC clock), the
+      // only way to read what happened on a release build.
+      'session_events': sb.recentEvents,
       'cloud_printer_count': await _cloudPrinterCount(),
     };
 
