@@ -61,7 +61,7 @@ Free, source-available **iPhone and Android** control for your **Klipper 3D prin
 - **Home-screen widget (Android)** - live printer status on your home screen in the size you pick, from a 2x2 progress ring to a 4x4 list of every printer; fed by the print notifications, so it costs no extra battery.
 - **Lighting** - a bulb on the tile drives your light macros and shows the real on/off state.
 - **App lock** - PIN or biometric, auto-lock, screenshot protection. Off by default.
-- **Themes and layout** - light, dark or custom colours and background, Material You on Android, a 36-font picker, an optional icon colour, 1-3 columns, landscape.
+- **Themes and layout** - light, dark or custom colours and background, Material You on Android, a 36-font picker, an optional icon colour, 1-3 columns, and landscape whenever your phone's auto-rotate is on (a menu switch locks portrait).
 - **9 languages** - English, German, French, Spanish, Italian, Chinese, Russian, Polish and Brazilian Portuguese.
 - **Backup and restore** - move to a new phone and your printers come back with no re-pairing.
 - **In-app updates** - the early-access APK updates itself, and a tile badge updates the printer's plugin from your phone.
