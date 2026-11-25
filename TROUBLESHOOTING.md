@@ -566,11 +566,13 @@ Before v0.4.2 the cloud row could be orphaned by a fresh app install (new anonym
 
 **Fix:**
 
-1. Update to **v0.9.81 or newer** first - it stops the account being lost again, and from now on the dashboard shows a banner ("Moongate lost its cloud account...") if it ever happens.
+1. Update to **v0.9.82 or newer** first. v0.9.81 stopped the original cause but could itself lose the account on the first open after an hour or more away (it showed the red "Moongate lost its cloud account" banner straight after updating); v0.9.82 closes that too. From v0.9.81 on the dashboard shows that banner if the account is ever lost, instead of a silent wall of offline tiles.
 2. Re-pair each printer: on the Pi run `MOONGATE_RESET_OWNER`, then `MOONGATE_PAIR`, and scan the QR (or type the GATE code) from **+** in the app.
 3. A config backup only helps if it was made **before** the account was lost - a backup taken afterwards carries a restore code for the new, empty account and reconnects nothing (the app says so after the restore).
 
-If you file a bug report from the app, the diagnostics now say outright whether the account was lost and how many printers the cloud returns for it, so the maintainer can re-home your printers for you without a re-pair.
+If you file a bug report from the app, the diagnostics now say outright whether the account was lost, how many printers the cloud returns for it, and (v0.9.82) the last 60 things the app's session handling did, so the maintainer can re-home your printers for you without a re-pair.
+
+**Saw the red banner once on v0.9.81, then updated?** The account it lost is gone for good; the steps above still apply. The banner's "Got it" only hides it for that run.
 
 ## All tiles offline after reinstalling the app (or a new phone)
 
