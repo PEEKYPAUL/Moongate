@@ -93,7 +93,31 @@ class SupabaseService {
   /// The user id that was lost (for the bug-report diagnostics), or null.
   String? previousUserId;
 
-  void _log(String msg) => dev.log(msg, name: 'MOONGATE/SUPABASE');
+  /// The last [_eventKeep] session events, newest last, for the bug report
+  /// (`cloud.session_events`). Release builds drop `dev.log`, so this is the
+  /// only trace of what the session handling actually did on a user's phone.
+  static const _eventKeep = 60;
+  final List<String> _events = <String>[];
+  List<String> get recentEvents => List.unmodifiable(_events);
+
+  void _log(String msg) {
+    dev.log(msg, name: 'MOONGATE/SUPABASE');
+    final t = DateTime.now().toUtc().toIso8601String().substring(11, 19);
+    _events.add('$t $msg');
+    if (_events.length > _eventKeep) _events.removeAt(0);
+  }
+
+  static String _tok(String? t) =>
+      t == null ? 'none' : (t.length > 6 ? t.substring(0, 6) : t);
+  static String _exp(int? e) => e == null
+      ? 'no-exp'
+      : DateTime.fromMillisecondsSinceEpoch(e * 1000, isUtc: true)
+          .toIso8601String()
+          .substring(11, 19);
+  static String _describe(_PersistedSession? s) => s == null
+      ? 'nothing on disk'
+      : 'token ${_tok(s.facts.refreshToken)} exp ${_exp(s.facts.expiresAt)} '
+          'user ${(s.facts.userId ?? '?').substring(0, 8)}';
 
   /// Initialise the Supabase client and ensure there's an authenticated
   /// session. Idempotent - safe to call from main() and re-call after
@@ -119,7 +143,9 @@ class SupabaseService {
     // opened again after an hour away: a new anonymous user, every printer
     // orphaned. The snapshot keeps the refresh token so the session is
     // refreshed below instead.
-    final snapshot = await _readPersistedSession();
+    var snapshot = await _readPersistedSession();
+    _log('init(${allowSignIn ? 'ui' : 'background'}): on disk = '
+        '${_describe(snapshot)}');
     await Supabase.initialize(
       url: _supabaseUrl,
       publishableKey: _supabaseAnonKey,
@@ -144,9 +170,26 @@ class SupabaseService {
           Timer.periodic(_refreshEvery, (_) => ensureFreshSession().ignore());
     }
 
-    switch (SessionRefreshPolicy.startupAction(
+    if (client.auth.currentSession == null &&
+        snapshot?.facts.refreshToken == null) {
+      // Nothing on disk at the first read. Another isolate (the widget job,
+      // the notification service) may be mid-recovery: the library deletes
+      // the copy, then that isolate puts it back a moment later. Look again
+      // before reading this as a brand-new install.
+      for (var i = 0; i < 4 && snapshot?.facts.refreshToken == null; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        snapshot = await _readPersistedSession();
+      }
+      if (snapshot?.facts.refreshToken != null) {
+        _log('A copy appeared on disk after the library booted: '
+            '${_describe(snapshot)}');
+      }
+    }
+    final action = SessionRefreshPolicy.startupAction(
         libraryRecovered:     client.auth.currentSession != null,
-        snapshotRefreshToken: snapshot?.facts.refreshToken)) {
+        snapshotRefreshToken: snapshot?.facts.refreshToken);
+    _log('startup: ${action.name}');
+    switch (action) {
       case StartupAction.useRecovered:
         _log('Existing session, user_id=${client.auth.currentUser?.id}');
         _lastKnown = _snapshotOf(client.auth.currentSession);
@@ -157,17 +200,17 @@ class SupabaseService {
         await ensureFreshSession();
         return;
       case StartupAction.refreshSnapshot:
+        // The library dropped the expired copy; refresh it from its token.
+        // Not awaited: offline this can retry for ~30 s and main() waits on
+        // initialize() before the first frame. The dashboard shows the
+        // reconnecting banner until it lands; [_pendingRecovery] keeps the
+        // copy for the 30 s passes meanwhile.
+        _pendingRecovery = snapshot;
         _log('Persisted session had expired - refreshing it instead of '
             'starting over');
-        await _refreshFrom(snapshot!);
-        if (client.auth.currentSession != null) {
-          await _rememberUid();
-        } else if (_pendingRecovery != null) {
-          // Not a loss: the token is kept for the next pass.
-          _log('Session recovery deferred');
-        }
-        // A final rejection was handled inside _refreshFrom (a new identity
-        // in the UI isolate, nothing in a background one).
+        unawaited(_refreshFrom(snapshot!).then((_) async {
+          if (client.auth.currentSession != null) await _rememberUid();
+        }));
         return;
       case StartupAction.noSession:
         break;
@@ -267,6 +310,8 @@ class SupabaseService {
               SessionRefreshPolicy.shouldAdopt(mine: s.facts, stored: latest.facts))
           ? latest
           : s;
+      _log('recover: using ${_describe(use)}'
+          '${identical(use, s) ? '' : ' (newer than ${_tok(s.facts.refreshToken)})'}');
       var recovered = false;
       if (!SessionRefreshPolicy.isExpired(session: use.facts, now: DateTime.now())) {
         try {
@@ -339,6 +384,7 @@ class SupabaseService {
       _pendingRecovery = s;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_persistKey, s.raw);
+      _log('kept for retry: ${_describe(s)}');
     } catch (e) {
       _pendingRecovery = s;
       _log('Could not keep the session for retry: $e');
@@ -432,6 +478,8 @@ class SupabaseService {
         previousUserId = old;
         identityLost.value = true;
         _log('Cloud identity lost (was $old)');
+      } else {
+        _log('No identity remembered - first run');
       }
     } catch (_) {}
   }
