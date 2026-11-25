@@ -58,6 +58,31 @@ class SupabaseService {
   Future<void>? _refreshing;
   bool          _signInAllowed = true;
 
+  // ── Recovery (v0.9.82) ────────────────────────────────────────────────────
+  // gotrue-dart drops its session on its own in two places when auto-refresh
+  // is off: recoverSession() on a copy whose access token has EXPIRED (what
+  // supabase_flutter runs at every cold start), and _doRefresh() on ANY
+  // non-network rejection, a 429 rate limit included. Both also delete the
+  // persisted copy. 0.9.81 read either as "signed out" and minted a new
+  // anonymous user, orphaning every printer. Now the copy is kept and the
+  // session put back from its refresh token; only an explicit "token / session
+  // / user no longer exists" from the server counts as a loss.
+  //
+  // A copy we still believe in after a refresh the server did not finally
+  // reject, held for the next pass.
+  _PersistedSession? _pendingRecovery;
+  // The newest session this isolate has held, for the sign-out watcher.
+  _PersistedSession? _lastKnown;
+  // True while a recovery of our own is in flight (the watcher stands back).
+  bool _recovering = false;
+  // True while [deleteAccount] signs out on purpose: that one is not a loss.
+  bool _deliberateSignOut = false;
+  StreamSubscription<AuthState>? _authSub;
+
+  /// True while a refresh the server did not finally reject is waiting to be
+  /// retried (diagnostics).
+  bool get recoveryPending => _pendingRecovery != null;
+
   /// True once this install's cloud identity was found to be gone (no
   /// persisted session where there used to be one, or a refresh the server
   /// definitively rejected). The app then signs in as a NEW anonymous user so
@@ -87,6 +112,14 @@ class SupabaseService {
   }) async {
     if (_initialized) return;
     _signInAllowed = allowSignIn;
+    // Read the persisted copy BEFORE the library boots. supabase_flutter hands
+    // it to gotrue-dart's recoverSession, which - with auto-refresh off - SIGNS
+    // OUT a session whose access token has expired instead of refreshing it,
+    // and deletes it from storage. That is what 0.9.81 did to every install
+    // opened again after an hour away: a new anonymous user, every printer
+    // orphaned. The snapshot keeps the refresh token so the session is
+    // refreshed below instead.
+    final snapshot = await _readPersistedSession();
     await Supabase.initialize(
       url: _supabaseUrl,
       publishableKey: _supabaseAnonKey,
@@ -104,20 +137,40 @@ class SupabaseService {
       authOptions: const FlutterAuthClientOptions(autoRefreshToken: false),
     );
     _initialized = true;
+    _watchLibrarySignOuts();
     _refreshTimer?.cancel();
     if (keepFresh) {
       _refreshTimer =
           Timer.periodic(_refreshEvery, (_) => ensureFreshSession().ignore());
     }
 
-    if (client.auth.currentSession != null) {
-      _log('Existing session, user_id=${client.auth.currentUser?.id}');
-      signedIn.value = true;
-      await _rememberUid();
-      // Expired while the app was closed? Bring it up to date now (adopting a
-      // newer persisted copy first), before the dashboard's first poll.
-      await ensureFreshSession();
-      return;
+    switch (SessionRefreshPolicy.startupAction(
+        libraryRecovered:     client.auth.currentSession != null,
+        snapshotRefreshToken: snapshot?.facts.refreshToken)) {
+      case StartupAction.useRecovered:
+        _log('Existing session, user_id=${client.auth.currentUser?.id}');
+        _lastKnown = _snapshotOf(client.auth.currentSession);
+        signedIn.value = true;
+        await _rememberUid();
+        // About to expire? Bring it up to date now (adopting a newer persisted
+        // copy first), before the dashboard's first poll.
+        await ensureFreshSession();
+        return;
+      case StartupAction.refreshSnapshot:
+        _log('Persisted session had expired - refreshing it instead of '
+            'starting over');
+        await _refreshFrom(snapshot!);
+        if (client.auth.currentSession != null) {
+          await _rememberUid();
+        } else if (_pendingRecovery != null) {
+          // Not a loss: the token is kept for the next pass.
+          _log('Session recovery deferred');
+        }
+        // A final rejection was handled inside _refreshFrom (a new identity
+        // in the UI isolate, nothing in a background one).
+        return;
+      case StartupAction.noSession:
+        break;
     }
     if (!allowSignIn) {
       _log('No persisted session in this isolate; sign-in is the UI\'s job');
@@ -142,36 +195,189 @@ class SupabaseService {
   Future<void> _ensureFreshSession() async {
     if (!_initialized) return;
     final auth = client.auth;
+    final pending = _pendingRecovery;
+    if (pending != null && auth.currentSession == null) {
+      await _refreshFrom(pending);
+      return;
+    }
+    // What we present to the server, for the rejection path.
+    _PersistedSession? attempted;
     try {
       final stored = await _readPersistedSession();
-      if (SessionRefreshPolicy.shouldAdopt(
-          mine: _facts(auth.currentSession), stored: stored?.facts)) {
-        _log('Adopting the session another isolate persisted');
-        // Refreshes inside gotrue when the stored copy itself has expired.
-        await auth.recoverSession(stored!.raw);
-        // recoverSession stays silent when the user id is unchanged, and
-        // Realtime only learns new tokens from auth events - hand it over.
-        final s = auth.currentSession;
-        if (s != null) await client.realtime.setAuth(s.accessToken);
+      final now    = DateTime.now();
+      switch (SessionRefreshPolicy.adoptAction(
+          mine: _facts(auth.currentSession), stored: stored?.facts, now: now)) {
+        case AdoptAction.none:
+          break;
+        case AdoptAction.recover:
+          _log('Adopting the session another isolate persisted');
+          attempted = stored;
+          await auth.recoverSession(stored!.raw);
+          await _handOverToRealtime();
+        case AdoptAction.refreshWithToken:
+          // recoverSession would sign an EXPIRED copy out (auto-refresh is
+          // off) - refresh from its token instead.
+          _log('Adopting an expired copy another isolate persisted - '
+              'refreshing it');
+          attempted = stored;
+          await auth.setSession(stored!.facts.refreshToken!);
+          await _handOverToRealtime();
       }
       if (SessionRefreshPolicy.needsRefresh(
           session: _facts(auth.currentSession),
-          now: DateTime.now(),
-          margin: _refreshMargin)) {
+          now:     now,
+          margin:  _refreshMargin)) {
         _log('Refreshing the access token');
+        attempted = _snapshotOf(auth.currentSession);
         await auth.refreshSession();
       }
-      if (auth.currentSession != null && !signedIn.value) {
-        signedIn.value = true;
+      final cur = auth.currentSession;
+      if (cur != null) {
+        _pendingRecovery = null;
+        _lastKnown       = _snapshotOf(cur);
+        if (!signedIn.value) signedIn.value = true;
       }
     } on AuthRetryableFetchException catch (e) {
+      // gotrue keeps its session on a network failure; the next pass retries.
       _log('Refresh deferred (network): ${e.message}');
     } on AuthException catch (e) {
-      _log('Refresh rejected: ${e.code} ${e.message}');
-      await _onSessionLost();
+      if (attempted == null) {
+        _log('Session check failed: ${e.code} ${e.message}');
+        return;
+      }
+      await _onRefreshRejected(e, attempted: attempted);
     } catch (e) {
       _log('ensureFreshSession error: $e');
     }
+  }
+
+  /// Refresh the session from [s] - the copy gotrue-dart dropped or would
+  /// drop. A LIVE copy is recovered as-is first (no network); an expired one,
+  /// or a copy recoverSession refuses, is refreshed from its refresh token.
+  /// Never throws: a final rejection ends in [_onSessionLost], anything else
+  /// keeps the copy for a later pass.
+  Future<void> _refreshFrom(_PersistedSession s) async {
+    final auth = client.auth;
+    _recovering = true;
+    try {
+      // Another isolate may have rotated this very token moments ago and
+      // persisted the result - prefer that over presenting a used token.
+      final latest = await _readPersistedSession();
+      final use = (latest != null &&
+              SessionRefreshPolicy.shouldAdopt(mine: s.facts, stored: latest.facts))
+          ? latest
+          : s;
+      var recovered = false;
+      if (!SessionRefreshPolicy.isExpired(session: use.facts, now: DateTime.now())) {
+        try {
+          await auth.recoverSession(use.raw);
+          recovered = auth.currentSession != null;
+        } on AuthException catch (e) {
+          _log('recoverSession refused the copy (${e.code}) - refreshing instead');
+        }
+      }
+      if (!recovered) await auth.setSession(use.facts.refreshToken!);
+      _pendingRecovery = null;
+      final cur = auth.currentSession;
+      if (cur != null) {
+        _lastKnown = _snapshotOf(cur);
+        await _handOverToRealtime();
+        signedIn.value = true;
+        _log('Session recovered, user_id=${cur.user.id}');
+      }
+    } on AuthRetryableFetchException catch (e) {
+      _log('Recovery deferred (network): ${e.message}');
+      await _keepForRetry(s);
+    } on AuthException catch (e) {
+      await _onRefreshRejected(e, attempted: s);
+    } catch (e) {
+      _log('Recovery error: $e');
+      await _keepForRetry(s);
+    } finally {
+      _recovering = false;
+    }
+  }
+
+  /// The server rejected a refresh with [attempted]. Only an explicit "this
+  /// token / session / user no longer exists" is a loss - and even then
+  /// another isolate may have rotated our token and persisted the child, so
+  /// that is tried first. Everything else (a 429, an unknown code) keeps the
+  /// copy for a later pass.
+  Future<void> _onRefreshRejected(AuthException e,
+      {required _PersistedSession attempted}) async {
+    final verdict = SessionRefreshPolicy.classifyRejection(
+        code: e.code, message: e.message, statusCode: e.statusCode);
+    if (verdict == RefreshVerdict.retryLater) {
+      _log('Refresh rejected but not final (${e.statusCode} ${e.code}): '
+          'keeping the session for a later pass');
+      await _keepForRetry(attempted);
+      return;
+    }
+    final latest = await _readPersistedSession();
+    if (latest?.facts.refreshToken != null &&
+        latest!.facts.refreshToken != attempted.facts.refreshToken) {
+      _log('Our token was superseded by another isolate - trying its session');
+      await _refreshFrom(latest);
+      return;
+    }
+    _log('Refresh rejected for good: ${e.statusCode} ${e.code} ${e.message}');
+    _pendingRecovery = null;
+    await _onSessionLost();
+  }
+
+  /// Hold [s] for the next pass and put it back on disk (gotrue has deleted
+  /// its copy) - unless another isolate has meanwhile persisted something
+  /// newer, which is then what the next pass should use.
+  Future<void> _keepForRetry(_PersistedSession s) async {
+    try {
+      final current = await _readPersistedSession();
+      if (current != null &&
+          SessionRefreshPolicy.shouldAdopt(mine: s.facts, stored: current.facts)) {
+        _pendingRecovery = current;
+        return;
+      }
+      _pendingRecovery = s;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_persistKey, s.raw);
+    } catch (e) {
+      _pendingRecovery = s;
+      _log('Could not keep the session for retry: $e');
+    }
+  }
+
+  /// Catch every sign-out we did not ask for - gotrue-dart drops its session
+  /// by itself on an expired recoverSession and on any non-network refresh
+  /// rejection - and put the session back from the last copy we held. Stands
+  /// back while one of our own passes is already dealing with it.
+  void _watchLibrarySignOuts() {
+    _authSub?.cancel();
+    _authSub = client.auth.onAuthStateChange.listen((state) {
+      final s = state.session;
+      if (s != null) {
+        _lastKnown = _snapshotOf(s);
+        return;
+      }
+      if (state.event != AuthChangeEvent.signedOut) return;
+      if (_deliberateSignOut || _recovering || _refreshing != null) return;
+      final last = _lastKnown;
+      if (last?.facts.refreshToken == null) return;
+      _log('Library signed the session out (${state.signOutReason}) - recovering');
+      _lastKnown       = null;
+      _pendingRecovery = last;
+      scheduleMicrotask(() => ensureFreshSession().ignore());
+    }, onError: (Object e) => _log('auth stream: $e'));
+  }
+
+  // recoverSession stays silent when the user id is unchanged, and Realtime
+  // only learns new tokens from auth events - hand it over.
+  Future<void> _handOverToRealtime() async {
+    final s = client.auth.currentSession;
+    if (s != null) await client.realtime.setAuth(s.accessToken);
+  }
+
+  _PersistedSession? _snapshotOf(Session? s) {
+    if (s == null) return null;
+    return _PersistedSession(raw: jsonEncode(s.toJson()), facts: _facts(s)!);
   }
 
   static SessionFacts? _facts(Session? s) => s == null
@@ -208,7 +414,9 @@ class SupabaseService {
   /// the UI isolate only - start a fresh anonymous identity so the app keeps
   /// working; the dashboard banner explains the re-pair.
   Future<void> _onSessionLost() async {
-    signedIn.value = false;
+    signedIn.value  = false;
+    _pendingRecovery = null;
+    _lastKnown       = null;
     if (!_signInAllowed) return;
     await _detectIdentityLoss();
     _log('Session lost - signing in as a new anonymous user');
@@ -542,9 +750,16 @@ class SupabaseService {
   /// with an empty slate. Throws on failure so the UI can surface an error.
   Future<void> deleteAccount() async {
     await client.functions.invoke('delete-account');
-    // A deliberate new identity - not a loss, so no banner.
+    // A deliberate new identity - not a loss, so no banner and no recovery.
     await _forgetUid();
-    await client.auth.signOut();
+    _pendingRecovery  = null;
+    _lastKnown        = null;
+    _deliberateSignOut = true;
+    try {
+      await client.auth.signOut();
+    } finally {
+      _deliberateSignOut = false;
+    }
     signedIn.value = false;
     _log('Account deleted; signing in fresh anonymous identity');
     await _trySignIn();

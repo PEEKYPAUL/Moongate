@@ -2,6 +2,11 @@
 
 What changed in each Moongate release, newest first, in plain language. The full technical write-up of every change is in the pull request that shipped it (linked from each GitHub release) and in the commit history.
 
+## v0.9.82
+
+- Fixes 0.9.81 forgetting its cloud account when the app was opened again after an hour or more away, which made every printer show offline and ask to be paired again
+- A busy or briefly unavailable server no longer counts as a lost account: the app keeps its session and tries again
+
 ## v0.9.81
 
 - Fixes printers showing offline on the dashboard while the printer page still works: the app no longer loses its cloud account when print notifications are on

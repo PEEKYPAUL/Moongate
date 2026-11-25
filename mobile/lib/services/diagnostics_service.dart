@@ -54,6 +54,9 @@ class DiagnosticsService {
       'identity_lost': sb.identityLost.value,
       if (sb.previousUserId != null) 'previous_user_id': sb.previousUserId,
       'session_expires_at': sb.sessionExpiresAt?.toIso8601String(),
+      // v0.9.82: a refresh the server did not finally reject is held and
+      // retried instead of being read as a lost identity.
+      'session_recovery_pending': sb.recoveryPending,
       'cloud_printer_count': await _cloudPrinterCount(),
     };
 
