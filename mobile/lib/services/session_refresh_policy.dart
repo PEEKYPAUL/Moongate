@@ -21,9 +21,11 @@
 ///      really gone, or should we hold the token and try again later? Only an
 ///      explicit "this token / session / user no longer exists" counts as gone.
 ///      A rate limit or an unexpected error must never mint a new identity.
-///   4. [startupAction]: what to do once the library has booted - use the
-///      session it recovered, refresh the copy it threw away because it had
-///      expired, or (only with nothing on disk at all) start a new identity.
+///   4. [startupAction]: what to do with the copy on disk at start - recover
+///      a live one as-is, refresh an expired one from its token, or (only
+///      with nothing on disk at all) start a new identity. The library has no
+///      storage of its own any more, so its unawaited boot-time recovery can
+///      no longer sign out and delete the copy behind our back.
 ///
 /// Kept free of gotrue types so it is unit-testable in plain Dart.
 class SessionFacts {
@@ -60,12 +62,12 @@ enum RefreshVerdict {
   retryLater,
 }
 
-/// What to do right after the Supabase library has booted.
+/// What to do with the copy on disk at start (the library has no storage of
+/// its own any more, so the copy is Moongate's to bring back).
 enum StartupAction {
-  /// The library recovered a live session - carry on with it.
-  useRecovered,
-  /// The library dropped the persisted session as expired; refresh it from
-  /// the refresh token we read before the library ran.
+  /// A live copy: hand it to gotrue as-is, no network.
+  recoverSnapshot,
+  /// An expired copy: refresh it from its refresh token.
   refreshSnapshot,
   /// Nothing on disk at all: first run, or a deliberate sign-out.
   noSession,
@@ -176,16 +178,15 @@ class SessionRefreshPolicy {
     return RefreshVerdict.retryLater;
   }
 
-  /// Once the library has booted: [libraryRecovered] = it holds a session;
-  /// [snapshotRefreshToken] = the refresh token read from disk BEFORE it ran.
+  /// What to do with [snapshot], the copy read from disk at start.
   static StartupAction startupAction({
-    required bool    libraryRecovered,
-    required String? snapshotRefreshToken,
+    required SessionFacts? snapshot,
+    required DateTime      now,
   }) {
-    if (libraryRecovered) return StartupAction.useRecovered;
-    if (snapshotRefreshToken != null && snapshotRefreshToken.isNotEmpty) {
-      return StartupAction.refreshSnapshot;
-    }
-    return StartupAction.noSession;
+    final token = snapshot?.refreshToken;
+    if (token == null || token.isEmpty) return StartupAction.noSession;
+    return isExpired(session: snapshot, now: now)
+        ? StartupAction.refreshSnapshot
+        : StartupAction.recoverSnapshot;
   }
 }

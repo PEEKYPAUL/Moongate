@@ -200,25 +200,33 @@ void main() {
     });
   });
 
-  group('startupAction (paths 1 and 4: the library dropped an expired session)', () {
-    test('the library recovered a live session: use it', () {
-      expect(SessionRefreshPolicy.startupAction(libraryRecovered: true, snapshotRefreshToken: 'r1'),
-          StartupAction.useRecovered);
-      expect(SessionRefreshPolicy.startupAction(libraryRecovered: true, snapshotRefreshToken: null),
-          StartupAction.useRecovered);
+  group('startupAction (paths 1 and 4: the copy on disk is ours to bring back)', () {
+    test('a live copy is recovered as-is', () {
+      final live = facts('r1', now.add(const Duration(minutes: 40)));
+      expect(SessionRefreshPolicy.startupAction(snapshot: live, now: now),
+          StartupAction.recoverSnapshot);
     });
 
-    test('the 25/11 morning: no session after boot but a refresh token was on disk = refresh it', () {
-      // 0.9.81 signed out here and minted a new user; the printers were
-      // orphaned. 0.9.82 refreshes from the snapshot instead.
-      expect(SessionRefreshPolicy.startupAction(libraryRecovered: false, snapshotRefreshToken: 'r1'),
+    test('the 25/11 morning: an expired copy on disk is refreshed, never signed out', () {
+      // 0.9.81 let the library sign this out and minted a new user; the
+      // printers were orphaned. 0.9.82 refreshes from the copy instead.
+      final expired = facts('r1', now.subtract(const Duration(hours: 3)));
+      expect(SessionRefreshPolicy.startupAction(snapshot: expired, now: now),
+          StartupAction.refreshSnapshot);
+      // ...and a copy inside the margin counts as expired too.
+      final nearly = facts('r1', now.add(const Duration(seconds: 30)));
+      expect(SessionRefreshPolicy.startupAction(snapshot: nearly, now: now),
           StartupAction.refreshSnapshot);
     });
 
     test('nothing on disk at all is the only time a new identity is allowed', () {
-      expect(SessionRefreshPolicy.startupAction(libraryRecovered: false, snapshotRefreshToken: null),
+      expect(SessionRefreshPolicy.startupAction(snapshot: null, now: now),
           StartupAction.noSession);
-      expect(SessionRefreshPolicy.startupAction(libraryRecovered: false, snapshotRefreshToken: ''),
+      const noToken = SessionFacts(refreshToken: null, expiresAt: 1, userId: 'u1');
+      expect(SessionRefreshPolicy.startupAction(snapshot: noToken, now: now),
+          StartupAction.noSession);
+      const empty = SessionFacts(refreshToken: '', expiresAt: 1, userId: 'u1');
+      expect(SessionRefreshPolicy.startupAction(snapshot: empty, now: now),
           StartupAction.noSession);
     });
   });
