@@ -6,6 +6,7 @@ What changed in each Moongate release, newest first, in plain language. The full
 
 - A rotate button on the printer page holds it in landscape whatever your phone's auto-rotate says, so graphs, images and the camera get the full width; tap it again for portrait
 - Setting up lighting or power macros: type part of a name and the list narrows to the macros that match
+- The console button on the printer tile has its frame back
 
 ## v0.9.82
 
