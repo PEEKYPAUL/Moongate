@@ -42,7 +42,7 @@ MoongateApp                    (lib/app.dart - root widget, lifecycle observer)
 │   ├─ fontScaleProvider       (0.8 - 1.4)
 │   ├─ appFontProvider         (selected bundled font id; 36-option picker)
 │   ├─ gridColumnsProvider     (1 / 2 / 3)
-│   ├─ allowRotationProvider   (bool; pins SystemChrome orientations)
+│   ├─ allowRotationProvider   (bool; pins SystemChrome orientations via orientationsForRotation; the camera view and the printer page's rotate button override per screen and restore on close)
 │   ├─ updateProvider          (one-shot GitHub release check)
 │   └─ appVersionProvider      (PackageInfo lookup)
 └─ GoRouter
