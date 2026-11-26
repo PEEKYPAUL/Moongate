@@ -80,7 +80,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lightingPickStatusSource => '选择状态来源';
 
   @override
-  String get lightingManualHint => '输入准确名称';
+  String get lightingManualHint => '输入以筛选，或输入名称';
+
+  @override
+  String get lightingNoMatch => '没有匹配项';
 
   @override
   String get lightingClear => '清除';
@@ -1298,6 +1301,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get printerCameraTooltip => '摄像头';
+
+  @override
+  String get printerRotateTooltip => '旋转屏幕';
 
   @override
   String get cameraConnecting => '正在连接摄像头…';

@@ -60,7 +60,7 @@ class AppIcons {
   static const IconData visibility_outlined = IconData(0xF06D0, fontFamily: _family); // mdi:eye-outline
   static const IconData videocam_off_outlined = IconData(0xF0BDB, fontFamily: _family); // mdi:video-off-outline
   static const IconData videocam_off = IconData(0xF0568, fontFamily: _family); // mdi:video-off
-  static const IconData terminal_rounded = IconData(0xF07B7, fontFamily: _family); // mdi:console-line
+  static const IconData terminal_rounded = IconData(0xF018D, fontFamily: _family); // mdi:console (the boxed >_ , like the old Material terminal glyph; console-line lost the frame)
   static const IconData system_update_alt = IconData(0xF01DA, fontFamily: _family); // mdi:download
   static const IconData playlist_play = IconData(0xF0411, fontFamily: _family); // mdi:playlist-play
   static const IconData lightbulb = IconData(0xF0335, fontFamily: _family); // mdi:lightbulb

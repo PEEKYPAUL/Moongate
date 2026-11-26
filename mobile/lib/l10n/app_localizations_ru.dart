@@ -82,7 +82,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get lightingPickStatusSource => 'Выберите источник состояния';
 
   @override
-  String get lightingManualHint => 'Введите точное имя';
+  String get lightingManualHint => 'Введите текст для фильтра или имя';
+
+  @override
+  String get lightingNoMatch => 'Совпадений нет';
 
   @override
   String get lightingClear => 'Очистить';
@@ -1370,6 +1373,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get printerCameraTooltip => 'Камера';
+
+  @override
+  String get printerRotateTooltip => 'Повернуть экран';
 
   @override
   String get cameraConnecting => 'Подключение к камере…';

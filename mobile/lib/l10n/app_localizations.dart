@@ -250,11 +250,17 @@ abstract class AppLocalizations {
   /// **'Select the light status pin'**
   String get lightingPickStatusSource;
 
-  /// Label of the manual-entry field in the macro/object picker dialog.
+  /// Label of the filter / manual-entry field at the top of the macro/object picker dialog.
   ///
   /// In en, this message translates to:
-  /// **'Type the exact name'**
+  /// **'Type to filter, or enter a name'**
   String get lightingManualHint;
+
+  /// Shown in the macro/object picker when the typed filter matches none of the live entries.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing matches'**
+  String get lightingNoMatch;
 
   /// Button that clears a selected macro/object.
   ///
@@ -2505,6 +2511,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Camera'**
   String get printerCameraTooltip;
+
+  /// Tooltip on the printer detail screen's app-bar button that holds the page in landscape; tapping again returns to the app's rotation setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Rotate screen'**
+  String get printerRotateTooltip;
 
   /// Shown on the full-screen camera view while the first status poll is in flight.
   ///

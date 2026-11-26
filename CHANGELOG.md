@@ -2,6 +2,12 @@
 
 What changed in each Moongate release, newest first, in plain language. The full technical write-up of every change is in the pull request that shipped it (linked from each GitHub release) and in the commit history.
 
+## v0.9.83
+
+- A rotate button on the printer page holds it in landscape whatever your phone's auto-rotate says, so graphs, images and the camera get the full width; tap it again for portrait
+- Setting up lighting or power macros: type part of a name and the list narrows to the macros that match
+- The console button on the printer tile has its frame back
+
 ## v0.9.82
 
 - Fixes 0.9.81 forgetting its cloud account when the app was opened again after an hour or more away, which made every printer show offline and ask to be paired again
