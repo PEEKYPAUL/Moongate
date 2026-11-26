@@ -286,20 +286,23 @@ class AllowRotationNotifier extends Notifier<bool> {
   }
 
   Future<void> _applyOrientation(bool allow) =>
-      SystemChrome.setPreferredOrientations(
-        allow
-            ? [
-                DeviceOrientation.portraitUp,
-                DeviceOrientation.portraitDown,
-                DeviceOrientation.landscapeLeft,
-                DeviceOrientation.landscapeRight,
-              ]
-            : [
-                DeviceOrientation.portraitUp,
-                DeviceOrientation.portraitDown,
-              ],
-      );
+      SystemChrome.setPreferredOrientations(orientationsForRotation(allow));
 }
+
+/// The orientations the app allows when "Rotate with device" is [allow]: the
+/// full set, or portrait only. Screens that force their own orientation for a
+/// while (the camera view, the printer page's rotate button) put this back.
+List<DeviceOrientation> orientationsForRotation(bool allow) => allow
+    ? const [
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]
+    : const [
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ];
 
 final allowRotationProvider = NotifierProvider<AllowRotationNotifier, bool>(
   AllowRotationNotifier.new,

@@ -84,7 +84,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get lightingPickStatusSource => 'Selecione o pino de estado da luz';
 
   @override
-  String get lightingManualHint => 'Digite o nome exato';
+  String get lightingManualHint => 'Digite para filtrar ou insira um nome';
+
+  @override
+  String get lightingNoMatch => 'Nenhuma correspondência';
 
   @override
   String get lightingClear => 'Limpar';
@@ -1374,6 +1377,9 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get printerCameraTooltip => 'Câmera';
+
+  @override
+  String get printerRotateTooltip => 'Girar tela';
 
   @override
   String get cameraConnecting => 'Conectando à câmera…';

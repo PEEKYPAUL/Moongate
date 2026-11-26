@@ -358,72 +358,108 @@ Future<({bool clear, String? value})?> _showTargetPicker(
   required List<String> options,
   required String? current,
 }) {
-  final manual = TextEditingController(text: current ?? '');
+  // One field, two jobs: typing narrows the live list to the entries that
+  // contain the text (any case), and Save / submit takes the text as a manual
+  // entry for a name the list does not carry (printer offline, or a macro the
+  // list missed). It starts empty so the full list shows; the current choice
+  // is ticked in the list and kept when Save is pressed with nothing typed.
+  final manual = TextEditingController();
   return showDialog<({bool clear, String? value})>(
     context: context,
     builder: (context) {
       final l     = AppLocalizations.of(context);
       final theme = Theme.of(context);
-      return AlertDialog(
-        title: Text(title),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (options.isNotEmpty)
-                Flexible(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 280),
-                    child: ListView(
-                      shrinkWrap: true,
-                      children: [
-                        for (final o in options)
-                          ListTile(
-                            dense: true,
-                            title: Text(o, overflow: TextOverflow.ellipsis),
-                            trailing: o == current
-                                ? Icon(AppIcons.check,
-                                    color: theme.colorScheme.primary)
-                                : null,
-                            onTap: () =>
-                                Navigator.pop(context, (clear: false, value: o)),
-                          ),
-                      ],
+      return StatefulBuilder(
+        builder: (context, setState) {
+          final needle  = manual.text.trim().toLowerCase();
+          final matches = needle.isEmpty
+              ? options
+              : [
+                  for (final o in options)
+                    if (o.toLowerCase().contains(needle)) o,
+                ];
+          void done() {
+            final typed = manual.text.trim();
+            Navigator.pop(
+                context, (clear: false, value: typed.isEmpty ? current : typed));
+          }
+          return AlertDialog(
+            title: Text(title),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    controller: manual,
+                    autocorrect: false,
+                    decoration: InputDecoration(
+                      labelText: l.lightingManualHint,
+                      hintText:  current,
+                      border:    const OutlineInputBorder(),
+                      isDense:   true,
                     ),
+                    onChanged:   (_) => setState(() {}),
+                    onSubmitted: (_) => done(),
                   ),
-                ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: manual,
-                autocorrect: false,
-                decoration: InputDecoration(
-                  labelText: l.lightingManualHint,
-                  border: const OutlineInputBorder(),
-                  isDense: true,
-                ),
-                onSubmitted: (v) => Navigator.pop(
-                    context, (clear: false, value: v.trim())),
+                  if (options.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Flexible(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 280),
+                        child: matches.isEmpty
+                            ? Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
+                                child: Text(
+                                  l.lightingNoMatch,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color:     theme.colorScheme.outline,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              )
+                            : ListView(
+                                shrinkWrap: true,
+                                children: [
+                                  for (final o in matches)
+                                    ListTile(
+                                      dense: true,
+                                      title: Text(o,
+                                          overflow: TextOverflow.ellipsis),
+                                      trailing: o == current
+                                          ? Icon(AppIcons.check,
+                                              color: theme.colorScheme.primary)
+                                          : null,
+                                      onTap: () => Navigator.pop(
+                                          context, (clear: false, value: o)),
+                                    ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () =>
+                    Navigator.pop(context, (clear: true, value: null)),
+                child: Text(l.lightingClear),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(l.commonCancel),
+              ),
+              FilledButton(
+                onPressed: done,
+                child: Text(l.commonSave),
               ),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, (clear: true, value: null)),
-            child: Text(l.lightingClear),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(
-                context, (clear: false, value: manual.text.trim())),
-            child: Text(l.commonSave),
-          ),
-        ],
+          );
+        },
       );
     },
   );

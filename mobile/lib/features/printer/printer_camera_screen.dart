@@ -25,22 +25,31 @@ import '../../widgets/app_icons.dart';
 /// the SAME resolved snapshot URL the dashboard tile uses: LAN-direct at home, or
 /// routed through the Pi's owner-token-gated `/mg-extcam` proxy when remote - so
 /// the external camera keeps working away from home.
-void showPrinterCameraOverlay(BuildContext context, PrinterConfig printer) {
+/// [restoreTo] is the orientation set to put back when the overlay closes;
+/// by default the app's "Rotate with device" setting. A caller holding its own
+/// orientation (the printer page's rotate button) passes that instead.
+void showPrinterCameraOverlay(
+  BuildContext context,
+  PrinterConfig printer, {
+  List<DeviceOrientation>? restoreTo,
+}) {
   showGeneralDialog(
     context: context,
     barrierDismissible: false,
     barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
     barrierColor: Colors.black,
     transitionDuration: const Duration(milliseconds: 180),
-    pageBuilder: (_, __, ___) => _PrinterCameraOverlay(printer: printer),
+    pageBuilder: (_, __, ___) =>
+        _PrinterCameraOverlay(printer: printer, restoreTo: restoreTo),
     transitionBuilder: (_, anim, __, child) =>
         FadeTransition(opacity: anim, child: child),
   );
 }
 
 class _PrinterCameraOverlay extends ConsumerStatefulWidget {
-  final PrinterConfig printer;
-  const _PrinterCameraOverlay({required this.printer});
+  final PrinterConfig            printer;
+  final List<DeviceOrientation>? restoreTo;
+  const _PrinterCameraOverlay({required this.printer, this.restoreTo});
 
   @override
   ConsumerState<_PrinterCameraOverlay> createState() =>
@@ -84,9 +93,10 @@ class _PrinterCameraOverlayState extends ConsumerState<_PrinterCameraOverlay> {
   void dispose() {
     _service.dispose();
     // Restore whatever the app's rotation setting was (portrait-locked unless
-    // the user enabled "Allow rotation").
+    // the user enabled "Allow rotation"), or the caller's own orientation.
     SystemChrome.setPreferredOrientations(
-      ref.read(allowRotationProvider) ? _allOrientations : _portraitOnly,
+      widget.restoreTo ??
+          (ref.read(allowRotationProvider) ? _allOrientations : _portraitOnly),
     );
     super.dispose();
   }

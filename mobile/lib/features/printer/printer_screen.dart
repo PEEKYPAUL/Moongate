@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +13,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/notif_fields.dart';
 import '../../models/printer_config.dart';
+import '../../providers/settings_provider.dart';
 import '../../services/lan_discovery_service.dart';
 import '../../services/printer_access_cache.dart';
 import '../../services/printer_registry.dart';
@@ -84,9 +87,19 @@ class _PrinterScreenState extends State<PrinterScreen>
   // immediately, without waiting for a dashboard rebuild.
   late String _displayName = widget.printer.name;
 
+  // The app-bar rotate button: while lit, this screen is held in landscape
+  // whatever the "Rotate with device" switch and the phone's own auto-rotate
+  // say (an S24 with auto-rotate on stayed in portrait here). Tapping again,
+  // or leaving the screen, puts the app's own setting back. The provider
+  // container is taken in initState so dispose() can read the setting without
+  // touching a deactivated context.
+  bool _forcedLandscape = false;
+  late final ProviderContainer _providers;
+
   @override
   void initState() {
     super.initState();
+    _providers = ProviderScope.containerOf(context, listen: false);
     WidgetsBinding.instance.addObserver(this);
     // Defer to after the first frame: _start() reads AppLocalizations.of(context)
     // synchronously, which can throw a null-check in initState before the
@@ -100,11 +113,29 @@ class _PrinterScreenState extends State<PrinterScreen>
   @override
   void dispose() {
     _retryTimer?.cancel();
+    if (_forcedLandscape) _restoreOrientation();
     // The WebViewController is intentionally NOT disposed here - it lives on in
     // [PrinterWebViewCache] so the next open is instant.
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
+
+  static const _landscapeOnly = [
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ];
+
+  void _toggleLandscape() {
+    setState(() => _forcedLandscape = !_forcedLandscape);
+    if (_forcedLandscape) {
+      SystemChrome.setPreferredOrientations(_landscapeOnly);
+    } else {
+      _restoreOrientation();
+    }
+  }
+
+  void _restoreOrientation() => SystemChrome.setPreferredOrientations(
+      orientationsForRotation(_providers.read(allowRotationProvider)));
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -394,7 +425,13 @@ class _PrinterScreenState extends State<PrinterScreen>
   void _openCamera() {
     _markCameraHintSeen();
     if (_showCameraHint) setState(() => _showCameraHint = false);
-    showPrinterCameraOverlay(context, widget.printer);
+    // The camera view restores an orientation on close: this screen's forced
+    // landscape while the rotate button is lit, else the app setting.
+    showPrinterCameraOverlay(
+      context,
+      widget.printer,
+      restoreTo: _forcedLandscape ? _landscapeOnly : null,
+    );
   }
 
   void _dismissCameraHint() {
@@ -618,6 +655,14 @@ class _PrinterScreenState extends State<PrinterScreen>
             icon: const Icon(AppIcons.videocam_outlined),
             tooltip: l.printerCameraTooltip,
             onPressed: _openCamera,
+          ),
+          // Hold the page in landscape (graphs, images, the camera panel all
+          // get the width); lit while forced, tap again for the app setting.
+          IconButton(
+            icon: const Icon(AppIcons.screen_rotation_outlined),
+            tooltip: l.printerRotateTooltip,
+            color: _forcedLandscape ? cs.primary : null,
+            onPressed: _toggleLandscape,
           ),
           IconButton(
             icon: const Icon(AppIcons.refresh),
