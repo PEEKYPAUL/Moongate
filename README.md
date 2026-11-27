@@ -46,7 +46,7 @@ Free, source-available **iPhone and Android** control for your **Klipper 3D prin
 
 - **Fleet dashboard** - every printer on one screen: live webcam, progress and time left, temperatures (hold the chamber reading to pick which sensor it shows), status. Sort by activity or drag your own order.
 - **Single-printer dashboard** - one printer full screen: camera, job, temperatures, macros, console, files and live X Y Z. Arrows step through your printers.
-- **Full Mainsail / Fluidd** - tap a tile for the complete web UI, kept loaded so it opens instantly, even over the tunnel.
+- **Full Mainsail / Fluidd** - tap a tile for the complete web UI, kept loaded so it opens instantly, even over the tunnel. Run both? A button on the printer page switches between them and remembers your pick (v0.9.84, plugin 0.6.32).
 - **Home and away, automatically** - home WiFi first, the secure tunnel when you're out. No port forwarding, no setup.
 - **Direct (LAN/VPN) mode** - cloud-free: the app talks straight to Moonraker, and away from home over your own WireGuard or Tailscale. [Compare the two modes ›](#run-it-your-way)
 - **Print controls** - pause, resume, stop, firmware restart, a double-tap emergency stop, and a power button for printers with a power device or power macro.
