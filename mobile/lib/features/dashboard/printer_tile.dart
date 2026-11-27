@@ -11,11 +11,13 @@ import '../../models/printer_config.dart';
 import '../../models/temp_watch.dart';
 import '../../providers/custom_theme_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../services/frontend_choice.dart';
 import '../../services/print_control_service.dart';
 import '../../services/print_progress.dart';
 import '../../services/printer_registry.dart';
 import '../../services/printer_status_registry.dart';
 import '../../services/printer_status_service.dart';
+import '../../services/printer_webview_cache.dart';
 import '../../widgets/adaptive_tool_button.dart';
 import '../../widgets/webcam_view.dart';
 import '../printer/printer_camera_screen.dart';
@@ -121,7 +123,8 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
     _controlService = PrintControlService(widget.printer);
     // Seed from persisted config so a cold launch can render the right
     // logo immediately - without waiting for the first detection round-trip.
-    _uiType = widget.printer.uiType;
+    // v0.9.84: the user's Mainsail / Fluidd pick outranks the sniff.
+    _uiType = effectiveUiType(widget.printer, null);
     _statusService.stream.listen((s) {
       // Record the latest live status for the bug-report diagnostics, even if
       // this tile is no longer mounted - it's the most useful triage signal.
@@ -143,8 +146,11 @@ class _PrinterTileState extends ConsumerState<PrinterTile>
       }
       setState(() {
         _status = s;
-        // Pick up UI type as soon as the service detects it.
-        final detected = _statusService.uiType;
+        // Pick up UI type as soon as the service detects it (the user's
+        // pick, read live, still wins: the sniff reads the default port).
+        final detected = effectiveUiType(
+            PrinterWebViewCache.livePrinterConfig(widget.printer),
+            _statusService.uiType);
         if (detected != null && detected != _uiType) _uiType = detected;
       });
     });

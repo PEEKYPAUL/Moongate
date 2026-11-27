@@ -2,6 +2,11 @@
 
 What changed in each Moongate release, newest first, in plain language. The full technical write-up of every change is in the pull request that shipped it (linked from each GitHub release) and in the commit history.
 
+## v0.9.84
+
+- Mainsail and Fluidd on the same printer: a new button on the printer page switches between them, at home and away, and the app remembers your pick per printer (needs plugin 0.6.32)
+- The printer page's subtitle names the interface you are on when there is more than one
+
 ## v0.9.83
 
 - A rotate button on the printer page holds it in landscape whatever your phone's auto-rotate says, so graphs, images and the camera get the full width; tap it again for portrait

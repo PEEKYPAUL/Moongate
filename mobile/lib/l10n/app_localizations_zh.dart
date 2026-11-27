@@ -1306,6 +1306,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get printerRotateTooltip => '旋转屏幕';
 
   @override
+  String printerSwitchUiTooltip(String name) {
+    return '切换到 $name';
+  }
+
+  @override
+  String get printerOpenWith => '打开方式';
+
+  @override
+  String printerUiPort(int port) {
+    return '端口 $port';
+  }
+
+  @override
   String get cameraConnecting => '正在连接摄像头…';
 
   @override

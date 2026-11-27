@@ -1378,6 +1378,19 @@ class AppLocalizationsRu extends AppLocalizations {
   String get printerRotateTooltip => 'Повернуть экран';
 
   @override
+  String printerSwitchUiTooltip(String name) {
+    return 'Переключиться на $name';
+  }
+
+  @override
+  String get printerOpenWith => 'Открыть в';
+
+  @override
+  String printerUiPort(int port) {
+    return 'порт $port';
+  }
+
+  @override
   String get cameraConnecting => 'Подключение к камере…';
 
   @override

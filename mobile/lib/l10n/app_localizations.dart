@@ -2518,6 +2518,24 @@ abstract class AppLocalizations {
   /// **'Rotate screen'**
   String get printerRotateTooltip;
 
+  /// Tooltip on the printer page's app-bar button that switches the page to the printer's other web interface (Mainsail / Fluidd). {name} is the interface it switches TO.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to {name}'**
+  String printerSwitchUiTooltip(String name);
+
+  /// Title of the picker sheet listing the printer's web interfaces when it serves three or more.
+  ///
+  /// In en, this message translates to:
+  /// **'Open with'**
+  String get printerOpenWith;
+
+  /// Subtitle of one interface in the picker: the port it is served on.
+  ///
+  /// In en, this message translates to:
+  /// **'port {port}'**
+  String printerUiPort(int port);
+
   /// Shown on the full-screen camera view while the first status poll is in flight.
   ///
   /// In en, this message translates to:

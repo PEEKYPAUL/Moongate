@@ -293,6 +293,21 @@ class PrinterConfig {
   /// envelope without a schema bump.
   final String? chamberSensor;
 
+  /// The web interface the printer page opens when the Pi serves more than
+  /// one (v0.9.84: Mainsail on 80 and Fluidd on 81 is the KIAUH two-UI
+  /// layout) - 'mainsail' | 'fluidd' | 'octoprint', picked from the printer
+  /// page's switch button. Null = the Pi's default (the advertised port),
+  /// exactly the pre-v0.9.84 behaviour. Per device, like [selectedWebcam];
+  /// additive and optional, rides the v3 backup envelope without a schema
+  /// bump. Only ever set to a type the printer listed in [frontends].
+  final String? preferredUi;
+
+  /// The interfaces the plugin (0.6.32+) last reported in /status, kept so a
+  /// cold start - the pre-warm of the printer page runs before any poll -
+  /// already knows whether this printer has a second UI and on which port.
+  /// Empty on older plugins and one-UI boxes (no switch is shown).
+  final List<PrinterFrontend> frontends;
+
   /// Macro names the user has starred in the macro sheet to pin them to the
   /// top of the list (per-printer - some machines have dozens of macros and
   /// only a handful are run often). Stored as the raw Klipper macro names.
@@ -352,6 +367,8 @@ class PrinterConfig {
     this.customCameraUrl,
     this.selectedWebcam,
     this.chamberSensor,
+    this.preferredUi,
+    this.frontends = const [],
     this.favouriteMacros = const [],
     this.macroControls   = const [],
     this.controlPanelModules = defaultControlPanelModules,
@@ -379,6 +396,8 @@ class PrinterConfig {
     Object? customCameraUrl = _sentinel,
     Object? selectedWebcam  = _sentinel,
     Object? chamberSensor   = _sentinel,
+    Object? preferredUi     = _sentinel,
+    List<PrinterFrontend>? frontends,
     List<String>? favouriteMacros,
     List<MacroControl>? macroControls,
     List<ControlPanelModule>? controlPanelModules,
@@ -412,6 +431,10 @@ class PrinterConfig {
         chamberSensor: identical(chamberSensor, _sentinel)
             ? this.chamberSensor
             : chamberSensor as String?,
+        preferredUi: identical(preferredUi, _sentinel)
+            ? this.preferredUi
+            : preferredUi as String?,
+        frontends: frontends ?? this.frontends,
         favouriteMacros: favouriteMacros ?? this.favouriteMacros,
         macroControls:   macroControls   ?? this.macroControls,
         controlPanelModules:
@@ -512,6 +535,9 @@ class PrinterConfig {
         if (customCameraUrl != null) 'customCameraUrl': customCameraUrl,
         if (selectedWebcam != null) 'selectedWebcam': selectedWebcam,
         if (chamberSensor != null) 'chamberSensor': chamberSensor,
+        if (preferredUi != null) 'preferredUi': preferredUi,
+        if (frontends.isNotEmpty)
+          'frontends': [for (final f in frontends) f.toJson()],
         if (favouriteMacros.isNotEmpty) 'favouriteMacros': favouriteMacros,
         if (macroControls.isNotEmpty)
           'macroControls': macroControls.map((control) => control.toJson()).toList(),
@@ -547,6 +573,8 @@ class PrinterConfig {
       customCameraUrl: j['customCameraUrl'] as String?,
       selectedWebcam:  j['selectedWebcam']  as String?,
       chamberSensor:   j['chamberSensor']   as String?,
+      preferredUi:     j['preferredUi']     as String?,
+      frontends:       PrinterFrontend.listFromJson(j['frontends']),
       favouriteMacros: (j['favouriteMacros'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
@@ -837,6 +865,48 @@ class PrinterWebcam {
   String get key => (uid != null && uid!.isNotEmpty) ? uid! : name;
 }
 
+/// One web interface the Pi serves, as the plugin (0.6.32+) reports it in
+/// /status `frontends`: `{"type": "fluidd", "port": 81}`. [type] is what
+/// [PrinterConfig.preferredUi] persists and what the tunnel's `mg_ui` cookie
+/// carries; [port] is what the LAN load opens. Sorted by port, one entry per
+/// type, the plugin's shape.
+class PrinterFrontend {
+  final String type; // 'mainsail' | 'fluidd' | 'octoprint' | ...
+  final int    port;
+
+  const PrinterFrontend({required this.type, required this.port});
+
+  Map<String, dynamic> toJson() => {'type': type, 'port': port};
+
+  /// A list from JSON (the plugin's /status or the persisted config); junk
+  /// entries are dropped, anything that is not a list is an empty one.
+  static List<PrinterFrontend> listFromJson(dynamic raw) {
+    if (raw is! List) return const [];
+    final out = <PrinterFrontend>[];
+    for (final e in raw) {
+      if (e is! Map) continue;
+      final rawType = e['type'];
+      final rawPort = e['port'];
+      final type = rawType is String ? rawType.trim().toLowerCase() : null;
+      final port = rawPort is num
+          ? rawPort.toInt()
+          : (rawPort is String ? int.tryParse(rawPort) : null);
+      if (type == null || type.isEmpty) continue;
+      if (port == null || port < 1 || port > 65535) continue;
+      if (out.any((f) => f.type == type)) continue;
+      out.add(PrinterFrontend(type: type, port: port));
+    }
+    return out;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is PrinterFrontend && other.type == type && other.port == port;
+
+  @override
+  int get hashCode => Object.hash(type, port);
+}
+
 class PrinterStatus {
   /// Klipper print_stats state plus our synthetic states:
   ///   'printing' | 'paused' | 'standby' | 'complete' | 'cancelled' | 'error'
@@ -920,6 +990,11 @@ class PrinterStatus {
   /// always the SELECTED camera's, resolved by the service - the tile shows
   /// its switcher when this has more than one entry.
   final List<PrinterWebcam> webcams;
+
+  /// Every web interface the Pi serves (plugin 0.6.32+ sends the list;
+  /// older plugins yield none). The printer page shows its Mainsail / Fluidd
+  /// switch when this has more than one entry.
+  final List<PrinterFrontend> frontends;
 
   /// Live light state from the configured [PrinterConfig.lightStatusObject]
   /// (v0.9.8): true = on, false = off, null = no status object configured or
@@ -1014,6 +1089,7 @@ class PrinterStatus {
     this.webcamIsExternal = false,
     this.webcamIsGuess = false,
     this.webcams = const [],
+    this.frontends = const [],
     this.lightOn,
     this.klippyShutdown = false,
     this.pluginVersion,
@@ -1060,6 +1136,7 @@ class PrinterStatus {
     bool? webcamIsExternal,
     bool? webcamIsGuess,
     List<PrinterWebcam>? webcams,
+    List<PrinterFrontend>? frontends,
     bool? lightOn,
     bool? klippyShutdown,
     String? pluginVersion,
@@ -1099,6 +1176,7 @@ class PrinterStatus {
       webcamIsExternal: webcamIsExternal ?? this.webcamIsExternal,
       webcamIsGuess:    webcamIsGuess ?? this.webcamIsGuess,
       webcams:          webcams ?? this.webcams,
+      frontends:        frontends ?? this.frontends,
       lightOn:          lightOn ?? this.lightOn,
       klippyShutdown:   klippyShutdown ?? this.klippyShutdown,
       pluginVersion:    pluginVersion ?? this.pluginVersion,

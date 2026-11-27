@@ -45,7 +45,14 @@
 /// feeds the tile's and the single-printer card's "Up next" line
 /// (PrinterStatus.queue). The queue sheet itself talks to Moonraker's
 /// job_queue endpoints directly, so it works on any plugin.
-const String kCurrentPluginVersion = '0.6.31';
+///
+/// 0.6.32 (v0.9.84) lists the web interfaces the Pi serves in /status
+/// (`frontends`: Mainsail on 80, Fluidd on 81 and the like) and routes a
+/// tunnel session to the one the app's `mg_ui` cookie names, which is what
+/// the printer page's Mainsail / Fluidd switch runs on
+/// (services/frontend_choice.dart). An older plugin lists nothing, so the
+/// page shows no switch.
+const String kCurrentPluginVersion = '0.6.32';
 
 /// True when [reported] is an older plugin version than
 /// [kCurrentPluginVersion]. A null/empty [reported] is a pre-v0.6.4 plugin
