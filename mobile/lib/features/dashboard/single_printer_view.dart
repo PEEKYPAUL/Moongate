@@ -8,10 +8,12 @@ import '../../config/plugin_version.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/printer_config.dart';
 import '../../providers/settings_provider.dart';
+import '../../services/frontend_choice.dart';
 import '../../services/print_control_service.dart';
 import '../../services/print_progress.dart';
 import '../../services/printer_status_registry.dart';
 import '../../services/printer_status_service.dart';
+import '../../services/printer_webview_cache.dart';
 import '../../widgets/adaptive_tool_button.dart';
 import '../../widgets/webcam_view.dart';
 import '../printer/printer_camera_screen.dart';
@@ -127,7 +129,7 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
           webcamRotation:  p.webcamRotation,
           webcamTargetFps: p.webcamTargetFps,
         );
-    _uiType         = p.uiType;
+    _uiType         = effectiveUiType(p, null);
     _statusService  = PrinterStatusService(p)..wantPosition = true;
     _controlService = PrintControlService(p);
     _statusService.stream.listen((s) {
@@ -146,7 +148,8 @@ class _SinglePrinterViewState extends ConsumerState<SinglePrinterView>
       setState(() {
         _status = s;
         _fresh  = true;
-        final detected = _statusService.uiType;
+        final detected = effectiveUiType(
+            PrinterWebViewCache.livePrinterConfig(p), _statusService.uiType);
         if (detected != null && detected != _uiType) _uiType = detected;
       });
     });

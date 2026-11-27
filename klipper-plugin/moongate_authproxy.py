@@ -57,12 +57,15 @@ if str(PLUGIN_DIR) not in sys.path:
 from moongate_standalone import (  # noqa: E402  (import after path manipulation)
     DEFAULT_SUPABASE_ANON_KEY,
     DEFAULT_SUPABASE_URL,
+    FRONTENDS_FILE,
     JWKS_CACHE,
     OWNER_FILE,
     AccessTokenVerifier,
     JwksCache,
     OwnerState,
     _import_cloud_deps,
+    frontend_upstream,
+    load_frontends_file,
 )
 
 # ─── Config ─────────────────────────────────────────────────────────────────
@@ -146,6 +149,38 @@ class OwnerWatcher:
         return self._poll()
 
 
+# ─── FrontendsWatcher ───────────────────────────────────────────────────────
+# v0.6.32: re-reads frontends.json ({type: port} of the web interfaces the
+# component found on this Pi) by mtime, so a tunnel session's `mg_ui` cookie
+# can be routed to Fluidd on :81 without a proxy restart. Missing file = an
+# older plugin = {} = every request to the default upstream, as before.
+
+class FrontendsWatcher:
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self._frontends: dict = {}
+        self._mtime: float = 0.0
+        self._poll()
+
+    def _poll(self) -> dict:
+        try:
+            mtime = self.path.stat().st_mtime
+        except FileNotFoundError:
+            if self._frontends:
+                self._frontends = {}
+                self._mtime = 0.0
+            return self._frontends
+        if mtime != self._mtime:
+            self._frontends = load_frontends_file(self.path)
+            self._mtime = mtime
+            logger.info("web interfaces: %s", self._frontends or "none listed")
+        return self._frontends
+
+    @property
+    def current(self) -> dict:
+        return self._poll()
+
+
 # ─── Authentication ─────────────────────────────────────────────────────────
 
 def _extract_token(request: web.Request) -> Optional[str]:
@@ -217,11 +252,16 @@ async def _authorize(request: web.Request) -> Optional[web.Response]:
 
 # ─── Routing + header sanitisation ──────────────────────────────────────────
 
-def _backend_for(path: str) -> str:
+def _backend_for(path: str, ui: Optional[str] = None,
+                 frontends: Optional[dict] = None) -> str:
+    """Moonraker for its API paths; otherwise the web UI - the one the
+    app's `mg_ui` cookie names when the component's probe listed it
+    (v0.6.32), else the MG_MAINSAIL default. Both UIs talk to the same
+    Moonraker, so only the page itself changes."""
     for prefix in MOONRAKER_PATH_PREFIXES:
         if path == prefix or path.startswith(prefix + "/"):
             return MOONRAKER_URL
-    return MAINSAIL_URL
+    return frontend_upstream(ui, frontends or {}, MAINSAIL_URL)
 
 
 def _forward_request_headers(request: web.Request) -> dict[str, str]:
@@ -250,7 +290,7 @@ def _forward_request_headers(request: web.Request) -> dict[str, str]:
         if lower == "cookie":
             kept = "; ".join(
                 kv for kv in value.split(";")
-                if not kv.strip().startswith("mg_token=")
+                if not kv.strip().startswith(("mg_token=", "mg_ui="))
             )
             if kept:
                 out["Cookie"] = kept
@@ -659,7 +699,13 @@ async def handle(request: web.Request) -> web.StreamResponse:
     if request.path == EXTCAM_PATH:
         return await _proxy_extcam(request)
 
-    backend = _backend_for(request.path)
+    # v0.6.32: the app marks the interface it wants with an mg_ui cookie
+    # (never a port - only a type the component's own probe listed routes).
+    backend = _backend_for(
+        request.path,
+        request.cookies.get("mg_ui"),
+        request.app["frontends"].current,
+    )
 
     if request.headers.get("Upgrade", "").lower() == "websocket":
         return await _proxy_websocket(request, backend)
@@ -687,6 +733,7 @@ async def _on_startup(app: web.Application) -> None:
     await asyncio.to_thread(jwks.fetch_now)
     app["verifier"] = AccessTokenVerifier(jwks)
     app["owner"] = OwnerWatcher(OWNER_FILE)
+    app["frontends"] = FrontendsWatcher(FRONTENDS_FILE)
     logger.info(
         "moongate-authproxy ready on %s:%d → Moonraker=%s, Mainsail=%s",
         LISTEN_HOST, LISTEN_PORT, MOONRAKER_URL, MAINSAIL_URL,

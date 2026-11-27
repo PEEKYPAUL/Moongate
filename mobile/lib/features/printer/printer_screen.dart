@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,6 +15,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/notif_fields.dart';
 import '../../models/printer_config.dart';
 import '../../providers/settings_provider.dart';
+import '../../services/frontend_choice.dart';
 import '../../services/lan_discovery_service.dart';
 import '../../services/printer_access_cache.dart';
 import '../../services/printer_registry.dart';
@@ -95,6 +97,133 @@ class _PrinterScreenState extends State<PrinterScreen>
   // touching a deactivated context.
   bool _forcedLandscape = false;
   late final ProviderContainer _providers;
+
+  // v0.9.84: the web interface this page is showing ('mainsail', 'fluidd',
+  // ...) when the Pi serves more than one, null otherwise (nothing to
+  // choose; the subtitle and the switch button stay away). Set by every
+  // load from the registry-live pick + interface list.
+  String? _loadedUi;
+
+  /// The registry's current copy of this printer: the edit dialog, the UI
+  /// switch and the status poll all write there while this screen is open.
+  PrinterConfig get _livePrinter =>
+      PrinterWebViewCache.livePrinterConfig(widget.printer);
+
+  /// The interface list to decide from: the live poll's when it has one
+  /// (the plugin answers [] for a moment after a restart), else what the
+  /// registry persisted from an earlier poll.
+  List<PrinterFrontend> get _frontends {
+    final polled = PrinterStatusRegistry.instance
+        .snapshot(widget.printer.id)?.frontends;
+    if (polled != null && polled.isNotEmpty) return polled;
+    return _livePrinter.frontends;
+  }
+
+  /// The pick to load, resolved against [_frontends]; null when the printer
+  /// serves one interface (load exactly as before).
+  PrinterFrontend? _chosenFrontend(String baseLanUrl) {
+    final live = _livePrinter.copyWith(frontends: _frontends);
+    return chosenFrontend(live, defaultPort: portOfUrl(baseLanUrl));
+  }
+
+  /// Switch this printer to [type]: persist the pick, drop the warm page
+  /// (it holds the other interface) and reload on the new one.
+  Future<void> _switchUi(String type) async {
+    await PrinterRegistry.instance.updatePreferredUi(widget.printer.id, type);
+    if (!mounted) return;
+    PrinterWebViewCache.instance.invalidate(widget.printer.id);
+    _start();
+  }
+
+  /// Three or more interfaces: a picker sheet (two get the one-tap toggle).
+  /// Bottom sheet rule: keyboard inset + SafeArea(top: false) so the list
+  /// clears the system bar on every phone.
+  Future<void> _showUiPicker(List<PrinterFrontend> frontends) async {
+    final l = AppLocalizations.of(context);
+    final current = _loadedUi;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
+                child: Text(l.printerOpenWith,
+                    style: Theme.of(ctx).textTheme.titleLarge),
+              ),
+              for (final f in frontends)
+                ListTile(
+                  leading:  _frontendIcon(f.type,
+                      Theme.of(ctx).colorScheme.onSurface, 26),
+                  title:    Text(frontendDisplayName(f.type)),
+                  subtitle: Text(l.printerUiPort(f.port)),
+                  selected: f.type == current,
+                  trailing: f.type == current
+                      ? const Icon(AppIcons.check)
+                      : null,
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    if (f.type != current) _switchUi(f.type);
+                  },
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// The logo mark of an interface, tinted like every other app-bar glyph;
+  /// a glyph from the icon set for a type we have no mark for.
+  Widget _frontendIcon(String type, Color color, double size) {
+    final asset = frontendMarkAsset(type);
+    if (asset == null) return Icon(AppIcons.open_in_new, size: size, color: color);
+    return SvgPicture.asset(
+      asset,
+      width:       size,
+      height:      size,
+      colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+    );
+  }
+
+  /// The app-bar switch button, or nothing when the Pi serves one UI. With
+  /// two interfaces it shows the OTHER one's logo and a tap toggles (so on
+  /// Mainsail you see Fluidd's mark, on Fluidd the sail); with three or
+  /// more it shows the current one and opens the picker.
+  Widget? _uiSwitchButton(AppLocalizations l) {
+    final frontends = _frontends;
+    if (!frontendSwitchAvailable(frontends)) return null;
+    final current = currentFrontend(frontends, _loadedUi,
+        defaultPort: portOfUrl(_livePrinter.lanUrl ?? 'http://pi'));
+    final other = otherFrontend(frontends, current);
+    final target = other ?? current;
+    if (target == null) return null;
+    return Builder(
+      builder: (ctx) => IconButton(
+        icon: _frontendIcon(
+            target.type, IconTheme.of(ctx).color ?? Colors.white, 22),
+        tooltip: other != null
+            ? l.printerSwitchUiTooltip(frontendDisplayName(other.type))
+            : l.printerOpenWith,
+        visualDensity: VisualDensity.compact,
+        onPressed: () {
+          if (other != null) {
+            _switchUi(other.type);
+          } else {
+            _showUiPicker(frontends);
+          }
+        },
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -187,11 +316,24 @@ class _PrinterScreenState extends State<PrinterScreen>
       warm = null;
     }
     if (warm != null) {
+      // v0.9.84: a warm page holding the other interface (the user switched
+      // on the dashboard's pre-warmed copy, or the pick changed) is dropped
+      // and cold-loaded on the right one.
+      final wantUi = _chosenFrontend(
+          LanDiscoveryService.instance.lookup(widget.printer.id)
+              ?? _livePrinter.lanUrl ?? 'http://pi')?.type;
+      if (warm.ui != wantUi) {
+        PrinterWebViewCache.instance.invalidate(widget.printer.id);
+        warm = null;
+      }
+    }
+    if (warm != null) {
       _webController = warm.controller;
       _webController!.setNavigationDelegate(_navDelegate());
       _usingLan  = warm.usingLan;
       _tunnelUrl = warm.tunnelUrl;
       _baseUrl   = warm.baseUrl;
+      _loadedUi  = warm.ui;
       setState(() { _loading = false; _errorMsg = null; });
       _revalidateWarm(warm);
       _returnIfStrayed(warm);
@@ -227,15 +369,20 @@ class _PrinterScreenState extends State<PrinterScreen>
         _errorMsg  = null;
       });
       _initControllerIfNeeded();
-      _baseUrl = lanUrl;
-      await _webController!.loadRequest(Uri.parse('$lanUrl/'));
+      // v0.9.84: a second interface lives on another port of the same Pi.
+      final chosen  = _chosenFrontend(lanUrl);
+      final loadUrl = chosen == null ? lanUrl : lanUrlForPort(lanUrl, chosen.port);
+      _loadedUi = chosen?.type;
+      _baseUrl  = loadUrl;
+      await _webController!.loadRequest(Uri.parse('$loadUrl/'));
       PrinterWebViewCache.instance.store(
         widget.printer.id,
         LiveWebSession(
           controller: _webController!,
-          baseUrl:    lanUrl,
+          baseUrl:    loadUrl,
           usingLan:   true,
           tunnelUrl:  null,
+          ui:         chosen?.type,
         ),
       );
       _maybeShowCameraHint();
@@ -252,6 +399,9 @@ class _PrinterScreenState extends State<PrinterScreen>
       // accepts every WebView request (HTML, JS, XHR, WS upgrade). The cache
       // keeps it refreshed once the session is stored. No-op on v0.3 Pis.
       await PrinterWebViewCache.setMgTokenCookie(access);
+      // v0.9.84: which interface the proxy should serve this session.
+      await PrinterWebViewCache.setMgUiCookie(
+          access, _livePrinter.copyWith(frontends: _frontends));
 
       // Prefer the LAN URL when reachable - Mainsail loads dramatically faster
       // on direct LAN than through Cloudflare. Try the mDNS-discovered address
@@ -262,14 +412,18 @@ class _PrinterScreenState extends State<PrinterScreen>
       // fall-through to the tunnel.
       final lanUrl = LanDiscoveryService.instance.lookup(widget.printer.id)
           ?? widget.printer.lanUrl;
+      // v0.9.84: the pick decides the port at home and the cookie away; the
+      // liveness probe stays on the plain LAN address (Moonraker's port).
+      final chosen = _chosenFrontend(lanUrl ?? 'http://pi');
       String? useUrl;
       if (lanUrl != null && await _isLanReachable(lanUrl)) {
-        useUrl    = lanUrl;
+        useUrl    = chosen == null ? lanUrl : lanUrlForPort(lanUrl, chosen.port);
         _usingLan = true;
       } else if (!_localOnly && access.tunnelUrl != null) {
         useUrl    = access.tunnelUrl;
         _usingLan = false;
       }
+      _loadedUi = chosen?.type;
 
       // No usable URL. In Local-only mode that means the printer isn't on this
       // network - say so plainly (no auto-retry loop; Retry or turning the
@@ -308,6 +462,7 @@ class _PrinterScreenState extends State<PrinterScreen>
           baseUrl:    useUrl,
           usingLan:   _usingLan,
           tunnelUrl:  access.tunnelUrl,
+          ui:         chosen?.type,
         ),
       );
       _maybeShowCameraHint();
@@ -514,6 +669,7 @@ class _PrinterScreenState extends State<PrinterScreen>
         baseUrl:    _tunnelUrl!,
         usingLan:   false,
         tunnelUrl:  _tunnelUrl,
+        ui:         _loadedUi,
       ),
     );
   }
@@ -631,8 +787,15 @@ class _PrinterScreenState extends State<PrinterScreen>
                     _displayName,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  // v0.9.84: names the interface too when there is more
+                  // than one to choose from ("Local network · Fluidd").
                   Text(
-                    _usingLan ? l.printerLocalNetwork : l.printerTunnelVia,
+                    _loadedUi == null
+                        ? (_usingLan ? l.printerLocalNetwork : l.printerTunnelVia)
+                        : '${_usingLan ? l.printerLocalNetwork : l.printerTunnelVia}'
+                            ' · ${frontendDisplayName(_loadedUi!)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: _usingLan ? Colors.green : Colors.orange,
                         ),
@@ -647,6 +810,10 @@ class _PrinterScreenState extends State<PrinterScreen>
           onPressed: () => context.pop(),
         ),
         actions: [
+          // v0.9.84: Mainsail / Fluidd switch, only when the Pi serves both.
+          // All four actions are compact so the fourth leaves the printer
+          // name its width.
+          if (_uiSwitchButton(l) case final switchButton?) switchButton,
           // Native Moongate camera view. Unlike the Mainsail webcam panel in
           // this WebView (which hits the camera's absolute LAN URL and so fails
           // for an external phone-cam when remote), this renders through the
@@ -654,6 +821,7 @@ class _PrinterScreenState extends State<PrinterScreen>
           IconButton(
             icon: const Icon(AppIcons.videocam_outlined),
             tooltip: l.printerCameraTooltip,
+            visualDensity: VisualDensity.compact,
             onPressed: _openCamera,
           ),
           // Hold the page in landscape (graphs, images, the camera panel all
@@ -662,10 +830,12 @@ class _PrinterScreenState extends State<PrinterScreen>
             icon: const Icon(AppIcons.screen_rotation_outlined),
             tooltip: l.printerRotateTooltip,
             color: _forcedLandscape ? cs.primary : null,
+            visualDensity: VisualDensity.compact,
             onPressed: _toggleLandscape,
           ),
           IconButton(
             icon: const Icon(AppIcons.refresh),
+            visualDensity: VisualDensity.compact,
             onPressed: () {
               // Drop the warm session + access token so we reload from scratch
               // (also re-fetches a fresh tunnel URL - handles cloudflared

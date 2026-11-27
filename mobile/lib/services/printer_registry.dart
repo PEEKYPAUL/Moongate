@@ -483,6 +483,29 @@ class PrinterRegistry {
     await _save();
   }
 
+  /// v0.9.84: persist the web interface the user picked on the printer page
+  /// ('mainsail' | 'fluidd' | ...; null = the Pi's default). The page and
+  /// the pre-warm read it live from here on every load.
+  Future<void> updatePreferredUi(String printerId, String? ui) async {
+    final idx = _printers.indexWhere((p) => p.id == printerId);
+    if (idx == -1) return;
+    if (_printers[idx].preferredUi == ui) return;
+    _printers = List.of(_printers)
+      ..[idx] = _printers[idx].copyWith(preferredUi: ui);
+    await _save();
+  }
+
+  /// v0.9.84: remember the interfaces the plugin reported, so a cold start
+  /// knows about a second UI before the first poll.
+  Future<void> updateFrontends(
+      String printerId, List<PrinterFrontend> frontends) async {
+    final idx = _printers.indexWhere((p) => p.id == printerId);
+    if (idx == -1) return;
+    _printers = List.of(_printers)
+      ..[idx] = _printers[idx].copyWith(frontends: List.of(frontends));
+    await _save();
+  }
+
   /// Persist the detected web UI type ('mainsail' | 'fluidd') so the tile
   /// can render the right logo on a cold launch - including when the
   /// printer is currently offline (power-off, Pi rebooting, etc.).

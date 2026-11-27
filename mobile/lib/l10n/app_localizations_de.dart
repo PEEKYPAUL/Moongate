@@ -1379,6 +1379,19 @@ class AppLocalizationsDe extends AppLocalizations {
   String get printerRotateTooltip => 'Bildschirm drehen';
 
   @override
+  String printerSwitchUiTooltip(String name) {
+    return 'Zu $name wechseln';
+  }
+
+  @override
+  String get printerOpenWith => 'Öffnen mit';
+
+  @override
+  String printerUiPort(int port) {
+    return 'Port $port';
+  }
+
+  @override
   String get cameraConnecting => 'Verbinde mit Kamera…';
 
   @override

@@ -123,7 +123,7 @@ logger = logging.getLogger("moonraker.moongate")
 # Bumped on each release; surfaced in the /status response so the app's bug
 # reports show which plugin a Pi is actually running - the #1 triage blind spot
 # (an old plugin explains most "works on LAN / fails over tunnel" reports).
-MOONGATE_PLUGIN_VERSION = "0.6.31"
+MOONGATE_PLUGIN_VERSION = "0.6.32"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -133,6 +133,10 @@ MOONGATE_PLUGIN_VERSION = "0.6.31"
 CONFIG_DIR   = Path.home() / ".config" / "moongate"
 DEVICE_KEY   = CONFIG_DIR / "device_ed25519"
 OWNER_FILE   = CONFIG_DIR / "owner.json"
+# v0.6.32: the web interfaces this Pi serves ({"frontends": [{type, port}]}),
+# written by the component after each probe and read by the auth proxy (a
+# separate process) to route a tunnel session to the interface the app chose.
+FRONTENDS_FILE = CONFIG_DIR / "frontends.json"
 CONFIG_FILE  = CONFIG_DIR / "config.json"
 JWKS_CACHE   = CONFIG_DIR / "jwks.json"
 
@@ -1707,6 +1711,142 @@ def _rgb_hex(value: Any) -> Optional[str]:
     return "#%02X%02X%02X" % tuple(parts)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# v0.6.32: which web interfaces this Pi serves (Mainsail on 80 and Fluidd on
+# 81 is the KIAUH two-UI layout). The app's printer page only ever loaded the
+# one port the Pi advertises; /status now carries `frontends: [{type, port}]`
+# so a 0.9.84+ app can offer a switch and remember the pick per printer. At
+# home the app opens the chosen port directly; over the tunnel it sends an
+# `mg_ui=<type>` cookie and the auth proxy routes to that port - but ONLY a
+# port this probe found, never one the cookie names (see frontend_upstream).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Ports worth asking even when nginx's config says nothing: KIAUH's defaults
+# for a first and second UI (80 / 81, 4408 / 4409 on hosts where 80 is taken),
+# the odd 8080 / 8081 install, OctoPrint's 5000.
+FRONTEND_CANDIDATE_PORTS = (80, 81, 4408, 4409, 8080, 8081, 5000)
+FRONTEND_REFRESH_SECONDS = 600
+NGINX_SITES_DIRS = ("/etc/nginx/sites-enabled", "/etc/nginx/conf.d")
+
+# Checked in this order; a page's <title> decides first (Fluidd's page never
+# says "mainsail", but a Mainsail page can mention Fluidd further down).
+_FRONTEND_NAMES = ("mainsail", "fluidd", "octoprint")
+
+
+def classify_frontend(html: str) -> Optional[str]:
+    """'mainsail' | 'fluidd' | 'octoprint' from a root page, None for
+    anything else (a camera's index, Moonraker's own 404 JSON, a bare
+    nginx welcome page). The <title> decides when it names one; otherwise
+    the first name the body mentions. Case-insensitive, like the app's own
+    uiType sniff, so LAN and tunnel agree on what a port is."""
+    if not isinstance(html, str) or not html:
+        return None
+    lower = html.lower()
+    m = re.search(r"<title[^>]*>(.*?)</title>", lower, re.S)
+    if m:
+        for name in _FRONTEND_NAMES:
+            if name in m.group(1):
+                return name
+    for name in _FRONTEND_NAMES:
+        if name in lower:
+            return name
+    return None
+
+
+def nginx_listen_ports(dirs: Any = NGINX_SITES_DIRS) -> list:
+    """Every port nginx is told to listen on, read from its enabled site
+    files (`listen 80;`, `listen [::]:81 default_server;`, `listen
+    0.0.0.0:4409;`). Unreadable or absent directories simply add nothing;
+    the candidate list covers a box without nginx (an embedded host, a
+    different web server)."""
+    ports: list = []
+    for d in dirs:
+        try:
+            entries = sorted(p for p in Path(d).iterdir() if p.is_file())
+        except OSError:
+            continue
+        for f in entries:
+            try:
+                text = f.read_text(errors="replace")
+            except OSError:
+                continue
+            for m in re.finditer(r"^\s*listen\s+([^;]+);", text, re.M):
+                for tok in m.group(1).split():
+                    pm = re.match(r"^(?:[\w.*\[\]:-]*:)?(\d{1,5})$", tok)
+                    if not pm:
+                        continue
+                    port = int(pm.group(1))
+                    if 0 < port < 65536 and port not in ports:
+                        ports.append(port)
+    return ports
+
+
+def frontend_probe_ports(http_port: int, moonraker_port: int,
+                         nginx_ports: Any) -> list:
+    """The ports one probe round asks, in order: the advertised http_port
+    first (the default UI), then what nginx listens on, then the usual
+    suspects. Moonraker's own port never serves a UI and is left out."""
+    ports: list = []
+    for p in [http_port, *nginx_ports, *FRONTEND_CANDIDATE_PORTS]:
+        try:
+            p = int(p)
+        except (TypeError, ValueError):
+            continue
+        if p == moonraker_port or p <= 0 or p >= 65536 or p in ports:
+            continue
+        ports.append(p)
+    return ports
+
+
+def pick_frontends(found: Any) -> list:
+    """(port, type) pairs from a probe -> the /status `frontends` list:
+    one entry per interface type (the lowest port wins when the same UI is
+    served twice, which is no choice worth offering), sorted by port, the
+    shape the app persists: [{"type": "mainsail", "port": 80}, ...]."""
+    best: dict = {}
+    for item in found or []:
+        try:
+            port, ui = item
+            port = int(port)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(ui, str) or not ui:
+            continue
+        if ui not in best or port < best[ui]:
+            best[ui] = port
+    return [{"type": ui, "port": port}
+            for ui, port in sorted(best.items(), key=lambda kv: kv[1])]
+
+
+def load_frontends_file(path: Path) -> dict:
+    """The proxy's view of frontends.json: {type: port}. {} when the file
+    is missing or unparseable (an older plugin wrote none), which routes
+    every tunnel request to the default upstream exactly as before."""
+    try:
+        data = json.loads(Path(path).read_text())
+    except (OSError, ValueError, TypeError):
+        return {}
+    out: dict = {}
+    for entry in (data.get("frontends") if isinstance(data, dict) else None) or []:
+        if not isinstance(entry, dict):
+            continue
+        ui, port = entry.get("type"), entry.get("port")
+        if isinstance(ui, str) and ui and isinstance(port, int) and 0 < port < 65536:
+            out[ui] = port
+    return out
+
+
+def frontend_upstream(ui: Optional[str], frontends: dict, default: str) -> str:
+    """Where the auth proxy sends a web-UI request: the port the probe found
+    for the interface the app's `mg_ui` cookie names, else `default` (the
+    MG_MAINSAIL upstream). The cookie can only pick a type the probe itself
+    listed - it never carries a port - so a forged cookie cannot point the
+    proxy at anything the Pi does not already serve as a web UI."""
+    if isinstance(ui, str) and ui in (frontends or {}):
+        return f"http://127.0.0.1:{frontends[ui]}"
+    return default
+
+
 # v0.6.31: how many queued jobs ride /status. The app's tile shows the first
 # one and a count; the queue sheet asks Moonraker for the whole list itself.
 JOB_QUEUE_FOLD_LIMIT = 10
@@ -2245,6 +2385,13 @@ class MoongatePlugin:
         self._config_file     = self._data_dir / "config.json"
         self._jwks_cache_file = self._data_dir / "jwks.json"
         self._avahi_tmp_file  = self._data_dir / "moongate-avahi.service.tmp"
+        # v0.6.32: the web interfaces this Pi serves, probed in the background
+        # (first /status after a start, then every FRONTEND_REFRESH_SECONDS)
+        # and mirrored to frontends.json for the auth proxy's routing.
+        self._frontends_file  = self._data_dir / "frontends.json"
+        self._frontends: list = []
+        self._frontends_at: float = 0.0
+        self._frontends_task: Any = None
         try:
             self._data_dir.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
@@ -3658,6 +3805,11 @@ class MoongatePlugin:
         # app's tile and status card show "Up next" from this one call. None
         # when Moonraker does not answer in time; the app then shows nothing.
         result["job_queue"] = await self._job_queue_snapshot(client)
+        # v0.6.32: every web interface this Pi serves ([{type, port}]), so
+        # the app can offer Mainsail / Fluidd on the printer page. [] until
+        # the first background probe lands and on a one-UI box, where the
+        # app shows no switch.
+        result["frontends"] = self._frontends_snapshot(client)
         # v0.6.26: the last MOONGATE_NOTIFY message {seq, ts, text} for the
         # Android app's poll-driven alerts (iPhones get the push instead).
         # None until a macro fires; the count restarts with the plugin
@@ -3920,6 +4072,62 @@ class MoongatePlugin:
             return build_job_queue(answer, automatic)
         except Exception:
             return None
+
+    def _frontends_snapshot(self, client: Any) -> list:
+        """v0.6.32: the cached `frontends` list for /status. A stale cache
+        (older than FRONTEND_REFRESH_SECONDS, or never filled) starts ONE
+        background probe; the poll that triggered it still answers at once
+        with what is known, so a status call never waits on the probe."""
+        stale = (time.monotonic() - self._frontends_at) > FRONTEND_REFRESH_SECONDS
+        if stale and (self._frontends_task is None or self._frontends_task.done()):
+            self._frontends_task = asyncio.ensure_future(
+                self._refresh_frontends(client))
+        return list(self._frontends)
+
+    async def _refresh_frontends(self, client: Any) -> None:
+        """Probe every candidate port on localhost in parallel (2 s each, a
+        closed port refuses at once) and classify the page each serves. The
+        result replaces the cache and, when it changed, frontends.json, which
+        the auth proxy re-reads by mtime like owner.json."""
+        from tornado.httpclient import HTTPRequest
+
+        ports = frontend_probe_ports(
+            self.http_port, self._moonraker_port, nginx_listen_ports())
+
+        async def probe(port: int) -> tuple:
+            try:
+                req = HTTPRequest(
+                    f"http://127.0.0.1:{port}/", method="GET",
+                    connect_timeout=1.0, request_timeout=2.0,
+                )
+                resp = await client.fetch(req, raise_error=False)
+                if resp.code != 200 or not resp.body:
+                    return (port, None)
+                head = resp.body[:65536].decode("utf-8", "replace")
+                return (port, classify_frontend(head))
+            except Exception:
+                return (port, None)
+
+        try:
+            found = await asyncio.gather(*(probe(p) for p in ports))
+        except Exception as exc:
+            logger.debug("frontend probe failed: %s", exc)
+            found = []
+        frontends = pick_frontends(found)
+        self._frontends_at = time.monotonic()
+        if frontends == self._frontends and self._frontends_file.exists():
+            return
+        self._frontends = frontends
+        logger.info("Moongate: web interfaces: %s",
+                    ", ".join(f"{f['type']}:{f['port']}" for f in frontends) or "none found")
+        try:
+            tmp = self._frontends_file.with_suffix(".json.tmp")
+            tmp.write_text(json.dumps(
+                {"frontends": frontends, "updated": int(time.time())}))
+            tmp.replace(self._frontends_file)
+        except OSError as exc:
+            logger.warning("Moongate: could not write %s: %s",
+                           self._frontends_file, exc)
 
     @property
     def _chamber_key(self) -> Optional[str]:

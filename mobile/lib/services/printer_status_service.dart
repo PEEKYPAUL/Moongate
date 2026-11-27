@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/notif_fields.dart';
 import '../models/printer_config.dart';
 import '../models/temp_watch.dart';
+import 'frontend_choice.dart';
 import 'lan_discovery_service.dart';
 import 'print_progress.dart';
 import 'printer_access_cache.dart';
@@ -1199,6 +1200,15 @@ class PrinterStatusService {
     ).toString();
   }
 
+  static bool _sameFrontends(
+      List<PrinterFrontend> a, List<PrinterFrontend> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
   /// Parse the plugin's `webcams` list (0.6.22+) into [PrinterWebcam]s,
   /// falling back to ONE entry synthesised from the legacy flat webcam_*
   /// fields when the list is absent or empty (older plugin) - downstream
@@ -1351,6 +1361,8 @@ class PrinterStatusService {
     // the SELECTED camera, so a switch simply re-runs this path next poll.
     final webcams  = parseWebcamList(moongateResult);
     final selected = selectWebcam(webcams, _liveSelectedWebcam);
+    // v0.9.84: the web interfaces the Pi serves (plugin 0.6.32+; [] before).
+    final frontends = parseFrontendList(moongateResult);
 
     // Persist the selected camera's transform info - keeps the tile correct
     // on next launch. Also pick up the Pi's local_ip if it surfaced, so
@@ -1367,6 +1379,15 @@ class PrinterStatusService {
         rotation:  rotation,
         targetFps: fps,
       ).ignore();
+
+      // v0.9.84: remember the interfaces the Pi serves (plugin 0.6.32+), so
+      // the printer page's pre-warm on the next cold start already knows
+      // about a second UI. Only a non-empty list is persisted: the first
+      // poll after a Moonraker restart answers [] while the plugin's probe
+      // is still running, and that must not wipe what we know.
+      if (frontends.isNotEmpty && !_sameFrontends(frontends, config.frontends)) {
+        PrinterRegistry.instance.updateFrontends(config.id, frontends).ignore();
+      }
 
       final lip  = moongateResult['local_ip']  as String?;
       final port = (moongateResult['http_port'] as num?)?.toInt() ?? 80;
@@ -1535,6 +1556,7 @@ class PrinterStatusService {
       webcamIsExternal: webcamIsExternal,
       webcamIsGuess:    webcamIsGuess,
       webcams:          webcams,
+      frontends:        frontends,
       lightOn:          lightOn,
       klippyShutdown:   klippyShutdown,
       pluginVersion:    moongateResult?['plugin_version'] as String?,

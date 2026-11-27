@@ -8,6 +8,7 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
 import '../models/printer_config.dart';
+import 'frontend_choice.dart';
 import 'lan_discovery_service.dart';
 import 'printer_access_cache.dart';
 import 'printer_registry.dart';
@@ -48,7 +49,13 @@ class LiveWebSession {
     required this.baseUrl,
     required this.usingLan,
     required this.tunnelUrl,
+    this.ui,
   });
+
+  /// v0.9.84: the web interface this session holds ('mainsail', 'fluidd',
+  /// ...), or null for the Pi's default. The screen drops a warm session
+  /// whose UI is not the printer's current pick instead of re-attaching it.
+  final String? ui;
 
   /// The retained controller. Its native WebView survives as long as this
   /// session is in the cache.
@@ -188,6 +195,9 @@ class PrinterWebViewCache with WidgetsBindingObserver {
       String? useUrl;
       var usingLan = false;
       String? tunnelUrl;
+      // Registry-live config: the UI pick and the interface list it needs
+      // are written there by the printer page and the status poll.
+      final live = livePrinterConfig(printer);
       if (_isDirectMode(printer.id)) {
         // Direct (LAN/VPN): no Supabase mint, no mg_token cookie - mirror the
         // printer screen's Direct branch. LAN only; there is no tunnel to
@@ -196,11 +206,12 @@ class PrinterWebViewCache with WidgetsBindingObserver {
         final lanUrl =
             LanDiscoveryService.instance.lookup(printer.id) ?? printer.lanUrl;
         if (lanUrl == null || !await _isLanReachable(lanUrl)) return;
-        useUrl   = lanUrl;
+        useUrl   = lanUrlForChoice(lanUrl, live);
         usingLan = true;
       } else {
         final access = await PrinterAccessCache.instance.get(printer.id);
         await setMgTokenCookie(access);
+        await setMgUiCookie(access, live);
         tunnelUrl = access.tunnelUrl;
 
         // Prefer LAN when reachable (Mainsail loads far faster direct), else
@@ -209,7 +220,7 @@ class PrinterWebViewCache with WidgetsBindingObserver {
         final lanUrl =
             LanDiscoveryService.instance.lookup(printer.id) ?? printer.lanUrl;
         if (lanUrl != null && await _isLanReachable(lanUrl)) {
-          useUrl = lanUrl;
+          useUrl = lanUrlForChoice(lanUrl, live);
           usingLan = true;
         } else if (tunnelUrl != null) {
           useUrl = tunnelUrl;
@@ -254,6 +265,8 @@ class PrinterWebViewCache with WidgetsBindingObserver {
           baseUrl:    useUrl,
           usingLan:   usingLan,
           tunnelUrl:  tunnelUrl,
+          ui:         chosenFrontend(live,
+              defaultPort: portOfUrl(live.lanUrl ?? 'http://pi'))?.type,
         ),
       );
       _log('prewarmed ${printer.id} (${usingLan ? 'LAN' : 'tunnel'})');
@@ -301,6 +314,42 @@ class PrinterWebViewCache with WidgetsBindingObserver {
     _log('memory pressure - evicting ${drop.length}, keeping $keep');
     for (final id in drop) {
       _sessions.remove(id)?.dispose();
+    }
+  }
+
+  /// The registry's current copy of [printer] (the edit dialog, the UI
+  /// switch and the status poll all write there), falling back to the
+  /// snapshot given when the printer is gone.
+  static PrinterConfig livePrinterConfig(PrinterConfig printer) {
+    for (final p in PrinterRegistry.instance.printers) {
+      if (p.id == printer.id) return p;
+    }
+    return printer;
+  }
+
+  /// v0.9.84: tell the Pi's auth proxy which web interface this tunnel
+  /// session wants (`mg_ui=fluidd`), set next to the token cookie before
+  /// every tunnel load. 'default' (or any type the Pi's probe did not list)
+  /// routes to the proxy's usual upstream, exactly as before. No-op without
+  /// a tunnel URL.
+  static Future<void> setMgUiCookie(
+      PrinterAccess access, PrinterConfig printer) async {
+    if (access.tunnelUrl == null) return;
+    final tunnel = Uri.tryParse(access.tunnelUrl!);
+    if (tunnel == null || tunnel.host.isEmpty) return;
+    // Over the tunnel the proxy fronts the Pi's default port; that is the
+    // port the pick is compared against.
+    final value = mgUiCookieValue(printer,
+        defaultPort: portOfUrl(printer.lanUrl ?? 'http://pi'));
+    try {
+      await WebViewCookieManager().setCookie(WebViewCookie(
+        name:   'mg_ui',
+        value:  value,
+        domain: tunnel.host,
+        path:   '/',
+      ));
+    } catch (_) {
+      // Same tolerance as the token cookie: an older WebView falls through.
     }
   }
 
