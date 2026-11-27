@@ -51,6 +51,8 @@ Every request through `https://<your-tunnel>.trycloudflare.com` reaches the auth
 2. `mg_token=<token>` cookie
 3. `mg_token=<token>` query parameter
 
+Since v0.9.84 (plugin 0.6.32) the app may also send an `mg_ui=<type>` cookie naming the web interface it wants (`mainsail`, `fluidd`). It is not a credential and grants nothing: the proxy only consults it *after* the token check passes, it can only select an interface type the plugin's own localhost probe listed in `~/.config/moongate/frontends.json` (never a port or address of the cookie's choosing), and any other value falls back to the default upstream. Both cookies are stripped before the request is forwarded, so neither reaches Moonraker or nginx.
+
 If none of those is valid, the proxy returns `401 Unauthorized` with:
 - A constant-length 13-byte body (`unauthorized\n`)
 - `Cache-Control: no-store`
